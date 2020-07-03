@@ -380,7 +380,9 @@ class Builder(HasReqsHints):
                 datum = cast(CWLObjectType, datum)
                 self.files.append(datum)
 
-                loadContents_sourceline = None
+                loadContents_sourceline = (
+                    None
+                )  # type: Union[None, MutableMapping[str, Union[str, List[int]]], CWLObjectType]
                 if binding and binding.get("loadContents"):
                     loadContents_sourceline = binding
                 elif schema.get("loadContents"):

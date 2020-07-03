@@ -461,7 +461,7 @@ class CommandLineTool(Process):
                 os.path.join(outdir, cast(str, fn["basename"])), pathmap, ls
             )
 
-    def _initialworkdir(self, j, builder):
+    def _initialworkdir(self, j: JobBase, builder: Builder) -> None:
         initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
         if initialWorkdir is None:
             return
@@ -486,20 +486,51 @@ class CommandLineTool(Process):
                     if entry is None:
                         continue
 
+                    if isinstance(entry, MutableSequence):
+                        # Nested list.  If it is a list of File or
+                        # Directory objects, add it to the
+                        # file list, otherwise JSON serialize it.
+                        filelist = True
+                        for e in entry:
+                            if not isinstance(e, MutableMapping) or e.get(
+                                "class"
+                            ) not in ("File", "Directory"):
+                                filelist = False
+                                break
+
+                        if filelist:
+                            if "entryname" in t:
+                                raise SourceLine(
+                                    t, "entryname", WorkflowException
+                                ).makeError(
+                                    "'entryname' is invalid when 'entry' returns list of File or Directory"
+                                )
+                            for e in entry:
+                                ec = cast(CWLObjectType, e)
+                                ec["writeable"] = t.get("writable", False)
+                            ls.extend(cast(List[CWLObjectType], entry))
+                            continue
+
+                    et = {}  # type: CWLObjectType
                     if isinstance(entry, Mapping) and entry.get("class") in (
                         "File",
                         "Directory",
                     ):
-                        et = {"entry": entry}
+                        et["entry"] = entry
                     else:
-                        et = {
-                            "entry": entry
+                        et["entry"] = (
+                            entry
                             if isinstance(entry, str)
                             else json_dumps(entry, sort_keys=True)
-                        }
+                        )
 
                     if "entryname" in t:
-                        et["entryname"] = builder.do_eval(cast(str, t["entryname"]))
+                        en = builder.do_eval(cast(str, t["entryname"]))
+                        if not isinstance(en, str):
+                            raise SourceLine(
+                                t, "entryname", WorkflowException
+                            ).makeError("'entryname' must be a string")
+                        et["entryname"] = en
                     else:
                         et["entryname"] = None
                     et["writable"] = t.get("writable", False)
@@ -578,7 +609,9 @@ class CommandLineTool(Process):
 
         j.generatefiles["listing"] = ls
         for entry in ls:
-            self.updatePathmap(builder.outdir, builder.pathmapper, entry)
+            self.updatePathmap(
+                builder.outdir, cast(PathMapper, builder.pathmapper), entry
+            )
 
         visit_class(
             [builder.files, builder.bindings],
