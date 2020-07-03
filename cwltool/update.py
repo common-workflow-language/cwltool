@@ -175,6 +175,11 @@ def v1_2_0dev2todev3(
             del proc["cwlVersion"]
     return (doc, "v1.2.0-dev3")
 
+def v1_2_0dev3todev4(
+    doc: CommentedMap, loader: Loader, baseuri: str
+) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    return (doc, "v1.2.0-dev4")
+
 
 UPDATES = {
     u"v1.0": v1_0to1_1,
@@ -185,14 +190,15 @@ DEVUPDATES = {
     u"v1.1.0-dev1": v1_1_0dev1to1_1,
     u"v1.2.0-dev1": v1_2_0dev1todev2,
     u"v1.2.0-dev2": v1_2_0dev2todev3,
-    u"v1.2.0-dev3": None,
+    u"v1.2.0-dev3": v1_2_0dev3todev4,
+    u"v1.2.0-dev4": None,
 }  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
 
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = u"v1.2.0-dev3"
+INTERNAL_VERSION = u"v1.2.0-dev4"
 
 ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 
