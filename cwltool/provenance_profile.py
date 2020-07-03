@@ -718,7 +718,7 @@ class ProvenanceProfile:
         """Transfer the provenance related files to the RO."""
         # NOTE: Relative posix path
         if name is None:
-            # master workflow, fixed filenames
+            # main workflow, fixed filenames
             filename = "primary.cwlprov"
         else:
             # ASCII-friendly filename, avoiding % as we don't want %2520 in manifest.json

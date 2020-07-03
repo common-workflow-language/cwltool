@@ -864,6 +864,9 @@ hints:
                     runtime_context.stagedir or tempfile.mkdtemp()
                 )
 
+        cwl_version = cast(str, self.metadata.get(
+            "http://commonwl.org/cwltool#original_cwlVersion", None
+        ))
         builder = Builder(
             job,
             files,
@@ -886,6 +889,7 @@ hints:
             outdir,
             tmpdir,
             stagedir,
+            cwl_version,
         )
 
         bindings.extend(

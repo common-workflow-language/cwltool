@@ -50,4 +50,4 @@ on_finish:
 
 branches:
   only:
-    - master
+    - main

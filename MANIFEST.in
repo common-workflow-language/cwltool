@@ -33,6 +33,10 @@ include cwltool/schemas/v1.2.0-dev3/*.yml
 include cwltool/schemas/v1.2.0-dev3/*.md
 include cwltool/schemas/v1.2.0-dev3/salad/schema_salad/metaschema/*.yml
 include cwltool/schemas/v1.2.0-dev3/salad/schema_salad/metaschema/*.md
+include cwltool/schemas/v1.2.0-dev4/*.yml
+include cwltool/schemas/v1.2.0-dev4/*.md
+include cwltool/schemas/v1.2.0-dev4/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/v1.2.0-dev4/salad/schema_salad/metaschema/*.md
 include cwltool/cwlNodeEngine.js
 include cwltool/cwlNodeEngineJSConsole.js
 include cwltool/cwlNodeEngineWithContext.js

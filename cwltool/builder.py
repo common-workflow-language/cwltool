@@ -173,6 +173,7 @@ class Builder(HasReqsHints):
         outdir: str,
         tmpdir: str,
         stagedir: str,
+        cwlVersion: str,
     ) -> None:
         """Initialize this Builder."""
         self.job = job
@@ -203,6 +204,8 @@ class Builder(HasReqsHints):
         self.outdir = outdir
         self.tmpdir = tmpdir
         self.stagedir = stagedir
+
+        self.cwlVersion = cwlVersion
 
         self.pathmapper = None  # type: Optional[PathMapper]
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
@@ -630,4 +633,5 @@ class Builder(HasReqsHints):
             js_console=self.js_console,
             force_docker_pull=self.force_docker_pull,
             strip_whitespace=strip_whitespace,
+            cwlVersion=self.cwlVersion,
         )

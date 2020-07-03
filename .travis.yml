@@ -36,6 +36,7 @@ jobs:
       script: ${TRAVIS_BUILD_DIR}/travis.bash
     - python: "3.7"
       script: RELEASE_SKIP=head ${TRAVIS_BUILD_DIR}/release-test.sh
+      name: 'release test'
     - python: "3.8"
       name: "CWL v1.2 conformance tests"
       env:
@@ -47,6 +48,6 @@ jobs:
 script: tox
 branches:
   only:
-    - master
+    - main
 notifications:
   email: false

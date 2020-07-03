@@ -8,12 +8,12 @@ venv() {
 }
 
 if [[ "$version" = "v1.0" ]] ; then
-   wget https://github.com/common-workflow-language/common-workflow-language/archive/master.tar.gz
-   tar xzf master.tar.gz && rm master.tar.gz
+   wget https://github.com/common-workflow-language/common-workflow-language/archive/main.tar.gz
+   tar xzf main.tar.gz && rm main.tar.gz
 else
     repo=$(echo $version | sed 's/\(v[0-9]*\.\)\([0-9]*\).*/\1\2/')
-    wget https://github.com/common-workflow-language/cwl-${repo}/archive/master.tar.gz
-    tar xzf master.tar.gz && rm master.tar.gz
+    wget https://github.com/common-workflow-language/cwl-${repo}/archive/main.tar.gz
+    tar xzf main.tar.gz && rm main.tar.gz
 fi
 
 docker pull node:slim
@@ -33,9 +33,9 @@ do
 	if [[ "$version" = "v1.0" ]]
 	then
 		DRAFT="DRAFT=v1.0"
-		pushd common-workflow-language-master || exit 1
+		pushd common-workflow-language-main || exit 1
 	else
-		pushd cwl-${repo}-master || exit 1
+		pushd cwl-${repo}-main || exit 1
 	fi
 	rm -f .coverage* coverage.xml
 	source=$(realpath ../cwltool)
@@ -76,7 +76,7 @@ EOF
 	then
 		EXTRA="EXTRA=${EXTRA}"
 	fi
-	if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]] && [ $PYTHON_VERSION -eq 3 ]
+	if [ "$GIT_BRANCH" = "origin/main" ] && [[ "$version" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]] && [ $PYTHON_VERSION -eq 3 ]
 	then
 		rm -Rf conformance
 		git clone http://"${jenkins_cwl_conformance}"@github.com/common-workflow-language/conformance.git
@@ -122,7 +122,7 @@ EOM
 done
 done
 # build new docker container
-if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]]
+if [ "$GIT_BRANCH" = "origin/main" ] && [[ "$version" = "v1.0" ]]
 then
   ./build-cwl-docker.sh || true
 fi
