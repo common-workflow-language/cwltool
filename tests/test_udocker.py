@@ -3,10 +3,14 @@ import shutil
 import subprocess
 import sys
 import tempfile
+try:
+    from psutil.tests import TRAVIS
+except ImportError:
+    TRAVIS = True
+
 
 import py.path
 import pytest  # type: ignore
-from psutil.tests import TRAVIS  # type: ignore
 
 from .util import get_data, get_main_output
 
