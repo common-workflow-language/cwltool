@@ -886,10 +886,14 @@ def test_print_dot() -> None:
     stdout = StringIO()
     assert main(["--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pgv.AGraph(stdout.getvalue())
-    computed_dot.layout(prog='dot')
-    computed_dot.draw('computed.png')
-    expected_dot.layout(prog='dot')
-    expected_dot.draw('expected.png')
+    try:
+        # if dot is installed generate images
+        computed_dot.layout(prog='dot')
+        computed_dot.draw('computed.png')
+        expected_dot.layout(prog='dot')
+        expected_dot.draw('expected.png')
+    except:
+        pass
     assert set(expected_dot.edges()) == set(computed_dot.edges())
     assert set(expected_dot.nodes()) == set(computed_dot.nodes())
 
