@@ -53,8 +53,7 @@ def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
     contents = f.read(CONTENT_LIMIT + 1)
     if len(contents) > CONTENT_LIMIT:
         raise WorkflowException(
-            "loadContents handling encountered buffer that is exceeds maximum lenght of %d bytes"
-            % CONTENT_LIMIT
+            "file is too large, loadContents limited to %d bytes" % CONTENT_LIMIT
         )
     return contents
 
@@ -380,11 +379,26 @@ class Builder(HasReqsHints):
             if schema["type"] == "File":
                 datum = cast(CWLObjectType, datum)
                 self.files.append(datum)
-                if (binding and binding.get("loadContents")) or schema.get(
-                    "loadContents"
-                ):
-                    with self.fs_access.open(cast(str, datum["location"]), "rb") as f2:
-                        datum["contents"] = content_limit_respected_read(f2)
+
+                loadContents_sourceline = (
+                    None
+                )  # type: Union[None, MutableMapping[str, Union[str, List[int]]], CWLObjectType]
+                if binding and binding.get("loadContents"):
+                    loadContents_sourceline = binding
+                elif schema.get("loadContents"):
+                    loadContents_sourceline = schema
+
+                if loadContents_sourceline and loadContents_sourceline["loadContents"]:
+                    with SourceLine(
+                        loadContents_sourceline, "loadContents", WorkflowException
+                    ):
+                        try:
+                            with self.fs_access.open(
+                                cast(str, datum["location"]), "rb"
+                            ) as f2:
+                                datum["contents"] = content_limit_respected_read(f2)
+                        except Exception as e:
+                            raise Exception("Reading %s\n%s" % (datum["location"], e))
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
