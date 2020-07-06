@@ -1,0 +1,50 @@
+PREFIX ArraySchema: <https://w3id.org/cwl/salad#ArraySchema/>
+PREFIX CommandLineBinding: <https://w3id.org/cwl/cwl#CommandLineBinding/>
+PREFIX CommandLineTool: <https://w3id.org/cwl/cwl#CommandLineTool/>
+PREFIX CommandOutputBinding: <https://w3id.org/cwl/cwl#CommandOutputBinding/>
+PREFIX Directory: <https://w3id.org/cwl/cwl#Directory/>
+PREFIX Dirent: <https://w3id.org/cwl/cwl#Dirent/>
+PREFIX DockerRequirement: <https://w3id.org/cwl/cwl#DockerRequirement/>
+PREFIX EnumSchema: <https://w3id.org/cwl/salad#EnumSchema/>
+PREFIX EnvVarRequirement: <https://w3id.org/cwl/cwl#EnvVarRequirement/>
+PREFIX EnvironmentDef: <https://w3id.org/cwl/cwl#EnvironmentDef/>
+PREFIX ExpressionTool: <https://w3id.org/cwl/cwl#ExpressionTool/>
+PREFIX File: <https://w3id.org/cwl/cwl#File/>
+PREFIX InlineJavascriptRequirement: <https://w3id.org/cwl/cwl#InlineJavascriptRequirement/>
+PREFIX LinkMergeMethod: <https://w3id.org/cwl/cwl#LinkMergeMethod/>
+PREFIX Parameter: <https://w3id.org/cwl/cwl#Parameter/>
+PREFIX RecordSchema: <https://w3id.org/cwl/salad#RecordSchema/>
+PREFIX ResourceRequirement: <https://w3id.org/cwl/cwl#ResourceRequirement/>
+PREFIX ScatterMethod: <https://w3id.org/cwl/cwl#ScatterMethod/>
+PREFIX SchemaDefRequirement: <https://w3id.org/cwl/cwl#SchemaDefRequirement/>
+PREFIX SoftwarePackage: <https://w3id.org/cwl/cwl#SoftwarePackage/>
+PREFIX SoftwareRequirement: <https://w3id.org/cwl/cwl#SoftwareRequirement/>
+PREFIX Workflow: <https://w3id.org/cwl/cwl#Workflow/>
+PREFIX cwl: <https://w3id.org/cwl/cwl#>
+PREFIX dct: <http://purl.org/dc/terms/>
+PREFIX ns1: <http://commonwl.org/cwltool#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX sld: <https://w3id.org/cwl/salad#>
+PREFIX xml: <http://www.w3.org/XML/1998/namespace>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+SELECT DISTINCT ?workflow
+WHERE {
+  {
+    SELECT ?workflow
+    WHERE {
+      ?workflow Workflow:steps ?step .
+    }
+  }
+  MINUS
+  {
+    SELECT ?workflow
+    WHERE {
+      ?root Workflow:steps ?step .
+      ?step cwl:run ?workflow .
+    }
+  }
+}
+ORDER BY ?workflow

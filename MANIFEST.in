@@ -45,6 +45,7 @@ include cwltool/extensions-v1.1.yml
 include cwltool/jshint/jshint_wrapper.js
 include cwltool/jshint/jshint.js
 include cwltool/hello.simg
+include cwltool/rdfqueries/*.sparql
 prune cwltool/schemas/v1.0/salad/typeshed
 prune cwltool/schemas/v1.0/salad/schema_salad/tests
 prune cwltool/schemas/v1.1.0-dev1/salad/typeshed

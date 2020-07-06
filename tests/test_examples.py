@@ -27,6 +27,8 @@ from cwltool.process import CWL_IANA
 from cwltool.sandboxjs import JavascriptException
 from cwltool.utils import CWLObjectType, dedup, onWindows
 
+import pygraphviz as pgv
+
 from .util import (
     get_data,
     get_main_output,
@@ -838,7 +840,59 @@ def test_var_spool_cwl_checker3() -> None:
 
 
 def test_print_dot() -> None:
-    assert main(["--print-dot", get_data("tests/wf/revsort.cwl")]) == 0
+    cwl_path = get_data("tests/wf/revsort.cwl")
+    expected_dot = pgv.AGraph(f"""
+    digraph {{
+        graph [bgcolor="#eeeeee",
+                clusterrank=local,
+                labeljust=right,
+                labelloc=bottom
+        ];
+        node [shape=record];
+        subgraph cluster_inputs {{
+                graph [label="Workflow Inputs",
+                        rank=same,
+                        style=dashed
+                ];
+                "file://{cwl_path}#workflow_input"      [fillcolor="#94DDF4",
+                        label=workflow_input,
+                        style=filled];
+                "file://{cwl_path}#reverse_sort"        [fillcolor="#94DDF4",
+                        label=reverse_sort,
+                        style=filled];
+        }}
+        subgraph cluster_outputs {{
+                graph [label="Workflow Outputs",
+                        labelloc=b,
+                        rank=same,
+                        style=dashed
+                ];
+                "file://{cwl_path}#sorted_output"       [fillcolor="#94DDF4",
+                        label=sorted_output,
+                        style=filled];
+        }}
+        "file://{cwl_path}#rev" [fillcolor=lightgoldenrodyellow,
+                label=rev,
+                style=filled];
+        "file://{cwl_path}#sorted"      [fillcolor=lightgoldenrodyellow,
+                label=sorted,
+                style=filled];
+        "file://{cwl_path}#rev" -> "file://{cwl_path}#sorted";
+        "file://{cwl_path}#sorted" -> "file://{cwl_path}#sorted_output";
+        "file://{cwl_path}#workflow_input" -> "file://{cwl_path}#rev";
+        "file://{cwl_path}#reverse_sort" -> "file://{cwl_path}#sorted";
+}}
+    """)
+    stdout = StringIO()
+    assert main(["--print-dot", cwl_path], stdout=stdout) == 0
+    computed_dot = pgv.AGraph(stdout.getvalue())
+    computed_dot.layout(prog='dot')
+    computed_dot.draw('computed.png')
+    expected_dot.layout(prog='dot')
+    expected_dot.draw('expected.png')
+    assert set(expected_dot.edges()) == set(computed_dot.edges())
+    assert set(expected_dot.nodes()) == set(computed_dot.nodes())
+
 
 
 test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
