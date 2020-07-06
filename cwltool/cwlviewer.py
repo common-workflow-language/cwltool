@@ -16,22 +16,21 @@ class CWLViewer:
     _get_output_edges_query_path = os.path.join(_queries_dir, 'get_output_edges.sparql')
     _get_root_query_path = os.path.join(_queries_dir, 'get_root.sparql')
 
-    def __init__(self, rdf_description: str):
-        self._dot_graph: pgv.agraph.AGraph = CWLViewer._init_dot_graph()
-        self._rdf_graph: rdflib.graph.Graph = self._load_cwl_graph(rdf_description)
+    def __init__(
+            self,
+            rdf_description  # type: str
+    ):
+        self._dot_graph = CWLViewer._init_dot_graph()  # type: pgv.agraph.AGraph
+        self._rdf_graph = self._load_cwl_graph(rdf_description)  # type: rdflib.graph.Graph
         self._root_graph_uri: str = self.get_root_graph_uri()
         self._set_inner_edges()
         self._set_input_edges()
         self._set_output_edges()
 
-    # def _cwl2rdf(self) -> str:
-    #     console_handler = logging.StreamHandler()
-    #     console_handler.setLevel(logging.INFO)
-    #     stdout = StringIO()
-    #     cwltool_main(['--print-rdf', str(self._filename)], stdout=stdout, logger_handler=console_handler)
-    #     return stdout.getvalue()
-
-    def _load_cwl_graph(self, rdf_description: str) -> rdflib.graph.Graph:
+    def _load_cwl_graph(
+            self,
+            rdf_description  # type: str
+    ) -> rdflib.graph.Graph:
         rdf_graph = rdflib.Graph()
         rdf_graph.parse(data=rdf_description, format='n3')
         return rdf_graph
