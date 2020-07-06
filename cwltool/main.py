@@ -982,7 +982,7 @@ def main(
                 return 0
 
             if args.print_dot:
-                cwl_viewer = CWLViewer(printrdf(tool, loadingContext.loader.ctx, 'n3'))
+                cwl_viewer: CWLViewer = CWLViewer(printrdf(tool, loadingContext.loader.ctx, 'n3'))
                 stdout.write(
                     cwl_viewer.dot()
                 )

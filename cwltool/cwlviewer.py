@@ -1,7 +1,7 @@
 import rdflib
 from urllib.parse import urlparse
 import os
-import pydot
+import pydot  # type: ignore
 
 
 class CWLViewer:
@@ -35,7 +35,7 @@ class CWLViewer:
         rdf_graph.parse(data=rdf_description, format='n3')
         return rdf_graph
 
-    def _set_inner_edges(self):
+    def _set_inner_edges(self) -> None:
         with open(self._get_inner_edges_query_path) as f:
             get_inner_edges_query = f.read()
         inner_edges = self._rdf_graph.query(get_inner_edges_query, initBindings={'root_graph': self._root_graph_uri})
@@ -64,7 +64,7 @@ class CWLViewer:
             self._dot_graph.add_node(n)
             self._dot_graph.add_edge(pydot.Edge(str(inner_edge_row['source_step']), str(inner_edge_row['target_step'])))
 
-    def _set_input_edges(self):
+    def _set_input_edges(self) -> None:
         with open(self._get_input_edges_query_path) as f:
             get_input_edges_query = f.read()
         inputs_subgraph = pydot.Subgraph(graph_name="cluster_inputs")
@@ -87,7 +87,7 @@ class CWLViewer:
             inputs_subgraph.add_node(n)
             self._dot_graph.add_edge(pydot.Edge(str(input_row['input']), str(input_row['step'])))
 
-    def _set_output_edges(self):
+    def _set_output_edges(self) -> None:
         with open(self._get_output_edges_query_path) as f:
             get_output_edges = f.read()
         outputs_graph = pydot.Subgraph(graph_name="cluster_outputs")
@@ -109,11 +109,12 @@ class CWLViewer:
             outputs_graph.add_node(n)
             self._dot_graph.add_edge(pydot.Edge(output_edge_row['step'], output_edge_row['output']))
 
-    def get_root_graph_uri(self):
+    def get_root_graph_uri(self) -> rdflib.URIRef:
         with open(self._get_root_query_path) as f:
             get_root_query = f.read()
         root = list(self._rdf_graph.query(get_root_query, ))[0]
-        return root['workflow']
+        workflow: rdflib.URIRef = root['workflow']
+        return workflow
 
     @classmethod
     def _init_dot_graph(cls) -> pydot.Graph:
@@ -129,5 +130,5 @@ class CWLViewer:
     def get_dot_graph(self) -> pydot.Graph:
         return self._dot_graph
 
-    def dot(self):
-        return self._dot_graph.to_string()
+    def dot(self) -> str:
+        return str(self._dot_graph.to_string())
