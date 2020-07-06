@@ -59,6 +59,10 @@ $graph:
         * [Workflow](#Workflow), [ExpressionTool](#ExpressionTool) and
           [Operation](#Operation) can now express `intent` with an
           identifier for the type of computational operation.
+        * Clarify there are no limits on the size of file literal `contents`.
+        * When using `loadContents` it now must fail when attempting to
+          load a file greater than 64 KiB instead of silently truncating
+          the data.
         * Note that only enum and record types can be typedef-ed
         * Escaping in "string interpolation":#String_Interpolation has
           been added to the specification along with conformance tests.
@@ -165,8 +169,9 @@ $graph:
     - name: expression
       type: Expression
       doc: |
-        The expression to execute.  The expression must return a JSON object which
-        matches the output parameters of the ExpressionTool.
+        The expression to execute.  The expression must return a plain
+        Javascript object which matches the output parameters of the
+        ExpressionTool.
 
 - name: LinkMergeMethod
   type: enum

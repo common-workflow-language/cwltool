@@ -607,6 +607,8 @@ class CommandLineTool(Process):
                     % (i, t2)
                 )
 
+        normalizeFilesDirs(ls)
+
         j.generatefiles["listing"] = ls
         for entry in ls:
             self.updatePathmap(
