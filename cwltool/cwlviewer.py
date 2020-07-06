@@ -1,7 +1,7 @@
 import rdflib
-import pygraphviz as pgv
 from urllib.parse import urlparse
 import os
+import pydot
 
 
 class CWLViewer:
@@ -20,7 +20,7 @@ class CWLViewer:
             self,
             rdf_description  # type: str
     ):
-        self._dot_graph = CWLViewer._init_dot_graph()  # type: pgv.agraph.AGraph
+        self._dot_graph = CWLViewer._init_dot_graph()  # type: pydot.Graph
         self._rdf_graph = self._load_cwl_graph(rdf_description)  # type: rdflib.graph.Graph
         self._root_graph_uri: str = self.get_root_graph_uri()
         self._set_inner_edges()
@@ -43,56 +43,71 @@ class CWLViewer:
             source_label = inner_edge_row['source_label'] \
                 if inner_edge_row['source_label'] is not None \
                 else urlparse(inner_edge_row['source_step']).fragment
-            self._dot_graph.add_node(
-                inner_edge_row['source_step'],
+            n = pydot.Node(
+                '',
                 fillcolor='lightgoldenrodyellow', style="filled",
-                label=source_label
+                label=source_label,
+                shape='record'
             )
+            n.set_name(str(inner_edge_row['source_step']))
+            self._dot_graph.add_node(n)
             target_label = inner_edge_row['target_label'] \
                 if inner_edge_row['target_label'] is not None \
                 else urlparse(inner_edge_row['target_step']).fragment
-            self._dot_graph.add_node(
-                inner_edge_row['target_step'],
+            n = pydot.Node(
+                '',
                 fillcolor='lightgoldenrodyellow', style="filled",
                 label=target_label,
+                shape='record'
             )
-            self._dot_graph.add_edge(inner_edge_row['source_step'], inner_edge_row['target_step'])
+            n.set_name(str(inner_edge_row['target_step']))
+            self._dot_graph.add_node(n)
+            self._dot_graph.add_edge(pydot.Edge(str(inner_edge_row['source_step']), str(inner_edge_row['target_step'])))
 
     def _set_input_edges(self):
         with open(self._get_input_edges_query_path) as f:
             get_input_edges_query = f.read()
-        inputs_subgraph = self._dot_graph.add_subgraph(name="cluster_inputs")
-        inputs_subgraph.graph_attr['rank'] = "same"
-        inputs_subgraph.graph_attr['style'] = "dashed"
-        inputs_subgraph.graph_attr['label'] = "Workflow Inputs"
+        inputs_subgraph = pydot.Subgraph(graph_name="cluster_inputs")
+        self._dot_graph.add_subgraph(inputs_subgraph)
+        inputs_subgraph.set_rank("same")
+        inputs_subgraph.create_attribute_methods(['style'])
+        inputs_subgraph.set_style("dashed")
+        inputs_subgraph.set_label("Workflow Inputs")
+
         input_edges = self._rdf_graph.query(get_input_edges_query, initBindings={'root_graph': self._root_graph_uri})
         for input_row in input_edges:
-            inputs_subgraph.add_node(
-                input_row['input'],
+            n = pydot.Node(
+                '',
                 fillcolor="#94DDF4",
                 style="filled",
                 label=urlparse(input_row['input']).fragment,
+                shape='record'
             )
-            self._dot_graph.add_edge(input_row['input'], input_row['step'])
+            n.set_name(str(input_row['input']))
+            inputs_subgraph.add_node(n)
+            self._dot_graph.add_edge(pydot.Edge(str(input_row['input']), str(input_row['step'])))
 
     def _set_output_edges(self):
         with open(self._get_output_edges_query_path) as f:
             get_output_edges = f.read()
-
-        outputs_graph = self._dot_graph.add_subgraph(name="cluster_outputs")
-        outputs_graph.graph_attr['rank'] = "same"
-        outputs_graph.graph_attr['style'] = "dashed"
-        outputs_graph.graph_attr['label'] = "Workflow Outputs"
-        outputs_graph.graph_attr['labelloc'] = "b"
+        outputs_graph = pydot.Subgraph(graph_name="cluster_outputs")
+        self._dot_graph.add_subgraph(outputs_graph)
+        outputs_graph.set_rank("same")
+        outputs_graph.create_attribute_methods(['style'])
+        outputs_graph.set_style("dashed")
+        outputs_graph.set_label("Workflow Outputs")
+        outputs_graph.set_labelloc("b")
         output_edges = self._rdf_graph.query(get_output_edges, initBindings={'root_graph': self._root_graph_uri})
         for output_edge_row in output_edges:
-            outputs_graph.add_node(
-                output_edge_row['output'],
-                fillcolor="#94DDF4",
-                style="filled",
-                label=urlparse(output_edge_row['output']).fragment,
-            )
-            self._dot_graph.add_edge(output_edge_row['step'], output_edge_row['output'])
+            n = pydot.Node('',
+                           fillcolor="#94DDF4",
+                           style="filled",
+                           label=urlparse(output_edge_row['output']).fragment,
+                           shape='record'
+                           )
+            n.set_name(str(output_edge_row['output']))
+            outputs_graph.add_node(n)
+            self._dot_graph.add_edge(pydot.Edge(output_edge_row['step'], output_edge_row['output']))
 
     def get_root_graph_uri(self):
         with open(self._get_root_query_path) as f:
@@ -101,18 +116,17 @@ class CWLViewer:
         return root['workflow']
 
     @classmethod
-    def _init_dot_graph(cls) -> pgv.agraph.AGraph:
-        graph = pgv.AGraph(directed=True, strict=False)
-        graph.graph_attr['bgcolor'] = "#eeeeee"
-        graph.graph_attr['labeljust'] = "left"
-        graph.graph_attr['clusterrank'] = "local"
-        graph.node_attr['shape'] = "record"
-        graph.graph_attr['labelloc'] = "bottom"
-        graph.graph_attr['labeljust'] = "right"
+    def _init_dot_graph(cls) -> pydot.Graph:
+        graph = pydot.Graph(graph_type='digraph', simplify=False)
+        graph.set_bgcolor("#eeeeee")
+        graph.set_clusterrank("local")
+        graph.set_labelloc("bottom")
+        graph.set_labelloc("bottom")
+        graph.set_labeljust("right")
 
         return graph
 
-    def get_dot_graph(self) -> pgv.AGraph:
+    def get_dot_graph(self) -> pydot.Graph:
         return self._dot_graph
 
     def dot(self):
