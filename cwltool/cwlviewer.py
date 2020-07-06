@@ -22,7 +22,7 @@ class CWLViewer:
     ):
         self._dot_graph = CWLViewer._init_dot_graph()  # type: pydot.Graph
         self._rdf_graph = self._load_cwl_graph(rdf_description)  # type: rdflib.graph.Graph
-        self._root_graph_uri: str = self.get_root_graph_uri()
+        self._root_graph_uri = self.get_root_graph_uri()  # type: str
         self._set_inner_edges()
         self._set_input_edges()
         self._set_output_edges()
