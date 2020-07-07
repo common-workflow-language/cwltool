@@ -172,7 +172,6 @@ def test_expression_interpolate_failures(pattern: str) -> None:
         return
     assert False, 'Should have produced a JavascriptException, got "{}".'.format(result)
 
-
 interpolate_escapebehavior = (
     ("\\$(foo.bar.baz)", "$(foo.bar.baz)", 1),
     ("\\\\$(foo.bar.baz)", "\\zab1", 1),
@@ -195,8 +194,7 @@ interpolate_escapebehavior = (
     ("\\\\x", "\\x", 2),
     ("\\\\\\x", "\\\\x", 2),
     ("\\\\\\\\x", "\\\\x", 2),
-)
-
+    )
 
 @pytest.mark.parametrize("pattern,expected,behavior", interpolate_escapebehavior)  # type: ignore
 def test_expression_interpolate_escapebehavior(pattern: str, expected: str, behavior: int) -> None:
@@ -245,11 +243,11 @@ def test_factory_partial_scatter() -> None:
 
     err = err_info.value
     assert (
-            err.out["out"][0]["checksum"] == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
+        err.out["out"][0]["checksum"] == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
     )
     assert err.out["out"][1] is None
     assert (
-            err.out["out"][2]["checksum"] == "sha1$a3db5c13ff90a36963278c6a39e4ee3c22e2a436"
+        err.out["out"][2]["checksum"] == "sha1$a3db5c13ff90a36963278c6a39e4ee3c22e2a436"
     )
 
 
@@ -263,7 +261,7 @@ def test_factory_partial_output() -> None:
 
     err = err_info.value
     assert (
-            err.out["out1"]["checksum"] == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
+        err.out["out1"]["checksum"] == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
     )
     assert err.out["out2"] is None
 
@@ -393,7 +391,7 @@ def test_scandeps() -> None:
     assert scanned_deps == expected_deps
 
     scanned_deps = cwltool.process.scandeps(
-        cast(str, obj["id"]), obj, set(("run"), ), set(), loadref
+        cast(str, obj["id"]), obj, set(("run"),), set(), loadref
     )
 
     scanned_deps.sort(key=lambda k: k["basename"])
@@ -584,7 +582,7 @@ source_to_sink = [
 
 @pytest.mark.parametrize("name, source, sink, expected", source_to_sink)  # type: ignore
 def test_compare_types(
-        name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
+    name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
 ) -> None:
     assert can_assign_src_to_sink(source, sink) == expected, name
 
@@ -610,7 +608,7 @@ source_to_sink_strict = [
 
 @pytest.mark.parametrize("name, source, sink, expected", source_to_sink_strict)  # type: ignore
 def test_compare_types_strict(
-        name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
+    name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
 ) -> None:
     assert can_assign_src_to_sink(source, sink, strict=True) == expected, name
 
@@ -741,13 +739,13 @@ typechecks = [
     "src_type,sink_type,link_merge,value_from,expected_type", typechecks
 )
 def test_typechecking(
-        src_type: Any, sink_type: Any, link_merge: str, value_from: Any, expected_type: str
+    src_type: Any, sink_type: Any, link_merge: str, value_from: Any, expected_type: str
 ) -> None:
     assert (
-            cwltool.checker.check_types(
-                src_type, sink_type, linkMerge=link_merge, valueFrom=value_from
-            )
-            == expected_type
+        cwltool.checker.check_types(
+            src_type, sink_type, linkMerge=link_merge, valueFrom=value_from
+        )
+        == expected_type
     )
 
 
@@ -800,8 +798,8 @@ def test_var_spool_cwl_checker1() -> None:
     try:
         factory.make(get_data("tests/non_portable.cwl"))
         assert (
-                "non_portable.cwl:18:4: Non-portable reference to /var/spool/cwl detected"
-                in stream.getvalue()
+            "non_portable.cwl:18:4: Non-portable reference to /var/spool/cwl detected"
+            in stream.getvalue()
         )
     finally:
         _logger.removeHandler(streamhandler)
@@ -818,8 +816,8 @@ def test_var_spool_cwl_checker2() -> None:
     try:
         factory.make(get_data("tests/non_portable2.cwl"))
         assert (
-                "non_portable2.cwl:19:4: Non-portable reference to /var/spool/cwl detected"
-                in stream.getvalue()
+            "non_portable2.cwl:19:4: Non-portable reference to /var/spool/cwl detected"
+            in stream.getvalue()
         )
     finally:
         _logger.removeHandler(streamhandler)
@@ -836,7 +834,7 @@ def test_var_spool_cwl_checker3() -> None:
     try:
         factory.make(get_data("tests/portable.cwl"))
         assert (
-                "Non-portable reference to /var/spool/cwl detected" not in stream.getvalue()
+            "Non-portable reference to /var/spool/cwl detected" not in stream.getvalue()
         )
     finally:
         _logger.removeHandler(streamhandler)
@@ -886,7 +884,7 @@ def test_print_dot() -> None:
         "file://{cwl_posix_path}#workflow_input" -> "file://{cwl_posix_path}#rev";
         "file://{cwl_posix_path}#reverse_sort" -> "file://{cwl_posix_path}#sorted";
 }}
-    """.format(cwl_posix_path))[0]
+    """.format(cwl_posix_path=cwl_posix_path))[0]
     stdout = StringIO()
     assert main(["--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
@@ -950,7 +948,7 @@ def test_cid_file_dir(tmpdir: py.path.local, factor: str) -> None:
 @needs_docker  # type: ignore
 @pytest.mark.parametrize("factor", test_factors)  # type: ignore
 def test_cid_file_dir_arg_is_file_instead_of_dir(
-        tmpdir: py.path.local, factor: str
+    tmpdir: py.path.local, factor: str
 ) -> None:
     test_file = "cache_test_workflow.cwl"
     bad_cidfile_dir = str(tmpdir.ensure("cidfile-dir-actually-a-file"))

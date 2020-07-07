@@ -32,7 +32,7 @@ def printrdf(wflow: Process, ctx: ContextType, style: str) -> str:
 def lastpart(uri: Any) -> str:
     uri2 = str(uri)
     if "/" in uri2:
-        return uri2[uri2.rindex("/") + 1:]
+        return uri2[uri2.rindex("/") + 1 :]
     return uri2
 
 
@@ -191,9 +191,9 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
 
 
 def printdot(
-        wf: Process,
-        ctx: ContextType,
-        stdout: Union[TextIO, StreamWriter],
+    wf: Process,
+    ctx: ContextType,
+    stdout: Union[TextIO, StreamWriter],
 ) -> None:
     cwl_viewer = CWLViewer(printrdf(wf, ctx, 'n3'))  # type: CWLViewer
     stdout.write(
