@@ -112,8 +112,11 @@ class CWLViewer:
     def get_root_graph_uri(self) -> rdflib.URIRef:
         with open(self._get_root_query_path) as f:
             get_root_query = f.read()
-        root = list(self._rdf_graph.query(get_root_query, ))[0]
-        workflow: rdflib.URIRef = root['workflow']
+        root = list(self._rdf_graph.query(get_root_query, ))
+        if len(root) != 1:
+            raise RuntimeError("Cannot identify root workflow! Notice that only Workflows can be visualized")
+
+        workflow = root[0]['workflow']  # type: rdflib.URIRef
         return workflow
 
     @classmethod
