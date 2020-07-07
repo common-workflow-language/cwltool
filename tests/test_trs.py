@@ -12,6 +12,7 @@ class MockResponse1:
     def __init__(
         self, json_data: Any, status_code: int, raise_for_status: Optional[bool] = None
     ) -> None:
+        """Create a fake return object for requests.Session.head."""
         self.json_data = json_data
         self.status_code = status_code
         self.raise_for_status = mock.Mock()
@@ -30,6 +31,7 @@ class MockResponse2:
     def __init__(
         self, json_data: Any, status_code: int, raise_for_status: Optional[bool] = None
     ) -> None:
+        """Create a fake return object for requests.Session.get."""
         self.json_data = json_data
         self.text = json_data
         self.status_code = status_code

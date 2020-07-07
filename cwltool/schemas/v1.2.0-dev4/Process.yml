@@ -277,16 +277,27 @@ $graph:
     - name: contents
       type: string?
       doc: |
-        File contents literal.  Maximum of 64 KiB.
+        File contents literal.
 
         If neither `location` nor `path` is provided, `contents` must be
         non-null.  The implementation must assign a unique identifier for the
         `location` field.  When the file is staged as input to CommandLineTool,
         the value of `contents` must be written to a file.
 
-        If `loadContents` of `inputBinding` or `outputBinding` is true and
-        `location` is valid, the implementation must read up to the first 64
-        KiB of text from the file and place it in the "contents" field.
+        If `contents` is set as a result of an Javascript expression,
+        an `entry` in `InitialWorkDirRequirement`, or read in from
+        `cwl.output.json`, there is no specified upper limit on the
+        size of `contents`.  Implementations may have practical limits
+        on the size of `contents` based on memory and storage
+        available to the workflow runner or other factors.
+
+        If the `loadContents` field of an `InputParameter` or
+        `OutputParameter` is true, and the input or output File object
+        `location` is valid, the file must be a UTF-8 text file 64 KiB
+        or smaller, and the implementation must read the entire
+        contents of the file and place it in the `contents` field.  If
+        the size of the file is greater than 64 KiB, the
+        implementation must raise a fatal error.
 
 
 - name: Directory
@@ -464,8 +475,13 @@ $graph:
       doc: |
         Only valid when `type: File` or is an array of `items: File`.
 
-        Read up to the first 64 KiB of text from the file and place it in the
-        "contents" field of the file object for use by expressions.
+        If true, the file (or each file in the array) must be a UTF-8
+        text file 64 KiB or smaller, and the implementation must read
+        the entire contents of the file (or file array) and place it
+        in the `contents` field of the File object for use by
+        expressions.  If the size of the file is greater than 64 KiB,
+        the implementation must raise a fatal error.
+
     - name: loadListing
       type: LoadListingEnum?
       jsonldPredicate: "cwl:loadListing"
@@ -624,12 +640,6 @@ $graph:
         Use of `loadContents` in `InputBinding` is deprecated.
         Preserved for v1.0 backwards compatability.  Will be removed in
         CWL v2.0.  Use `InputParameter.loadContents` instead.
-
-        Only valid when `type: File` or is an array of `items: File`.
-
-        Read up to the first 64 KiB of text from the file and place it in the
-        "contents" field of the file object for use by expressions.
-
 
 - name: IOSchema
   extends: [Labeled, sld:Documented]

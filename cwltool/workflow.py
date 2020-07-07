@@ -415,7 +415,6 @@ class WorkflowStep(Process):
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         """Initialize sub-workflow as a step in the parent profile."""
-
         if (
             self.embedded_tool.tool["class"] == "Workflow"
             and runtimeContext.research_obj
