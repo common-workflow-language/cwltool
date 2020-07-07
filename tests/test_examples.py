@@ -28,6 +28,7 @@ from cwltool.sandboxjs import JavascriptException
 from cwltool.utils import CWLObjectType, dedup, onWindows
 
 import pydot
+from urllib.parse import urlparse
 
 from .util import (
     get_data,
@@ -886,7 +887,11 @@ def test_print_dot() -> None:
     stdout = StringIO()
     assert main(["--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
-    assert set(computed_dot.obj_dict['edges']) == set(expected_dot.obj_dict['edges'])
+    computed_edges = sorted(
+        [(urlparse(source).fragment, urlparse(target).fragment) for source, target in computed_dot.obj_dict['edges']])
+    expected_edges = sorted(
+        [(urlparse(source).fragment, urlparse(target).fragment) for source, target in expected_dot.obj_dict['edges']])
+    assert computed_edges == expected_edges
 
 
 test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
