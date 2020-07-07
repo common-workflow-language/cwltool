@@ -113,7 +113,7 @@ class CWLViewer:
         with open(self._get_root_query_path) as f:
             get_root_query = f.read()
         root = list(self._rdf_graph.query(get_root_query, ))[0]
-        workflow: rdflib.URIRef = root['workflow']
+        workflow = root['workflow']  # type: rdflib.URIRef
         return workflow
 
     @classmethod
