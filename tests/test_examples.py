@@ -198,6 +198,7 @@ interpolate_escapebehavior = (
 def test_expression_interpolate_escapebehavior(
     pattern: str, expected: str, behavior: int
 ) -> None:
+    """Test escaping behavior in an interpolation context."""
     assert (
         expr.interpolate(pattern, interpolate_input, escaping_behavior=behavior)
         == expected
