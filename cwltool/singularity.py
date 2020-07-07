@@ -95,6 +95,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         hints: List[CWLObjectType],
         name: str,
     ) -> None:
+        """Builder for invoking the Singularty software container engine."""
         super(SingularityCommandLineJob, self).__init__(
             builder, joborder, make_path_mapper, requirements, hints, name
         )

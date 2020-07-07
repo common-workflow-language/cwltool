@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
 try:
     from psutil.tests import TRAVIS
 except ImportError:

@@ -9,6 +9,7 @@ MpiConfigT = TypeVar("MpiConfigT", bound="MpiConfig")
 
 MPIRequirementName = "http://commonwl.org/cwltool#MPIRequirement"
 
+
 class MpiConfig:
     def __init__(
         self,
@@ -20,8 +21,10 @@ class MpiConfig:
         env_pass_regex: List[str] = [],
         env_set: Mapping[str, str] = {},
     ) -> None:
-        """Initialize from the argument mapping with the following defaults:
+        """
+        Initialize from the argument mapping.
 
+        Defaults are:
         runner: "mpirun"
         nproc_flag: "-n"
         default_nproc: 1
@@ -30,7 +33,8 @@ class MpiConfig:
         env_pass_regex: []
         env_set: {}
 
-        Any unknown keys will result in an exception."""
+        Any unknown keys will result in an exception.
+        """
         self.runner = runner
         self.nproc_flag = nproc_flag
         self.default_nproc = int(default_nproc)
@@ -56,9 +60,7 @@ class MpiConfig:
             raise ValueError("Unknown key(s) in MPI configuration: {}".format(unknown))
 
     def pass_through_env_vars(self, env: MutableMapping[str, str]) -> None:
-        """Here we take the configured list of environment variables and
-        simply pass them through to the executed process.
-        """
+        """Take the configured list of environment variables and pass them to the executed process."""
         for var in self.env_pass:
             if var in os.environ:
                 env[var] = os.environ[var]
@@ -70,6 +72,5 @@ class MpiConfig:
                     env[k] = os.environ[k]
 
     def set_env_vars(self, env: MutableMapping[str, str]) -> None:
-        """Here we set some variables to the value configured.
-        """
+        """Set some variables to the value configured."""
         env.update(self.env_set)

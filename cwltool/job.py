@@ -292,7 +292,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # execution.
         if self.mpi_procs:
             menv = runtimeContext.mpi_config
-            mpi_runtime = [menv.runner, menv.nproc_flag, str(self.mpi_procs)] + menv.extra_flags
+            mpi_runtime = [
+                menv.runner,
+                menv.nproc_flag,
+                str(self.mpi_procs),
+            ] + menv.extra_flags
             runtime = mpi_runtime + runtime
             menv.pass_through_env_vars(env)
             menv.set_env_vars(env)
@@ -927,11 +931,15 @@ def _job_popen(
         if stdin_path is not None:
             stdin = open(stdin_path, "rb")
 
-        stdout = default_stdout if default_stdout is not None else sys.stderr  # type: Union[IO[bytes], TextIO]
+        stdout = (
+            default_stdout if default_stdout is not None else sys.stderr
+        )  # type: Union[IO[bytes], TextIO]
         if stdout_path is not None:
             stdout = open(stdout_path, "wb")
 
-        stderr = default_stderr if default_stderr is not None else sys.stderr  # type: Union[IO[bytes], TextIO]
+        stderr = (
+            default_stderr if default_stderr is not None else sys.stderr
+        )  # type: Union[IO[bytes], TextIO]
         if stderr_path is not None:
             stderr = open(stderr_path, "wb")
 
@@ -976,13 +984,13 @@ def _job_popen(
         if tm is not None:
             tm.cancel()
 
-        if isinstance(stdin, IOBase) and hasattr(stdin, 'close'):
+        if isinstance(stdin, IOBase) and hasattr(stdin, "close"):
             stdin.close()
 
-        if stdout is not sys.stderr and hasattr(stdout, 'close'):
+        if stdout is not sys.stderr and hasattr(stdout, "close"):
             stdout.close()
 
-        if stderr is not sys.stderr and hasattr(stderr, 'close'):
+        if stderr is not sys.stderr and hasattr(stderr, "close"):
             stderr.close()
 
         return rcode
