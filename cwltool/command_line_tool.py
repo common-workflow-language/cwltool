@@ -345,6 +345,7 @@ OutputPortsType = Dict[str, Optional[CWLOutputType]]
 
 class ParameterOutputWorkflowException(WorkflowException):
     def __init__(self, msg: str, port: CWLObjectType, **kwargs: Any) -> None:
+        """Exception for when there was an error collecting output for a parameter."""
         super(ParameterOutputWorkflowException, self).__init__(
             "Error collecting output for parameter '%s':\n%s"
             % (shortname(cast(str, port["id"])), msg),
@@ -1145,7 +1146,7 @@ class CommandLineTool(Process):
                                     )
                                 ]
                             )
-                        except (OSError, IOError) as e:
+                        except (OSError) as e:
                             _logger.warning(str(e))
                         except Exception:
                             _logger.error(

@@ -24,8 +24,7 @@ from .utils import CWLObjectType, CWLOutputType, aslist, visit_class, visit_fiel
 def v1_1to1_2(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
-    """Public updater for v1.1 to v1.2"""
-
+    """Public updater for v1.1 to v1.2."""
     doc = copy.deepcopy(doc)
 
     upd = doc
@@ -156,7 +155,7 @@ def v1_2_0dev1todev2(
 def v1_2_0dev2todev3(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
-    """Public updater for v1.2.0-dev2 to v1.2.0-dev3"""
+    """Public updater for v1.2.0-dev2 to v1.2.0-dev3."""
     doc = copy.deepcopy(doc)
 
     def update_pickvalue(t: CWLObjectType) -> None:
@@ -174,6 +173,7 @@ def v1_2_0dev2todev3(
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
     return (doc, "v1.2.0-dev3")
+
 
 def v1_2_0dev3todev4(
     doc: CommentedMap, loader: Loader, baseuri: str
@@ -206,7 +206,7 @@ ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 def identity(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
-    """Default, do-nothing, CWL document upgrade function."""
+    """Do-nothing, CWL document upgrade function."""
     return (doc, cast(str, doc["cwlVersion"]))
 
 
