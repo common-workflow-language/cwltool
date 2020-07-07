@@ -1146,7 +1146,7 @@ class CommandLineTool(Process):
                                     )
                                 ]
                             )
-                        except (OSError, IOError) as e:
+                        except (OSError) as e:
                             _logger.warning(str(e))
                         except Exception:
                             _logger.error(

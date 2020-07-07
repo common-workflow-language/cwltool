@@ -155,7 +155,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
             targets.append(os.environ["SINGULARITY_PULLFOLDER"])
         for target in targets:
-            for dirpath, subdirs, files in os.walk(target):
+            for dirpath, _subdirs, files in os.walk(target):
                 for entry in files:
                     if entry in candidates:
                         path = os.path.join(dirpath, entry)

@@ -89,17 +89,17 @@ def formatSubclassOf(
 
     uriRefFmt = URIRef(fmt)
 
-    for s, p, o in ontology.triples((uriRefFmt, RDFS.subClassOf, None)):
+    for _s, _p, o in ontology.triples((uriRefFmt, RDFS.subClassOf, None)):
         # Find parent classes of `fmt` and search upward
         if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s, p, o in ontology.triples((uriRefFmt, OWL.equivalentClass, None)):
+    for _s, _p, o in ontology.triples((uriRefFmt, OWL.equivalentClass, None)):
         # Find equivalent classes of `fmt` and search horizontally
         if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s, p, o in ontology.triples((None, OWL.equivalentClass, uriRefFmt)):
+    for s, _p, _o in ontology.triples((None, OWL.equivalentClass, uriRefFmt)):
         # Find equivalent classes of `fmt` and search horizontally
         if formatSubclassOf(s, cls, ontology, visited):
             return True

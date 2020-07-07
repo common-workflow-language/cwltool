@@ -867,7 +867,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
-            except (OSError, IOError):
+            except (OSError):
                 cid = None
         max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)

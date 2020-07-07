@@ -1,7 +1,7 @@
 import os
 import re
 import inspect
-from typing import List, Type, TypeVar, MutableMapping, Mapping, Union
+from typing import List, Type, TypeVar, Optional, MutableMapping, Mapping, Union
 from ruamel import yaml
 
 
@@ -16,10 +16,10 @@ class MpiConfig:
         runner: str = "mpirun",
         nproc_flag: str = "-n",
         default_nproc: Union[int, str] = 1,
-        extra_flags: List[str] = [],
-        env_pass: List[str] = [],
-        env_pass_regex: List[str] = [],
-        env_set: Mapping[str, str] = {},
+        extra_flags: Optional[List[str]] = None,
+        env_pass: Optional[List[str]] = None,
+        env_pass_regex: Optional[List[str]] = None,
+        env_set: Optional[Mapping[str, str]] = None,
     ) -> None:
         """
         Initialize from the argument mapping.
@@ -38,10 +38,10 @@ class MpiConfig:
         self.runner = runner
         self.nproc_flag = nproc_flag
         self.default_nproc = int(default_nproc)
-        self.extra_flags = extra_flags
-        self.env_pass = env_pass
-        self.env_pass_regex = env_pass_regex
-        self.env_set = env_set
+        self.extra_flags = extra_flags or []
+        self.env_pass = env_pass or []
+        self.env_pass_regex = env_pass_regex or []
+        self.env_set = env_set or {}
 
     @classmethod
     def load(cls: Type[MpiConfigT], config_file_name: str) -> MpiConfigT:
