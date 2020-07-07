@@ -8,6 +8,7 @@ from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
 
 from .process import Process
+from .cwlviewer import CWLViewer
 
 
 def gather(tool: Process, ctx: ContextType) -> Graph:
@@ -31,7 +32,7 @@ def printrdf(wflow: Process, ctx: ContextType, style: str) -> str:
 def lastpart(uri: Any) -> str:
     uri2 = str(uri)
     if "/" in uri2:
-        return uri2[uri2.rindex("/") + 1 :]
+        return uri2[uri2.rindex("/") + 1:]
     return uri2
 
 
@@ -190,20 +191,11 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
 
 
 def printdot(
-    wf: Process,
-    ctx: ContextType,
-    stdout: Union[TextIO, StreamWriter],
-    include_parameters: bool = False,
+        wf: Process,
+        ctx: ContextType,
+        stdout: Union[TextIO, StreamWriter],
 ) -> None:
-    g = gather(wf, ctx)
-
-    stdout.write("digraph {")
-
-    # g.namespace_manager.qname(predicate)
-
-    if include_parameters:
-        dot_with_parameters(g, stdout)
-    else:
-        dot_without_parameters(g, stdout)
-
-    stdout.write("}")
+    cwl_viewer = CWLViewer(printrdf(wf, ctx, 'n3'))  # type: CWLViewer
+    stdout.write(
+        cwl_viewer.dot()
+    )
