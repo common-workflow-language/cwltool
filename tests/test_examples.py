@@ -846,7 +846,7 @@ def test_print_dot() -> None:
     # print Workflow
     cwl_path = get_data("tests/wf/revsort.cwl")
     cwl_posix_path = Path(cwl_path).as_posix()
-    expected_dot = pydot.graph_from_dot_data(f"""
+    expected_dot = pydot.graph_from_dot_data("""
     digraph {{
         graph [bgcolor="#eeeeee",
                 clusterrank=local,
@@ -886,7 +886,7 @@ def test_print_dot() -> None:
         "file://{cwl_posix_path}#workflow_input" -> "file://{cwl_posix_path}#rev";
         "file://{cwl_posix_path}#reverse_sort" -> "file://{cwl_posix_path}#sorted";
 }}
-    """)[0]
+    """.format(cwl_posix_path))[0]
     stdout = StringIO()
     assert main(["--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
@@ -900,7 +900,6 @@ def test_print_dot() -> None:
     cwl_path = get_data("tests/wf/echo.cwl")
     stdout = StringIO()
     assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 1
-
 
 
 test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
