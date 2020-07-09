@@ -180,6 +180,15 @@ def v1_2_0dev3todev4(
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     return (doc, "v1.2.0-dev4")
 
+ORDERED_VERSIONS = [
+    "v1.0",
+    "v1.1.0-dev1",
+    "v1.1",
+    "v1.2.0-dev1",
+    "v1.2.0-dev2",
+    "v1.2.0-dev3",
+    "v1.2.0-dev4",
+]
 
 UPDATES = {
     u"v1.0": v1_0to1_1,
@@ -268,7 +277,11 @@ def update(
     baseuri: str,
     enable_dev: bool,
     metadata: CommentedMap,
+    update_to: Optional[str] = None
 ) -> CommentedMap:
+
+    if update_to is None:
+        update_to = INTERNAL_VERSION
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
     originalversion = copy.copy(version)
@@ -277,7 +290,7 @@ def update(
         identity
     )  # type: Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]
 
-    while nextupdate:
+    while version != update_to and nextupdate:
         (cdoc, version) = nextupdate(cdoc, loader, baseuri)
         nextupdate = ALLUPDATES[version]
 
