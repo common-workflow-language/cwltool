@@ -377,6 +377,9 @@ def resolve_and_validate_document(
 
     document_loader.resolve_all(workflowobj, fileuri)
     processobj, metadata = document_loader.resolve_ref(uri)
+    if not hasattr(processobj.lc, "filename"):
+        processobj.lc.filename = fileuri
+
     if loadingContext.metadata:
         metadata = loadingContext.metadata
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):

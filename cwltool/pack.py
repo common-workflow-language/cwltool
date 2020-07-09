@@ -242,6 +242,11 @@ def pack(
             update_to_version,
         )
 
+        if "http://commonwl.org/cwltool#original_cwlVersion" in metadata:
+            del metadata["http://commonwl.org/cwltool#original_cwlVersion"]
+        if "http://commonwl.org/cwltool#original_cwlVersion" in dcr:
+            del dcr["http://commonwl.org/cwltool#original_cwlVersion"]
+
         if "$schemas" in metadata:
             for s in metadata["$schemas"]:
                 schemas.add(s)
