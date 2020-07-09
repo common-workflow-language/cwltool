@@ -422,12 +422,14 @@ class Builder(HasReqsHints):
                             found = False
 
                             if isinstance(sfname, str):
-                                sf_location = (
-                                    cast(str, datum["location"])[
-                                        0 : cast(str, datum["location"]).rindex("/") + 1
-                                    ]
-                                    + sfname
-                                )
+                                d_location = cast(str, datum["location"])
+                                if "/" in d_location:
+                                    sf_location = (
+                                        d_location[0 : d_location.rindex("/") + 1]
+                                        + sfname
+                                    )
+                                else:
+                                    sf_location = d_location + sfname
                                 sfbasename = sfname
                             elif isinstance(sfname, MutableMapping):
                                 sf_location = sfname["location"]
