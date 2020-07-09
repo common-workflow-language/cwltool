@@ -153,16 +153,22 @@ def pack(
             document_loader.idx[po["id"]] = CommentedMap(po.items())
         document_loader.idx[metadata["id"]] = CommentedMap(metadata.items())
 
-    found_versions = {loadingContext.metadata["cwlVersion"]}
+    found_versions = {
+        cast(str, loadingContext.metadata["cwlVersion"])
+    }  # type: Set[str]
 
     def loadref(base: Optional[str], lr_uri: str) -> ResolveType:
         lr_loadingContext = loadingContext.copy()
         lr_loadingContext.metadata = {}
-        lr_loadingContext, lr_workflowobj, lr_uri = fetch_document(lr_uri, lr_loadingContext)
+        lr_loadingContext, lr_workflowobj, lr_uri = fetch_document(
+            lr_uri, lr_loadingContext
+        )
         lr_loadingContext, lr_uri = resolve_and_validate_document(
             lr_loadingContext, lr_workflowobj, lr_uri
         )
-        found_versions.add(lr_loadingContext.metadata["cwlVersion"])
+        found_versions.add(cast(str, lr_loadingContext.metadata["cwlVersion"]))
+        if lr_loadingContext.loader is None:
+            raise Exception("loader should not be None")
         return lr_loadingContext.loader.resolve_ref(lr_uri, base_url=base)[0]
 
     ids = set()  # type: Set[str]
@@ -228,7 +234,12 @@ def pack(
             continue
 
         dcr = update(
-            dcr, document_loader, r, loadingContext.enable_dev, metadata, update_to_version
+            dcr,
+            document_loader,
+            r,
+            loadingContext.enable_dev,
+            metadata,
+            update_to_version,
         )
 
         if "$schemas" in metadata:
