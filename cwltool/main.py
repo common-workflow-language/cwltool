@@ -101,6 +101,7 @@ from .utils import (
 from .workflow import Workflow
 from .mpi import MpiConfig
 
+
 def _terminate_processes() -> None:
     """Kill all spawned processes.
 
@@ -653,6 +654,7 @@ class ProvLogFormatter(logging.Formatter):
     """Enforce ISO8601 with both T and Z."""
 
     def __init__(self) -> None:
+        """Use the default formatter with our custom formatstring."""
         super(ProvLogFormatter, self).__init__("[%(asctime)sZ] %(message)s")
 
     def formatTime(
@@ -874,7 +876,7 @@ def main(
 
         if not args.workflow:
             if os.path.isfile("CWLFile"):
-                setattr(args, "workflow", "CWLFile")
+                args.workflow = "CWLFile"
             else:
                 _logger.error("CWL document required, no input file was provided")
                 arg_parser().print_help()

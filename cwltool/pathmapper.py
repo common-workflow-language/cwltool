@@ -229,4 +229,5 @@ class PathMapper(object):
         return key in self._pathmap
 
     def __iter__(self) -> Iterator[MapperEnt]:
+        """Get iterator for the maps."""
         return self._pathmap.values().__iter__()

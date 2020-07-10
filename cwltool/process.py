@@ -1,3 +1,4 @@
+"""Classes and methods relevant for all CWL Proccess types."""
 import abc
 import copy
 import functools
@@ -266,7 +267,6 @@ def stage_files(
     fix_conflicts: bool = False,
 ) -> None:
     """Link or copy files to their targets. Create them as needed."""
-
     targets = {}  # type: Dict[str, MapperEnt]
     for key, entry in pathmapper.items():
         if "File" not in entry.type:
@@ -864,9 +864,10 @@ hints:
                     runtime_context.stagedir or tempfile.mkdtemp()
                 )
 
-        cwl_version = cast(str, self.metadata.get(
-            "http://commonwl.org/cwltool#original_cwlVersion", None
-        ))
+        cwl_version = cast(
+            str,
+            self.metadata.get("http://commonwl.org/cwltool#original_cwlVersion", None),
+        )
         builder = Builder(
             job,
             files,

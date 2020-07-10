@@ -57,6 +57,14 @@ $graph:
         with an identifier for the type of computational operation.
       * Added conformance tests for order of operations evaluating `secondaryFiles` on input
         and ensure that input and output secondaryFiles expressions can return a File object.
+      * Clarify there are no limits on the size of file literal `contents`.
+      * When using `loadContents` it now must fail when attempting to
+        load a file greater than 64 KiB instead of silently truncating
+        the data.
+      * Objects, arrays and numbers returned by parameter references
+        or expressions in `Dirent.entry` that are not a `File` or
+        `Directory` object (or array of such) are now specified to be
+        JSON serialized to produce file contents.
       * Note that only enum and record types can be typedef-ed
       * Added conformance tests for order of operations evaluating `secondaryFiles` on input
         and ensure that input and output secondaryFiles expressions can return a File object.
@@ -285,10 +293,20 @@ $graph:
         containing file objects that were matched.  If no files were
         matched, `self` must be a zero length array; if a single file
         was matched, the value of `self` is an array of a single
-        element.  Additionally, if `loadContents` is `true`, the File
-        objects must include up to the first 64 KiB of file contents
-        in the `contents` field.  The exit code of the process is
+        element.  The exit code of the process is
         available in the expression as `runtime.exitCode`.
+
+        Additionally if `loadContents` is true, the file must be a
+        UTF-8 text file 64 KiB or smaller, and the implementation must
+        read the entire contents of the file (or file array) and place
+        it in the `contents` field of the File object for use in
+        `outputEval`.  If the size of the file is greater than 64 KiB,
+        the implementation must raise a fatal error.
+
+        If a tool needs to return a large amount of structured data to
+        the workflow, loading the output object from `cwl.output.json`
+        bypasses `outputEval` but is not subject to the 64 KiB
+        `loadContents` limit.
 
 - name: CommandLineBindable
   type: record
@@ -875,48 +893,63 @@ $graph:
       jsonldPredicate:
         _id: cwl:entryname
       doc: |
-        The name of the file or subdirectory to create in the output directory.
-        If `entry` is a File or Directory, the `entryname` field overrides the value
-        of `basename` of the File or Directory object.  Optional.
+        The name of the file or subdirectory to create in the output
+        directory.  If `entry` is a File or Directory, the `entryname`
+        field overrides the value of `basename` of the File or
+        Directory object.
+
+        * Required when `entry` evaluates to file contents only
+        * Optional when `entry` evaluates to a File or Directory object with a `basename`
+        * Invalid when `entry` evaluates to an array of File or Directory objects.
+
     - name: entry
       type: [string, Expression]
       jsonldPredicate:
         _id: cwl:entry
       doc: |
         If the value is a string literal or an expression which evaluates to a
-        string, a new file must be created with the string as the file contents.
+        string, a new text file must be created with the string as the file contents.
 
-        If the value is an expression that evaluates to a `File` or `Directory`
-        object, this indicates the referenced file or directory should be added
-        to the designated output directory prior to executing the tool.
+        If the value is an expression that evaluates to a `File` or
+        `Directory` object, or an array of `File` or `Directory`
+        objects, this indicates the referenced file or directory
+        should be added to the designated output directory prior to
+        executing the tool.
 
-        If the value is an expression that evaluates to an array of `File` or
-        `Directory` objects, this indicates the referenced files or directories
-        should be added to the designated output directory prior to executing
-        the tool.
+        If the value is an expression that evaluates to `null`,
+        nothing is added to the designated output directory, the entry
+        has no effect.
 
-        If the value is an expression that evaluates to a `Dirent` object, this
-        indicates that the File or Directory in `entry` should be added to the
-        designated output directory with the name in `entryname`.
+        If the value is an expression that evaluates to some other
+        array, number, or object not consisting of `File` or
+        `Directory` objects, a new file must be created with the value
+        serialized to JSON text as the file contents.  The JSON
+        serialization behavior should match the behavior of string
+        interpolation of [Parameter
+        references](#Parameter_references).
 
-        If the value is an expression that evaluates to `null`, nothing is added
-        to the designated output directory from this entry.
-
-        If `writable` is false, the file may be made available using a bind
-        mount or file system link to avoid unnecessary copying of the input
-        file.
     - name: writable
       type: boolean?
       default: false
       doc: |
-        If true, the file or directory must be writable by the tool.  Changes
-        to the file or directory must be isolated and not visible by any other
-        CommandLineTool process.  This may be implemented by making a copy of
-        the original file or directory.  Default false (files and directories
-        read-only by default).
+        If true, the File or Directory (or array of Files or
+        Directories) declared in `entry` must be writable by the tool.
+
+        Changes to the file or directory must be isolated and not
+        visible by any other CommandLineTool process.  This may be
+        implemented by making a copy of the original file or
+        directory.
+
+        Default false (files and directories read-only by default).
 
         A directory marked as `writable: true` implies that all files and
         subdirectories are recursively writable as well.
+
+        If `writable` is false, the file may be made available using a
+        bind mount or file system link to avoid unnecessary copying of
+        the input file.  Command line tools may receive an error on
+        attempting to rename or delete files or directories that are
+        not explicitly marked as writable.
 
 
 - name: InitialWorkDirRequirement
@@ -935,26 +968,37 @@ $graph:
         "_type": "@vocab"
     - name: listing
       type:
+        - Expression
         - type: array
           items:
             - "null"
+            - Dirent
+            - Expression
             - File
+            - Directory
             - type: array
               items:
                 - File
                 - Directory
-            - Directory
-            - Dirent
-            - Expression
-        - Expression
       jsonldPredicate:
         _id: "cwl:listing"
       doc: |
         The list of files or subdirectories that must be placed in the
         designated output directory prior to executing the command line tool.
 
-        May be an expression. If so, the expression return value must validate as
-        `{type: array, items: ["null", File, Directory, Dirent, {type: array, items: [File, Directory]}]}`.
+        Return type of each expression must validate as `["null",
+        File, Directory, Dirent, {type: array, items: [File,
+        Directory]}]`.
+
+        Each `File` or `Directory` that is returned by an Expression
+        must be added to the designated output directory prior to
+        executing the tool.
+
+        Each `Dirent` record that is listed or returned by an
+        expression specifies a file to be created or staged in the
+        designated output directory prior to executing the tool.
+
+        Expressions may return null, in which case they have no effect.
 
         Files or Directories which are listed in the input parameters and
         appear in the `InitialWorkDirRequirement` listing must have their

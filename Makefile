@@ -89,7 +89,7 @@ pydocstyle_report.txt: $(PYSOURCES)
 	pydocstyle setup.py $^ > $@ 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt
-	diff-quality --compare-branch=main --violations=pycodestyle --fail-under=100 $^
+	diff-quality --compare-branch=main --violations=pydocstyle --fail-under=100 $^
 
 ## format      : check/fix all code indentation and formatting (runs black)
 format:

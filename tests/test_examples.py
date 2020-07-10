@@ -172,6 +172,7 @@ def test_expression_interpolate_failures(pattern: str) -> None:
         return
     assert False, 'Should have produced a JavascriptException, got "{}".'.format(result)
 
+
 interpolate_escapebehavior = (
     ("\\$(foo.bar.baz)", "$(foo.bar.baz)", 1),
     ("\\\\$(foo.bar.baz)", "\\zab1", 1),
@@ -183,7 +184,6 @@ interpolate_escapebehavior = (
     ("\\\\x", "\\x", 1),
     ("\\\\\\x", "\\x", 1),
     ("\\\\\\\\x", "\\\\x", 1),
-
     ("\\$(foo.bar.baz)", "$(foo.bar.baz)", 2),
     ("\\\\$(foo.bar.baz)", "\\zab1", 2),
     ("\\\\\\$(foo.bar.baz)", "\\$(foo.bar.baz)", 2),
@@ -194,11 +194,18 @@ interpolate_escapebehavior = (
     ("\\\\x", "\\x", 2),
     ("\\\\\\x", "\\\\x", 2),
     ("\\\\\\\\x", "\\\\x", 2),
-    )
+)
+
 
 @pytest.mark.parametrize("pattern,expected,behavior", interpolate_escapebehavior)  # type: ignore
-def test_expression_interpolate_escapebehavior(pattern: str, expected: str, behavior: int) -> None:
-    assert expr.interpolate(pattern, interpolate_input, escaping_behavior=behavior) == expected
+def test_expression_interpolate_escapebehavior(
+    pattern: str, expected: str, behavior: int
+) -> None:
+    """Test escaping behavior in an interpolation context."""
+    assert (
+        expr.interpolate(pattern, interpolate_input, escaping_behavior=behavior)
+        == expected
+    )
 
 
 @windows_needs_docker  # type: ignore

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" Single and multi-threaded executors."""
+"""Single and multi-threaded executors."""
 import datetime
 import logging
 import os
@@ -443,7 +443,7 @@ class MultithreadedJobExecutor(JobExecutor):
 
 
 class NoopJobExecutor(JobExecutor):
-    """ Do nothing executor, for testing purposes only. """
+    """Do nothing executor, for testing purposes only."""
 
     def run_jobs(
         self,
