@@ -1,3 +1,4 @@
+"""Visualize a CWL workflow."""
 import rdflib
 from urllib.parse import urlparse
 import os
@@ -5,10 +6,7 @@ import pydot  # type: ignore
 
 
 class CWLViewer:
-    """
-    Visualize a CWL workflow. The viewer tagrets to produce similar images with the
-    https://github.com/common-workflow-language/cwlviewer.
-    """
+    """Produce similar images with the https://github.com/common-workflow-language/cwlviewer."""
 
     _queries_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'rdfqueries')
     _get_inner_edges_query_path = os.path.join(_queries_dir, 'get_inner_edges.sparql')
@@ -20,9 +18,10 @@ class CWLViewer:
             self,
             rdf_description  # type: str
     ):
+        """Create a viewer object based on the rdf description of the workflow."""
         self._dot_graph = CWLViewer._init_dot_graph()  # type: pydot.Graph
         self._rdf_graph = self._load_cwl_graph(rdf_description)  # type: rdflib.graph.Graph
-        self._root_graph_uri = self.get_root_graph_uri()  # type: str
+        self._root_graph_uri = self._get_root_graph_uri()  # type: str
         self._set_inner_edges()
         self._set_input_edges()
         self._set_output_edges()
@@ -109,7 +108,7 @@ class CWLViewer:
             outputs_graph.add_node(n)
             self._dot_graph.add_edge(pydot.Edge(output_edge_row['step'], output_edge_row['output']))
 
-    def get_root_graph_uri(self) -> rdflib.URIRef:
+    def _get_root_graph_uri(self) -> rdflib.URIRef:
         with open(self._get_root_query_path) as f:
             get_root_query = f.read()
         root = list(self._rdf_graph.query(get_root_query, ))
@@ -131,7 +130,9 @@ class CWLViewer:
         return graph
 
     def get_dot_graph(self) -> pydot.Graph:
+        """Get the dot graph object."""
         return self._dot_graph
 
     def dot(self) -> str:
+        """Get the graph as graphviz."""
         return str(self._dot_graph.to_string())
