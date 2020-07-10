@@ -1235,7 +1235,10 @@ def scandeps(
                     if nestdirs:
                         deps = nestdir(base, deps)
                     r.append(deps)
-            elif k not in ("listing", "secondaryFiles"):
+            elif doc.get("class") in ("File", "Directory") and k in ("listing", "secondaryFiles"):
+                # should be handled earlier.
+                pass
+            else:
                 r.extend(
                     scandeps(
                         base,

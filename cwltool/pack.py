@@ -22,6 +22,8 @@ from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
 from .process import shortname, uniquename
 from .utils import CWLObjectType, CWLOutputType
+from .loghandler import _logger
+from .update import update, ORDERED_VERSIONS
 
 LoadRefType = Callable[[Optional[str], str], ResolveType]
 
@@ -151,14 +153,36 @@ def pack(
             document_loader.idx[po["id"]] = CommentedMap(po.items())
         document_loader.idx[metadata["id"]] = CommentedMap(metadata.items())
 
-    def loadref(base: Optional[str], uri: str) -> ResolveType:
-        return document_loader.resolve_ref(uri, base_url=base)[0]
+    found_versions = {
+        cast(str, loadingContext.metadata["cwlVersion"])
+    }  # type: Set[str]
+
+    def loadref(base: Optional[str], lr_uri: str) -> ResolveType:
+        lr_loadingContext = loadingContext.copy()
+        lr_loadingContext.metadata = {}
+        lr_loadingContext, lr_workflowobj, lr_uri = fetch_document(
+            lr_uri, lr_loadingContext
+        )
+        lr_loadingContext, lr_uri = resolve_and_validate_document(
+            lr_loadingContext, lr_workflowobj, lr_uri
+        )
+        found_versions.add(cast(str, lr_loadingContext.metadata["cwlVersion"]))
+        if lr_loadingContext.loader is None:
+            raise Exception("loader should not be None")
+        return lr_loadingContext.loader.resolve_ref(lr_uri, base_url=base)[0]
 
     ids = set()  # type: Set[str]
     find_ids(processobj, ids)
 
     runs = {uri}
     find_run(processobj, loadref, runs)
+
+    # Figure out the highest version, everything needs to be updated
+    # to it.
+    m = 0
+    for fv in found_versions:
+        m = max(m, ORDERED_VERSIONS.index(fv))
+    update_to_version = ORDERED_VERSIONS[m]
 
     for f in runs:
         find_ids(document_loader.resolve_ref(f)[0], ids)
@@ -193,7 +217,7 @@ def pack(
         rewrite_id(r, uri)
 
     packed = CommentedMap(
-        (("$graph", CommentedSeq()), ("cwlVersion", metadata["cwlVersion"]))
+        (("$graph", CommentedSeq()), ("cwlVersion", update_to_version))
     )
     namespaces = metadata.get("$namespaces", None)
 
@@ -208,6 +232,21 @@ def pack(
             dcr = cast(CommentedMap, dcr)
         if not isinstance(dcr, MutableMapping):
             continue
+
+        dcr = update(
+            dcr,
+            document_loader,
+            r,
+            loadingContext.enable_dev,
+            metadata,
+            update_to_version,
+        )
+
+        if "http://commonwl.org/cwltool#original_cwlVersion" in metadata:
+            del metadata["http://commonwl.org/cwltool#original_cwlVersion"]
+        if "http://commonwl.org/cwltool#original_cwlVersion" in dcr:
+            del dcr["http://commonwl.org/cwltool#original_cwlVersion"]
+
         if "$schemas" in metadata:
             for s in metadata["$schemas"]:
                 schemas.add(s)
