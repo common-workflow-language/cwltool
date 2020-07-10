@@ -40,11 +40,8 @@ jobs:
     - python: "3.8"
       name: "CWL v1.2 conformance tests"
       env:
-       - version=v1.2.0-dev3
+       - version=v1.2.0-dev4
       script: ${TRAVIS_BUILD_DIR}/travis.bash
-  allow_failures:
-    - python: "3.8"
-      name: "CWL v1.2 conformance tests"
 script: tox
 branches:
   only:
