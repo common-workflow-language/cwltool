@@ -45,6 +45,7 @@ from .utils import (
     versionstring,
 )
 from .workflow_job import WorkflowJob
+from .job import CommandLineJob, JobBase
 
 if TYPE_CHECKING:
     from .provenance import ResearchObject
@@ -258,8 +259,8 @@ class ProvenanceProfile:
         elif not hasattr(job, "workflow"):
             # commandline tool execution as part of workflow
             name = ""
-            if hasattr(job, "name"):
-                name = getattr(job, "name")
+            if isinstance(job, (CommandLineJob, JobBase, WorkflowJob)):
+                name = job.name
             process_name = urllib.parse.quote(name, safe=":/,#")
             process_run_id = self.start_process(process_name, datetime.datetime.now())
         return process_run_id

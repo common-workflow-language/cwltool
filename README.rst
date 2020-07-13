@@ -96,9 +96,15 @@ Your operating system may offer cwltool directly. For `Debian <https://tracker.d
 
   apt-get install cwltool
 
-Otherwise, to
-avoid conflicting versions of the same library,
-it is recommended to do the following:
+For MacOS X, other UNIXes or Windows packages prepared by the conda-forge project. Please follow instructions of conda-forge (https://conda-forge.org/#about) for its installation, then perform: 
+
+.. code:: bash
+
+   conda install -c conda-forge cwltool
+   
+Under the hood, conda setups virtual environments before installing `cwltool` to
+avoid conflicting versions of the same library. When installing cwltool directly,
+it is recommended to do the same manually:
 
 .. code:: bash
 
@@ -131,9 +137,11 @@ Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
 system link or `another facility <https://wiki.debian.org/DebianAlternatives>`_.
 
-=====
-Usage
-=====
+You may also want to have the following installed: 
+node.js
+Docker, udocker, or Singularity (optional)
+
+Without these, some examples in the CWL tutorials at http://www.commonwl.org/user_guide/ may not work. 
 
 Run on the command line
 -----------------------

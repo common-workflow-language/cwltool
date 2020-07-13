@@ -138,7 +138,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
     )
 
     currentwf = None  # type: Optional[str]
-    for wf, step, run, runtype in qres:
+    for wf, step, _run, runtype in qres:
         if step not in dotname:
             dotname[step] = lastpart(step)
 

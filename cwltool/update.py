@@ -24,8 +24,7 @@ from .utils import CWLObjectType, CWLOutputType, aslist, visit_class, visit_fiel
 def v1_1to1_2(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
-    """Public updater for v1.1 to v1.2"""
-
+    """Public updater for v1.1 to v1.2."""
     doc = copy.deepcopy(doc)
 
     upd = doc
@@ -156,7 +155,7 @@ def v1_2_0dev1todev2(
 def v1_2_0dev2todev3(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
-    """Public updater for v1.2.0-dev2 to v1.2.0-dev3"""
+    """Public updater for v1.2.0-dev2 to v1.2.0-dev3."""
     doc = copy.deepcopy(doc)
 
     def update_pickvalue(t: CWLObjectType) -> None:
@@ -175,11 +174,22 @@ def v1_2_0dev2todev3(
             del proc["cwlVersion"]
     return (doc, "v1.2.0-dev3")
 
+
 def v1_2_0dev3todev4(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     return (doc, "v1.2.0-dev4")
 
+
+ORDERED_VERSIONS = [
+    "v1.0",
+    "v1.1.0-dev1",
+    "v1.1",
+    "v1.2.0-dev1",
+    "v1.2.0-dev2",
+    "v1.2.0-dev3",
+    "v1.2.0-dev4",
+]
 
 UPDATES = {
     u"v1.0": v1_0to1_1,
@@ -206,7 +216,7 @@ ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 def identity(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
-    """Default, do-nothing, CWL document upgrade function."""
+    """Do-nothing, CWL document upgrade function."""
     return (doc, cast(str, doc["cwlVersion"]))
 
 
@@ -268,7 +278,11 @@ def update(
     baseuri: str,
     enable_dev: bool,
     metadata: CommentedMap,
+    update_to: Optional[str] = None,
 ) -> CommentedMap:
+
+    if update_to is None:
+        update_to = INTERNAL_VERSION
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
     originalversion = copy.copy(version)
@@ -277,7 +291,7 @@ def update(
         identity
     )  # type: Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]
 
-    while nextupdate:
+    while version != update_to and nextupdate:
         (cdoc, version) = nextupdate(cdoc, loader, baseuri)
         nextupdate = ALLUPDATES[version]
 
