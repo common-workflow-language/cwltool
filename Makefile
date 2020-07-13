@@ -26,7 +26,7 @@ MODULE=cwltool
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
 DEVPKGS=diff_cover black pylint coverage pep257 pydocstyle flake8 mypy\
-	pytest-xdist==1.27.0 isort wheel -rtest-requirements.txt
+	pytest-xdist isort wheel -rtest-requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 VERSION=3.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
@@ -89,7 +89,7 @@ pydocstyle_report.txt: $(PYSOURCES)
 	pydocstyle setup.py $^ > $@ 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt
-	diff-quality --violations=pycodestyle --fail-under=100 $^
+	diff-quality --compare-branch=main --violations=pydocstyle --fail-under=100 $^
 
 ## format      : check/fix all code indentation and formatting (runs black)
 format:

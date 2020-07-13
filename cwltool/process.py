@@ -1,3 +1,4 @@
+"""Classes and methods relevant for all CWL Proccess types."""
 import abc
 import copy
 import functools
@@ -266,7 +267,6 @@ def stage_files(
     fix_conflicts: bool = False,
 ) -> None:
     """Link or copy files to their targets. Create them as needed."""
-
     targets = {}  # type: Dict[str, MapperEnt]
     for key, entry in pathmapper.items():
         if "File" not in entry.type:
@@ -416,7 +416,7 @@ def relocateOutputs(
 
     def _check_adjust(a_file: CWLObjectType) -> CWLObjectType:
         location = cast(str, a_file["location"])
-        if urllib.parse.urlparse(os.path.splitdrive(a_file["location"])[1] ).scheme == "" :
+        if urllib.parse.urlparse(os.path.splitdrive(cast(str, a_file["location"]))[1] ).scheme == "" :
             a_file["location"] = file_uri(
                 pm.mapper(location)[1]
             )  # return the location of the file on the filesystem
@@ -872,6 +872,10 @@ hints:
                     runtime_context.stagedir or tempfile.mkdtemp()
                 )
 
+        cwl_version = cast(
+            str,
+            self.metadata.get("http://commonwl.org/cwltool#original_cwlVersion", None),
+        )
         builder = Builder(
             job,
             files,
@@ -894,6 +898,7 @@ hints:
             outdir,
             tmpdir,
             stagedir,
+            cwl_version,
         )
 
         bindings.extend(
@@ -1238,7 +1243,10 @@ def scandeps(
                     if nestdirs:
                         deps = nestdir(base, deps)
                     r.append(deps)
-            elif k not in ("listing", "secondaryFiles"):
+            elif doc.get("class") in ("File", "Directory") and k in ("listing", "secondaryFiles"):
+                # should be handled earlier.
+                pass
+            else:
                 r.extend(
                     scandeps(
                         base,
