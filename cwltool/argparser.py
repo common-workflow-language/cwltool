@@ -692,7 +692,6 @@ class FSAction(argparse.Action):
                     "location": values,
                 },
             )
-         
 
 class FSAppendAction(argparse.Action):
     objclass = None  # type: str
@@ -717,7 +716,7 @@ class FSAppendAction(argparse.Action):
             g = []
             setattr(namespace, self.dest, g)
         url= urllib.parse.urlparse( values )
-        if url.scheme ==  "" :
+        if url.scheme == "" :
             g.append(
                 {
                     "class": self.objclass,
@@ -728,9 +727,9 @@ class FSAppendAction(argparse.Action):
             g.append(
                 {
                     "class": self.objclass,
-                    "location":  values,
+                    "location": values,
                 }
-            )    
+            )
 
 class FileAction(FSAction):
     objclass = "File"
