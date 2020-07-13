@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import urllib
 from typing import (
     Any,
     AnyStr,
@@ -672,15 +673,26 @@ class FSAction(argparse.Action):
         values: Union[AnyStr, Sequence[Any], None],
         option_string: Optional[str] = None,
     ) -> None:
-        setattr(
-            namespace,
-            self.dest,
-            {
-                "class": self.objclass,
-                "location": file_uri(str(os.path.abspath(cast(AnyStr, values)))),
-            },
-        )
-
+        url= urllib.parse.urlparse( values )
+        if url.scheme == '':
+            setattr(
+                namespace,
+                self.dest,
+                {
+                    "class": self.objclass,
+                    "location": file_uri(str(os.path.abspath(cast(AnyStr, values)))),
+                },
+            )
+        else:
+            setattr(
+                namespace,
+                self.dest,
+                {
+                    "class": self.objclass,
+                    "location": values,
+                },
+            )
+         
 
 class FSAppendAction(argparse.Action):
     objclass = None  # type: str
@@ -704,13 +716,21 @@ class FSAppendAction(argparse.Action):
         if not g:
             g = []
             setattr(namespace, self.dest, g)
-        g.append(
-            {
-                "class": self.objclass,
-                "location": file_uri(str(os.path.abspath(cast(AnyStr, values)))),
-            }
-        )
-
+        url= urllib.parse.urlparse( values )
+        if url.scheme ==  "" :
+            g.append(
+                {
+                    "class": self.objclass,
+                    "location": file_uri(str(os.path.abspath(cast(AnyStr, values)))),
+                }
+            )
+        else:
+            g.append(
+                {
+                    "class": self.objclass,
+                    "location":  values,
+                }
+            )    
 
 class FileAction(FSAction):
     objclass = "File"
