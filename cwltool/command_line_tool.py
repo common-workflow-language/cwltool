@@ -607,11 +607,30 @@ class CommandLineTool(Process):
                     "Entry at index %s of listing is not a Dirent, File or Directory object, was %s"
                     % (i, t2)
                 )
-
-        normalizeFilesDirs(ls)
+            t3["basename"] = os.path.normpath(t3["basename"])
+            if t3["basename"].startswith("../"):
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException
+                ).makeError(
+                    "Name '%s' at index %s of listing is invalid, cannot start with '../'"
+                    % (t3["basename"], i)
+                )
+            if t3["basename"].startswith("/"):
+                # only if DockerRequirement in requirements
+                req, is_req = self.get_requirement("DockerRequirement")
+                if is_req is not True:
+                    raise SourceLine(
+                        initialWorkdir, "listing", WorkflowException
+                    ).makeError(
+                        "Name '%s' at index %s of listing is invalid, name can only start with '/' when DockerRequirement is in 'requirements'"
+                        % (t3["basename"], i)
+                    )
 
         j.generatefiles["listing"] = ls
         for entry in ls:
+            entry["dirname"] = os.path.join(builder.outdir, os.path.dirname(entry["basename"]))
+            entry["basename"] = os.path.basename(entry["basename"])
+            normalizeFilesDirs(entry)
             self.updatePathmap(
                 builder.outdir, cast(PathMapper, builder.pathmapper), entry
             )

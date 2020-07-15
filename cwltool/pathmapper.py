@@ -117,7 +117,7 @@ class PathMapper(object):
         staged: bool = False,
     ) -> None:
         tgt = convert_pathsep_to_unix(
-            os.path.join(stagedir, cast(str, obj["basename"]))
+            os.path.join(obj.get("dirname") or stagedir, cast(str, obj["basename"]))
         )
         if obj["location"] in self._pathmap:
             return
