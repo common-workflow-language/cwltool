@@ -216,6 +216,9 @@ def revmap_file(
         else:
             return f
 
+    if "dirname" in f:
+        del f["dirname"]
+
     if "path" in f:
         path = cast(str, f["path"])
         uripath = file_uri(path)
@@ -628,7 +631,9 @@ class CommandLineTool(Process):
                 cwl_version = self.metadata.get(
                     "http://commonwl.org/cwltool#original_cwlVersion", None
                 )
-                if cwl_version and ORDERED_VERSIONS.index(cwl_version) < ORDERED_VERSIONS.index("v1.2.0-dev4"):
+                if isinstance(cwl_version, str) and ORDERED_VERSIONS.index(
+                    cwl_version
+                ) < ORDERED_VERSIONS.index("v1.2.0-dev4"):
                     raise SourceLine(
                         initialWorkdir, "listing", WorkflowException
                     ).makeError(
