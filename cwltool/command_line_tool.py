@@ -79,6 +79,7 @@ from .utils import (
     visit_class,
     windows_default_container_id,
 )
+from .update import ORDERED_VERSIONS
 
 if TYPE_CHECKING:
     from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
@@ -624,6 +625,17 @@ class CommandLineTool(Process):
                 )
             if basename.startswith("/"):
                 # only if DockerRequirement in requirements
+                cwl_version = self.metadata.get(
+                    "http://commonwl.org/cwltool#original_cwlVersion", None
+                )
+                if cwl_version and ORDERED_VERSIONS.index(cwl_version) < ORDERED_VERSIONS.index("v1.2.0-dev4"):
+                    raise SourceLine(
+                        initialWorkdir, "listing", WorkflowException
+                    ).makeError(
+                        "Name '%s' at index %s of listing is invalid, paths starting with '/' only permitted in CWL 1.2 and later"
+                        % (basename, i)
+                    )
+
                 req, is_req = self.get_requirement("DockerRequirement")
                 if is_req is not True:
                     raise SourceLine(
