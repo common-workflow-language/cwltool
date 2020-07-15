@@ -444,6 +444,10 @@ class CommandLineTool(Process):
     def updatePathmap(
         self, outdir: str, pathmap: PathMapper, fn: CWLObjectType
     ) -> None:
+        if not isinstance(fn, MutableMapping):
+            raise WorkflowException(
+                "Expected File or Directory object, was %s" % type(fn)
+            )
         basename = cast(str, fn["basename"])
         if "location" in fn:
             location = cast(str, fn["location"])
@@ -607,15 +611,18 @@ class CommandLineTool(Process):
                     "Entry at index %s of listing is not a Dirent, File or Directory object, was %s"
                     % (i, t2)
                 )
-            t3["basename"] = os.path.normpath(t3["basename"])
-            if t3["basename"].startswith("../"):
+            if not "basename" in t3:
+                continue
+            basename = os.path.normpath(cast(str, t3["basename"]))
+            t3["basename"] = basename
+            if basename.startswith("../"):
                 raise SourceLine(
                     initialWorkdir, "listing", WorkflowException
                 ).makeError(
                     "Name '%s' at index %s of listing is invalid, cannot start with '../'"
-                    % (t3["basename"], i)
+                    % (basename, i)
                 )
-            if t3["basename"].startswith("/"):
+            if basename.startswith("/"):
                 # only if DockerRequirement in requirements
                 req, is_req = self.get_requirement("DockerRequirement")
                 if is_req is not True:
@@ -623,23 +630,39 @@ class CommandLineTool(Process):
                         initialWorkdir, "listing", WorkflowException
                     ).makeError(
                         "Name '%s' at index %s of listing is invalid, name can only start with '/' when DockerRequirement is in 'requirements'"
-                        % (t3["basename"], i)
+                        % (basename, i)
                     )
 
-        j.generatefiles["listing"] = ls
-        for entry in ls:
-            entry["dirname"] = os.path.join(builder.outdir, os.path.dirname(entry["basename"]))
-            entry["basename"] = os.path.basename(entry["basename"])
-            normalizeFilesDirs(entry)
-            self.updatePathmap(
-                builder.outdir, cast(PathMapper, builder.pathmapper), entry
-            )
+        with SourceLine(initialWorkdir, "listing", WorkflowException):
+            j.generatefiles["listing"] = ls
+            for entry in ls:
+                if "basename" in entry:
+                    basename = cast(str, entry["basename"])
+                    entry["dirname"] = os.path.join(
+                        builder.outdir, os.path.dirname(basename)
+                    )
+                    entry["basename"] = os.path.basename(basename)
+                normalizeFilesDirs(entry)
+                self.updatePathmap(
+                    cast(Optional[str], entry.get("dirname")) or builder.outdir,
+                    cast(PathMapper, builder.pathmapper),
+                    entry,
+                )
+                if "listing" in entry:
 
-        visit_class(
-            [builder.files, builder.bindings],
-            ("File", "Directory"),
-            partial(check_adjust, builder),
-        )
+                    def remove_dirname(d: CWLObjectType) -> None:
+                        if "dirname" in d:
+                            del d["dirname"]
+
+                    visit_class(
+                        entry["listing"], ("File", "Directory"), remove_dirname,
+                    )
+
+            visit_class(
+                [builder.files, builder.bindings],
+                ("File", "Directory"),
+                partial(check_adjust, builder),
+            )
 
     def job(
         self,
