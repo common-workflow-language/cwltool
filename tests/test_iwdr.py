@@ -63,6 +63,7 @@ def test_iwdr_permutations() -> None:
                                                     [
                                                         "--outdir",
                                                         outdir,
+                                                        "--enable-dev",
                                                         get_data(
                                                             "tests/wf/iwdr_permutations.cwl"
                                                         ),
@@ -109,6 +110,7 @@ def test_iwdr_permutations_inplace() -> None:
                                                         "--outdir",
                                                         outdir,
                                                         "--enable-ext",
+                                                        "--enable-dev",
                                                         "--overrides",
                                                         get_data(
                                                             "tests/wf/iwdr_permutations_inplace.yml"
@@ -155,6 +157,7 @@ def test_iwdr_permutations_singularity() -> None:
                                                 [
                                                     "--outdir",
                                                     outdir,
+                                                    "--enable-dev",
                                                     "--singularity",
                                                     get_data(
                                                         "tests/wf/iwdr_permutations.cwl"
@@ -199,6 +202,7 @@ def test_iwdr_permutations_singularity_inplace() -> None:
                                                     outdir,
                                                     "--singularity",
                                                     "--enable-ext",
+                                                    "--enable-dev",
                                                     "--overrides",
                                                     get_data(
                                                         "tests/wf/iwdr_permutations_inplace.yml"
