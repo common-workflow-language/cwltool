@@ -27,6 +27,9 @@ from cwltool.process import CWL_IANA
 from cwltool.sandboxjs import JavascriptException
 from cwltool.utils import CWLObjectType, dedup, onWindows
 
+import pydot
+from urllib.parse import urlparse
+
 from .util import (
     get_data,
     get_main_output,
@@ -845,7 +848,63 @@ def test_var_spool_cwl_checker3() -> None:
 
 
 def test_print_dot() -> None:
-    assert main(["--print-dot", get_data("tests/wf/revsort.cwl")]) == 0
+    # print Workflow
+    cwl_path = get_data("tests/wf/revsort.cwl")
+    cwl_posix_path = Path(cwl_path).as_posix()
+    expected_dot = pydot.graph_from_dot_data("""
+    digraph {{
+        graph [bgcolor="#eeeeee",
+                clusterrank=local,
+                labeljust=right,
+                labelloc=bottom
+        ];
+        subgraph cluster_inputs {{
+                graph [label="Workflow Inputs",
+                        rank=same,
+                        style=dashed
+                ];
+                "file://{cwl_posix_path}#workflow_input"      [fillcolor="#94DDF4",
+                        label=workflow_input,
+                        style=filled];
+                "file://{cwl_posix_path}#reverse_sort"        [fillcolor="#94DDF4",
+                        label=reverse_sort,
+                        style=filled];
+        }}
+        subgraph cluster_outputs {{
+                graph [label="Workflow Outputs",
+                        labelloc=b,
+                        rank=same,
+                        style=dashed
+                ];
+                "file://{cwl_posix_path}#sorted_output"       [fillcolor="#94DDF4",
+                        label=sorted_output,
+                        style=filled];
+        }}
+        "file://{cwl_posix_path}#rev" [fillcolor=lightgoldenrodyellow,
+                label=rev,
+                style=filled];
+        "file://{cwl_posix_path}#sorted"      [fillcolor=lightgoldenrodyellow,
+                label=sorted,
+                style=filled];
+        "file://{cwl_posix_path}#rev" -> "file://{cwl_posix_path}#sorted";
+        "file://{cwl_posix_path}#sorted" -> "file://{cwl_posix_path}#sorted_output";
+        "file://{cwl_posix_path}#workflow_input" -> "file://{cwl_posix_path}#rev";
+        "file://{cwl_posix_path}#reverse_sort" -> "file://{cwl_posix_path}#sorted";
+}}
+    """.format(cwl_posix_path=cwl_posix_path))[0]
+    stdout = StringIO()
+    assert main(["--print-dot", cwl_path], stdout=stdout) == 0
+    computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
+    computed_edges = sorted(
+        [(urlparse(source).fragment, urlparse(target).fragment) for source, target in computed_dot.obj_dict['edges']])
+    expected_edges = sorted(
+        [(urlparse(source).fragment, urlparse(target).fragment) for source, target in expected_dot.obj_dict['edges']])
+    assert computed_edges == expected_edges
+
+    # print CommandLineTool
+    cwl_path = get_data("tests/wf/echo.cwl")
+    stdout = StringIO()
+    assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 1
 
 
 test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]

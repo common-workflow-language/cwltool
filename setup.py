@@ -104,6 +104,7 @@ setup(
         "bagit >= 1.6.4",
         "typing-extensions",
         "coloredlogs",
+        'pydot >= 1.4.1',
     ],
     extras_require={
         ':python_version<"3.6"': ["typing >= 3.5.3"],
