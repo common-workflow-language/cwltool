@@ -615,7 +615,7 @@ class CommandLineTool(Process):
                     "Entry at index %s of listing is not a Dirent, File or Directory object, was %s"
                     % (i, t2)
                 )
-            if not "basename" in t3:
+            if "basename" not in t3:
                 continue
             basename = os.path.normpath(cast(str, t3["basename"]))
             t3["basename"] = basename
