@@ -180,6 +180,11 @@ def v1_2_0dev3todev4(
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     return (doc, "v1.2.0-dev4")
 
+def v1_2_0dev4todev5(
+    doc: CommentedMap, loader: Loader, baseuri: str
+) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    return (doc, "v1.2.0-dev5")
+
 
 ORDERED_VERSIONS = [
     "v1.0",
@@ -189,6 +194,7 @@ ORDERED_VERSIONS = [
     "v1.2.0-dev2",
     "v1.2.0-dev3",
     "v1.2.0-dev4",
+    "v1.2.0-dev5",
 ]
 
 UPDATES = {
@@ -201,14 +207,15 @@ DEVUPDATES = {
     u"v1.2.0-dev1": v1_2_0dev1todev2,
     u"v1.2.0-dev2": v1_2_0dev2todev3,
     u"v1.2.0-dev3": v1_2_0dev3todev4,
-    u"v1.2.0-dev4": None,
+    u"v1.2.0-dev4": v1_2_0dev4todev5,
+    u"v1.2.0-dev5": None,
 }  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
 
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = u"v1.2.0-dev4"
+INTERNAL_VERSION = u"v1.2.0-dev5"
 
 ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 
