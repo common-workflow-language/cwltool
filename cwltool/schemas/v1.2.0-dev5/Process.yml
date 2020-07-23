@@ -43,6 +43,7 @@ $graph:
     - cwl:v1.2.0-dev1
     - cwl:v1.2.0-dev2
     - cwl:v1.2.0-dev3
+    - cwl:v1.2.0-dev4
     - cwl:v1.2.0-dev5
 
 - name: CWLType
