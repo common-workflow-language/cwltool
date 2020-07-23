@@ -308,6 +308,9 @@ class MultithreadedJobExecutor(JobExecutor):
             else:
                 result[rsc] = maxrsc[rsc]
 
+        result["tmpdirSize"] = math.ceil(request["tmpdirMin"])
+        result["outdirSize"] = math.ceil(request["outdirMin"])
+
         return result
 
     def _runner(self, job, runtime_context, TMPDIR_LOCK):
