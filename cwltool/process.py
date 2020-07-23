@@ -5,6 +5,7 @@ import functools
 import hashlib
 import json
 import logging
+import math
 import os
 import shutil
 import stat
@@ -1004,9 +1005,9 @@ hints:
             return runtimeContext.select_resources(request, runtimeContext)
         return {
             "cores": request["coresMin"],
-            "ram": request["ramMin"],
-            "tmpdirSize": request["tmpdirMin"],
-            "outdirSize": request["outdirMin"],
+            "ram": math.ceil(request["ramMin"]),
+            "tmpdirSize": math.ceil(request["tmpdirMin"]),
+            "outdirSize": math.ceil(request["outdirMin"]),
         }
 
     def validate_hints(

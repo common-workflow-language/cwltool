@@ -64,21 +64,31 @@ $graph:
           load a file greater than 64 KiB instead of silently truncating
           the data.
         * Note that only enum and record types can be typedef-ed
-        * Escaping in "string interpolation":#String_Interpolation has
+        * Escaping in [string interpolation](#String_Interpolation) has
           been added to the specification along with conformance tests.
+        * Added discussion of [packed documents](#Packed_documents).
+        * Specify behavior when `source` is a single-item list and no
+          linkMerge is set.
+        * Added discussion about handling different document versions.
+        * Added definition of **data link**
 
       See also the [CWL Command Line Tool Description, v1.2.0-dev4 changelog](CommandLineTool.html#Changelog).
+      For other changes since CWL v1.0, see the
+      [CWL Workflow Description, v1.1 changelog](https://www.commonwl.org/v1.1/Workflow.html#Changelog)
 
       ## Purpose
 
-      The Common Workflow Language Command Line Tool Description express
-      workflows for data-intensive science, such as Bioinformatics, Chemistry,
-      Physics, and Astronomy.  This specification is intended to define a data
-      and execution model for Workflows that can be implemented on top of a
-      variety of computing platforms, ranging from an individual workstation to
-      cluster, grid, cloud, and high performance computing systems. Details related
-      to execution of these workflow not laid out in this specification are open to
-      interpretation by the computing platform implementing this specification.
+      The Common Workflow Language Command Line Tool Description
+      express workflows for data-intensive science, such as
+      bioinformatics, physics, astronomy, geoscience, and machine
+      learning.  This specification is intended to define a data and
+      execution model for Workflows that can be implemented on top of
+      a variety of computing platforms, ranging from an individual
+      workstation to cluster, grid, cloud, and high performance
+      computing systems. Details related to execution of these
+      workflow not laid out in this specification are open to
+      interpretation by the computing platform implementing this
+      specification.
 
     - {$include: concepts.md}
 
@@ -312,10 +322,17 @@ $graph:
     in the workflow or workflow step requirements.
 
     If the sink parameter is an array, or named in a [workflow
-    scatter](#WorkflowStep) operation, there may be multiple inbound data links
-    listed in the `source` field.  The values from the input links are merged
-    depending on the method specified in the `linkMerge` field.  If not
-    specified, the default method is "merge_nested".
+    scatter](#WorkflowStep) operation, there may be multiple inbound
+    data links listed in the `source` field.  The values from the
+    input links are merged depending on the method specified in the
+    `linkMerge` field.  If both `linkMerge` and `pickValue` are null
+    or not specified, and there is more than one element in the
+    `source` array, the default method is "merge_nested".
+
+    If both `linkMerge` and `pickValue` are null or not specified, and
+    there is only a single element in the `source`, then the input
+    parameter takes the scalar value from the single input link (it is
+    *not* wrapped in a single-list).
 
     * **merge_nested**
 
@@ -644,15 +661,21 @@ $graph:
     and may execute in any order or execute concurrently.  A workflow is
     complete when all steps have been executed.
 
-    Dependencies between parameters are expressed using the `source` field on
-    [workflow step input parameters](#WorkflowStepInput) and [workflow output
+    Dependencies between parameters are expressed using the `source`
+    field on [workflow step input parameters](#WorkflowStepInput) and
+    `outputSource` field on [workflow output
     parameters](#WorkflowOutputParameter).
 
-    The `source` field expresses the dependency of one parameter on another
-    such that when a value is associated with the parameter specified by
-    `source`, that value is propagated to the destination parameter.  When all
-    data links inbound to a given step are fufilled, the step is ready to
-    execute.
+    The `source` field on each workflow step input parameter expresses
+    the data links that contribute to the value of the step input
+    parameter (the "sink").  A workflow step can only begin execution
+    when every data link connected to a step has been fulfilled.
+
+    The `outputSource` field on each workflow step input parameter
+    expresses the data links that contribute to the value of the
+    workflow output parameter (the "sink").  Workflow execution cannot
+    complete successfully until every data link connected to an output
+    parameter has been fulfilled.
 
     ## Workflow success and failure
 
