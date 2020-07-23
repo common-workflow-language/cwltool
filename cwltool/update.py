@@ -292,7 +292,6 @@ def update(
     update_to: Optional[str] = None,
 ) -> CommentedMap:
     """Update a CWL document to 'update_to' (if provided) or INTERNAL_VERSION."""
-
     if update_to is None:
         update_to = INTERNAL_VERSION
 
