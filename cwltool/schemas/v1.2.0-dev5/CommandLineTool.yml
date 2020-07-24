@@ -10,10 +10,10 @@ $graph:
   type: documentation
   doc:
     - |
-      # Common Workflow Language (CWL) Command Line Tool Description, v1.2.0-dev4
+      # Common Workflow Language (CWL) Command Line Tool Description, v1.2.0-dev5
 
       This version:
-        * https://w3id.org/cwl/v1.2.0-dev4/
+        * https://w3id.org/cwl/v1.2.0-dev5/
 
       Current version:
         * https://w3id.org/cwl/
@@ -37,17 +37,17 @@ $graph:
     - {$include: intro.md}
 
     - |
-      ## Introduction to the CWL Command Line Tool standard v1.2.0-dev4
+      ## Introduction to the CWL Command Line Tool standard v1.2.0-dev5
 
       This specification represents the latest development release from the
-      CWL group.  Since the v1.1 release, v1.2.0-dev4 introduces the
+      CWL group.  Since the v1.1 release, v1.2.0-dev5 introduces the
       following updates to the CWL Command Line Tool standard.
-      Documents should use `cwlVersion: v1.2.0-dev4` to make use of new
-      syntax and features introduced in v1.2.0-dev4.  Existing v1.1 documents
+      Documents should use `cwlVersion: v1.2.0-dev5` to make use of new
+      syntax and features introduced in v1.2.0-dev5.  Existing v1.1 documents
       should be trivially updatable by changing `cwlVersion`, however
       CWL documents that relied on previously undefined or
       underspecified behavior may have slightly different behavior in
-      v1.2.0-dev4.
+      v1.2.0-dev5.
 
       ## Changelog
 
@@ -81,7 +81,7 @@ $graph:
         running in containers.
       * Specify default success/fail interpretation of exit codes when not given.
 
-      See also the [CWL Workflow Description, v1.2.0-dev4 changelog](Workflow.html#Changelog).
+      See also the [CWL Workflow Description, v1.2.0-dev5 changelog](Workflow.html#Changelog).
       For other changes since CWL v1.0, see the
       [CWL Command Line Tool Description, v1.1 changelog](https://www.commonwl.org/v1.1/CommandLineTool.html#Changelog)
 

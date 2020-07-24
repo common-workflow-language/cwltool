@@ -11,10 +11,10 @@ $graph:
   type: documentation
   doc:
     - |
-      # Common Workflow Language (CWL) Workflow Description, v1.2.0-dev4
+      # Common Workflow Language (CWL) Workflow Description, v1.2.0-dev5
 
       This version:
-        * https://w3id.org/cwl/v1.2.0-dev4/
+        * https://w3id.org/cwl/v1.2.0-dev5/
 
       Current version:
         * https://w3id.org/cwl/
@@ -35,17 +35,17 @@ $graph:
 
     - |
 
-      ## Introduction to CWL Workflow standard v1.2.0-dev4
+      ## Introduction to CWL Workflow standard v1.2.0-dev5
 
       This specification represents the latest stable release from the
-      CWL group.  Since the v1.1 release, v1.2.0-dev4 introduces the
+      CWL group.  Since the v1.1 release, v1.2.0-dev5 introduces the
       following updates to the CWL Workflow standard.
-      Documents should to use `cwlVersion: v1.2.0-dev4` to make use of new
-      syntax and features introduced in v1.2.0-dev4.  Existing v1.1 documents
+      Documents should to use `cwlVersion: v1.2.0-dev5` to make use of new
+      syntax and features introduced in v1.2.0-dev5.  Existing v1.1 documents
       should be trivially updatable by changing `cwlVersion`, however
       CWL documents that relied on previously undefined or
       underspecified behavior may have slightly different behavior in
-      v1.2.0-dev4.
+      v1.2.0-dev5.
 
       ## Changelog
 
@@ -72,7 +72,7 @@ $graph:
         * Added discussion about handling different document versions.
         * Added definition of **data link**
 
-      See also the [CWL Command Line Tool Description, v1.2.0-dev4 changelog](CommandLineTool.html#Changelog).
+      See also the [CWL Command Line Tool Description, v1.2.0-dev5 changelog](CommandLineTool.html#Changelog).
       For other changes since CWL v1.0, see the
       [CWL Workflow Description, v1.1 changelog](https://www.commonwl.org/v1.1/Workflow.html#Changelog)
 

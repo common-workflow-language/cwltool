@@ -2,6 +2,7 @@
 """Single and multi-threaded executors."""
 import datetime
 import logging
+import math
 import os
 import tempfile
 import threading
@@ -303,9 +304,12 @@ class MultithreadedJobExecutor(JobExecutor):
                     % (request[rsc + "Min"], rsc, maxrsc[rsc])
                 )
             if request[rsc + "Max"] < maxrsc[rsc]:
-                result[rsc] = request[rsc + "Max"]
+                result[rsc] = math.ceil(request[rsc + "Max"])
             else:
                 result[rsc] = maxrsc[rsc]
+
+        result["tmpdirSize"] = math.ceil(request["tmpdirMin"])
+        result["outdirSize"] = math.ceil(request["outdirMin"])
 
         return result
 
