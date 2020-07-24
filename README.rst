@@ -2,9 +2,9 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Coverage Status| |Downloads|
+<!-- CWL conformance tests: |Conformance Status| --> |Linux Status| |Windows Status| |Coverage Status| |Downloads|
 
-|CommandLineTool Support| |DockerRequirement Support| |EnvVarRequirement Support| |ExpressionTool Support|
+<!-- |CommandLineTool Support| |DockerRequirement Support| |EnvVarRequirement Support| |ExpressionTool Support|
 |InitialWorkDirRequirement Support| |InlineJavascriptRequirement Support| |MultipleInputRequirement Support| |Core Support|
 |ResourceRequirement Support| |ScatterRequirement Support| |SchemaDefRequirement Support| |ShellCommandequirement Support|
 |StepInputRequirement Support| |SubWorkflowRequirement Support| |Workflow Support|
@@ -68,7 +68,7 @@ CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Cov
 
 .. |Workflow Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/workflow.json?icon=commonwl
    :target: https://ci.commonwl.org/job/cwltool-conformance/
-
+-->
 
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
