@@ -4,6 +4,18 @@ Common Workflow Language tool description reference implementation
 
 |Linux Status| |Windows Status| |Coverage Status| |Downloads|
 
+.. |Linux Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/main.svg?label=Linux%20builds
+   :target: https://travis-ci.org/common-workflow-language/cwltool
+
+.. |Windows Status| image:: https://img.shields.io/appveyor/ci/mr-c/cwltool/main.svg?label=Windows%20builds
+   :target: https://ci.appveyor.com/project/mr-c/cwltool
+
+.. |Coverage Status| image:: https://img.shields.io/codecov/c/github/common-workflow-language/cwltool.svg
+   :target: https://codecov.io/gh/common-workflow-language/cwltool
+
+.. |Downloads| image:: https://pepy.tech/badge/cwltool/month
+   :target: https://pepy.tech/project/cwltool
+
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
