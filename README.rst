@@ -2,15 +2,7 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Coverage Status| |Downloads|
-
-|CommandLineTool Support| |DockerRequirement Support| |EnvVarRequirement Support| |ExpressionTool Support|
-|InitialWorkDirRequirement Support| |InlineJavascriptRequirement Support| |MultipleInputRequirement Support| |Core Support|
-|ResourceRequirement Support| |ScatterRequirement Support| |SchemaDefRequirement Support| |ShellCommandequirement Support|
-|StepInputRequirement Support| |SubWorkflowRequirement Support| |Workflow Support|
-
-.. |Conformance Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
+|Linux Status| |Windows Status| |Coverage Status| |Downloads|
 
 .. |Linux Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/main.svg?label=Linux%20builds
    :target: https://travis-ci.org/common-workflow-language/cwltool
@@ -23,52 +15,6 @@ CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Cov
 
 .. |Downloads| image:: https://pepy.tech/badge/cwltool/month
    :target: https://pepy.tech/project/cwltool
-
-.. |CommandLineTool Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/command_line_tool.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |DockerRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/docker.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |EnvVarRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/env_var.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |ExpressionTool Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/expression_tool.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |InitialWorkDirRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/initial_work_dir.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |InlineJavascriptRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/inline_javascript.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |MultipleInputRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/multiple_input.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |Core Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/required.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |ResourceRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/resource.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |ScatterRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/scatter.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |SchemaDefRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/schema_def.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |ShellCommandequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/shell_command.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |StepInputRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/step_input.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |SubWorkflowRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/subworkflow.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |Workflow Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/main/cwltool/cwl_v1.0/cwltool_latest/workflow.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
 
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
