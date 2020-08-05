@@ -41,6 +41,10 @@ include cwltool/schemas/v1.2.0-dev5/*.yml
 include cwltool/schemas/v1.2.0-dev5/*.md
 include cwltool/schemas/v1.2.0-dev5/salad/schema_salad/metaschema/*.yml
 include cwltool/schemas/v1.2.0-dev5/salad/schema_salad/metaschema/*.md
+include cwltool/schemas/v1.2/*.yml
+include cwltool/schemas/v1.2/*.md
+include cwltool/schemas/v1.2/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/v1.2/salad/schema_salad/metaschema/*.md
 include cwltool/cwlNodeEngine.js
 include cwltool/cwlNodeEngineJSConsole.js
 include cwltool/cwlNodeEngineWithContext.js
