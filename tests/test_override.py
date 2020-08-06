@@ -99,7 +99,7 @@ failing_override_parameters = [
             get_data("tests/override/env-tool_cwl-requirement_override.yaml"),
         ],
         "Version 'v1.1.0-dev1' is a development or deprecated version.\n"
-        " Update your document to a stable version (v1.0, v1.1) or use --enable-dev to "
+        " Update your document to a stable version (v1.0, v1.1, v1.2) or use --enable-dev to "
         "enable support for development and deprecated versions.",
     ),
     (
@@ -115,7 +115,7 @@ failing_override_parameters = [
     (
         [get_data("tests/override/env-tool_cwl-requirement_override_default.yaml")],
         "Version 'v1.1.0-dev1' is a development or deprecated version.\n"
-        " Update your document to a stable version (v1.0, v1.1) or use --enable-dev to "
+        " Update your document to a stable version (v1.0, v1.1, v1.2) or use --enable-dev to "
         "enable support for development and deprecated versions.",
     ),
 ]
