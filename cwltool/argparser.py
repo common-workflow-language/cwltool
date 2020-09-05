@@ -21,7 +21,7 @@ from .loghandler import _logger
 from .process import Process, shortname
 from .resolver import ga4gh_tool_registries
 from .software_requirements import SOFTWARE_REQUIREMENTS_ENABLED
-from .utils import DEFAULT_TMP_PREFIX
+from .utils import DEFAULT_TMP_PREFIX, onWindows
 
 
 def arg_parser() -> argparse.ArgumentParser:
@@ -493,13 +493,14 @@ def arg_parser() -> argparse.ArgumentParser:
         "--enable-color",
         action="store_true",
         help="Enable logging color (default enabled)",
-        default=True,
+        default=not onWindows(),
     )
     exgroup.add_argument(
         "--disable-color",
         action="store_false",
         dest="enable_color",
         help="Disable colored logging (default false)",
+        default=onWindows(),
     )
 
     parser.add_argument(
