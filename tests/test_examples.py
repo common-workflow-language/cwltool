@@ -1261,3 +1261,23 @@ def test_v1_0_arg_empty_prefix_separate_false() -> None:
     )
     assert "completed success" in stderr
     assert error_code == 0
+
+
+def test_scatter_output_filenames(tmpdir: py.path.local) -> None:
+    """If a scatter step produces identically named output then confirm that the final output is renamed correctly."""
+    cwd = tmpdir.chdir()
+    rtc = RuntimeContext()
+    rtc.outdir = str(cwd)
+    factory = cwltool.factory.Factory(runtime_context=rtc)
+    output_names = ['output.txt', 'output.txt_2', 'output.txt_3']
+    scatter_workflow = factory.make(get_data("tests/scatter_numbers.cwl"))
+    result = scatter_workflow(range=3)
+    assert 'output' in result
+    
+    locations = sorted([element['location'] for element in result['output']])
+
+    assert(
+        locations[0].endswith('output.txt') and
+        locations[1].endswith('output.txt_2') and
+        locations[2].endswith('output.txt_3')
+    ), "Locations {} do not end with {}".format(locations, output_names)

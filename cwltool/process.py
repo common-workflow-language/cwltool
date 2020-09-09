@@ -276,12 +276,13 @@ def stage_files(
             targets[entry.target] = entry
         elif targets[entry.target].resolved != entry.resolved:
             if fix_conflicts:
-                tgt = entry.target
+                # find first key that does not clash with an existing entry in targets
+                # start with entry.target + '_' + 2 and then keep incrementing the number till there is no clash
                 i = 2
-                tgt = "%s_%s" % (tgt, i)
+                tgt = "%s_%s" % (entry.target, i)
                 while tgt in targets:
                     i += 1
-                    tgt = "%s_%s" % (tgt, i)
+                    tgt = "%s_%s" % (entry.target, i)
                 targets[tgt] = pathmapper.update(
                     key, entry.resolved, tgt, entry.type, entry.staged
                 )
