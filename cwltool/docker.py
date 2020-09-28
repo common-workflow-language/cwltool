@@ -259,7 +259,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             "target=" + target,
         ]
         if not writable:
-            options.append("readonly")
+            options.append("ro")
         output = StringIO()
         csv.writer(output).writerow(options)
         mount_arg = output.getvalue().strip()
@@ -392,7 +392,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 runtime.append("--net=none")
 
             if self.stdout is not None:
-                runtime.append("--log-driver=none")
+                runtime.append("--log-driver=k8s-file")
 
             euid, egid = docker_vm_id()
             if not onWindows():
