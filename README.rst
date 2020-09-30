@@ -124,24 +124,15 @@ Some shared computing environments don't support Docker software containers for 
 As a work around, the CWL reference runner supports using alternative ``docker`` implementations on Linux
 with the ``--user-space-docker-cmd`` option.
 
-One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker and another
-is ``dx-docker`` https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images
+One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker
 
-udocker installation: https://github.com/indigo-dc/udocker/blob/main/doc/installation_manual.md#22-install-from-indigo-datacloud-repositories
-
-dx-docker installation: start with the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
+udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-udockertools-tarball
 
 Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
 
 .. code:: bash
 
   cwltool --user-space-docker-cmd=udocker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/main/v1.0/v1.0/empty.json
-
-or
-
-.. code:: bash
-
-  cwltool --user-space-docker-cmd=dx-docker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/main/v1.0/v1.0/empty.json
 
 ``cwltool`` can use `Singularity <http://singularity.lbl.gov/>`_ version 2.6.1
 or later as a Docker container runtime.
