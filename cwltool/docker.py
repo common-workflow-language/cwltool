@@ -1,4 +1,4 @@
-"""Enables Docker software containers via the {dx-,u,}docker runtimes."""
+"""Enables Docker software containers via the {u,}docker runtimes."""
 
 import csv
 import datetime

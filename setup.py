@@ -115,7 +115,7 @@ setup(
     setup_requires=PYTEST_RUNNER,
     test_suite="tests",
     tests_require=[
-        "pytest < 6",
+        "pytest < 7",
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
         "arcp >= 0.2.0",
