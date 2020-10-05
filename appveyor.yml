@@ -8,10 +8,6 @@ environment:
   SYSTEMROOT: "C:\\WINDOWS"
 
   matrix:
-    - PYTHON: "C:\\Python35-x64"
-      PYTHON_VERSION: "3.5.x"
-      PYTHON_ARCH: "64"
-
     - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6.x"
       PYTHON_ARCH: "64"
