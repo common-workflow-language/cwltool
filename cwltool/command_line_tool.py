@@ -79,6 +79,7 @@ from .utils import (
     visit_class,
     windows_default_container_id,
 )
+from .update import ORDERED_VERSIONS
 
 if TYPE_CHECKING:
     from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
@@ -215,6 +216,9 @@ def revmap_file(
         else:
             return f
 
+    if "dirname" in f:
+        del f["dirname"]
+
     if "path" in f:
         path = cast(str, f["path"])
         uripath = file_uri(path)
@@ -345,6 +349,7 @@ OutputPortsType = Dict[str, Optional[CWLOutputType]]
 
 class ParameterOutputWorkflowException(WorkflowException):
     def __init__(self, msg: str, port: CWLObjectType, **kwargs: Any) -> None:
+        """Exception for when there was an error collecting output for a parameter."""
         super(ParameterOutputWorkflowException, self).__init__(
             "Error collecting output for parameter '%s':\n%s"
             % (shortname(cast(str, port["id"])), msg),
@@ -368,7 +373,10 @@ class CommandLineTool(Process):
             if runtimeContext.find_default_container is not None:
                 default_container = runtimeContext.find_default_container(self)
                 if default_container is not None:
-                    dockerReq = {"class": "DockerRequirement", "dockerPull": default_container}
+                    dockerReq = {
+                        "class": "DockerRequirement",
+                        "dockerPull": default_container,
+                    }
                     if mpiRequired:
                         self.hints.insert(0, dockerReq)
                         dockerRequired = False
@@ -389,9 +397,7 @@ class CommandLineTool(Process):
 
         if dockerReq is not None and runtimeContext.use_container:
             if mpiReq is not None:
-                _logger.warning(
-                    "MPIRequirement with containers is a beta feature"
-                )
+                _logger.warning("MPIRequirement with containers is a beta feature")
             if runtimeContext.singularity:
                 return SingularityCommandLineJob
             elif runtimeContext.user_space_docker_cmd:
@@ -399,19 +405,25 @@ class CommandLineTool(Process):
             if mpiReq is not None:
                 if mpiRequired:
                     if dockerRequired:
-                        raise UnsupportedRequirement("No support for Docker and MPIRequirement both being required")
+                        raise UnsupportedRequirement(
+                            "No support for Docker and MPIRequirement both being required"
+                        )
                     else:
                         _logger.warning(
                             "MPI has been required while Docker is hinted, discarding Docker hint(s)"
                         )
-                        self.hints = [h for h in self.hints if h["class"] != "DockerRequirement"]
+                        self.hints = [
+                            h for h in self.hints if h["class"] != "DockerRequirement"
+                        ]
                         return CommandLineJob
                 else:
                     if dockerRequired:
                         _logger.warning(
                             "Docker has been required while MPI is hinted, discarding MPI hint(s)"
                         )
-                        self.hints = [h for h in self.hints if h["class"] != MPIRequirementName]
+                        self.hints = [
+                            h for h in self.hints if h["class"] != MPIRequirementName
+                        ]
                     else:
                         raise UnsupportedRequirement(
                             "Both Docker and MPI have been hinted - don't know what to do"
@@ -436,6 +448,10 @@ class CommandLineTool(Process):
     def updatePathmap(
         self, outdir: str, pathmap: PathMapper, fn: CWLObjectType
     ) -> None:
+        if not isinstance(fn, MutableMapping):
+            raise WorkflowException(
+                "Expected File or Directory object, was %s" % type(fn)
+            )
         basename = cast(str, fn["basename"])
         if "location" in fn:
             location = cast(str, fn["location"])
@@ -452,6 +468,217 @@ class CommandLineTool(Process):
         for ls in cast(List[CWLObjectType], fn.get("listing", [])):
             self.updatePathmap(
                 os.path.join(outdir, cast(str, fn["basename"])), pathmap, ls
+            )
+
+    def _initialworkdir(self, j: JobBase, builder: Builder) -> None:
+        initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
+        if initialWorkdir is None:
+            return
+
+        ls = []  # type: List[CWLObjectType]
+        if isinstance(initialWorkdir["listing"], str):
+            # "listing" is just a string (must be an expression) so
+            # just evaluate it and use the result as if it was in
+            # listing
+            ls = cast(List[CWLObjectType], builder.do_eval(initialWorkdir["listing"]))
+        else:
+            # "listing" is an array of either expressions or Dirent so
+            # evaluate each item
+            for t in cast(
+                MutableSequence[Union[str, CWLObjectType]], initialWorkdir["listing"],
+            ):
+                if isinstance(t, Mapping) and "entry" in t:
+                    # Dirent
+                    entry = builder.do_eval(
+                        cast(str, t["entry"]), strip_whitespace=False
+                    )
+                    if entry is None:
+                        continue
+
+                    if isinstance(entry, MutableSequence):
+                        # Nested list.  If it is a list of File or
+                        # Directory objects, add it to the
+                        # file list, otherwise JSON serialize it.
+                        filelist = True
+                        for e in entry:
+                            if not isinstance(e, MutableMapping) or e.get(
+                                "class"
+                            ) not in ("File", "Directory"):
+                                filelist = False
+                                break
+
+                        if filelist:
+                            if "entryname" in t:
+                                raise SourceLine(
+                                    t, "entryname", WorkflowException
+                                ).makeError(
+                                    "'entryname' is invalid when 'entry' returns list of File or Directory"
+                                )
+                            for e in entry:
+                                ec = cast(CWLObjectType, e)
+                                ec["writeable"] = t.get("writable", False)
+                            ls.extend(cast(List[CWLObjectType], entry))
+                            continue
+
+                    et = {}  # type: CWLObjectType
+                    if isinstance(entry, Mapping) and entry.get("class") in (
+                        "File",
+                        "Directory",
+                    ):
+                        et["entry"] = entry
+                    else:
+                        et["entry"] = (
+                            entry
+                            if isinstance(entry, str)
+                            else json_dumps(entry, sort_keys=True)
+                        )
+
+                    if "entryname" in t:
+                        en = builder.do_eval(cast(str, t["entryname"]))
+                        if not isinstance(en, str):
+                            raise SourceLine(
+                                t, "entryname", WorkflowException
+                            ).makeError("'entryname' must be a string")
+                        et["entryname"] = en
+                    else:
+                        et["entryname"] = None
+                    et["writable"] = t.get("writable", False)
+                    ls.append(et)
+                else:
+                    # Expression, must return a Dirent, File, Directory
+                    # or array of such.
+                    initwd_item = builder.do_eval(t)
+                    if not initwd_item:
+                        continue
+                    if isinstance(initwd_item, MutableSequence):
+                        ls.extend(cast(List[CWLObjectType], initwd_item))
+                    else:
+                        ls.append(cast(CWLObjectType, initwd_item))
+
+        for i, t2 in enumerate(ls):
+            if not isinstance(t2, Mapping):
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException
+                ).makeError(
+                    "Entry at index %s of listing is not a record, was %s"
+                    % (i, type(t2))
+                )
+
+            if "entry" not in t2:
+                continue
+
+            # Dirent
+            if isinstance(t2["entry"], str):
+                if not t2["entryname"]:
+                    raise SourceLine(
+                        initialWorkdir, "listing", WorkflowException
+                    ).makeError("Entry at index %s of listing missing entryname" % (i))
+                ls[i] = {
+                    "class": "File",
+                    "basename": t2["entryname"],
+                    "contents": t2["entry"],
+                    "writable": t2.get("writable"),
+                }
+                continue
+
+            if not isinstance(t2["entry"], Mapping):
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException
+                ).makeError(
+                    "Entry at index %s of listing is not a record, was %s"
+                    % (i, type(t2["entry"]))
+                )
+
+            if t2["entry"].get("class") not in ("File", "Directory"):
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException
+                ).makeError(
+                    "Entry at index %s of listing is not a File or Directory object, was %s"
+                    % (i, t2)
+                )
+
+            if t2.get("entryname") or t2.get("writable"):
+                t2 = copy.deepcopy(t2)
+                t2entry = cast(CWLObjectType, t2["entry"])
+                if t2.get("entryname"):
+                    t2entry["basename"] = t2["entryname"]
+                t2entry["writable"] = t2.get("writable")
+
+            ls[i] = cast(CWLObjectType, t2["entry"])
+
+        for i, t3 in enumerate(ls):
+            if t3.get("class") not in ("File", "Directory"):
+                # Check that every item is a File or Directory object now
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException
+                ).makeError(
+                    "Entry at index %s of listing is not a Dirent, File or Directory object, was %s"
+                    % (i, t2)
+                )
+            if "basename" not in t3:
+                continue
+            basename = os.path.normpath(cast(str, t3["basename"]))
+            t3["basename"] = basename
+            if basename.startswith("../"):
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException
+                ).makeError(
+                    "Name '%s' at index %s of listing is invalid, cannot start with '../'"
+                    % (basename, i)
+                )
+            if basename.startswith("/"):
+                # only if DockerRequirement in requirements
+                cwl_version = self.metadata.get(
+                    "http://commonwl.org/cwltool#original_cwlVersion", None
+                )
+                if isinstance(cwl_version, str) and ORDERED_VERSIONS.index(
+                    cwl_version
+                ) < ORDERED_VERSIONS.index("v1.2.0-dev4"):
+                    raise SourceLine(
+                        initialWorkdir, "listing", WorkflowException
+                    ).makeError(
+                        "Name '%s' at index %s of listing is invalid, paths starting with '/' only permitted in CWL 1.2 and later"
+                        % (basename, i)
+                    )
+
+                req, is_req = self.get_requirement("DockerRequirement")
+                if is_req is not True:
+                    raise SourceLine(
+                        initialWorkdir, "listing", WorkflowException
+                    ).makeError(
+                        "Name '%s' at index %s of listing is invalid, name can only start with '/' when DockerRequirement is in 'requirements'"
+                        % (basename, i)
+                    )
+
+        with SourceLine(initialWorkdir, "listing", WorkflowException):
+            j.generatefiles["listing"] = ls
+            for entry in ls:
+                if "basename" in entry:
+                    basename = cast(str, entry["basename"])
+                    entry["dirname"] = os.path.join(
+                        builder.outdir, os.path.dirname(basename)
+                    )
+                    entry["basename"] = os.path.basename(basename)
+                normalizeFilesDirs(entry)
+                self.updatePathmap(
+                    cast(Optional[str], entry.get("dirname")) or builder.outdir,
+                    cast(PathMapper, builder.pathmapper),
+                    entry,
+                )
+                if "listing" in entry:
+
+                    def remove_dirname(d: CWLObjectType) -> None:
+                        if "dirname" in d:
+                            del d["dirname"]
+
+                    visit_class(
+                        entry["listing"], ("File", "Directory"), remove_dirname,
+                    )
+
+            visit_class(
+                [builder.files, builder.bindings],
+                ("File", "Directory"),
+                partial(check_adjust, builder),
             )
 
     def job(
@@ -659,64 +886,7 @@ class CommandLineTool(Process):
             [builder.files, builder.bindings], ("File", "Directory"), _check_adjust
         )
 
-        initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
-        if initialWorkdir is not None:
-            ls = []  # type: List[CWLObjectType]
-            if isinstance(initialWorkdir["listing"], str):
-                ls = cast(
-                    List[CWLObjectType], builder.do_eval(initialWorkdir["listing"])
-                )
-            else:
-                for t in cast(
-                    MutableSequence[Union[str, CWLObjectType]],
-                    initialWorkdir["listing"],
-                ):
-                    if isinstance(t, Mapping) and "entry" in t:
-                        entry_exp = builder.do_eval(
-                            cast(str, t["entry"]), strip_whitespace=False
-                        )
-                        for entry in aslist(entry_exp):
-                            et = {"entry": entry}
-                            if "entryname" in t:
-                                et["entryname"] = builder.do_eval(
-                                    cast(str, t["entryname"])
-                                )
-                            else:
-                                et["entryname"] = None
-                            et["writable"] = t.get("writable", False)
-                            if et["entry"] is not None:
-                                ls.append(et)
-                    else:
-                        initwd_item = builder.do_eval(t)
-                        if not initwd_item:
-                            continue
-                        if isinstance(initwd_item, MutableSequence):
-                            ls.extend(cast(List[CWLObjectType], initwd_item))
-                        else:
-                            ls.append(cast(CWLObjectType, initwd_item))
-            for i, t2 in enumerate(ls):
-                if "entry" in t2:
-                    if isinstance(t2["entry"], str):
-                        ls[i] = {
-                            "class": "File",
-                            "basename": t2["entryname"],
-                            "contents": t2["entry"],
-                            "writable": t2.get("writable"),
-                        }
-                    else:
-                        if t2.get("entryname") or t2.get("writable"):
-                            t2 = copy.deepcopy(t2)
-                            t2entry = cast(CWLObjectType, t2["entry"])
-                            if t2.get("entryname"):
-                                t2entry["basename"] = t2["entryname"]
-                            t2entry["writable"] = t2.get("writable")
-                        ls[i] = cast(CWLObjectType, t2["entry"])
-            j.generatefiles["listing"] = ls
-            for entry in ls:
-                self.updatePathmap(builder.outdir, builder.pathmapper, entry)
-            visit_class(
-                [builder.files, builder.bindings], ("File", "Directory"), _check_adjust
-            )
+        self._initialworkdir(j, builder)
 
         if debug:
             _logger.debug(
@@ -873,12 +1043,16 @@ class CommandLineTool(Process):
         if mpi is not None:
             np = cast(  # From the schema for MPIRequirement.processes
                 Union[int, str],
-                mpi.get('processes', runtimeContext.mpi_config.default_nproc)
+                mpi.get("processes", runtimeContext.mpi_config.default_nproc),
             )
             if isinstance(np, str):
                 tmp = builder.do_eval(np)
                 if not isinstance(tmp, int):
-                    raise TypeError("{} needs 'processes' to evaluate to an int, got {}".format(MPIRequirementName, type(np)))
+                    raise TypeError(
+                        "{} needs 'processes' to evaluate to an int, got {}".format(
+                            MPIRequirementName, type(np)
+                        )
+                    )
                 np = tmp
             j.mpi_procs = np
         yield j
@@ -1031,7 +1205,7 @@ class CommandLineTool(Process):
                                     )
                                 ]
                             )
-                        except (OSError, IOError) as e:
+                        except (OSError) as e:
                             _logger.warning(str(e))
                         except Exception:
                             _logger.error(

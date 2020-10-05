@@ -8,6 +8,7 @@ from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
 
 from .process import Process
+from .cwlviewer import CWLViewer
 
 
 def gather(tool: Process, ctx: ContextType) -> Graph:
@@ -138,7 +139,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
     )
 
     currentwf = None  # type: Optional[str]
-    for wf, step, run, runtype in qres:
+    for wf, step, _run, runtype in qres:
         if step not in dotname:
             dotname[step] = lastpart(step)
 
@@ -193,17 +194,8 @@ def printdot(
     wf: Process,
     ctx: ContextType,
     stdout: Union[TextIO, StreamWriter],
-    include_parameters: bool = False,
 ) -> None:
-    g = gather(wf, ctx)
-
-    stdout.write("digraph {")
-
-    # g.namespace_manager.qname(predicate)
-
-    if include_parameters:
-        dot_with_parameters(g, stdout)
-    else:
-        dot_without_parameters(g, stdout)
-
-    stdout.write("}")
+    cwl_viewer = CWLViewer(printrdf(wf, ctx, 'n3'))  # type: CWLViewer
+    stdout.write(
+        cwl_viewer.dot()
+    )
