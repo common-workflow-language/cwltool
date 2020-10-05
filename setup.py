@@ -107,11 +107,10 @@ setup(
         'pydot >= 1.4.1',
     ],
     extras_require={
-        ':python_version<"3.6"': ["typing >= 3.5.3"],
         "deps": ["galaxy-tool-util"],
         "docs": ["sphinx >= 2.2", "sphinx-rtd-theme"],
     },
-    python_requires=">=3.5, <4",
+    python_requires=">=3.6, <4",
     setup_requires=PYTEST_RUNNER,
     test_suite="tests",
     tests_require=[
@@ -142,7 +141,6 @@ setup(
         # 'Operating System :: Microsoft :: Windows :: Windows 8',  # not tested
         # 'Operating System :: Microsoft :: Windows :: Windows 7',  # not tested
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
