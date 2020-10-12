@@ -385,11 +385,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             "--quiet",
             "exec",
             "--contain",
-            "--pid",
             "--ipc",
         ]
         if _singularity_supports_userns():
             runtime.append("--userns")
+        else:
+            runtime.append("--pid")
         if is_version_3_1_or_newer():
             runtime.append("--home")
             runtime.append(
