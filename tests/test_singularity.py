@@ -2,6 +2,7 @@ import distutils.spawn
 import os
 import sys
 from pathlib import Path
+import subprocess
 
 import py.path
 
@@ -12,6 +13,7 @@ from .util import (
     get_main_output,
     needs_singularity,
     needs_singularity_2_6,
+    needs_singularity_3_or_newer,
     working_directory,
 )
 
@@ -127,3 +129,20 @@ def test_singularity_docker_image_id_in_tool(tmp_path: Path) -> None:
         ["--singularity", get_data("tests/debian_image_id.cwl"), "--message", "hello"]
     )
     assert result_code1 == 0
+
+
+@needs_singularity_3_or_newer # type: ignore
+def test_singularity_userns_error() -> None:
+    process = subprocess.Popen(
+        [
+            "singularity",
+            "exec",
+            "--userns",
+            get_data("cwltool/hello.simg"),
+            "true"
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = process.communicate()
+    assert "/bin/sh doesn't exist in container" in stderr.decode()
