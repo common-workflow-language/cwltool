@@ -62,14 +62,14 @@ needs_singularity = pytest.mark.skipif(
 )
 
 needs_singularity_2_6 = pytest.mark.skipif(
-    not (distutils.spawn.find_executable("singularity") and is_version_2_6()),
+    not bool(distutils.spawn.find_executable("singularity") and is_version_2_6()),
     reason="Requires that version 2.6.x of singularity executable version is on the system path.",
 )
 
 needs_singularity_3_or_newer = pytest.mark.skipif(
-    not (distutils.spawn.find_executable("singularity") and is_version_3_or_newer),
-    reason="Requires that version 2.6.x of singularity executable version is on the system path.",
-)
+     (not bool(distutils.spawn.find_executable("singularity"))) or (not is_version_3_or_newer()),
+     reason="Requires that version 3.x of singularity executable version is on the system path.",
+ )
 
 
 windows_needs_docker = pytest.mark.skipif(
