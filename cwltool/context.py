@@ -1,7 +1,7 @@
 """Shared context objects that replace use of kwargs."""
 import copy
 import threading
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union, IO, TextIO
+from typing import IO, Any, Callable, Dict, Iterable, List, Optional, TextIO, Union
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap

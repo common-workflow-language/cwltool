@@ -32,11 +32,10 @@ from typing import (
 
 import psutil
 import shellescape
+from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
-
-from prov.model import PROV
 
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext, getdefault

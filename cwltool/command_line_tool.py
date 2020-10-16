@@ -58,6 +58,7 @@ from .process import (
 from .singularity import SingularityCommandLineJob
 from .stdfsaccess import StdFsAccess
 from .udocker import UDockerCommandLineJob
+from .update import ORDERED_VERSIONS
 from .utils import (
     CWLObjectType,
     CWLOutputType,
@@ -79,7 +80,6 @@ from .utils import (
     visit_class,
     windows_default_container_id,
 )
-from .update import ORDERED_VERSIONS
 
 if TYPE_CHECKING:
     from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import

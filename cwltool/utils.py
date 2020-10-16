@@ -44,10 +44,10 @@ from schema_salad.ref_resolver import Loader
 from typing_extensions import TYPE_CHECKING, Deque
 
 if TYPE_CHECKING:
+    from .command_line_tool import CallbackJob, ExpressionJob
     from .job import CommandLineJob, JobBase
-    from .workflow_job import WorkflowJob
-    from .command_line_tool import ExpressionJob, CallbackJob
     from .stdfsaccess import StdFsAccess
+    from .workflow_job import WorkflowJob
 
 __random_outdir = None  # type: Optional[str]
 

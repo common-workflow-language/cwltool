@@ -1,25 +1,25 @@
-import pytest  # type: ignore
-
-import sys
+import json
 import os.path
+import sys
 from io import StringIO
+from pathlib import Path
+from typing import Any, Generator, List, MutableMapping, Optional, Tuple, cast
+
+import pkg_resources
+import pytest  # type: ignore
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-import json
-from pathlib import Path
-from typing import Any, Optional, List, MutableMapping, Generator, Tuple, cast
-import pkg_resources
 from schema_salad.avro.schema import Names
 
-from .util import get_data, working_directory, windows_needs_docker
-
+import cwltool.load_tool
+import cwltool.singularity
+import cwltool.udocker
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
 from cwltool.mpi import MpiConfig, MPIRequirementName
-import cwltool.singularity
-import cwltool.udocker
-import cwltool.load_tool
+
+from .util import get_data, windows_needs_docker, working_directory
 
 
 def test_mpi_conf_defaults() -> None:
