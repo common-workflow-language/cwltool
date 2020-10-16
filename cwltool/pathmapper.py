@@ -219,6 +219,7 @@ class PathMapper(object):
         self,
         target: str,
     ) -> Optional[Tuple[str, str]]:
+        """Find the (source, resolved_path) for the given target, if any."""
         for k, v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])

@@ -130,6 +130,7 @@ class WritableBagFile(FileIO):
         super(WritableBagFile, self).__init__(path, mode="w")
 
     def write(self, b: Any) -> int:
+        """Write some content to the Bag."""
         real_b = b if isinstance(b, (bytes, mmap, array)) else b.encode("utf-8")
         total = 0
         length = len(real_b)
