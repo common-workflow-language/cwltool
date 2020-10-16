@@ -729,6 +729,8 @@ def setup_loadingContext(
 def make_template(
     tool: Process,
 ) -> None:
+    """Make a template CWL input object for the give Process."""
+
     def my_represent_none(
         self: Any, data: Any
     ) -> Any:  # pylint: disable=unused-argument
@@ -750,7 +752,7 @@ def choose_target(
     tool: Process,
     loadingContext: LoadingContext,
 ) -> Optional[Process]:
-
+    """Walk the given Workflow and find the process that matches args.target."""
     if loadingContext.loader is None:
         raise Exception("loadingContext.loader cannot be None")
 
@@ -783,6 +785,7 @@ def choose_target(
 def check_working_directories(
     runtimeContext: RuntimeContext,
 ) -> Optional[int]:
+    """Make any needed working directories."""
     for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
         if (
             getattr(runtimeContext, dirprefix)

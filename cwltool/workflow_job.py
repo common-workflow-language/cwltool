@@ -119,6 +119,11 @@ class ReceiveScatterOutput(object):
         total: int,
         steps: List[Optional[JobsGeneratorType]],
     ) -> None:
+        """
+        Set the total number of expected outputs along with the steps.
+
+        This is necessary to finish the setup.
+        """
         self.total = total
         self.steps = steps
         if self.completed == self.total:
