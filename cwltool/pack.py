@@ -29,7 +29,9 @@ LoadRefType = Callable[[Optional[str], str], ResolveType]
 
 
 def find_run(
-    d: Union[CWLObjectType, ResolveType], loadref: LoadRefType, runs: Set[str],
+    d: Union[CWLObjectType, ResolveType],
+    loadref: LoadRefType,
+    runs: Set[str],
 ) -> None:
     if isinstance(d, MutableSequence):
         for s in d:

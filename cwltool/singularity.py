@@ -102,7 +102,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     @staticmethod
     def get_image(
-        dockerRequirement: Dict[str, str], pull_image: bool, force_pull: bool = False,
+        dockerRequirement: Dict[str, str],
+        pull_image: bool,
+        force_pull: bool = False,
     ) -> bool:
         """
         Acquire the software container image in the specified dockerRequirement.

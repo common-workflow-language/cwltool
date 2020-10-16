@@ -114,7 +114,11 @@ class ReceiveScatterOutput(object):
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
-    def setTotal(self, total: int, steps: List[Optional[JobsGeneratorType]],) -> None:
+    def setTotal(
+        self,
+        total: int,
+        steps: List[Optional[JobsGeneratorType]],
+    ) -> None:
         self.total = total
         self.steps = steps
         if self.completed == self.total:
@@ -241,9 +245,7 @@ def _flat_crossproduct_scatter(
     callback: ReceiveScatterOutput,
     startindex: int,
     runtimeContext: RuntimeContext,
-) -> Tuple[
-    List[Optional[JobsGeneratorType]], int,
-]:
+) -> Tuple[List[Optional[JobsGeneratorType]], int,]:
     """Inner loop."""
     scatter_key = scatter_keys[0]
     jobl = len(cast(Sized, joborder[scatter_key]))

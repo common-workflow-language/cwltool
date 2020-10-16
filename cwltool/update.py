@@ -183,11 +183,13 @@ def v1_2_0dev3todev4(
     """Public updater for v1.2.0-dev3 to v1.2.0-dev4."""
     return (doc, "v1.2.0-dev4")
 
+
 def v1_2_0dev4todev5(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     """Public updater for v1.2.0-dev4 to v1.2.0-dev5."""
     return (doc, "v1.2.0-dev5")
+
 
 def v1_2_0dev5to1_2(
     doc: CommentedMap, loader: Loader, baseuri: str
@@ -211,7 +213,7 @@ ORDERED_VERSIONS = [
 UPDATES = {
     u"v1.0": v1_0to1_1,
     u"v1.1": v1_1to1_2,
-    u"v1.2": None
+    u"v1.2": None,
 }  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
 
 DEVUPDATES = {
@@ -240,7 +242,9 @@ def identity(
 
 
 def checkversion(
-    doc: Union[CommentedSeq, CommentedMap], metadata: CommentedMap, enable_dev: bool,
+    doc: Union[CommentedSeq, CommentedMap],
+    metadata: CommentedMap,
+    enable_dev: bool,
 ) -> Tuple[CommentedMap, str]:
     """Check the validity of the version of the give CWL document.
 

@@ -519,7 +519,9 @@ class Builder(HasReqsHints):
                 ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
                     get_listing(
-                        self.fs_access, datum, (ll == "deep_listing"),
+                        self.fs_access,
+                        datum,
+                        (ll == "deep_listing"),
                     )
                 self.files.append(datum)
 

@@ -222,7 +222,8 @@ class TestMpiRun:
 
 def test_env_passing(monkeypatch: Any) -> None:
     config = MpiConfig(
-        env_pass=["A", "B", "LONG_NAME"], env_pass_regex=["TOOLNAME", "MPI_.*_CONF"],
+        env_pass=["A", "B", "LONG_NAME"],
+        env_pass_regex=["TOOLNAME", "MPI_.*_CONF"],
     )
 
     env = {}  # type: MutableMapping[str, str]

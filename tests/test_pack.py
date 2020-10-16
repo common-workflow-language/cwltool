@@ -117,7 +117,9 @@ def test_pack_rewrites() -> None:
     loader.resolve_ref(uri)[0]
 
     cwltool.pack.pack(
-        loadingContext, uri, rewrite_out=rewrites,
+        loadingContext,
+        uri,
+        rewrite_out=rewrites,
     )
 
     assert len(rewrites) == 6

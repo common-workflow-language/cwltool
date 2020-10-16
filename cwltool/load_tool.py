@@ -482,7 +482,9 @@ def load_tool(
 
 
 def resolve_overrides(
-    ov: IdxResultType, ov_uri: str, baseurl: str,
+    ov: IdxResultType,
+    ov_uri: str,
+    baseurl: str,
 ) -> List[CWLObjectType]:
     ovloader = Loader(overrides_ctx)
     ret, _ = ovloader.resolve_all(ov, baseurl)

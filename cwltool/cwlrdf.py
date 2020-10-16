@@ -195,7 +195,5 @@ def printdot(
     ctx: ContextType,
     stdout: Union[TextIO, StreamWriter],
 ) -> None:
-    cwl_viewer = CWLViewer(printrdf(wf, ctx, 'n3'))  # type: CWLViewer
-    stdout.write(
-        cwl_viewer.dot()
-    )
+    cwl_viewer = CWLViewer(printrdf(wf, ctx, "n3"))  # type: CWLViewer
+    stdout.write(cwl_viewer.dot())

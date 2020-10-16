@@ -78,7 +78,9 @@ class ProcessGeneratorJob(object):
 
 class ProcessGenerator(Process):
     def __init__(
-        self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
+        self,
+        toolpath_object: CommentedMap,
+        loadingContext: LoadingContext,
     ) -> None:
         """Create a ProcessGenerator from the given dictionary and context."""
         super(ProcessGenerator, self).__init__(toolpath_object, loadingContext)

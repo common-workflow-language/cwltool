@@ -451,7 +451,9 @@ def add_sizes(fsaccess: StdFsAccess, obj: CWLObjectType) -> None:
 
 
 def fill_in_defaults(
-    inputs: List[CWLObjectType], job: CWLObjectType, fsaccess: StdFsAccess,
+    inputs: List[CWLObjectType],
+    job: CWLObjectType,
+    fsaccess: StdFsAccess,
 ) -> None:
     for e, inp in enumerate(inputs):
         with SourceLine(
@@ -523,7 +525,9 @@ _VAR_SPOOL_ERROR = textwrap.dedent(
 
 
 def var_spool_cwl_detector(
-    obj: CWLOutputType, item: Optional[Any] = None, obj_key: Optional[Any] = None,
+    obj: CWLOutputType,
+    item: Optional[Any] = None,
+    obj_key: Optional[Any] = None,
 ) -> bool:
     """Detect any textual reference to /var/spool/cwl."""
     r = False
@@ -678,12 +682,14 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
 
         with SourceLine(toolpath_object, "inputs", ValidationException):
             self.inputs_record_schema = cast(
-                CWLObjectType, make_valid_avro(self.inputs_record_schema, {}, set()),
+                CWLObjectType,
+                make_valid_avro(self.inputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.inputs_record_schema), self.names)
         with SourceLine(toolpath_object, "outputs", ValidationException):
             self.outputs_record_schema = cast(
-                CWLObjectType, make_valid_avro(self.outputs_record_schema, {}, set()),
+                CWLObjectType,
+                make_valid_avro(self.outputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.outputs_record_schema), self.names)
 

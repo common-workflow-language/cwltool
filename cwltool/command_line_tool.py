@@ -485,7 +485,8 @@ class CommandLineTool(Process):
             # "listing" is an array of either expressions or Dirent so
             # evaluate each item
             for t in cast(
-                MutableSequence[Union[str, CWLObjectType]], initialWorkdir["listing"],
+                MutableSequence[Union[str, CWLObjectType]],
+                initialWorkdir["listing"],
             ):
                 if isinstance(t, Mapping) and "entry" in t:
                     # Dirent
@@ -672,7 +673,9 @@ class CommandLineTool(Process):
                             del d["dirname"]
 
                     visit_class(
-                        entry["listing"], ("File", "Directory"), remove_dirname,
+                        entry["listing"],
+                        ("File", "Directory"),
+                        remove_dirname,
                     )
 
             visit_class(
