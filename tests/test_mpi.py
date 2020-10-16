@@ -40,7 +40,9 @@ def test_mpi_conf_unknownkeys() -> None:
 
 @pytest.fixture(scope="class")  # type: ignore
 def fake_mpi_conf(tmp_path_factory: Any) -> Generator[str, None, None]:
-    """Make a super simple mpirun-alike for applications that don't actually use MPI.
+    """
+    Make a super simple mpirun-alike for applications that don't actually use MPI.
+
     It just runs the command multiple times (in serial).
 
     Then create a plaform MPI config YAML file that should make it work
@@ -350,6 +352,7 @@ def test_docker_mpi_both_required(schema_ext11: Names) -> None:
         lc, rc, tool = mk_tool(schema_ext11, [], reqs=[mpiReq, containerReq])
         clt = CommandLineTool(tool, lc)
         jr = clt.make_job_runner(rc)
+
 
 def test_docker_mpi_both_hinted(schema_ext11: Names) -> None:
     # Both hinted - error

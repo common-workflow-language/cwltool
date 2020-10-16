@@ -543,14 +543,6 @@ def normalizeFilesDirs(
             if d.get("nameext") != ne:
                 d["nameext"] = str(ne)
 
-            contents = d.get("contents")
-            if contents and len(contents) > CONTENT_LIMIT:
-                if len(contents) > CONTENT_LIMIT:
-                    raise ValidationException(
-                        "File object contains contents with number of bytes that exceeds CONTENT_LIMIT length (%d)"
-                        % CONTENT_LIMIT
-                    )
-
     visit_class(job, ("File", "Directory"), addLocation)
 
 
