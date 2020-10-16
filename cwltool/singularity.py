@@ -47,7 +47,7 @@ def _singularity_supports_userns() -> bool:
                 stdout=DEVNULL,
                 universal_newlines=True,
             ).communicate(timeout=60)[1]
-            _USERNS = "No valid /bin/sh" in result
+            _USERNS = "No valid /bin/sh" in result or "/bin/sh doesn't exist in container" in result
         except TimeoutExpired:
             _USERNS = False
     return _USERNS
@@ -386,11 +386,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             "--quiet",
             "exec",
             "--contain",
-            "--pid",
             "--ipc",
         ]
         if _singularity_supports_userns():
             runtime.append("--userns")
+        else:
+            runtime.append("--pid")
         if is_version_3_1_or_newer():
             runtime.append("--home")
             runtime.append(
