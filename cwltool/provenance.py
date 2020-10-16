@@ -30,11 +30,10 @@ from typing import (
     cast,
 )
 
-from schema_salad.utils import json_dumps
-from typing_extensions import TYPE_CHECKING, TypedDict
-
 import prov.model as provM
 from prov.model import PROV, ProvDocument
+from schema_salad.utils import json_dumps
+from typing_extensions import TYPE_CHECKING, TypedDict
 
 from .loghandler import _logger
 from .provenance_constants import (
@@ -78,10 +77,10 @@ else:
         pass
 
 if TYPE_CHECKING:
-    from .command_line_tool import (
+    from .command_line_tool import (  # pylint: disable=unused-import
         CommandLineTool,
         ExpressionTool,
-    )  # pylint: disable=unused-import
+    )
     from .workflow import Workflow  # pylint: disable=unused-import
 
 
@@ -128,8 +127,8 @@ class WritableBagFile(FileIO):
         _logger.debug("[provenance] Creating WritableBagFile at %s.", path)
         super(WritableBagFile, self).__init__(path, mode="w")
 
-    def write(self, b: Union[bytes, str]) -> int:
-        real_b = b if isinstance(b, bytes) else b.encode("utf-8")
+    def write(self, b: Any) -> int:
+        real_b = b if isinstance(b, (bytes, mmap, array)) else b.encode("utf-8")
         total = 0
         length = len(real_b)
         while total < length:
