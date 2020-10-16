@@ -8,13 +8,13 @@ from pathlib import PurePath, PurePosixPath
 from socket import getfqdn
 from typing import List, MutableMapping, MutableSequence, Optional, Tuple, Union, cast
 
+from prov.identifier import Identifier
+from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
 from typing_extensions import TYPE_CHECKING
 
-from prov.identifier import Identifier
-from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
-
 from .errors import WorkflowException
+from .job import CommandLineJob, JobBase
 from .loghandler import _logger
 from .process import Process, shortname
 from .provenance_constants import (
@@ -45,7 +45,6 @@ from .utils import (
     versionstring,
 )
 from .workflow_job import WorkflowJob
-from .job import CommandLineJob, JobBase
 
 if TYPE_CHECKING:
     from .provenance import ResearchObject

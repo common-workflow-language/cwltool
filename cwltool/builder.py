@@ -45,8 +45,8 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
     from .pathmapper import PathMapper
+    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
 
 def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes

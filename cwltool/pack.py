@@ -20,10 +20,10 @@ from schema_salad.ref_resolver import Loader, ResolveType, SubLoader
 
 from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
-from .process import shortname, uniquename
-from .utils import CWLObjectType, CWLOutputType
 from .loghandler import _logger
-from .update import update, ORDERED_VERSIONS
+from .process import shortname, uniquename
+from .update import ORDERED_VERSIONS, update
+from .utils import CWLObjectType, CWLOutputType
 
 LoadRefType = Callable[[Optional[str], str], ResolveType]
 

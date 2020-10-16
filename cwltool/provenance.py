@@ -8,9 +8,11 @@ import re
 import shutil
 import tempfile
 import uuid
+from array import array
 from collections import OrderedDict
 from getpass import getuser
 from io import FileIO, TextIOWrapper, open
+from mmap import mmap
 from pathlib import Path, PurePosixPath
 from typing import (
     IO,

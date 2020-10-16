@@ -1,7 +1,8 @@
 import subprocess
 
 from cwltool.context import RuntimeContext
-from .util import get_windows_safe_factory, get_data, windows_needs_docker
+
+from .util import get_data, get_windows_safe_factory, windows_needs_docker
 
 
 @windows_needs_docker

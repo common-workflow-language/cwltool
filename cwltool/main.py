@@ -62,6 +62,7 @@ from .load_tool import (
     resolve_tool_uri,
 )
 from .loghandler import _logger, defaultStreamHandler
+from .mpi import MpiConfig
 from .mutation import MutationManager
 from .pack import pack
 from .process import (
@@ -99,7 +100,6 @@ from .utils import (
     windows_default_container_id,
 )
 from .workflow import Workflow
-from .mpi import MpiConfig
 
 
 def _terminate_processes() -> None:

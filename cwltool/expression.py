@@ -1,6 +1,7 @@
 """Parse CWL expressions."""
 
 import copy
+import json
 import re
 from typing import (
     Any,
@@ -15,7 +16,6 @@ from typing import (
     cast,
 )
 
-import json
 from schema_salad.utils import json_dumps
 
 from .errors import WorkflowException

@@ -7,8 +7,10 @@ import sys
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Union, cast
+from urllib.parse import urlparse
 
 import py.path
+import pydot
 import pytest  # type: ignore
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
@@ -26,9 +28,6 @@ from cwltool.main import main
 from cwltool.process import CWL_IANA
 from cwltool.sandboxjs import JavascriptException
 from cwltool.utils import CWLObjectType, dedup, onWindows
-
-import pydot
-from urllib.parse import urlparse
 
 from .util import (
     get_data,

@@ -1,8 +1,9 @@
 """Visualize a CWL workflow."""
-import rdflib
-from urllib.parse import urlparse
 import os
+from urllib.parse import urlparse
+
 import pydot  # type: ignore
+import rdflib
 
 
 class CWLViewer:
