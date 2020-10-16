@@ -1,4 +1,4 @@
-"""Enables Docker software containers via the {dx-,u,}docker runtimes."""
+"""Enables Docker software containers via the {u,}docker runtimes."""
 
 import csv
 import datetime
@@ -100,6 +100,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         hints: List[CWLObjectType],
         name: str,
     ) -> None:
+        """Initialize a command line builder using the Docker software container engine."""
         super(DockerCommandLineJob, self).__init__(
             builder, joborder, make_path_mapper, requirements, hints, name
         )

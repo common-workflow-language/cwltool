@@ -45,16 +45,15 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
     from .pathmapper import PathMapper
+    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
 
 def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
     contents = f.read(CONTENT_LIMIT + 1)
     if len(contents) > CONTENT_LIMIT:
         raise WorkflowException(
-            "loadContents handling encountered buffer that is exceeds maximum lenght of %d bytes"
-            % CONTENT_LIMIT
+            "file is too large, loadContents limited to %d bytes" % CONTENT_LIMIT
         )
     return contents
 
@@ -90,17 +89,17 @@ def formatSubclassOf(
 
     uriRefFmt = URIRef(fmt)
 
-    for s, p, o in ontology.triples((uriRefFmt, RDFS.subClassOf, None)):
+    for _s, _p, o in ontology.triples((uriRefFmt, RDFS.subClassOf, None)):
         # Find parent classes of `fmt` and search upward
         if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s, p, o in ontology.triples((uriRefFmt, OWL.equivalentClass, None)):
+    for _s, _p, o in ontology.triples((uriRefFmt, OWL.equivalentClass, None)):
         # Find equivalent classes of `fmt` and search horizontally
         if formatSubclassOf(o, cls, ontology, visited):
             return True
 
-    for s, p, o in ontology.triples((None, OWL.equivalentClass, uriRefFmt)):
+    for s, _p, _o in ontology.triples((None, OWL.equivalentClass, uriRefFmt)):
         # Find equivalent classes of `fmt` and search horizontally
         if formatSubclassOf(s, cls, ontology, visited):
             return True
@@ -173,6 +172,7 @@ class Builder(HasReqsHints):
         outdir: str,
         tmpdir: str,
         stagedir: str,
+        cwlVersion: str,
     ) -> None:
         """Initialize this Builder."""
         self.job = job
@@ -203,6 +203,8 @@ class Builder(HasReqsHints):
         self.outdir = outdir
         self.tmpdir = tmpdir
         self.stagedir = stagedir
+
+        self.cwlVersion = cwlVersion
 
         self.pathmapper = None  # type: Optional[PathMapper]
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
@@ -377,11 +379,26 @@ class Builder(HasReqsHints):
             if schema["type"] == "File":
                 datum = cast(CWLObjectType, datum)
                 self.files.append(datum)
-                if (binding and binding.get("loadContents")) or schema.get(
-                    "loadContents"
-                ):
-                    with self.fs_access.open(cast(str, datum["location"]), "rb") as f2:
-                        datum["contents"] = content_limit_respected_read(f2)
+
+                loadContents_sourceline = (
+                    None
+                )  # type: Union[None, MutableMapping[str, Union[str, List[int]]], CWLObjectType]
+                if binding and binding.get("loadContents"):
+                    loadContents_sourceline = binding
+                elif schema.get("loadContents"):
+                    loadContents_sourceline = schema
+
+                if loadContents_sourceline and loadContents_sourceline["loadContents"]:
+                    with SourceLine(
+                        loadContents_sourceline, "loadContents", WorkflowException
+                    ):
+                        try:
+                            with self.fs_access.open(
+                                cast(str, datum["location"]), "rb"
+                            ) as f2:
+                                datum["contents"] = content_limit_respected_read(f2)
+                        except Exception as e:
+                            raise Exception("Reading %s\n%s" % (datum["location"], e))
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
@@ -405,12 +422,14 @@ class Builder(HasReqsHints):
                             found = False
 
                             if isinstance(sfname, str):
-                                sf_location = (
-                                    cast(str, datum["location"])[
-                                        0 : cast(str, datum["location"]).rindex("/") + 1
-                                    ]
-                                    + sfname
-                                )
+                                d_location = cast(str, datum["location"])
+                                if "/" in d_location:
+                                    sf_location = (
+                                        d_location[0 : d_location.rindex("/") + 1]
+                                        + sfname
+                                    )
+                                else:
+                                    sf_location = d_location + sfname
                                 sfbasename = sfname
                             elif isinstance(sfname, MutableMapping):
                                 sf_location = sfname["location"]
@@ -500,7 +519,9 @@ class Builder(HasReqsHints):
                 ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
                     get_listing(
-                        self.fs_access, datum, (ll == "deep_listing"),
+                        self.fs_access,
+                        datum,
+                        (ll == "deep_listing"),
                     )
                 self.files.append(datum)
 
@@ -630,4 +651,5 @@ class Builder(HasReqsHints):
             js_console=self.js_console,
             force_docker_pull=self.force_docker_pull,
             strip_whitespace=strip_whitespace,
+            cwlVersion=self.cwlVersion,
         )

@@ -95,13 +95,16 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         hints: List[CWLObjectType],
         name: str,
     ) -> None:
+        """Builder for invoking the Singularty software container engine."""
         super(SingularityCommandLineJob, self).__init__(
             builder, joborder, make_path_mapper, requirements, hints, name
         )
 
     @staticmethod
     def get_image(
-        dockerRequirement: Dict[str, str], pull_image: bool, force_pull: bool = False,
+        dockerRequirement: Dict[str, str],
+        pull_image: bool,
+        force_pull: bool = False,
     ) -> bool:
         """
         Acquire the software container image in the specified dockerRequirement.
@@ -154,7 +157,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
             targets.append(os.environ["SINGULARITY_PULLFOLDER"])
         for target in targets:
-            for dirpath, subdirs, files in os.walk(target):
+            for dirpath, _subdirs, files in os.walk(target):
                 for entry in files:
                     if entry in candidates:
                         path = os.path.join(dirpath, entry)

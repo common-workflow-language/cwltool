@@ -28,6 +28,7 @@ from .utils import CWLObjectType, JobsGeneratorType, OutputCallbackType
 
 class ProcessGeneratorJob(object):
     def __init__(self, procgenerator: "ProcessGenerator") -> None:
+        """Create a ProccessGenerator Job."""
         self.procgenerator = procgenerator
         self.jobout = None  # type: Optional[CWLObjectType]
         self.processStatus = None  # type: Optional[str]
@@ -77,8 +78,11 @@ class ProcessGeneratorJob(object):
 
 class ProcessGenerator(Process):
     def __init__(
-        self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
+        self,
+        toolpath_object: CommentedMap,
+        loadingContext: LoadingContext,
     ) -> None:
+        """Create a ProcessGenerator from the given dictionary and context."""
         super(ProcessGenerator, self).__init__(toolpath_object, loadingContext)
         self.loadingContext = loadingContext  # type: LoadingContext
         try:

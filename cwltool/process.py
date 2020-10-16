@@ -1,9 +1,11 @@
+"""Classes and methods relevant for all CWL Proccess types."""
 import abc
 import copy
 import functools
 import hashlib
 import json
 import logging
+import math
 import os
 import shutil
 import stat
@@ -266,7 +268,6 @@ def stage_files(
     fix_conflicts: bool = False,
 ) -> None:
     """Link or copy files to their targets. Create them as needed."""
-
     targets = {}  # type: Dict[str, MapperEnt]
     for key, entry in pathmapper.items():
         if "File" not in entry.type:
@@ -275,12 +276,13 @@ def stage_files(
             targets[entry.target] = entry
         elif targets[entry.target].resolved != entry.resolved:
             if fix_conflicts:
-                tgt = entry.target
+                # find first key that does not clash with an existing entry in targets
+                # start with entry.target + '_' + 2 and then keep incrementing the number till there is no clash
                 i = 2
-                tgt = "%s_%s" % (tgt, i)
+                tgt = "%s_%s" % (entry.target, i)
                 while tgt in targets:
                     i += 1
-                    tgt = "%s_%s" % (tgt, i)
+                    tgt = "%s_%s" % (entry.target, i)
                 targets[tgt] = pathmapper.update(
                     key, entry.resolved, tgt, entry.type, entry.staged
                 )
@@ -449,7 +451,9 @@ def add_sizes(fsaccess: StdFsAccess, obj: CWLObjectType) -> None:
 
 
 def fill_in_defaults(
-    inputs: List[CWLObjectType], job: CWLObjectType, fsaccess: StdFsAccess,
+    inputs: List[CWLObjectType],
+    job: CWLObjectType,
+    fsaccess: StdFsAccess,
 ) -> None:
     for e, inp in enumerate(inputs):
         with SourceLine(
@@ -521,7 +525,9 @@ _VAR_SPOOL_ERROR = textwrap.dedent(
 
 
 def var_spool_cwl_detector(
-    obj: CWLOutputType, item: Optional[Any] = None, obj_key: Optional[Any] = None,
+    obj: CWLOutputType,
+    item: Optional[Any] = None,
+    obj_key: Optional[Any] = None,
 ) -> bool:
     """Detect any textual reference to /var/spool/cwl."""
     r = False
@@ -676,12 +682,14 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
 
         with SourceLine(toolpath_object, "inputs", ValidationException):
             self.inputs_record_schema = cast(
-                CWLObjectType, make_valid_avro(self.inputs_record_schema, {}, set()),
+                CWLObjectType,
+                make_valid_avro(self.inputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.inputs_record_schema), self.names)
         with SourceLine(toolpath_object, "outputs", ValidationException):
             self.outputs_record_schema = cast(
-                CWLObjectType, make_valid_avro(self.outputs_record_schema, {}, set()),
+                CWLObjectType,
+                make_valid_avro(self.outputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.outputs_record_schema), self.names)
 
@@ -864,6 +872,10 @@ hints:
                     runtime_context.stagedir or tempfile.mkdtemp()
                 )
 
+        cwl_version = cast(
+            str,
+            self.metadata.get("http://commonwl.org/cwltool#original_cwlVersion", None),
+        )
         builder = Builder(
             job,
             files,
@@ -886,6 +898,7 @@ hints:
             outdir,
             tmpdir,
             stagedir,
+            cwl_version,
         )
 
         bindings.extend(
@@ -999,9 +1012,9 @@ hints:
             return runtimeContext.select_resources(request, runtimeContext)
         return {
             "cores": request["coresMin"],
-            "ram": request["ramMin"],
-            "tmpdirSize": request["tmpdirMin"],
-            "outdirSize": request["outdirMin"],
+            "ram": math.ceil(request["ramMin"]),
+            "tmpdirSize": math.ceil(request["tmpdirMin"]),
+            "outdirSize": math.ceil(request["outdirMin"]),
         }
 
     def validate_hints(
@@ -1230,7 +1243,13 @@ def scandeps(
                     if nestdirs:
                         deps = nestdir(base, deps)
                     r.append(deps)
-            elif k not in ("listing", "secondaryFiles"):
+            elif doc.get("class") in ("File", "Directory") and k in (
+                "listing",
+                "secondaryFiles",
+            ):
+                # should be handled earlier.
+                pass
+            else:
                 r.extend(
                     scandeps(
                         base,

@@ -44,10 +44,10 @@ from schema_salad.ref_resolver import Loader
 from typing_extensions import TYPE_CHECKING, Deque
 
 if TYPE_CHECKING:
+    from .command_line_tool import CallbackJob, ExpressionJob
     from .job import CommandLineJob, JobBase
-    from .workflow_job import WorkflowJob
-    from .command_line_tool import ExpressionJob, CallbackJob
     from .stdfsaccess import StdFsAccess
+    from .workflow_job import WorkflowJob
 
 __random_outdir = None  # type: Optional[str]
 
@@ -542,14 +542,6 @@ def normalizeFilesDirs(
                 d["nameroot"] = str(nr)
             if d.get("nameext") != ne:
                 d["nameext"] = str(ne)
-
-            contents = d.get("contents")
-            if contents and len(contents) > CONTENT_LIMIT:
-                if len(contents) > CONTENT_LIMIT:
-                    raise ValidationException(
-                        "File object contains contents with number of bytes that exceeds CONTENT_LIMIT length (%d)"
-                        % CONTENT_LIMIT
-                    )
 
     visit_class(job, ("File", "Directory"), addLocation)
 

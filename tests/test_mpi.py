@@ -1,25 +1,26 @@
-import pytest  # type: ignore
-
-import sys
+"""Tests of the experimental MPI extension."""
+import json
 import os.path
+import sys
 from io import StringIO
+from pathlib import Path
+from typing import Any, Generator, List, MutableMapping, Optional, Tuple, cast
+
+import pkg_resources
+import pytest  # type: ignore
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-import json
-from pathlib import Path
-from typing import Any, Optional, List, MutableMapping, Generator, Tuple, cast
-import pkg_resources
 from schema_salad.avro.schema import Names
 
-from .util import get_data, working_directory, windows_needs_docker
-
+import cwltool.load_tool
+import cwltool.singularity
+import cwltool.udocker
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
 from cwltool.mpi import MpiConfig, MPIRequirementName
-import cwltool.singularity
-import cwltool.udocker
-import cwltool.load_tool
+
+from .util import get_data, windows_needs_docker, working_directory
 
 
 def test_mpi_conf_defaults() -> None:
@@ -40,7 +41,9 @@ def test_mpi_conf_unknownkeys() -> None:
 
 @pytest.fixture(scope="class")  # type: ignore
 def fake_mpi_conf(tmp_path_factory: Any) -> Generator[str, None, None]:
-    """Make a super simple mpirun-alike for applications that don't actually use MPI.
+    """
+    Make a super simple mpirun-alike for applications that don't actually use MPI.
+
     It just runs the command multiple times (in serial).
 
     Then create a plaform MPI config YAML file that should make it work
@@ -220,7 +223,8 @@ class TestMpiRun:
 
 def test_env_passing(monkeypatch: Any) -> None:
     config = MpiConfig(
-        env_pass=["A", "B", "LONG_NAME"], env_pass_regex=["TOOLNAME", "MPI_.*_CONF"],
+        env_pass=["A", "B", "LONG_NAME"],
+        env_pass_regex=["TOOLNAME", "MPI_.*_CONF"],
     )
 
     env = {}  # type: MutableMapping[str, str]
@@ -350,6 +354,7 @@ def test_docker_mpi_both_required(schema_ext11: Names) -> None:
         lc, rc, tool = mk_tool(schema_ext11, [], reqs=[mpiReq, containerReq])
         clt = CommandLineTool(tool, lc)
         jr = clt.make_job_runner(rc)
+
 
 def test_docker_mpi_both_hinted(schema_ext11: Names) -> None:
     # Both hinted - error

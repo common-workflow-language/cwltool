@@ -32,11 +32,10 @@ from typing import (
 
 import psutil
 import shellescape
+from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
-
-from prov.model import PROV
 
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext, getdefault
@@ -292,7 +291,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # execution.
         if self.mpi_procs:
             menv = runtimeContext.mpi_config
-            mpi_runtime = [menv.runner, menv.nproc_flag, str(self.mpi_procs)] + menv.extra_flags
+            mpi_runtime = [
+                menv.runner,
+                menv.nproc_flag,
+                str(self.mpi_procs),
+            ] + menv.extra_flags
             runtime = mpi_runtime + runtime
             menv.pass_through_env_vars(env)
             menv.set_env_vars(env)
@@ -604,7 +607,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
     @abstractmethod
     def create_runtime(
-        self, env: MutableMapping[str, str], runtime_context: RuntimeContext,
+        self,
+        env: MutableMapping[str, str],
+        runtime_context: RuntimeContext,
     ) -> Tuple[List[str], Optional[str]]:
         """Return the list of commands to run the selected container engine."""
 
@@ -863,7 +868,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
-            except (OSError, IOError):
+            except (OSError):
                 cid = None
         max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
@@ -927,11 +932,15 @@ def _job_popen(
         if stdin_path is not None:
             stdin = open(stdin_path, "rb")
 
-        stdout = default_stdout if default_stdout is not None else sys.stderr  # type: Union[IO[bytes], TextIO]
+        stdout = (
+            default_stdout if default_stdout is not None else sys.stderr
+        )  # type: Union[IO[bytes], TextIO]
         if stdout_path is not None:
             stdout = open(stdout_path, "wb")
 
-        stderr = default_stderr if default_stderr is not None else sys.stderr  # type: Union[IO[bytes], TextIO]
+        stderr = (
+            default_stderr if default_stderr is not None else sys.stderr
+        )  # type: Union[IO[bytes], TextIO]
         if stderr_path is not None:
             stderr = open(stderr_path, "wb")
 
@@ -976,13 +985,13 @@ def _job_popen(
         if tm is not None:
             tm.cancel()
 
-        if isinstance(stdin, IOBase) and hasattr(stdin, 'close'):
+        if isinstance(stdin, IOBase) and hasattr(stdin, "close"):
             stdin.close()
 
-        if stdout is not sys.stderr and hasattr(stdout, 'close'):
+        if stdout is not sys.stderr and hasattr(stdout, "close"):
             stdout.close()
 
-        if stderr is not sys.stderr and hasattr(stderr, 'close'):
+        if stderr is not sys.stderr and hasattr(stderr, "close"):
             stderr.close()
 
         return rcode
