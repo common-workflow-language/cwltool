@@ -398,7 +398,13 @@ def test_scandeps() -> None:
     assert scanned_deps == expected_deps
 
     scanned_deps = cwltool.process.scandeps(
-        cast(str, obj["id"]), obj, set(("run"),), set(), loadref
+        cast(str, obj["id"]),
+        obj,
+        set(
+            ("run"),
+        ),
+        set(),
+        loadref,
     )
 
     scanned_deps.sort(key=lambda k: k["basename"])
@@ -851,7 +857,8 @@ def test_print_dot() -> None:
     # print Workflow
     cwl_path = get_data("tests/wf/revsort.cwl")
     cwl_posix_path = Path(cwl_path).as_posix()
-    expected_dot = pydot.graph_from_dot_data("""
+    expected_dot = pydot.graph_from_dot_data(
+        """
     digraph {{
         graph [bgcolor="#eeeeee",
                 clusterrank=local,
@@ -891,14 +898,25 @@ def test_print_dot() -> None:
         "file://{cwl_posix_path}#workflow_input" -> "file://{cwl_posix_path}#rev";
         "file://{cwl_posix_path}#reverse_sort" -> "file://{cwl_posix_path}#sorted";
 }}
-    """.format(cwl_posix_path=cwl_posix_path))[0]
+    """.format(
+            cwl_posix_path=cwl_posix_path
+        )
+    )[0]
     stdout = StringIO()
     assert main(["--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
     computed_edges = sorted(
-        [(urlparse(source).fragment, urlparse(target).fragment) for source, target in computed_dot.obj_dict['edges']])
+        [
+            (urlparse(source).fragment, urlparse(target).fragment)
+            for source, target in computed_dot.obj_dict["edges"]
+        ]
+    )
     expected_edges = sorted(
-        [(urlparse(source).fragment, urlparse(target).fragment) for source, target in expected_dot.obj_dict['edges']])
+        [
+            (urlparse(source).fragment, urlparse(target).fragment)
+            for source, target in expected_dot.obj_dict["edges"]
+        ]
+    )
     assert computed_edges == expected_edges
 
     # print CommandLineTool
@@ -1269,15 +1287,15 @@ def test_scatter_output_filenames(tmpdir: py.path.local) -> None:
     rtc = RuntimeContext()
     rtc.outdir = str(cwd)
     factory = cwltool.factory.Factory(runtime_context=rtc)
-    output_names = ['output.txt', 'output.txt_2', 'output.txt_3']
+    output_names = ["output.txt", "output.txt_2", "output.txt_3"]
     scatter_workflow = factory.make(get_data("tests/scatter_numbers.cwl"))
     result = scatter_workflow(range=3)
-    assert 'output' in result
-    
-    locations = sorted([element['location'] for element in result['output']])
+    assert "output" in result
 
-    assert(
-        locations[0].endswith('output.txt') and
-        locations[1].endswith('output.txt_2') and
-        locations[2].endswith('output.txt_3')
+    locations = sorted([element["location"] for element in result["output"]])
+
+    assert (
+        locations[0].endswith("output.txt")
+        and locations[1].endswith("output.txt_2")
+        and locations[2].endswith("output.txt_3")
     ), "Locations {} do not end with {}".format(locations, output_names)

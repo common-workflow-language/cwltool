@@ -124,7 +124,11 @@ def test_secondary_files_explicit(folder: str, tmpdir: py.path.local) -> None:
             "path": file1,
             "basename": "foo1.txt",
             "secondaryFiles": [
-                {"class": "File", "path": file1idx, "basename": "foo1.txt.idx",}
+                {
+                    "class": "File",
+                    "path": file1idx,
+                    "basename": "foo1.txt.idx",
+                }
             ],
         }
     }

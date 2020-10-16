@@ -118,7 +118,10 @@ class PathMapper(object):
     ) -> None:
         stagedir = cast(Optional[str], obj.get("dirname")) or stagedir
         tgt = convert_pathsep_to_unix(
-            os.path.join(stagedir, cast(str, obj["basename"]),)
+            os.path.join(
+                stagedir,
+                cast(str, obj["basename"]),
+            )
         )
         if obj["location"] in self._pathmap:
             return
@@ -212,7 +215,10 @@ class PathMapper(object):
     def items(self) -> List[Tuple[str, MapperEnt]]:
         return list(self._pathmap.items())
 
-    def reversemap(self, target: str,) -> Optional[Tuple[str, str]]:
+    def reversemap(
+        self,
+        target: str,
+    ) -> Optional[Tuple[str, str]]:
         for k, v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])

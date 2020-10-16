@@ -73,7 +73,9 @@ context.default_make_tool = default_make_tool
 
 class Workflow(Process):
     def __init__(
-        self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
+        self,
+        toolpath_object: CommentedMap,
+        loadingContext: LoadingContext,
     ) -> None:
         """Initialize this Workflow."""
         super(Workflow, self).__init__(toolpath_object, loadingContext)

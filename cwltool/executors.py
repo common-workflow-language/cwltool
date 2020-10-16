@@ -339,7 +339,9 @@ class MultithreadedJobExecutor(JobExecutor):
                     runtime_context.workflow_eval_lock.notifyAll()
 
     def run_job(
-        self, job: Optional[JobsType], runtime_context: RuntimeContext,
+        self,
+        job: Optional[JobsType],
+        runtime_context: RuntimeContext,
     ) -> None:
         """Execute a single Job in a seperate thread."""
         if job is not None:
@@ -368,11 +370,10 @@ class MultithreadedJobExecutor(JobExecutor):
                         return
 
                     if (
-                        (self.allocated_ram + job.builder.resources["ram"])
-                        > self.max_ram
-                        or (self.allocated_cores + job.builder.resources["cores"])
-                        > self.max_cores
-                    ):
+                        self.allocated_ram + job.builder.resources["ram"]
+                    ) > self.max_ram or (
+                        self.allocated_cores + job.builder.resources["cores"]
+                    ) > self.max_cores:
                         _logger.debug(
                             'Job "%s" cannot run yet, resources (%s) are not '
                             "available (already allocated ram is %d, allocated cores is %d, "
