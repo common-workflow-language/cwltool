@@ -12,6 +12,7 @@ include tests/checker_wf/*
 include tests/subgraph/*
 include tests/trs/*
 include tests/wf/generator/*
+include cwltool/py.typed
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.md
