@@ -105,6 +105,7 @@ setup(
         "typing-extensions",
         "coloredlogs",
         "pydot >= 1.4.1",
+        "argcomplete",
     ],
     extras_require={
         "deps": ["galaxy-tool-util"],
