@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Entry point for cwltool."""
 
+import argcomplete
 import argparse
 import functools
 import io
@@ -100,7 +101,7 @@ from .utils import (
     windows_default_container_id,
 )
 from .workflow import Workflow
-
+# PYTHON_ARGCOMPLETE_OK
 
 def _terminate_processes() -> None:
     """Kill all spawned processes.
@@ -396,7 +397,7 @@ def init_job_order(
                 k: v for k, v in cmd_line.items() if k.startswith(record_name)
             }
             for key, value in record_items.items():
-                record[key[len(record_name) + 1 :]] = value
+                record[key[len(record_name) + 1:]] = value
                 del cmd_line[key]
             cmd_line[str(record_name)] = record
         if "job_order" in cmd_line and cmd_line["job_order"]:
@@ -854,7 +855,9 @@ def main(
             addl = []  # type: List[str]
             if "CWLTOOL_OPTIONS" in os.environ:
                 addl = os.environ["CWLTOOL_OPTIONS"].split(" ")
-            args = arg_parser().parse_args(addl + argsl)
+            parser = arg_parser()
+            argcomplete.autocomplete(parser)
+            args = parser.parse_args(addl + argsl)
             if args.record_container_id:
                 if not args.cidfile_dir:
                     args.cidfile_dir = os.getcwd()
@@ -895,7 +898,7 @@ def main(
                 args.workflow = "CWLFile"
             else:
                 _logger.error("CWL document required, no input file was provided")
-                arg_parser().print_help()
+                parser.print_help()
                 return 1
         if args.relax_path_checks:
             command_line_tool.ACCEPTLIST_RE = command_line_tool.ACCEPTLIST_EN_RELAXED_RE
