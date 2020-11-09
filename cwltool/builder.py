@@ -158,7 +158,7 @@ class Builder(HasReqsHints):
         names: Names,
         requirements: List[CWLObjectType],
         hints: List[CWLObjectType],
-        resources: Dict[str, Union[int, float]],
+        resources: Dict[str, Union[int, float, str]],
         mutation_manager: Optional[MutationManager],
         formatgraph: Optional[Graph],
         make_fs_access: Type[StdFsAccess],
@@ -635,8 +635,10 @@ class Builder(HasReqsHints):
 
         resources = self.resources
         if self.resources and "cores" in self.resources:
-            resources = copy.copy(resources)
-            resources["cores"] = int(math.ceil(resources["cores"]))
+            cores = resources["cores"]
+            if not isinstance(cores, str):
+                resources = copy.copy(resources)
+                resources["cores"] = int(math.ceil(cores))
 
         return expression.do_eval(
             ex,

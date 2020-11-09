@@ -962,7 +962,7 @@ hints:
 
     def evalResources(
         self, builder: Builder, runtimeContext: RuntimeContext
-    ) -> Dict[str, Union[int, float]]:
+    ) -> Dict[str, Union[int, float, str]]:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -973,7 +973,7 @@ hints:
             ram = 1024
         else:
             ram = 256
-        request = {
+        request: Dict[str, Union[int, float, str]] = {
             "coresMin": 1,
             "coresMax": 1,
             "ramMin": ram,
@@ -982,7 +982,7 @@ hints:
             "tmpdirMax": 1024,
             "outdirMin": 1024,
             "outdirMax": 1024,
-        }  # type: Dict[str, Union[int, float]]
+        }
         for a in ("cores", "ram", "tmpdir", "outdir"):
             mn = mx = None  # type: Optional[Union[int, float]]
             if resourceReq.get(a + "Min"):
@@ -1012,9 +1012,15 @@ hints:
             return runtimeContext.select_resources(request, runtimeContext)
         return {
             "cores": request["coresMin"],
-            "ram": math.ceil(request["ramMin"]),
-            "tmpdirSize": math.ceil(request["tmpdirMin"]),
-            "outdirSize": math.ceil(request["outdirMin"]),
+            "ram": math.ceil(request["ramMin"])
+            if not isinstance(request["ramMin"], str)
+            else request["ramMin"],
+            "tmpdirSize": math.ceil(request["tmpdirMin"])
+            if not isinstance(request["tmpdirMin"], str)
+            else request["tmpdirMin"],
+            "outdirSize": math.ceil(request["outdirMin"])
+            if not isinstance(request["outdirMin"], str)
+            else request["outdirMin"],
         }
 
     def validate_hints(
