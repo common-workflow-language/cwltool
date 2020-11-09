@@ -101,7 +101,9 @@ from .utils import (
     windows_default_container_id,
 )
 from .workflow import Workflow
+
 # PYTHON_ARGCOMPLETE_OK
+
 
 def _terminate_processes() -> None:
     """Kill all spawned processes.
@@ -397,7 +399,7 @@ def init_job_order(
                 k: v for k, v in cmd_line.items() if k.startswith(record_name)
             }
             for key, value in record_items.items():
-                record[key[len(record_name) + 1:]] = value
+                record[key[len(record_name) + 1 :]] = value
                 del cmd_line[key]
             cmd_line[str(record_name)] = record
         if "job_order" in cmd_line and cmd_line["job_order"]:

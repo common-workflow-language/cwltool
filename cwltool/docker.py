@@ -446,7 +446,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             runtime.append("--env=%s=%s" % (key, value))
 
         if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
-            runtime.append("--memory=%dm" % self.builder.resources["ram"])
+            ram = self.builder.resources["ram"]
+            if not isinstance(ram, str):
+                runtime.append("--memory=%dm" % ram)
         elif not user_space_docker_cmd:
             res_req, _ = self.builder.get_requirement("ResourceRequirement")
             if res_req and ("ramMin" in res_req or "ramMax" in res_req):
