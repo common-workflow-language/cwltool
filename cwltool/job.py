@@ -966,8 +966,7 @@ def _job_popen(
             def terminate():  # type: () -> None
                 try:
                     _logger.warning(
-                        "[job %s] exceeded time limit of %d seconds and will"
-                        "be terminated",
+                        "[job %s] exceeded time limit of %d seconds and will be terminated",
                         name,
                         timelimit,
                     )
