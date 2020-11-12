@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Single and multi-threaded executors."""
 import datetime
+import functools
 import logging
 import math
 import os
@@ -35,6 +36,8 @@ from .provenance_profile import ProvenanceProfile
 from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, JobsType
 from .workflow import Workflow
 from .workflow_job import WorkflowJob, WorkflowJobStep
+from .task_queue import TaskQueue
+
 
 TMPDIR_LOCK = Lock()
 
@@ -280,7 +283,6 @@ class MultithreadedJobExecutor(JobExecutor):
     def __init__(self) -> None:
         """Initialize."""
         super(MultithreadedJobExecutor, self).__init__()
-        self.threads = set()  # type: Set[threading.Thread]
         self.exceptions = []  # type: List[WorkflowException]
         self.pending_jobs = []  # type: List[JobsType]
         self.pending_jobs_lock = threading.Lock()
@@ -342,7 +344,6 @@ class MultithreadedJobExecutor(JobExecutor):
         finally:
             if runtime_context.workflow_eval_lock:
                 with runtime_context.workflow_eval_lock:
-                    self.threads.remove(threading.current_thread())
                     if isinstance(job, JobBase):
                         ram = job.builder.resources["ram"]
                         if not isinstance(ram, str):
@@ -406,11 +407,6 @@ class MultithreadedJobExecutor(JobExecutor):
                         n += 1
                         continue
 
-                thread = threading.Thread(
-                    target=self._runner, args=(job, runtime_context, TMPDIR_LOCK)
-                )
-                thread.daemon = True
-                self.threads.add(thread)
                 if isinstance(job, JobBase):
                     ram = job.builder.resources["ram"]
                     if not isinstance(ram, str):
@@ -418,7 +414,7 @@ class MultithreadedJobExecutor(JobExecutor):
                     cores = job.builder.resources["cores"]
                     if not isinstance(cores, str):
                         self.allocated_cores += cores
-                thread.start()
+                self.taskqueue.add(functools.partial(self._runner, job, runtime_context, TMPDIR_LOCK))
                 self.pending_jobs.remove(job)
 
     def wait_for_next_completion(self, runtime_context):
@@ -437,37 +433,42 @@ class MultithreadedJobExecutor(JobExecutor):
         runtime_context: RuntimeContext,
     ) -> None:
 
-        jobiter = process.job(job_order_object, self.output_callback, runtime_context)
+        self.taskqueue = TaskQueue(threading.Lock(), psutil.cpu_count())  # type: TaskQueue
+        try:
 
-        if runtime_context.workflow_eval_lock is None:
-            raise WorkflowException(
-                "runtimeContext.workflow_eval_lock must not be None"
-            )
+            jobiter = process.job(job_order_object, self.output_callback, runtime_context)
 
-        runtime_context.workflow_eval_lock.acquire()
-        for job in jobiter:
-            if job is not None:
-                if isinstance(job, JobBase):
-                    job.builder = runtime_context.builder or job.builder
-                    if job.outdir is not None:
-                        self.output_dirs.add(job.outdir)
+            if runtime_context.workflow_eval_lock is None:
+                raise WorkflowException(
+                    "runtimeContext.workflow_eval_lock must not be None"
+                )
 
-            self.run_job(job, runtime_context)
+            runtime_context.workflow_eval_lock.acquire()
+            for job in jobiter:
+                if job is not None:
+                    if isinstance(job, JobBase):
+                        job.builder = runtime_context.builder or job.builder
+                        if job.outdir is not None:
+                            self.output_dirs.add(job.outdir)
 
-            if job is None:
-                if self.threads:
-                    self.wait_for_next_completion(runtime_context)
-                else:
-                    logger.error("Workflow cannot make any more progress.")
-                    break
+                self.run_job(job, runtime_context)
 
-        self.run_job(None, runtime_context)
-        while self.threads:
-            self.wait_for_next_completion(runtime_context)
+                if job is None:
+                    if self.taskqueue.in_flight > 0:
+                        self.wait_for_next_completion(runtime_context)
+                    else:
+                        logger.error("Workflow cannot make any more progress.")
+                        break
+
             self.run_job(None, runtime_context)
+            while self.taskqueue.in_flight > 0:
+                self.wait_for_next_completion(runtime_context)
+                self.run_job(None, runtime_context)
 
-        runtime_context.workflow_eval_lock.release()
-
+            runtime_context.workflow_eval_lock.release()
+        finally:
+            self.taskqueue.drain()
+            self.taskqueue.join()
 
 class NoopJobExecutor(JobExecutor):
     """Do nothing executor, for testing purposes only."""
