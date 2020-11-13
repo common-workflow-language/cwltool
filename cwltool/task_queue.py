@@ -6,17 +6,17 @@ import queue
 import threading
 import logging
 
-from typing import (
-    Callable,
-    Optional
-)
+from typing import Callable, Optional
 
-logger = logging.getLogger('arvados.cwl-runner')
+logger = logging.getLogger("arvados.cwl-runner")
+
 
 class TaskQueue(object):
     def __init__(self, lock: threading.Lock, thread_count: int):
         self.thread_count = thread_count
-        self.task_queue: queue.Queue[Optional[Callable[[], None]]] = queue.Queue(maxsize=self.thread_count)
+        self.task_queue: queue.Queue[Optional[Callable[[], None]]] = queue.Queue(
+            maxsize=self.thread_count
+        )
         self.task_queue_threads = []
         self.lock = lock
         self.in_flight = 0
@@ -41,7 +41,12 @@ class TaskQueue(object):
             with self.lock:
                 self.in_flight -= 1
 
-    def add(self, task: Callable[[], None], unlock: Optional[threading.Lock]=None, check_done: Optional[threading.Event]=None) -> None:
+    def add(
+        self,
+        task: Callable[[], None],
+        unlock: Optional[threading.Lock] = None,
+        check_done: Optional[threading.Event] = None,
+    ) -> None:
         if self.thread_count > 1:
             with self.lock:
                 self.in_flight += 1
@@ -64,12 +69,11 @@ class TaskQueue(object):
                 if unlock is not None:
                     unlock.acquire()
 
-
     def drain(self) -> None:
         try:
             # Drain queue
             while not self.task_queue.empty():
-                self.task_queue.get(True, .1)
+                self.task_queue.get(True, 0.1)
         except queue.Empty:
             pass
 

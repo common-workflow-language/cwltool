@@ -414,7 +414,9 @@ class MultithreadedJobExecutor(JobExecutor):
                     cores = job.builder.resources["cores"]
                     if not isinstance(cores, str):
                         self.allocated_cores += cores
-                self.taskqueue.add(functools.partial(self._runner, job, runtime_context, TMPDIR_LOCK))
+                self.taskqueue.add(
+                    functools.partial(self._runner, job, runtime_context, TMPDIR_LOCK)
+                )
                 self.pending_jobs.remove(job)
 
     def wait_for_next_completion(self, runtime_context):
@@ -433,10 +435,14 @@ class MultithreadedJobExecutor(JobExecutor):
         runtime_context: RuntimeContext,
     ) -> None:
 
-        self.taskqueue = TaskQueue(threading.Lock(), psutil.cpu_count())  # type: TaskQueue
+        self.taskqueue = TaskQueue(
+            threading.Lock(), psutil.cpu_count()
+        )  # type: TaskQueue
         try:
 
-            jobiter = process.job(job_order_object, self.output_callback, runtime_context)
+            jobiter = process.job(
+                job_order_object, self.output_callback, runtime_context
+            )
 
             if runtime_context.workflow_eval_lock is None:
                 raise WorkflowException(
@@ -469,6 +475,7 @@ class MultithreadedJobExecutor(JobExecutor):
         finally:
             self.taskqueue.drain()
             self.taskqueue.join()
+
 
 class NoopJobExecutor(JobExecutor):
     """Do nothing executor, for testing purposes only."""
