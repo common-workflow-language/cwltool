@@ -68,6 +68,10 @@ dist: dist/${MODULE}-$(VERSION).tar.gz
 dist/${MODULE}-$(VERSION).tar.gz: $(SOURCES)
 	./setup.py sdist bdist_wheel
 
+## docs	       : make the docs
+docs: FORCE
+	cd docs && $(MAKE) html
+
 ## clean       : clean up all temporary / machine-generated files
 clean: FORCE
 	rm -f ${MODILE}/*.pyc tests/*.pyc
