@@ -4,11 +4,10 @@
 
 import queue
 import threading
-import logging
 
 from typing import Callable, Optional
 
-logger = logging.getLogger("arvados.cwl-runner")
+from .loghandler import _logger
 
 
 class TaskQueue(object):
@@ -22,7 +21,7 @@ class TaskQueue(object):
         self.in_flight = 0
         self.error: Optional[Exception] = None
 
-        for r in range(0, self.thread_count):
+        for _r in range(0, self.thread_count):
             t = threading.Thread(target=self.task_queue_func)
             self.task_queue_threads.append(t)
             t.start()
@@ -35,7 +34,7 @@ class TaskQueue(object):
             try:
                 task()
             except Exception as e:
-                logger.exception("Unhandled exception running task")
+                _logger.exception("Unhandled exception running task")
                 self.error = e
 
             with self.lock:
@@ -78,7 +77,7 @@ class TaskQueue(object):
             pass
 
     def join(self) -> None:
-        for t in self.task_queue_threads:
+        for _t in self.task_queue_threads:
             self.task_queue.put(None)
         for t in self.task_queue_threads:
             t.join()
