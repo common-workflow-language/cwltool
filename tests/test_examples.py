@@ -132,6 +132,94 @@ def test_expression_interpolate(pattern: str, expected: Any) -> None:
     assert expr.interpolate(pattern, interpolate_input) == expected
 
 
+parameter_to_expressions = [
+    (
+        "-$(foo)",
+        r"""-{"bar":{"baz":"zab1"},"b ar":{"baz":2},"b'ar":{"baz":true},"b\"ar":{"baz":null}}""",
+    ),
+    ("-$(foo.bar)", """-{"baz":"zab1"}"""),
+    ("-$(foo['bar'])", """-{"baz":"zab1"}"""),
+    ('-$(foo["bar"])', """-{"baz":"zab1"}"""),
+    ("-$(foo.bar.baz)", "-zab1"),
+    ("-$(foo['bar'].baz)", "-zab1"),
+    ("-$(foo['bar'][\"baz\"])", "-zab1"),
+    ("-$(foo.bar['baz'])", "-zab1"),
+    ("-$(foo['b ar'].baz)", "-2"),
+    ("-$(foo['b\\'ar'].baz)", "-true"),
+    ('-$(foo["b\\\'ar"].baz)', "-true"),
+    ("-$(foo['b\\\"ar'].baz)", "-null"),
+    ("$(foo.bar) $(foo.bar)", """{"baz":"zab1"} {"baz":"zab1"}"""),
+    ("$(foo['bar']) $(foo['bar'])", """{"baz":"zab1"} {"baz":"zab1"}"""),
+    ('$(foo["bar"]) $(foo["bar"])', """{"baz":"zab1"} {"baz":"zab1"}"""),
+    ("$(foo.bar.baz) $(foo.bar.baz)", "zab1 zab1"),
+    ("$(foo['bar'].baz) $(foo['bar'].baz)", "zab1 zab1"),
+    ("$(foo['bar'][\"baz\"]) $(foo['bar'][\"baz\"])", "zab1 zab1"),
+    ("$(foo.bar['baz']) $(foo.bar['baz'])", "zab1 zab1"),
+    ("$(foo['b ar'].baz) $(foo['b ar'].baz)", "2 2"),
+    ("$(foo['b\\'ar'].baz) $(foo['b\\'ar'].baz)", "true true"),
+    ('$(foo["b\\\'ar"].baz) $(foo["b\\\'ar"].baz)', "true true"),
+    ("$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", "null null"),
+]
+
+
+@pytest.mark.parametrize("pattern,expected", parameter_to_expressions)  # type: ignore
+def test_parameter_to_expression(pattern: str, expected: Any) -> None:
+    """Test the interpolate convert_to_expression feature."""
+    assert (
+        expr.interpolate(
+            expr.interpolate(pattern, {}, convert_to_expression=True),
+            None,
+            jslib=expr.jshead([], interpolate_input),
+            fullJS=True,
+            debug=True,
+        )
+        == expected
+    )
+
+
+param_to_expr_interpolate_escapebehavior = (
+    ("\\$(foo.bar.baz)", "$(foo.bar.baz)", 1),
+    ("\\\\$(foo.bar.baz)", "\\zab1", 1),
+    ("\\\\\\$(foo.bar.baz)", "\\$(foo.bar.baz)", 1),
+    ("\\\\\\\\$(foo.bar.baz)", "\\\\zab1", 1),
+    ("\\$foo", "$foo", 1),
+    ("\\foo", "foo", 1),
+    ("\\x", "x", 1),
+    ("\\\\x", "\\x", 1),
+    ("\\\\\\x", "\\x", 1),
+    ("\\\\\\\\x", "\\\\x", 1),
+    ("\\$(foo.bar.baz)", "$(foo.bar.baz)", 2),
+    ("\\\\$(foo.bar.baz)", "\\zab1", 2),
+    ("\\\\\\$(foo.bar.baz)", "\\$(foo.bar.baz)", 2),
+    ("\\\\\\\\$(foo.bar.baz)", "\\\\zab1", 2),
+    ("\\$foo", "\\$foo", 2),
+    ("\\foo", "\\foo", 2),
+    ("\\x", "\\x", 2),
+    ("\\\\x", "\\x", 2),
+    ("\\\\\\x", "\\\\x", 2),
+    ("\\\\\\\\x", "\\\\x", 2),
+)
+
+
+@pytest.mark.parametrize("pattern,expected,behavior", param_to_expr_interpolate_escapebehavior)  # type: ignore
+def test_parameter_to_expression_interpolate_escapebehavior(
+    pattern: str, expected: str, behavior: int
+) -> None:
+    """Test escaping behavior in an convert_to_expression context."""
+    assert (
+        expr.interpolate(
+            expr.interpolate(
+                pattern, {}, escaping_behavior=behavior, convert_to_expression=True
+            ),
+            None,
+            jslib=expr.jshead([], interpolate_input),
+            fullJS=True,
+            debug=True,
+        )
+        == expected
+    )
+
+
 interpolate_bad_parameters = [
     ("$(fooz)"),
     ("$(foo.barz)"),
