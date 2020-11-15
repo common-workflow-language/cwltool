@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Generator, List, MutableMapping, Optional, Tuple
 
 import pkg_resources
-import pytest  # type: ignore
+import pytest
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Names
@@ -36,10 +36,10 @@ def test_mpi_conf_defaults() -> None:
 
 def test_mpi_conf_unknownkeys() -> None:
     with pytest.raises(TypeError):
-        MpiConfig(runner="mpiexec", foo="bar")
+        MpiConfig(runner="mpiexec", foo="bar")  # type: ignore
 
 
-@pytest.fixture(scope="class")  # type: ignore
+@pytest.fixture(scope="class")
 def fake_mpi_conf(tmp_path_factory: Any) -> Generator[str, None, None]:
     """
     Make a super simple mpirun-alike for applications that don't actually use MPI.
@@ -134,7 +134,7 @@ class TestMpiRun:
         assert conf_obj.default_nproc == 1
         assert conf_obj.extra_flags == ["--no-fail"]
 
-    @windows_needs_docker  # type: ignore
+    @windows_needs_docker
     def test_simple_mpi_tool(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         stdout = StringIO()
         stderr = StringIO()
@@ -153,7 +153,7 @@ class TestMpiRun:
                 pids = [int(line) for line in pidfile]
             assert len(pids) == 2
 
-    @windows_needs_docker  # type: ignore
+    @windows_needs_docker
     def test_simple_mpi_nproc_expr(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         np = 4
         input_file = make_processes_input(np, tmp_path)
@@ -174,7 +174,7 @@ class TestMpiRun:
                 pids = [int(line) for line in pidfile]
             assert len(pids) == np
 
-    @windows_needs_docker  # type: ignore
+    @windows_needs_docker
     def test_mpi_workflow(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         np = 3
         input_file = make_processes_input(np, tmp_path)
@@ -195,7 +195,7 @@ class TestMpiRun:
                 lc = int(lc_file.read())
                 assert lc == np
 
-    @windows_needs_docker  # type: ignore
+    @windows_needs_docker
     def test_environment(
         self, fake_mpi_conf: str, tmp_path: Path, monkeypatch: Any
     ) -> None:
@@ -282,12 +282,14 @@ def test_env_passing(monkeypatch: Any) -> None:
 
 
 # Reading the schema is super slow - cache for the session
-@pytest.fixture(scope="session")  # type: ignore
+@pytest.fixture(scope="session")
 def schema_ext11() -> Generator[Names, None, None]:
     with pkg_resources.resource_stream("cwltool", "extensions-v1.1.yml") as res:
         ext11 = res.read().decode("utf-8")
         cwltool.process.use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
-        yield cwltool.process.get_schema("v1.1")[1]
+        schema = cwltool.process.get_schema("v1.1")[1]
+        assert isinstance(schema, Names)
+        yield schema
 
 
 mpiReq = CommentedMap({"class": MPIRequirementName, "processes": 1})

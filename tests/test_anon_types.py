@@ -1,6 +1,6 @@
 from typing import cast
 
-import pytest  # type: ignore
+import pytest
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
@@ -112,6 +112,6 @@ snippet = cast(
 )
 
 
-@pytest.mark.parametrize("snippet", snippet)  # type: ignore
+@pytest.mark.parametrize("snippet", snippet)
 def test_anon_types(snippet: CommentedMap) -> None:
     CommandLineTool(snippet, LoadingContext())

@@ -5,13 +5,13 @@ import sys
 import tempfile
 
 try:
-    from psutil.tests import TRAVIS
+    from psutil.tests import TRAVIS  # type: ignore
 except ImportError:
     TRAVIS = True
 
 
 import py.path
-import pytest  # type: ignore
+import pytest
 
 from .util import get_data, get_main_output
 
@@ -89,7 +89,7 @@ class TestUdocker:
         assert "completed success" in stderr, stderr
         assert cidfiles_count == 0
 
-    @pytest.mark.skipif(  # type: ignore
+    @pytest.mark.skipif(
         TRAVIS, reason="Not reliable on single threaded test on travis."
     )
     def test_udocker_should_display_memory_usage(self, tmpdir: py.path.local) -> None:

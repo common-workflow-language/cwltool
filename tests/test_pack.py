@@ -1,13 +1,14 @@
 import json
 import os
 import tempfile
+from collections.abc import Sized
 from functools import partial
 from io import StringIO
 from tempfile import NamedTemporaryFile
 from typing import Dict
 
 import py.path
-import pytest  # type: ignore
+import pytest
 from ruamel import yaml
 
 import cwltool.pack
@@ -34,7 +35,9 @@ def test_pack() -> None:
     adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
 
     assert "$schemas" in packed
-    assert len(packed["$schemas"]) == len(expect_packed["$schemas"])
+    packed_schemas = packed["$schemas"]
+    assert isinstance(packed_schemas, Sized)
+    assert len(packed_schemas) == len(expect_packed["$schemas"])
     del packed["$schemas"]
     del expect_packed["$schemas"]
 
@@ -63,7 +66,9 @@ def test_pack_input_named_name() -> None:
     adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
 
     assert "$schemas" in packed
-    assert len(packed["$schemas"]) == len(expect_packed["$schemas"])
+    packed_schemas = packed["$schemas"]
+    assert isinstance(packed_schemas, Sized)
+    assert len(packed_schemas) == len(expect_packed["$schemas"])
     del packed["$schemas"]
     del expect_packed["$schemas"]
 
@@ -131,7 +136,7 @@ cwl_missing_version_paths = [
 ]
 
 
-@pytest.mark.parametrize("cwl_path", cwl_missing_version_paths)  # type: ignore
+@pytest.mark.parametrize("cwl_path", cwl_missing_version_paths)
 def test_pack_missing_cwlVersion(cwl_path: str) -> None:
     """Ensure the generated pack output is not missing the `cwlVersion` in case of single tool workflow and single step workflow."""
     # Testing single tool workflow
@@ -205,8 +210,8 @@ cwl_to_run = [
 ]
 
 
-@needs_docker  # type: ignore
-@pytest.mark.parametrize("wf_path,job_path,namespaced", cwl_to_run)  # type: ignore
+@needs_docker
+@pytest.mark.parametrize("wf_path,job_path,namespaced", cwl_to_run)
 def test_packed_workflow_execution(
     wf_path: str, job_path: str, namespaced: bool, tmpdir: py.path.local
 ) -> None:

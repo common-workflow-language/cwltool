@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import pytest  # type: ignore
+import pytest
 
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.errors import WorkflowException
@@ -13,7 +13,7 @@ from .test_fetch import norm
 from .util import get_data, windows_needs_docker
 
 
-@windows_needs_docker  # type: ignore
+@windows_needs_docker
 def test_check_version() -> None:
     """
     It is permitted to load without updating, but not execute.

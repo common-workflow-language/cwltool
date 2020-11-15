@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urljoin, urlsplit
 
-import pytest  # type: ignore
+import pytest
 import requests
 from schema_salad.fetcher import Fetcher
 from schema_salad.utils import CacheType
@@ -88,7 +88,7 @@ def norm(uri: str) -> str:
     return uri
 
 
-@pytest.mark.parametrize("path,expected_path", path_fragments)  # type: ignore
+@pytest.mark.parametrize("path,expected_path", path_fragments)
 def test_resolve_local(path: str, expected_path: str) -> None:
     with working_directory(root):
         expected = norm(root.as_uri() + expected_path)

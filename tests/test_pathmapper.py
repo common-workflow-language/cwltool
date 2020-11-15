@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-import pytest  # type: ignore
+import pytest
 
 from cwltool.pathmapper import PathMapper
 from cwltool.utils import CWLObjectType, normalizeFilesDirs
@@ -64,7 +64,7 @@ normalization_parameters = [
 ]
 
 
-@pytest.mark.parametrize("name,file_dir,expected", normalization_parameters)  # type: ignore
+@pytest.mark.parametrize("name,file_dir,expected", normalization_parameters)
 def test_normalizeFilesDirs(
     name: str, file_dir: CWLObjectType, expected: CWLObjectType
 ) -> None:
@@ -82,7 +82,7 @@ basename_generation_parameters = [
 ]
 
 
-@pytest.mark.parametrize("filename,expected", basename_generation_parameters)  # type: ignore
+@pytest.mark.parametrize("filename,expected", basename_generation_parameters)
 def test_basename_field_generation(filename: str, expected: Tuple[str, str]) -> None:
     nameroot, nameext = expected
     expected2 = {

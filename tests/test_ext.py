@@ -3,7 +3,7 @@ import re
 from io import StringIO
 
 import py.path
-import pytest  # type: ignore
+import pytest
 
 import cwltool.process
 from cwltool.main import main
@@ -11,7 +11,7 @@ from cwltool.main import main
 from .util import get_data, needs_docker, temp_dir, windows_needs_docker
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_missing_enable_ext() -> None:
     # Require that --enable-ext is provided.
     assert (
@@ -20,7 +20,7 @@ def test_missing_enable_ext() -> None:
     )
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_listing_deep() -> None:
     params = [
         "--enable-ext",
@@ -30,7 +30,7 @@ def test_listing_deep() -> None:
     assert main(params) == 0
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_cwltool_options() -> None:
     try:
         opt = os.environ.get("CWLTOOL_OPTIONS")
@@ -47,7 +47,7 @@ def test_cwltool_options() -> None:
             del os.environ["CWLTOOL_OPTIONS"]
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_listing_shallow() -> None:
     # This fails on purpose, because it tries to access listing in a subdirectory
     # the same way that listing_deep does, but it shouldn't be expanded.
@@ -59,7 +59,7 @@ def test_listing_shallow() -> None:
     assert main(params) != 0
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_listing_none() -> None:
     # This fails on purpose, because it tries to access listing but it shouldn't be there.
     params = [
@@ -70,7 +70,7 @@ def test_listing_none() -> None:
     assert main(params) != 0
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_listing_v1_0() -> None:
     # Default behavior in 1.0 is deep expansion.
     assert (
@@ -79,8 +79,8 @@ def test_listing_v1_0() -> None:
     )
 
 
-@pytest.mark.skip(reason="This is not the default behaviour yet")  # type: ignore
-@needs_docker  # type: ignore
+@pytest.mark.skip(reason="This is not the default behaviour yet")
+@needs_docker
 def test_listing_v1_1() -> None:
     # Default behavior in 1.1 will be no expansion
     assert (
@@ -89,7 +89,7 @@ def test_listing_v1_1() -> None:
     )
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_double_overwrite(tmpdir: py.path.local) -> None:
     with temp_dir() as tmp:
         tmp_name = os.path.join(tmp, "value")
@@ -119,7 +119,7 @@ def test_double_overwrite(tmpdir: py.path.local) -> None:
         assert actual_value == expected_value
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_disable_file_overwrite_without_ext() -> None:
     with temp_dir() as tmp:
         with temp_dir() as out:
@@ -153,7 +153,7 @@ def test_disable_file_overwrite_without_ext() -> None:
             assert out_value == expected_value
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_disable_dir_overwrite_without_ext() -> None:
     with temp_dir() as tmp:
         with temp_dir() as out:
@@ -167,7 +167,7 @@ def test_disable_dir_overwrite_without_ext() -> None:
             assert os.listdir(out)
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_disable_file_creation_in_outdir_with_ext() -> None:
     with temp_dir() as tmp:
         with temp_dir() as out:
@@ -198,7 +198,7 @@ def test_disable_file_creation_in_outdir_with_ext() -> None:
             assert not os.path.exists(out_name)
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_disable_dir_creation_in_outdir_with_ext() -> None:
     with temp_dir() as tmp:
         with temp_dir() as out:
@@ -217,7 +217,7 @@ def test_disable_dir_creation_in_outdir_with_ext() -> None:
             assert not os.listdir(out)
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_write_write_conflict() -> None:
     with temp_dir("tmp") as tmp:
         tmp_name = os.path.join(tmp, "value")
@@ -235,7 +235,7 @@ def test_write_write_conflict() -> None:
         assert tmp_value == expected_value
 
 
-@pytest.mark.skip(reason="This test is non-deterministic")  # type: ignore
+@pytest.mark.skip(reason="This test is non-deterministic")
 def test_read_write_conflict() -> None:
     with temp_dir("tmp") as tmp:
         tmp_name = os.path.join(tmp, "value")
@@ -248,14 +248,14 @@ def test_read_write_conflict() -> None:
         )
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_require_prefix_networkaccess() -> None:
     assert main(["--enable-ext", get_data("tests/wf/networkaccess.cwl")]) == 0
     assert main([get_data("tests/wf/networkaccess.cwl")]) != 0
     assert main(["--enable-ext", get_data("tests/wf/networkaccess-fail.cwl")]) != 0
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_require_prefix_workreuse(tmpdir: py.path.local) -> None:
     assert (
         main(
@@ -272,7 +272,7 @@ def test_require_prefix_workreuse(tmpdir: py.path.local) -> None:
     assert main(["--enable-ext", get_data("tests/wf/workreuse-fail.cwl")]) != 0
 
 
-@windows_needs_docker  # type: ignore
+@windows_needs_docker
 def test_require_prefix_timelimit() -> None:
     assert main(["--enable-ext", get_data("tests/wf/timelimit.cwl")]) == 0
     assert main([get_data("tests/wf/timelimit.cwl")]) != 0

@@ -8,7 +8,7 @@ from cwltool.executors import MultithreadedJobExecutor
 from .util import get_data, get_windows_safe_factory, windows_needs_docker
 
 
-@windows_needs_docker  # type: ignore
+@windows_needs_docker
 def test_sequential_workflow(tmpdir: py.path.local) -> None:
     test_file = "tests/wf/count-lines1-wf.cwl"
     executor = MultithreadedJobExecutor()
@@ -23,7 +23,7 @@ def test_sequential_workflow(tmpdir: py.path.local) -> None:
     assert echo(file1=file_contents) == {"count_output": 16}
 
 
-@windows_needs_docker  # type: ignore
+@windows_needs_docker
 def test_scattered_workflow() -> None:
     test_file = "tests/wf/scatter-wf4.cwl"
     job_file = "tests/wf/scatter-job2.json"

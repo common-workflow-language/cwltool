@@ -5,7 +5,7 @@ from tempfile import NamedTemporaryFile
 from typing import Callable
 
 import py.path
-import pytest  # type: ignore
+import pytest
 
 import cwltool.executors
 from cwltool.argparser import generate_parser
@@ -84,8 +84,8 @@ scripts_argparse_params = [
 ]
 
 
-@needs_docker  # type: ignore
-@pytest.mark.parametrize("name,script_contents,params", scripts_argparse_params)  # type: ignore
+@needs_docker
+@pytest.mark.parametrize("name,script_contents,params", scripts_argparse_params)
 def test_argparse(
     name: str, script_contents: str, params: Callable[[str], str], tmpdir: py.path.local
 ) -> None:

@@ -2,21 +2,23 @@
 import subprocess
 import sys
 from pathlib import Path
-from typing import cast, List
+from typing import List, cast
 
 from _pytest.monkeypatch import MonkeyPatch
 from ruamel.yaml.comments import CommentedMap
-from schema_salad.sourceline import cmap
 from schema_salad.avro import schema
+from schema_salad.sourceline import cmap
+
 from cwltool.builder import Builder
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.docker import DockerCommandLineJob
+from cwltool.job import JobBase
 from cwltool.pathmapper import MapperEnt, PathMapper
+from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
 from cwltool.utils import create_tmp_dir
-from cwltool.job import JobBase
-from cwltool.stdfsaccess import StdFsAccess
+
 from .util import get_data, needs_docker
 
 
