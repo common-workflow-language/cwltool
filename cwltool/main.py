@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
 """Entry point for cwltool."""
 
-import argcomplete
 import argparse
 import functools
 import io
@@ -30,6 +30,7 @@ from typing import (
     cast,
 )
 
+import argcomplete
 import coloredlogs
 import pkg_resources  # part of setuptools
 from ruamel import yaml
@@ -101,8 +102,6 @@ from .utils import (
     windows_default_container_id,
 )
 from .workflow import Workflow
-
-# PYTHON_ARGCOMPLETE_OK
 
 
 def _terminate_processes() -> None:

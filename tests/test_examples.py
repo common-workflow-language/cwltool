@@ -34,10 +34,8 @@ from .util import (
     get_main_output,
     get_windows_safe_factory,
     needs_docker,
-    needs_singularity,
     temp_dir,
     windows_needs_docker,
-    working_directory,
 )
 
 sys.argv = [""]

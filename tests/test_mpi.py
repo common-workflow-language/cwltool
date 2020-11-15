@@ -4,7 +4,7 @@ import os.path
 import sys
 from io import StringIO
 from pathlib import Path
-from typing import Any, Generator, List, MutableMapping, Optional, Tuple, cast
+from typing import Any, Generator, List, MutableMapping, Optional, Tuple
 
 import pkg_resources
 import pytest  # type: ignore

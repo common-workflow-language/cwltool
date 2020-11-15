@@ -26,7 +26,7 @@ MODULE=cwltool
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
 DEVPKGS=diff_cover black pylint coverage pep257 pydocstyle flake8 mypy\
-	pytest-xdist isort wheel -rtest-requirements.txt
+	pytest-xdist isort wheel autoflake -rtest-requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 VERSION=3.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
@@ -83,6 +83,9 @@ clean: FORCE
 ## sorting imports using isort: https://github.com/timothycrosley/isort
 sort_imports:
 	isort ${MODULE}/*.py tests/*.py setup.py
+
+remove_unused_imports: $(PYSOURCES)
+	autoflake --in-place --remove-all-unused-imports $^
 
 pep257: pydocstyle
 ## pydocstyle      : check Python code style

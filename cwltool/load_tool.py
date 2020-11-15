@@ -8,7 +8,6 @@ import urllib
 import uuid
 from typing import (
     Any,
-    Callable,
     Dict,
     List,
     MutableMapping,
@@ -21,7 +20,6 @@ from typing import (
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
-from schema_salad.fetcher import Fetcher
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.schema import validate_doc
 from schema_salad.sourceline import SourceLine, cmap

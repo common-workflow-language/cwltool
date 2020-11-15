@@ -25,7 +25,6 @@ class CWLTestFetcher(Fetcher):
         session: Optional[requests.sessions.Session],
     ) -> None:
         """Create a Fetcher that provides a fixed result for testing purposes."""
-        pass
 
     def fetch_text(self, url):  # type: (str) -> str
         if url == "baz:bar/foo.cwl":

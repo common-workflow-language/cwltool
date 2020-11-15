@@ -1,5 +1,7 @@
 """Shared context objects that replace use of kwargs."""
 import copy
+import os
+import tempfile
 import threading
 from typing import IO, Any, Callable, Dict, Iterable, List, Optional, TextIO, Union
 
@@ -147,6 +149,35 @@ class RuntimeContext(ContextBase):
         self.default_stdout = None  # type: Optional[Union[IO[bytes], TextIO]]
         self.default_stderr = None  # type: Optional[Union[IO[bytes], TextIO]]
         super(RuntimeContext, self).__init__(kwargs)
+
+    def get_outdir(self) -> str:
+        """Return self.outdir or create one with self.tmp_outdir_prefix."""
+        if self.outdir:
+            return self.outdir
+        return self.create_outdir()
+
+    def get_tmpdir(self) -> str:
+        """Return self.tmpdir or create one with self.tmpdir_prefix."""
+        if self.tmpdir:
+            return self.tmpdir
+        return self.create_tmpdir()
+
+    def get_stagedir(self) -> str:
+        """Return self.stagedir or create one with self.tmpdir_prefix."""
+        if self.stagedir:
+            return self.stagedir
+        tmp_dir, tmp_prefix = os.path.split(self.tmpdir_prefix)
+        return tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
+
+    def create_tmpdir(self) -> str:
+        """Create a temporary directory that respects self.tmpdir_prefix."""
+        tmp_dir, tmp_prefix = os.path.split(self.tmpdir_prefix)
+        return tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
+
+    def create_outdir(self) -> str:
+        """Create a temporary directory that respects self.tmp_outdir_prefix."""
+        out_dir, out_prefix = os.path.split(self.tmp_outdir_prefix)
+        return tempfile.mkdtemp(prefix=out_prefix, dir=out_dir)
 
     def copy(self):
         # type: () -> RuntimeContext

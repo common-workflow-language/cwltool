@@ -6,7 +6,6 @@ from typing import (
     Any,
     Callable,
     Dict,
-    List,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -20,7 +19,6 @@ from schema_salad.ref_resolver import Loader, ResolveType, SubLoader
 
 from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
-from .loghandler import _logger
 from .process import shortname, uniquename
 from .update import ORDERED_VERSIONS, update
 from .utils import CWLObjectType, CWLOutputType

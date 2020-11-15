@@ -3,7 +3,6 @@ from functools import partial
 from typing import (
     Callable,
     Dict,
-    List,
     MutableMapping,
     MutableSequence,
     Optional,
