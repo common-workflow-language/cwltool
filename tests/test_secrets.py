@@ -14,6 +14,7 @@ from .util import get_data, needs_docker, needs_singularity
 
 @pytest.fixture
 def secrets() -> Tuple[SecretStore, CWLObjectType]:
+    """Fixture to return a secret store."""
     sec_store = SecretStore()
     job: CWLObjectType = {"foo": "bar", "baz": "quux"}
 
@@ -22,6 +23,7 @@ def secrets() -> Tuple[SecretStore, CWLObjectType]:
 
 
 def test_obscuring(secrets: Tuple[SecretStore, CWLObjectType]) -> None:
+    """Basic test of secret store."""
     storage, obscured = secrets
     assert obscured["foo"] != "bar"
     assert obscured["baz"] == "quux"

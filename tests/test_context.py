@@ -7,6 +7,7 @@ from .util import get_data, get_windows_safe_factory, windows_needs_docker
 
 @windows_needs_docker
 def test_replace_default_stdout_stderr() -> None:
+    """Test our ability to replace the default stdout/err."""
     import sys
 
     # break stdout & stderr

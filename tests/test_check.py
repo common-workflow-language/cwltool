@@ -1,3 +1,4 @@
+"""Confirm some known-bad CWL descriptions."""
 import pytest
 
 from cwltool.main import main
