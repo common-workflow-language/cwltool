@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urljoin, urlsplit
 
-import pytest  # type: ignore
+import pytest
 import requests
 from schema_salad.fetcher import Fetcher
 from schema_salad.utils import CacheType
@@ -25,7 +25,6 @@ class CWLTestFetcher(Fetcher):
         session: Optional[requests.sessions.Session],
     ) -> None:
         """Create a Fetcher that provides a fixed result for testing purposes."""
-        pass
 
     def fetch_text(self, url):  # type: (str) -> str
         if url == "baz:bar/foo.cwl":
@@ -89,7 +88,7 @@ def norm(uri: str) -> str:
     return uri
 
 
-@pytest.mark.parametrize("path,expected_path", path_fragments)  # type: ignore
+@pytest.mark.parametrize("path,expected_path", path_fragments)
 def test_resolve_local(path: str, expected_path: str) -> None:
     with working_directory(root):
         expected = norm(root.as_uri() + expected_path)

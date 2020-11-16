@@ -18,7 +18,7 @@ from .util import (
 sys.argv = [""]
 
 
-@needs_singularity_2_6  # type: ignore
+@needs_singularity_2_6
 def test_singularity_pullfolder(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir_new"
     workdir.mkdir()
@@ -43,7 +43,7 @@ def test_singularity_pullfolder(tmp_path: Path) -> None:
     assert image.exists()
 
 
-@needs_singularity  # type: ignore
+@needs_singularity
 def test_singularity_workflow(tmpdir: py.path.local) -> None:
     with working_directory(str(tmpdir)):
         error_code, _, stderr = get_main_output(
@@ -79,7 +79,7 @@ def test_singularity_iwdr() -> None:
         assert result_code != 0
 
 
-@needs_singularity  # type: ignore
+@needs_singularity
 def test_singularity_incorrect_image_pull() -> None:
     result_code, _, stderr = get_main_output(
         [
@@ -94,7 +94,7 @@ def test_singularity_incorrect_image_pull() -> None:
     assert result_code != 0
 
 
-@needs_singularity  # type: ignore
+@needs_singularity
 def test_singularity_local(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
@@ -110,7 +110,7 @@ def test_singularity_local(tmp_path: Path) -> None:
     assert result_code == 0
 
 
-@needs_singularity_2_6  # type: ignore
+@needs_singularity_2_6
 def test_singularity_docker_image_id_in_tool(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()

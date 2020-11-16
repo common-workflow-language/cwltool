@@ -8,7 +8,6 @@ import urllib
 import uuid
 from typing import (
     Any,
-    Callable,
     Dict,
     List,
     MutableMapping,
@@ -21,7 +20,6 @@ from typing import (
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
-from schema_salad.fetcher import Fetcher
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.schema import validate_doc
 from schema_salad.sourceline import SourceLine, cmap
@@ -166,7 +164,7 @@ def _convert_stdstreams_to_files(
                 ):
                     if not isinstance(out, CommentedMap):
                         raise ValidationException(
-                            "Output '{}' is not a valid " "OutputParameter.".format(out)
+                            "Output '{}' is not a valid OutputParameter.".format(out)
                         )
                     for streamtype in ["stdout", "stderr"]:
                         if out.get("type") == streamtype:
@@ -313,7 +311,7 @@ def resolve_and_validate_document(
     if not isinstance(cwlVersion, str):
         with SourceLine(workflowobj, "cwlVersion", ValidationException):
             raise ValidationException(
-                "'cwlVersion' must be a string, " "got {}".format(type(cwlVersion))
+                "'cwlVersion' must be a string, got {}".format(type(cwlVersion))
             )
     # strip out version
     cwlVersion = re.sub(r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "", cwlVersion)

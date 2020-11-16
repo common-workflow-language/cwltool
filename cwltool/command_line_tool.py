@@ -8,7 +8,6 @@ import logging
 import os
 import re
 import shutil
-import tempfile
 import threading
 import urllib
 from functools import cmp_to_key, partial
@@ -261,7 +260,7 @@ def revmap_file(
         return f
 
     raise WorkflowException(
-        "Output File object is missing both 'location' " "and 'path' fields: %s" % f
+        "Output File object is missing both 'location' and 'path' fields: %s" % f
     )
 
 
@@ -936,15 +935,9 @@ class CommandLineTool(Process):
             )
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq is not None and runtimeContext.use_container:
-            out_dir, out_prefix = os.path.split(runtimeContext.tmp_outdir_prefix)
-            j.outdir = runtimeContext.outdir or tempfile.mkdtemp(
-                prefix=out_prefix, dir=out_dir
-            )
-            tmpdir_dir, tmpdir_prefix = os.path.split(runtimeContext.tmpdir_prefix)
-            j.tmpdir = runtimeContext.tmpdir or tempfile.mkdtemp(
-                prefix=tmpdir_prefix, dir=tmpdir_dir
-            )
-            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix, dir=tmpdir_dir)
+            j.outdir = runtimeContext.get_outdir()
+            j.tmpdir = runtimeContext.get_tmpdir()
+            j.stagedir = runtimeContext.create_tmpdir()
         else:
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir

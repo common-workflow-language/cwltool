@@ -20,14 +20,12 @@ from typing import (
     BinaryIO,
     Callable,
     Dict,
-    Generator,
     List,
     MutableMapping,
     MutableSequence,
     Optional,
     Set,
     Tuple,
-    Type,
     Union,
     cast,
 )
@@ -63,6 +61,7 @@ from .stdfsaccess import StdFsAccess
 from .utils import (
     CWLObjectType,
     CWLOutputType,
+    create_tmp_dir,
     local_path,
     onWindows,
     posix_path,
@@ -300,10 +299,7 @@ class ResearchObject:
         self.temp_prefix = temp_prefix_ro
         self.orcid = "" if not orcid else _valid_orcid(orcid)
         self.full_name = full_name
-        tmp_dir, tmp_prefix = os.path.split(temp_prefix_ro)
-        self.folder = os.path.abspath(
-            tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
-        )  # type: str
+        self.folder = create_tmp_dir(temp_prefix_ro)
         self.closed = False
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}  # type: Dict[str, int]

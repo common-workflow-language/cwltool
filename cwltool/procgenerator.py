@@ -1,18 +1,5 @@
 import copy
-from typing import (
-    Callable,
-    Dict,
-    Generator,
-    Iterable,
-    List,
-    Mapping,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Dict, Optional, Tuple, cast
 
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException

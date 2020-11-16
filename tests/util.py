@@ -7,12 +7,13 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Mapping, Optional, Tuple, Union
+from typing import Generator, List, Mapping, Optional, Tuple, Union
 
-import pytest  # type: ignore
+import pytest
 from pkg_resources import Requirement, ResolutionError, resource_filename
 
 from cwltool.context import LoadingContext, RuntimeContext
+from cwltool.executors import JobExecutor
 from cwltool.factory import Factory
 from cwltool.singularity import is_version_2_6, is_version_3_or_newer
 from cwltool.utils import onWindows, windows_default_container_id
@@ -21,7 +22,7 @@ from cwltool.utils import onWindows, windows_default_container_id
 def get_windows_safe_factory(
     runtime_context: Optional[RuntimeContext] = None,
     loading_context: Optional[LoadingContext] = None,
-    executor: Optional[Callable[..., Tuple[Optional[Dict[str, Any]], str]]] = None,
+    executor: Optional[JobExecutor] = None,
 ) -> Factory:
     if onWindows():
         if not runtime_context:
@@ -53,7 +54,7 @@ def get_data(filename: str) -> str:
 
 needs_docker = pytest.mark.skipif(
     not bool(distutils.spawn.find_executable("docker")),
-    reason="Requires the docker executable on the " "system path.",
+    reason="Requires the docker executable on the system path.",
 )
 
 needs_singularity = pytest.mark.skipif(
@@ -94,7 +95,11 @@ def get_main_output(
     )
 
     stdout, stderr = process.communicate()
-    return process.returncode, stdout.decode(), stderr.decode()
+    return (
+        process.returncode,
+        stdout.decode() if stdout else "",
+        stderr.decode() if stderr else "",
+    )
 
 
 @contextlib.contextmanager
