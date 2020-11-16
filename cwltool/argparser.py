@@ -112,7 +112,12 @@ def arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--tmpdir-prefix",
         type=str,
-        help="Path prefix for temporary directories",
+        help="Path prefix for temporary directories. If --tmpdir-prefix is not "
+        "provided, then the prefix for temporary directories is influenced by "
+        "the value of the TMPDIR, TEMP, or TMP environment variables. Taking "
+        "those into consideration, the current default is {}.".format(
+            DEFAULT_TMP_PREFIX
+        ),
         default=DEFAULT_TMP_PREFIX,
     )
 
@@ -120,8 +125,9 @@ def arg_parser() -> argparse.ArgumentParser:
     exgroup.add_argument(
         "--tmp-outdir-prefix",
         type=str,
-        help="Path prefix for intermediate output directories",
-        default=DEFAULT_TMP_PREFIX,
+        help="Path prefix for intermediate output directories. Defaults to the "
+        "value of --tmpdir-prefix.",
+        default="",
     )
 
     exgroup.add_argument(

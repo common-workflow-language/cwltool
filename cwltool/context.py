@@ -96,7 +96,7 @@ class RuntimeContext(ContextBase):
         self.use_container = True  # type: bool
         self.force_docker_pull = False  # type: bool
 
-        self.tmp_outdir_prefix = DEFAULT_TMP_PREFIX  # type: str
+        self.tmp_outdir_prefix = ""  # type: str
         self.tmpdir_prefix = DEFAULT_TMP_PREFIX  # type: str
         self.tmpdir = ""  # type: str
         self.rm_tmpdir = True  # type: bool
@@ -149,6 +149,8 @@ class RuntimeContext(ContextBase):
         self.default_stdout = None  # type: Optional[Union[IO[bytes], TextIO]]
         self.default_stderr = None  # type: Optional[Union[IO[bytes], TextIO]]
         super(RuntimeContext, self).__init__(kwargs)
+        if self.tmp_outdir_prefix == "":
+            self.tmp_outdir_prefix = self.tmpdir_prefix
 
     def get_outdir(self) -> str:
         """Return self.outdir or create one with self.tmp_outdir_prefix."""
