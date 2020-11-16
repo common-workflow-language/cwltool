@@ -425,7 +425,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     _logger.error(
                         "--cidfile-dir %s error:\n%s",
                         cidfile_dir,
-                        cidfile_dir + " is not a directory, " "please check it first",
+                        cidfile_dir + " is not a directory, please check it first",
                     )
                     exit(2)
             else:

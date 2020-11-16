@@ -54,7 +54,7 @@ def get_data(filename: str) -> str:
 
 needs_docker = pytest.mark.skipif(
     not bool(distutils.spawn.find_executable("docker")),
-    reason="Requires the docker executable on the " "system path.",
+    reason="Requires the docker executable on the system path.",
 )
 
 needs_singularity = pytest.mark.skipif(

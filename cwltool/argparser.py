@@ -96,7 +96,7 @@ def arg_parser() -> argparse.ArgumentParser:
     cidgroup.add_argument(
         "--cidfile-dir",
         type=str,
-        help="Store the Docker container ID into a file in the specified " "directory.",
+        help="Store the Docker container ID into a file in the specified directory.",
         default=None,
         dest="cidfile_dir",
     )

@@ -273,7 +273,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         if not self.get_image(cast(Dict[str, str], r), pull_image, force_pull):
             raise WorkflowException(
-                "Container image {} not " "found".format(r["dockerImageId"])
+                "Container image {} not found".format(r["dockerImageId"])
             )
 
         return os.path.abspath(cast(str, r["dockerImageId"]))
