@@ -496,3 +496,22 @@ def resolve_overrides(
 def load_overrides(ov: str, base_url: str) -> List[CWLObjectType]:
     ovloader = Loader(overrides_ctx)
     return resolve_overrides(ovloader.fetch(ov), ov, base_url)
+
+
+def recursive_resolve_and_validate_document(
+    loadingContext: LoadingContext,
+    workflowobj: Union[CommentedMap, CommentedSeq],
+    uri: str,
+    preprocess_only: bool = False,
+    skip_schemas: Optional[bool] = None,
+) -> Tuple[LoadingContext, str]:
+    """Validate a CWL document, checking that a tool object can be built."""
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext,
+        workflowobj,
+        uri,
+        preprocess_only=preprocess_only,
+        skip_schemas=skip_schemas,
+    )
+    tool = make_tool(uri, loadingContext)
+    return loadingContext, uri, tool
