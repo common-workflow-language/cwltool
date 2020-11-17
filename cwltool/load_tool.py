@@ -504,7 +504,7 @@ def recursive_resolve_and_validate_document(
     uri: str,
     preprocess_only: bool = False,
     skip_schemas: Optional[bool] = None,
-) -> Tuple[LoadingContext, str]:
+) -> Tuple[LoadingContext, str, Process]:
     """Validate a CWL document, checking that a tool object can be built."""
     loadingContext, uri = resolve_and_validate_document(
         loadingContext,
