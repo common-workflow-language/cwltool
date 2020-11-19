@@ -5,7 +5,6 @@ import functools
 import logging
 import math
 import os
-import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
 from threading import Lock
@@ -33,7 +32,7 @@ from .loghandler import _logger
 from .mutation import MutationManager
 from .process import Process, cleanIntermediate, relocateOutputs
 from .provenance_profile import ProvenanceProfile
-from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, JobsType
+from .utils import CWLObjectType, JobsType
 from .workflow import Workflow
 from .workflow_job import WorkflowJob, WorkflowJobStep
 from .task_queue import TaskQueue
@@ -102,9 +101,7 @@ class JobExecutor(object, metaclass=ABCMeta):
         if isinstance(original_outdir, str):
             finaloutdir = os.path.abspath(original_outdir)
         runtime_context = runtime_context.copy()
-        outdir = tempfile.mkdtemp(
-            prefix=getdefault(runtime_context.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)
-        )
+        outdir = runtime_context.create_outdir()
         self.output_dirs.add(outdir)
         runtime_context.outdir = outdir
         runtime_context.mutation_manager = MutationManager()

@@ -9,7 +9,6 @@ import math
 import os
 import shutil
 import stat
-import tempfile
 import textwrap
 import urllib
 import uuid
@@ -19,11 +18,9 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generator,
     Iterable,
     Iterator,
     List,
-    Mapping,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -31,7 +28,6 @@ from typing import (
     Sized,
     Tuple,
     Type,
-    TypeVar,
     Union,
     cast,
 )
@@ -64,7 +60,6 @@ from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION
 from .utils import (
-    DEFAULT_TMP_PREFIX,
     CWLObjectType,
     CWLOutputAtomType,
     CWLOutputType,
@@ -856,21 +851,10 @@ hints:
             tmpdir = runtime_context.docker_tmpdir or "/tmp"  # nosec
             stagedir = runtime_context.docker_stagedir or "/var/lib/cwl"
         else:
-            outdir = fs_access.realpath(
-                runtime_context.outdir
-                or tempfile.mkdtemp(
-                    prefix=getdefault(
-                        runtime_context.tmp_outdir_prefix, DEFAULT_TMP_PREFIX
-                    )
-                )
-            )
+            outdir = fs_access.realpath(runtime_context.get_outdir())
             if self.tool["class"] != "Workflow":
-                tmpdir = fs_access.realpath(
-                    runtime_context.tmpdir or tempfile.mkdtemp()
-                )
-                stagedir = fs_access.realpath(
-                    runtime_context.stagedir or tempfile.mkdtemp()
-                )
+                tmpdir = fs_access.realpath(runtime_context.get_tmpdir())
+                stagedir = fs_access.realpath(runtime_context.get_stagedir())
 
         cwl_version = cast(
             str,

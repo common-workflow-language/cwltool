@@ -5,7 +5,7 @@ from cwltool.main import main
 from .util import get_data, temp_dir, windows_needs_docker
 
 
-@windows_needs_docker  # type: ignore
+@windows_needs_docker
 def test_empty_input() -> None:
     empty_json = "{}"
     empty_input = StringIO(empty_json)

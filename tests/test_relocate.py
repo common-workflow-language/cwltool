@@ -11,13 +11,13 @@ else:
     from io import StringIO
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_for_910() -> None:
     assert main([get_data("tests/wf/910.cwl")]) == 0
     assert main([get_data("tests/wf/910.cwl")]) == 0
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_for_conflict_file_names() -> None:
     stream = StringIO()
 

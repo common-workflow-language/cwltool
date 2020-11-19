@@ -2,7 +2,7 @@ import json
 from io import StringIO
 from typing import Dict, List
 
-import pytest  # type: ignore
+import pytest
 
 from cwltool.main import main
 
@@ -74,8 +74,8 @@ override_parameters = [
 ]
 
 
-@needs_docker  # type: ignore
-@pytest.mark.parametrize("parameters,result", override_parameters)  # type: ignore
+@needs_docker
+@pytest.mark.parametrize("parameters,result", override_parameters)
 def test_overrides(parameters: List[str], result: Dict[str, str]) -> None:
     sio = StringIO()
 
@@ -121,8 +121,8 @@ failing_override_parameters = [
 ]
 
 
-@needs_docker  # type: ignore
-@pytest.mark.parametrize("parameters,expected_error", failing_override_parameters)  # type: ignore
+@needs_docker
+@pytest.mark.parametrize("parameters,expected_error", failing_override_parameters)
 def test_overrides_fails(parameters: List[str], expected_error: str) -> None:
     sio = StringIO()
 

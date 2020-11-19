@@ -1,7 +1,7 @@
 from .util import get_data, get_main_output, needs_docker
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_docker_mem() -> None:
     error_code, stdout, stderr = get_main_output(
         [
