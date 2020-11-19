@@ -401,9 +401,7 @@ def relocateOutputs(
     ) -> None:  # should be type Union[CWLFile, CWLDirectory]
         location = cast(str, ob["location"])
         if location.startswith("file:"):
-            ob["location"] = file_uri(
-                os.path.realpath(uri_file_path(location))
-            )
+            ob["location"] = file_uri(os.path.realpath(uri_file_path(location)))
         elif location.startswith("/"):
             ob["location"] = os.path.realpath(location)
         elif not location.startswith("_:") and ":" in location:
