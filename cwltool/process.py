@@ -399,14 +399,15 @@ def relocateOutputs(
     def _realpath(
         ob: CWLObjectType,
     ) -> None:  # should be type Union[CWLFile, CWLDirectory]
-        if cast(str, ob["location"]).startswith("file:"):
+        location = cast(str, ob["location"])
+        if location.startswith("file:"):
             ob["location"] = file_uri(
-                os.path.realpath(uri_file_path(cast(str, ob["location"])))
+                os.path.realpath(uri_file_path(location))
             )
         elif cast(str, ob["location"]).startswith("/"):
-            ob["location"] = os.path.realpath(cast(str, ob["location"]))
-        elif ":" in cast(str, ob["location"]):
-            ob["location"] = file_uri(fs_access.realpath(cast(str, ob["location"])))
+            ob["location"] = os.path.realpath(location)
+        elif not location.startswith("_:") and ":" in location:
+            ob["location"] = file_uri(fs_access.realpath(location))
 
     outfiles = list(_collectDirEntries(outputObj))
     visit_class(outfiles, ("File", "Directory"), _realpath)
