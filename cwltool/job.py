@@ -409,7 +409,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     )
                 else:
                     raise ValueError(
-                        "'lsiting' in self.generatefiles but no "
+                        "'listing' in self.generatefiles but no "
                         "generatemapper was setup."
                     )
 
