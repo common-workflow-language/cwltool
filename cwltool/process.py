@@ -403,8 +403,10 @@ def relocateOutputs(
             ob["location"] = file_uri(
                 os.path.realpath(uri_file_path(cast(str, ob["location"])))
             )
-        if cast(str, ob["location"]).startswith("/"):
+        elif cast(str, ob["location"]).startswith("/"):
             ob["location"] = os.path.realpath(cast(str, ob["location"]))
+        elif ":" in cast(str, ob["location"]):
+            ob["location"] = file_uri(fs_access.realpath(cast(str, ob["location"])))
 
     outfiles = list(_collectDirEntries(outputObj))
     visit_class(outfiles, ("File", "Directory"), _realpath)
