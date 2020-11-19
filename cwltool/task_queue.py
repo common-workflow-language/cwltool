@@ -56,7 +56,7 @@ class TaskQueue(object):
                 return
             try:
                 task()
-            except Exception as e:
+            except BaseException as e:
                 _logger.exception("Unhandled exception running task")
                 self.error = e
 

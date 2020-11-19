@@ -423,7 +423,7 @@ class MultithreadedJobExecutor(JobExecutor):
         # type: (RuntimeContext) -> None
         """Wait for jobs to finish."""
         if runtime_context.workflow_eval_lock is not None:
-            runtime_context.workflow_eval_lock.wait()
+            runtime_context.workflow_eval_lock.wait(timeout=3)
         if self.exceptions:
             raise self.exceptions[0]
 
