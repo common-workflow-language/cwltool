@@ -42,7 +42,7 @@ class TaskQueue(object):
         self.task_queue_threads = []
         self.lock = lock
         self.in_flight = 0
-        self.error: Optional[Exception] = None
+        self.error: Optional[BaseException] = None
 
         for _r in range(0, self.thread_count):
             t = threading.Thread(target=self._task_queue_func)
