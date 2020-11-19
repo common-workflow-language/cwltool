@@ -404,7 +404,7 @@ def relocateOutputs(
             ob["location"] = file_uri(
                 os.path.realpath(uri_file_path(location))
             )
-        elif cast(str, ob["location"]).startswith("/"):
+        elif location.startswith("/"):
             ob["location"] = os.path.realpath(location)
         elif not location.startswith("_:") and ":" in location:
             ob["location"] = file_uri(fs_access.realpath(location))
