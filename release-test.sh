@@ -14,7 +14,7 @@ run_tests() {
 	local mod_loc
 	mod_loc=$(pip show ${package} | 
 		grep ^Location | awk '{print $2}')/${module}
-	${test_prefix}bin/py.test "--ignore=${mod_loc}/schemas/" \
+	"${test_prefix}"bin/py.test "--ignore=${mod_loc}/schemas/" \
 		--pyargs -x ${module} -n auto --dist=loadfile
 }
 pipver=7.0.2 # minimum required version of pip
@@ -81,9 +81,9 @@ source bin/activate
 rm lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==${setuptoolsver} wheel
-package_tar=${package}*tar.gz
+package_tar=$(find . -name "${package}*tar.gz")
 pip install "-r${DIR}/test-requirements.txt"
-pip install ${package_tar}  # [deps]
+pip install "${package_tar}"  # [deps]
 mkdir out
 tar --extract --directory=out -z -f ${package}*.tar.gz
 cd out/${package}*

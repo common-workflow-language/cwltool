@@ -171,6 +171,10 @@ mypy: $(filter-out setup.py gittagger.py,${PYSOURCES})
 mypyc: ${PYSOURCES}
 	MYPYPATH=typeshed/2and3/:typeshed/3 CWLTOOL_USE_MYPYC=1 pip install --verbose -e . && pytest --ignore cwltool/schemas --basetemp ./tmp
 
+shellcheck: FORCE
+	shellcheck build-cwl-docker.sh cwl-docker.sh release-test.sh travis.bash \
+		cwltool-in-docker.sh
+
 release-test: FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )
 	./release-test.sh
