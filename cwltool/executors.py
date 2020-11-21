@@ -412,7 +412,8 @@ class MultithreadedJobExecutor(JobExecutor):
                     if not isinstance(cores, str):
                         self.allocated_cores += cores
                 self.taskqueue.add(
-                    functools.partial(self._runner, job, runtime_context, TMPDIR_LOCK)
+                    functools.partial(self._runner, job, runtime_context, TMPDIR_LOCK),
+                    runtime_context.workflow_eval_lock,
                 )
                 self.pending_jobs.remove(job)
 
