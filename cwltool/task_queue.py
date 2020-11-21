@@ -12,26 +12,30 @@ from .loghandler import _logger
 
 
 class TaskQueue(object):
-    """
-    A TaskQueue class.
+    """A TaskQueue class.
 
     Uses a first-in, first-out queue of tasks executed on a fixed number of
     threads.
 
-    If thread_count == 1 then as you add() tasks they will be immediately
-    executed. Otherwise new tasks enter the queue and will be executed in
-    the order received.
+    New tasks enter the queue and are started in the order received,
+    as worker threads become available.
+
+    If thread_count == 0 then tasks will be synchronously executed
+    when add() is called (this makes the actual task queue behavior a
+    no-op, but may be a useful configuration knob).
 
     The thread_count is also used as the maximum size of the queue.
 
-    The threads are created during TaskQueue initialization, so delay the
-    creation of a TaskQueue until you really need it.
+    The threads are created during TaskQueue initialization.  Call
+    join() when you're done with the TaskQueue and want the threads to
+    stop.
 
 
     Attributes
     ----------
     in_flight
         the number of tasks in the queue
+
     """
 
     def __init__(self, lock: threading.Lock, thread_count: int):
@@ -62,9 +66,9 @@ class TaskQueue(object):
             except BaseException as e:
                 _logger.exception("Unhandled exception running task")
                 self.error = e
-
-            with self.lock:
-                self.in_flight -= 1
+            finally:
+                with self.lock:
+                    self.in_flight -= 1
 
     def add(
         self,
@@ -75,29 +79,31 @@ class TaskQueue(object):
         """
         Add your task to the queue.
 
-        If the TaskQueue was created with only one thread then your task will
-        be immediately executed.
-
         The optional unlock will be released prior to attempting to add the
         task to the queue.
 
         If the optional "check_done" threading.Event's flag is set, then we
         will skip adding this task to the queue.
+
+        If the TaskQueue was created with thread_count == 0 then your task will
+        be synchronously executed.
+
         """
-        if self.thread_count > 1:
-            with self.lock:
-                self.in_flight += 1
-        else:
+        if self.thread_count == 0:
             task()
             return
+
+        with self.lock:
+            self.in_flight += 1
 
         while True:
             try:
                 if unlock is not None:
                     unlock.release()
-                if check_done is not None:
-                    if check_done.is_set():
-                        return
+                if check_done is not None and check_done.is_set():
+                    with self.lock:
+                        self.in_flight -= 1
+                    return
                 self.task_queue.put(task, block=True, timeout=3)
                 return
             except queue.Full:

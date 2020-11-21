@@ -363,6 +363,10 @@ class MultithreadedJobExecutor(JobExecutor):
         with self.pending_jobs_lock:
             n = 0
             while (n + 1) <= len(self.pending_jobs):
+                # Simple greedy resource allocation strategy.  Go
+                # through pending jobs in the order they were
+                # generated and add them to the queue only if there
+                # are resources available.
                 job = self.pending_jobs[n]
                 if isinstance(job, JobBase):
                     ram = job.builder.resources["ram"]
