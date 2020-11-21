@@ -39,9 +39,7 @@ class TaskQueue(object):
     """
 
     def __init__(self, lock: threading.Lock, thread_count: int):
-        """
-        Create a new task queue using the specified lock and number of threads.
-        """
+        """Create a new task queue using the specified lock and number of threads."""
         self.thread_count = thread_count
         self.task_queue: queue.Queue[Optional[Callable[[], None]]] = queue.Queue(
             maxsize=self.thread_count
