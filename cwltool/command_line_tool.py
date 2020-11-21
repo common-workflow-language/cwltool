@@ -1145,6 +1145,7 @@ class CommandLineTool(Process):
         r = []  # type: List[CWLOutputType]
         empty_and_optional = False
         debug = _logger.isEnabledFor(logging.DEBUG)
+        result: Optional[CWLOutputType] = None
         if "outputBinding" in schema:
             binding = cast(
                 MutableMapping[str, Union[bool, str, List[str]]],
