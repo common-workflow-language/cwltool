@@ -73,7 +73,7 @@ class TaskQueue(object):
     def add(
         self,
         task: Callable[[], None],
-        unlock: Optional[threading.Lock] = None,
+        unlock: Optional[threading.Condition] = None,
         check_done: Optional[threading.Event] = None,
     ) -> None:
         """
