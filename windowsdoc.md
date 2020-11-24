@@ -62,7 +62,7 @@ There are two types of tests available for cwltool: unit tests and conformance t
 
 To run cwltool's unit tests, run the following command:
 ```
-python3 -m pytest --pyarg cwltool
+python3 -m pytest --pyargs cwltool
 ```
 
 Or go to the checkout of the cwltool Git repository on your system and run:
