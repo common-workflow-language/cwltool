@@ -30,8 +30,11 @@ SOFTWARE_REQUIREMENTS_ENABLED = deps is not None
 
 COMMAND_WITH_DEPENDENCIES_TEMPLATE = string.Template(
     """#!/bin/bash
+cat > modify_environment.bash <<'EOF'
 $handle_dependencies
-python3 "run_job.py" "job.json"
+env > output_environment.bash
+EOF
+python3 "run_job.py" "job.json" "modify_environment.bash"
 """
 )
 

@@ -79,6 +79,20 @@ if os.name == 'posix':
 else:
     import subprocess  # type: ignore
 
+def handle_software_environment(cwl_env, script):
+    res = subprocess.run(["bash", script],
+                         shell=False,
+                         env=cwl_env)
+    if res.returncode != 0:
+        print("Error in environment")
+        return cwl_env
+    env = cwl_env.copy()
+    with open("output_environment.bash", "r") as env_file:
+        for line in env_file:
+            key, val = line.split("=", 1)
+            env[key] = val[:-1] # remove trailing newline
+    return env
+
 with open(sys.argv[1], "r") as f:
     popen_description = json.load(f)
     commands = popen_description["commands"]
@@ -106,6 +120,8 @@ with open(sys.argv[1], "r") as f:
             env[key] = str(value)
     else:
         close_fds = True
+
+    env = handle_software_environment(env, sys.argv[2])
     sp = subprocess.Popen(commands,
                           shell=False,
                           close_fds=close_fds,
