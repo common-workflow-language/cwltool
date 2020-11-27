@@ -13,3 +13,4 @@ if {![file exists $prefix]} {
 }
 
 prepend-path PATH ${prefix}/scripts
+setenv TEST_VAR_MODULE "environment variable ends in space "
