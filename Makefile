@@ -116,7 +116,7 @@ pylint_report.txt: $(PYSOURCES)
 		$^ -j0> $@ || true
 
 diff_pylint_report: pylint_report.txt
-	diff-quality --violations=pylint pylint_report.txt
+	diff-quality --compare-branch=main --violations=pylint pylint_report.txt
 
 .coverage: testcov
 
@@ -136,10 +136,10 @@ coverage-report: .coverage
 	coverage report
 
 diff-cover: coverage.xml
-	diff-cover $^
+	diff-cover --compare-branch=main $^
 
 diff-cover.html: coverage.xml
-	diff-cover $^ --html-report $@
+	diff-cover --compare-branch=main $^ --html-report $@
 
 ## test        : run the ${MODULE} test suite
 test: $(PYSOURCES)

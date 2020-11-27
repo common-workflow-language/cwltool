@@ -316,6 +316,13 @@ This option allows one to specify a dependency resolver's configuration file.
 This file may be specified as either XML or YAML and very simply describes various
 plugins to enable to "resolve" ``SoftwareRequirement`` dependencies.
 
+Using these hints will allow cwltool to modify the environment in
+which your tool runs, for example by loading one or more environment
+modules. The enviroment is constructed as normal (i.e. standard CWL
+runtime enviroment, ``EnvVarRequirement``, ``--preserve-environment``
+are applied), then this is modified. This currently means that you
+cannot override variables set in this way.
+
 To discuss some of these plugins and how to configure them, first consider the
 following ``hint`` definition for an example CWL tool.
 
@@ -427,7 +434,7 @@ So consider the resolvers configuration file
     base_path: ./tests/test_deps_env
     mapping_files: ./tests/test_deps_mapping.yml
 
-And the corresponding mapping configuraiton file (`tests/test_deps_mapping.yml`):
+And the corresponding mapping configuration file (`tests/test_deps_mapping.yml`):
 
 .. code:: yaml
 
