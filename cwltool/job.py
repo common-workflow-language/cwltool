@@ -36,6 +36,7 @@ from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
 
+from . import run_job
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext
 from .errors import UnsupportedRequirement, WorkflowException
@@ -64,91 +65,7 @@ needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
 
 SHELL_COMMAND_TEMPLATE = """#!/bin/bash
-python "run_job.py" "job.json"
-"""
-
-PYTHON_RUN_SCRIPT = """
-import json
-import os
-import sys
-if os.name == 'posix':
-    try:
-        import subprocess32 as subprocess  # type: ignore
-    except Exception:
-        import subprocess
-else:
-    import subprocess  # type: ignore
-
-def handle_software_environment(cwl_env, script):
-    res = subprocess.run(["bash", script],
-                         shell=False,
-                         env=cwl_env)
-    if res.returncode != 0:
-        sys.stderr.write("Error while using SoftwareRequirements to modify environment\n")
-        return cwl_env
-    env = cwl_env.copy()
-    with open("output_environment.bash", "r") as env_file:
-        for line in env_file:
-            key, val = line.split("=", 1)
-            if key in ("_", "PWD", "SHLVL"):
-                # Skip some variables that are meaningful to the shell
-                continue
-            env[key] = val[:-1] # remove trailing newline
-    return env
-
-with open(sys.argv[1], "r") as f:
-    popen_description = json.load(f)
-    commands = popen_description["commands"]
-    cwd = popen_description["cwd"]
-    env = popen_description["env"]
-    env["PATH"] = os.environ.get("PATH")
-    stdin_path = popen_description["stdin_path"]
-    stdout_path = popen_description["stdout_path"]
-    stderr_path = popen_description["stderr_path"]
-    if stdin_path is not None:
-        stdin = open(stdin_path, "rb")
-    else:
-        stdin = subprocess.PIPE
-    if stdout_path is not None:
-        stdout = open(stdout_path, "wb")
-    else:
-        stdout = sys.stderr
-    if stderr_path is not None:
-        stderr = open(stderr_path, "wb")
-    else:
-        stderr = sys.stderr
-    if os.name == 'nt':
-        close_fds = False
-        for key, value in env.items():
-            env[key] = str(value)
-    else:
-        close_fds = True
-
-    try:
-        env_script = sys.argv[2]
-    except IndexError:
-        env_script = None
-    if env_script is not None:
-        env = handle_software_environment(env, env_script)
-
-    sp = subprocess.Popen(commands,
-                          shell=False,
-                          close_fds=close_fds,
-                          stdin=stdin,
-                          stdout=stdout,
-                          stderr=stderr,
-                          env=env,
-                          cwd=cwd)
-    if sp.stdin:
-        sp.stdin.close()
-    rcode = sp.wait()
-    if stdin is not subprocess.PIPE:
-        stdin.close()
-    if stdout is not sys.stderr:
-        stdout.close()
-    if stderr is not sys.stderr:
-        stderr.close()
-    sys.exit(rcode)
+python3 "run_job.py" "job.json"
 """
 
 
@@ -1038,8 +955,7 @@ def _job_popen(
             with open(job_script, "wb") as _:
                 _.write(job_script_contents.encode("utf-8"))
             job_run = os.path.join(job_dir, "run_job.py")
-            with open(job_run, "wb") as _:
-                _.write(PYTHON_RUN_SCRIPT.encode("utf-8"))
+            shutil.copyfile(run_job.__file__, job_run)
             sproc = subprocess.Popen(  # nosec
                 ["bash", job_script.encode("utf-8")],
                 shell=False,  # nosec
