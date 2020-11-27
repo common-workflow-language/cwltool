@@ -1,14 +1,14 @@
 """Only used when there is a job script or CWLTOOL_FORCE_SHELL_POPEN=1."""
 import json
 import os
-import subprocess
+import subprocess  # nosec
 import sys
 from typing import BinaryIO, Dict, List, Optional, TextIO, Union
 
 
 def handle_software_environment(cwl_env: Dict[str, str], script: str) -> Dict[str, str]:
     """Update the provided environment variables dictiony by running the script."""
-    res = subprocess.run(["bash", script], shell=False, env=cwl_env)
+    res = subprocess.run(["bash", script], shell=False, env=cwl_env)  # nosec
     if res.returncode != 0:
         sys.stderr.write(
             "Error while using SoftwareRequirements to modify environment\n"
@@ -76,7 +76,7 @@ def main(argv: List[str]) -> int:
         if env_script is not None:
             env = handle_software_environment(env, env_script)
 
-        sp = subprocess.Popen(
+        sp = subprocess.Popen(  # nosec
             commands,
             shell=False,
             close_fds=close_fds,
