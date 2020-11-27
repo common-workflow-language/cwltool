@@ -84,12 +84,15 @@ def handle_software_environment(cwl_env, script):
                          shell=False,
                          env=cwl_env)
     if res.returncode != 0:
-        print("Error in environment")
+        sys.stderr.write("Error while using SoftwareRequirements to modify environment\n")
         return cwl_env
     env = cwl_env.copy()
     with open("output_environment.bash", "r") as env_file:
         for line in env_file:
             key, val = line.split("=", 1)
+            if key in ("_", "PWD", "SHLVL"):
+                # Skip some variables that are meaningful to the shell
+                continue
             env[key] = val[:-1] # remove trailing newline
     return env
 
@@ -121,7 +124,13 @@ with open(sys.argv[1], "r") as f:
     else:
         close_fds = True
 
-    env = handle_software_environment(env, sys.argv[2])
+    try:
+        env_script = sys.argv[2]
+    except IndexError:
+        env_script = None
+    if env_script is not None:
+        env = handle_software_environment(env, env_script)
+
     sp = subprocess.Popen(commands,
                           shell=False,
                           close_fds=close_fds,
