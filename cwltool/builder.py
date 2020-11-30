@@ -1,6 +1,7 @@
 import copy
 import logging
 import math
+import os
 from typing import (
     IO,
     Any,
@@ -423,13 +424,30 @@ class Builder(HasReqsHints):
 
                             if isinstance(sfname, str):
                                 d_location = cast(str, datum["location"])
-                                if "/" in d_location:
-                                    sf_location = (
-                                        d_location[0 : d_location.rindex("/") + 1]
-                                        + sfname
-                                    )
-                                else:
-                                    sf_location = d_location + sfname
+                                sf_location = None
+                                for existing_processed_secondaryfile in datum.get(
+                                    "secondaryFiles", []
+                                ):
+                                    if (
+                                        os.path.basename(
+                                            existing_processed_secondaryfile.get(
+                                                "location", ""
+                                            )
+                                        )
+                                        == sfname
+                                    ):
+                                        # the secondary file has already been processed; use established location
+                                        sf_location = existing_processed_secondaryfile[
+                                            "location"
+                                        ]
+                                if not sf_location:
+                                    if "/" in d_location:
+                                        sf_location = (
+                                            d_location[0 : d_location.rindex("/") + 1]
+                                            + sfname
+                                        )
+                                    else:
+                                        sf_location = d_location + sfname
                                 sfbasename = sfname
                             elif isinstance(sfname, MutableMapping):
                                 sf_location = sfname["location"]
