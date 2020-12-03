@@ -14,7 +14,7 @@ run_tests() {
 	local mod_loc
 	mod_loc=$(pip show ${package} | 
 		grep ^Location | awk '{print $2}')/${module}
-	${test_prefix}bin/py.test "--ignore=${mod_loc}/schemas/" \
+	"${test_prefix}"bin/py.test "--ignore=${mod_loc}/schemas/" \
 		--pyargs -x ${module} -n auto --dist=loadfile
 }
 pipver=7.0.2 # minimum required version of pip
@@ -38,8 +38,7 @@ then
 	        && pip install setuptools==${setuptoolsver} wheel
 	make install-dep
 	pip install .
-	#pip install 'galaxy-lib>=17.09.3'
-	make test
+	python setup.py test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 	mkdir testenv1/not-${module}
 	# if there is a subdir named '${module}' py.test will execute tests
@@ -62,12 +61,11 @@ source bin/activate
 rm lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==${setuptoolsver} wheel
-#pip install 'galaxy-lib==17.09.3'
 pip install -e "git+${repo}@${HEAD}#egg=${package}"  #[deps]
 cd src/${package}
 make install-dep
 make dist
-make test
+python setup.py test
 cp dist/${package}*tar.gz ../../../testenv3/
 pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 cd ../.. # no subdir named ${proj} here, safe for py.testing the installed module
@@ -83,16 +81,15 @@ source bin/activate
 rm lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==${setuptoolsver} wheel
-package_tar=${package}*tar.gz
+package_tar=$(find . -name "${package}*tar.gz")
 pip install "-r${DIR}/test-requirements.txt"
-#pip install 'galaxy-lib==17.09.3'
-pip install ${package_tar}  # [deps]
+pip install "${package_tar}"  # [deps]
 mkdir out
 tar --extract --directory=out -z -f ${package}*.tar.gz
 cd out/${package}*
 make install-dep
 make dist
-make test
+python setup.py test
 pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 mkdir ../not-${module}
 pushd ../not-${module}

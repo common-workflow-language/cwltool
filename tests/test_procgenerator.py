@@ -5,7 +5,7 @@ from cwltool.main import main
 from .util import get_data, windows_needs_docker
 
 
-@windows_needs_docker  # type: ignore
+@windows_needs_docker
 def test_missing_enable_ext() -> None:
     # Requires --enable-ext and --enable-dev
     try:

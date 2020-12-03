@@ -7,6 +7,7 @@ from ruamel.yaml.comments import CommentedMap
 from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
 
+from .cwlviewer import CWLViewer
 from .process import Process
 
 
@@ -193,17 +194,6 @@ def printdot(
     wf: Process,
     ctx: ContextType,
     stdout: Union[TextIO, StreamWriter],
-    include_parameters: bool = False,
 ) -> None:
-    g = gather(wf, ctx)
-
-    stdout.write("digraph {")
-
-    # g.namespace_manager.qname(predicate)
-
-    if include_parameters:
-        dot_with_parameters(g, stdout)
-    else:
-        dot_without_parameters(g, stdout)
-
-    stdout.write("}")
+    cwl_viewer = CWLViewer(printrdf(wf, ctx, "n3"))  # type: CWLViewer
+    stdout.write(cwl_viewer.dot())

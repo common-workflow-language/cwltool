@@ -8,7 +8,6 @@ import logging
 import os
 import re
 import shutil
-import tempfile
 import threading
 import urllib
 from functools import cmp_to_key, partial
@@ -58,6 +57,7 @@ from .process import (
 from .singularity import SingularityCommandLineJob
 from .stdfsaccess import StdFsAccess
 from .udocker import UDockerCommandLineJob
+from .update import ORDERED_VERSIONS
 from .utils import (
     CWLObjectType,
     CWLOutputType,
@@ -215,6 +215,9 @@ def revmap_file(
         else:
             return f
 
+    if "dirname" in f:
+        del f["dirname"]
+
     if "path" in f:
         path = cast(str, f["path"])
         uripath = file_uri(path)
@@ -257,7 +260,7 @@ def revmap_file(
         return f
 
     raise WorkflowException(
-        "Output File object is missing both 'location' " "and 'path' fields: %s" % f
+        "Output File object is missing both 'location' and 'path' fields: %s" % f
     )
 
 
@@ -444,6 +447,10 @@ class CommandLineTool(Process):
     def updatePathmap(
         self, outdir: str, pathmap: PathMapper, fn: CWLObjectType
     ) -> None:
+        if not isinstance(fn, MutableMapping):
+            raise WorkflowException(
+                "Expected File or Directory object, was %s" % type(fn)
+            )
         basename = cast(str, fn["basename"])
         if "location" in fn:
             location = cast(str, fn["location"])
@@ -477,7 +484,8 @@ class CommandLineTool(Process):
             # "listing" is an array of either expressions or Dirent so
             # evaluate each item
             for t in cast(
-                MutableSequence[Union[str, CWLObjectType]], initialWorkdir["listing"],
+                MutableSequence[Union[str, CWLObjectType]],
+                initialWorkdir["listing"],
             ):
                 if isinstance(t, Mapping) and "entry" in t:
                     # Dirent
@@ -607,20 +615,73 @@ class CommandLineTool(Process):
                     "Entry at index %s of listing is not a Dirent, File or Directory object, was %s"
                     % (i, t2)
                 )
+            if "basename" not in t3:
+                continue
+            basename = os.path.normpath(cast(str, t3["basename"]))
+            t3["basename"] = basename
+            if basename.startswith("../"):
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException
+                ).makeError(
+                    "Name '%s' at index %s of listing is invalid, cannot start with '../'"
+                    % (basename, i)
+                )
+            if basename.startswith("/"):
+                # only if DockerRequirement in requirements
+                cwl_version = self.metadata.get(
+                    "http://commonwl.org/cwltool#original_cwlVersion", None
+                )
+                if isinstance(cwl_version, str) and ORDERED_VERSIONS.index(
+                    cwl_version
+                ) < ORDERED_VERSIONS.index("v1.2.0-dev4"):
+                    raise SourceLine(
+                        initialWorkdir, "listing", WorkflowException
+                    ).makeError(
+                        "Name '%s' at index %s of listing is invalid, paths starting with '/' only permitted in CWL 1.2 and later"
+                        % (basename, i)
+                    )
 
-        normalizeFilesDirs(ls)
+                req, is_req = self.get_requirement("DockerRequirement")
+                if is_req is not True:
+                    raise SourceLine(
+                        initialWorkdir, "listing", WorkflowException
+                    ).makeError(
+                        "Name '%s' at index %s of listing is invalid, name can only start with '/' when DockerRequirement is in 'requirements'"
+                        % (basename, i)
+                    )
 
-        j.generatefiles["listing"] = ls
-        for entry in ls:
-            self.updatePathmap(
-                builder.outdir, cast(PathMapper, builder.pathmapper), entry
+        with SourceLine(initialWorkdir, "listing", WorkflowException):
+            j.generatefiles["listing"] = ls
+            for entry in ls:
+                if "basename" in entry:
+                    basename = cast(str, entry["basename"])
+                    entry["dirname"] = os.path.join(
+                        builder.outdir, os.path.dirname(basename)
+                    )
+                    entry["basename"] = os.path.basename(basename)
+                normalizeFilesDirs(entry)
+                self.updatePathmap(
+                    cast(Optional[str], entry.get("dirname")) or builder.outdir,
+                    cast(PathMapper, builder.pathmapper),
+                    entry,
+                )
+                if "listing" in entry:
+
+                    def remove_dirname(d: CWLObjectType) -> None:
+                        if "dirname" in d:
+                            del d["dirname"]
+
+                    visit_class(
+                        entry["listing"],
+                        ("File", "Directory"),
+                        remove_dirname,
+                    )
+
+            visit_class(
+                [builder.files, builder.bindings],
+                ("File", "Directory"),
+                partial(check_adjust, builder),
             )
-
-        visit_class(
-            [builder.files, builder.bindings],
-            ("File", "Directory"),
-            partial(check_adjust, builder),
-        )
 
     def job(
         self,
@@ -874,15 +935,9 @@ class CommandLineTool(Process):
             )
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq is not None and runtimeContext.use_container:
-            out_dir, out_prefix = os.path.split(runtimeContext.tmp_outdir_prefix)
-            j.outdir = runtimeContext.outdir or tempfile.mkdtemp(
-                prefix=out_prefix, dir=out_dir
-            )
-            tmpdir_dir, tmpdir_prefix = os.path.split(runtimeContext.tmpdir_prefix)
-            j.tmpdir = runtimeContext.tmpdir or tempfile.mkdtemp(
-                prefix=tmpdir_prefix, dir=tmpdir_dir
-            )
-            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix, dir=tmpdir_dir)
+            j.outdir = runtimeContext.get_outdir()
+            j.tmpdir = runtimeContext.get_tmpdir()
+            j.stagedir = runtimeContext.create_tmpdir()
         else:
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir
@@ -1090,6 +1145,7 @@ class CommandLineTool(Process):
         r = []  # type: List[CWLOutputType]
         empty_and_optional = False
         debug = _logger.isEnabledFor(logging.DEBUG)
+        result: Optional[CWLOutputType] = None
         if "outputBinding" in schema:
             binding = cast(
                 MutableMapping[str, Union[bool, str, List[str]]],

@@ -45,8 +45,8 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
     from .pathmapper import PathMapper
+    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
 
 def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
@@ -158,7 +158,7 @@ class Builder(HasReqsHints):
         names: Names,
         requirements: List[CWLObjectType],
         hints: List[CWLObjectType],
-        resources: Dict[str, Union[int, float]],
+        resources: Dict[str, Union[int, float, str]],
         mutation_manager: Optional[MutationManager],
         formatgraph: Optional[Graph],
         make_fs_access: Type[StdFsAccess],
@@ -422,12 +422,14 @@ class Builder(HasReqsHints):
                             found = False
 
                             if isinstance(sfname, str):
-                                sf_location = (
-                                    cast(str, datum["location"])[
-                                        0 : cast(str, datum["location"]).rindex("/") + 1
-                                    ]
-                                    + sfname
-                                )
+                                d_location = cast(str, datum["location"])
+                                if "/" in d_location:
+                                    sf_location = (
+                                        d_location[0 : d_location.rindex("/") + 1]
+                                        + sfname
+                                    )
+                                else:
+                                    sf_location = d_location + sfname
                                 sfbasename = sfname
                             elif isinstance(sfname, MutableMapping):
                                 sf_location = sfname["location"]
@@ -517,7 +519,9 @@ class Builder(HasReqsHints):
                 ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
                     get_listing(
-                        self.fs_access, datum, (ll == "deep_listing"),
+                        self.fs_access,
+                        datum,
+                        (ll == "deep_listing"),
                     )
                 self.files.append(datum)
 
@@ -631,8 +635,10 @@ class Builder(HasReqsHints):
 
         resources = self.resources
         if self.resources and "cores" in self.resources:
-            resources = copy.copy(resources)
-            resources["cores"] = int(math.ceil(resources["cores"]))
+            cores = resources["cores"]
+            if not isinstance(cores, str):
+                resources = copy.copy(resources)
+                resources["cores"] = int(math.ceil(cores))
 
         return expression.do_eval(
             ex,

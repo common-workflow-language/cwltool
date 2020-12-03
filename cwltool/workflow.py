@@ -6,18 +6,11 @@ import random
 from typing import (
     Callable,
     Dict,
-    Generator,
-    Iterable,
     List,
     Mapping,
     MutableMapping,
     MutableSequence,
-    NamedTuple,
     Optional,
-    Sequence,
-    Sized,
-    Tuple,
-    Union,
     cast,
 )
 from uuid import UUID
@@ -73,7 +66,9 @@ context.default_make_tool = default_make_tool
 
 class Workflow(Process):
     def __init__(
-        self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
+        self,
+        toolpath_object: CommentedMap,
+        loadingContext: LoadingContext,
     ) -> None:
         """Initialize this Workflow."""
         super(Workflow, self).__init__(toolpath_object, loadingContext)

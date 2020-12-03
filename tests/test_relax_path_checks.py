@@ -26,7 +26,7 @@ baseCommand: [cat]
 """
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_spaces_in_input_files(tmpdir: py.path.local) -> None:
     try:
         script_file = NamedTemporaryFile(mode="w", delete=False)

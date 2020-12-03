@@ -15,7 +15,7 @@ from .util import (
 )
 
 
-@windows_needs_docker  # type: ignore
+@windows_needs_docker
 def test_newline_in_entry() -> None:
     """Files in a InitialWorkingDirectory are created with a newline character."""
     factory = get_windows_safe_factory()
@@ -23,14 +23,14 @@ def test_newline_in_entry() -> None:
     assert echo(message="hello") == {"out": "CONFIGVAR=hello\n"}
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_empty_file_creation() -> None:
     """An empty file can be created in InitialWorkingDirectory."""
     err_code, _, _ = get_main_output([get_data("tests/wf/iwdr-empty.cwl")])
     assert err_code == 0
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_directory_literal_with_real_inputs_inside(tmp_path: Path) -> None:
     """Cope with unmoveable files in the output directory created by Docker+IWDR."""
     err_code, _, _ = get_main_output(
@@ -44,7 +44,7 @@ def test_directory_literal_with_real_inputs_inside(tmp_path: Path) -> None:
     assert err_code == 0
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_iwdr_permutations() -> None:
     saved_tempdir = tempfile.tempdir
     with temp_dir() as misc:
@@ -63,6 +63,7 @@ def test_iwdr_permutations() -> None:
                                                     [
                                                         "--outdir",
                                                         outdir,
+                                                        "--enable-dev",
                                                         get_data(
                                                             "tests/wf/iwdr_permutations.cwl"
                                                         ),
@@ -89,7 +90,7 @@ def test_iwdr_permutations() -> None:
     tempfile.tempdir = saved_tempdir
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_iwdr_permutations_inplace() -> None:
     saved_tempdir = tempfile.tempdir
     with temp_dir() as misc:
@@ -109,6 +110,7 @@ def test_iwdr_permutations_inplace() -> None:
                                                         "--outdir",
                                                         outdir,
                                                         "--enable-ext",
+                                                        "--enable-dev",
                                                         "--overrides",
                                                         get_data(
                                                             "tests/wf/iwdr_permutations_inplace.yml"
@@ -139,7 +141,7 @@ def test_iwdr_permutations_inplace() -> None:
     tempfile.tempdir = saved_tempdir
 
 
-@needs_singularity  # type: ignore
+@needs_singularity
 def test_iwdr_permutations_singularity() -> None:
     with temp_dir() as fifth:
         with temp_dir() as sixth:
@@ -155,6 +157,7 @@ def test_iwdr_permutations_singularity() -> None:
                                                 [
                                                     "--outdir",
                                                     outdir,
+                                                    "--enable-dev",
                                                     "--singularity",
                                                     get_data(
                                                         "tests/wf/iwdr_permutations.cwl"
@@ -181,7 +184,7 @@ def test_iwdr_permutations_singularity() -> None:
                                         )
 
 
-@needs_singularity  # type: ignore
+@needs_singularity
 def test_iwdr_permutations_singularity_inplace() -> None:
     with temp_dir() as fifth:
         with temp_dir() as sixth:
@@ -199,6 +202,7 @@ def test_iwdr_permutations_singularity_inplace() -> None:
                                                     outdir,
                                                     "--singularity",
                                                     "--enable-ext",
+                                                    "--enable-dev",
                                                     "--overrides",
                                                     get_data(
                                                         "tests/wf/iwdr_permutations_inplace.yml"

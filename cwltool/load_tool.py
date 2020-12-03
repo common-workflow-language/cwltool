@@ -8,7 +8,6 @@ import urllib
 import uuid
 from typing import (
     Any,
-    Callable,
     Dict,
     List,
     MutableMapping,
@@ -21,7 +20,6 @@ from typing import (
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
-from schema_salad.fetcher import Fetcher
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.schema import validate_doc
 from schema_salad.sourceline import SourceLine, cmap
@@ -166,7 +164,7 @@ def _convert_stdstreams_to_files(
                 ):
                     if not isinstance(out, CommentedMap):
                         raise ValidationException(
-                            "Output '{}' is not a valid " "OutputParameter.".format(out)
+                            "Output '{}' is not a valid OutputParameter.".format(out)
                         )
                     for streamtype in ["stdout", "stderr"]:
                         if out.get("type") == streamtype:
@@ -313,7 +311,7 @@ def resolve_and_validate_document(
     if not isinstance(cwlVersion, str):
         with SourceLine(workflowobj, "cwlVersion", ValidationException):
             raise ValidationException(
-                "'cwlVersion' must be a string, " "got {}".format(type(cwlVersion))
+                "'cwlVersion' must be a string, got {}".format(type(cwlVersion))
             )
     # strip out version
     cwlVersion = re.sub(r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "", cwlVersion)
@@ -377,10 +375,15 @@ def resolve_and_validate_document(
 
     document_loader.resolve_all(workflowobj, fileuri)
     processobj, metadata = document_loader.resolve_ref(uri)
-    if loadingContext.metadata:
-        metadata = loadingContext.metadata
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a CommentedMap or CommentedSeq.")
+
+    if not hasattr(processobj.lc, "filename"):
+        processobj.lc.filename = fileuri
+
+    if loadingContext.metadata:
+        metadata = loadingContext.metadata
+
     if not isinstance(metadata, CommentedMap):
         raise ValidationException(
             "metadata must be a CommentedMap, was %s" % type(metadata)
@@ -477,7 +480,9 @@ def load_tool(
 
 
 def resolve_overrides(
-    ov: IdxResultType, ov_uri: str, baseurl: str,
+    ov: IdxResultType,
+    ov_uri: str,
+    baseurl: str,
 ) -> List[CWLObjectType]:
     ovloader = Loader(overrides_ctx)
     ret, _ = ovloader.resolve_all(ov, baseurl)
@@ -491,3 +496,22 @@ def resolve_overrides(
 def load_overrides(ov: str, base_url: str) -> List[CWLObjectType]:
     ovloader = Loader(overrides_ctx)
     return resolve_overrides(ovloader.fetch(ov), ov, base_url)
+
+
+def recursive_resolve_and_validate_document(
+    loadingContext: LoadingContext,
+    workflowobj: Union[CommentedMap, CommentedSeq],
+    uri: str,
+    preprocess_only: bool = False,
+    skip_schemas: Optional[bool] = None,
+) -> Tuple[LoadingContext, str, Process]:
+    """Validate a CWL document, checking that a tool object can be built."""
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext,
+        workflowobj,
+        uri,
+        preprocess_only=preprocess_only,
+        skip_schemas=skip_schemas,
+    )
+    tool = make_tool(uri, loadingContext)
+    return loadingContext, uri, tool

@@ -2,11 +2,9 @@ import copy
 import datetime
 import functools
 import logging
-import tempfile
 import threading
 from typing import (
     Dict,
-    Generator,
     List,
     MutableMapping,
     MutableSequence,
@@ -29,10 +27,8 @@ from .loghandler import _logger
 from .process import shortname, uniquename
 from .stdfsaccess import StdFsAccess
 from .utils import (
-    DEFAULT_TMP_PREFIX,
     CWLObjectType,
     CWLOutputType,
-    DestinationsType,
     JobsGeneratorType,
     OutputCallbackType,
     ParametersType,
@@ -114,7 +110,16 @@ class ReceiveScatterOutput(object):
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
-    def setTotal(self, total: int, steps: List[Optional[JobsGeneratorType]],) -> None:
+    def setTotal(
+        self,
+        total: int,
+        steps: List[Optional[JobsGeneratorType]],
+    ) -> None:
+        """
+        Set the total number of expected outputs along with the steps.
+
+        This is necessary to finish the setup.
+        """
         self.total = total
         self.steps = steps
         if self.completed == self.total:
@@ -241,9 +246,7 @@ def _flat_crossproduct_scatter(
     callback: ReceiveScatterOutput,
     startindex: int,
     runtimeContext: RuntimeContext,
-) -> Tuple[
-    List[Optional[JobsGeneratorType]], int,
-]:
+) -> Tuple[List[Optional[JobsGeneratorType]], int,]:
     """Inner loop."""
     scatter_key = scatter_keys[0]
     jobl = len(cast(Sized, joborder[scatter_key]))
@@ -481,13 +484,7 @@ class WorkflowJob(object):
         self.processStatus = ""
         self.did_callback = False
         self.made_progress = None  # type: Optional[bool]
-
-        if runtimeContext.outdir is not None:
-            self.outdir = runtimeContext.outdir
-        else:
-            self.outdir = tempfile.mkdtemp(
-                prefix=getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)
-            )
+        self.outdir = runtimeContext.get_outdir()
 
         self.name = uniquename(
             "workflow {}".format(

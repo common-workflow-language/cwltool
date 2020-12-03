@@ -1,6 +1,6 @@
 #!/usr/bin/env cwl-runner
 class: CommandLineTool
-cwlVersion: v1.0
+cwlVersion: v1.2.0-dev4
 requirements:
   DockerRequirement:
     dockerPull: debian
@@ -74,4 +74,3 @@ arguments:
     echo "b" > /my_path/third_writable_file
     touch fifth_writable_directory/c
     touch /my_path/seventh_writable_directory/d
-

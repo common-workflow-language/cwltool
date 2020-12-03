@@ -3,7 +3,6 @@ from functools import partial
 from typing import (
     Callable,
     Dict,
-    List,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -34,7 +33,7 @@ def v1_1to1_2(
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
 
-    return doc, "v1.2.0-dev1"
+    return doc, "v1.2"
 
 
 def v1_0to1_1(
@@ -143,12 +142,14 @@ def v1_0to1_1(
 def v1_1_0dev1to1_1(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    """Public updater for v1.1.0-dev1 to v1.1."""
     return (doc, "v1.1")
 
 
 def v1_2_0dev1todev2(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    """Public updater for v1.2.0-dev1 to v1.2.0-dev2."""
     return (doc, "v1.2.0-dev2")
 
 
@@ -178,12 +179,40 @@ def v1_2_0dev2todev3(
 def v1_2_0dev3todev4(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    """Public updater for v1.2.0-dev3 to v1.2.0-dev4."""
     return (doc, "v1.2.0-dev4")
 
+
+def v1_2_0dev4todev5(
+    doc: CommentedMap, loader: Loader, baseuri: str
+) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    """Public updater for v1.2.0-dev4 to v1.2.0-dev5."""
+    return (doc, "v1.2.0-dev5")
+
+
+def v1_2_0dev5to1_2(
+    doc: CommentedMap, loader: Loader, baseuri: str
+) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    """Public updater for v1.2.0-dev5 to v1.2."""
+    return (doc, "v1.2")
+
+
+ORDERED_VERSIONS = [
+    "v1.0",
+    "v1.1.0-dev1",
+    "v1.1",
+    "v1.2.0-dev1",
+    "v1.2.0-dev2",
+    "v1.2.0-dev3",
+    "v1.2.0-dev4",
+    "v1.2.0-dev5",
+    "v1.2",
+]
 
 UPDATES = {
     u"v1.0": v1_0to1_1,
     u"v1.1": v1_1to1_2,
+    u"v1.2": None,
 }  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
 
 DEVUPDATES = {
@@ -191,14 +220,15 @@ DEVUPDATES = {
     u"v1.2.0-dev1": v1_2_0dev1todev2,
     u"v1.2.0-dev2": v1_2_0dev2todev3,
     u"v1.2.0-dev3": v1_2_0dev3todev4,
-    u"v1.2.0-dev4": None,
+    u"v1.2.0-dev4": v1_2_0dev4todev5,
+    u"v1.2.0-dev5": v1_2_0dev5to1_2,
 }  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
 
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = u"v1.2.0-dev4"
+INTERNAL_VERSION = u"v1.2"
 
 ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 
@@ -211,7 +241,9 @@ def identity(
 
 
 def checkversion(
-    doc: Union[CommentedSeq, CommentedMap], metadata: CommentedMap, enable_dev: bool,
+    doc: Union[CommentedSeq, CommentedMap],
+    metadata: CommentedMap,
+    enable_dev: bool,
 ) -> Tuple[CommentedMap, str]:
     """Check the validity of the version of the give CWL document.
 
@@ -268,7 +300,11 @@ def update(
     baseuri: str,
     enable_dev: bool,
     metadata: CommentedMap,
+    update_to: Optional[str] = None,
 ) -> CommentedMap:
+    """Update a CWL document to 'update_to' (if provided) or INTERNAL_VERSION."""
+    if update_to is None:
+        update_to = INTERNAL_VERSION
 
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
     originalversion = copy.copy(version)
@@ -277,7 +313,7 @@ def update(
         identity
     )  # type: Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]
 
-    while nextupdate:
+    while version != update_to and nextupdate:
         (cdoc, version) = nextupdate(cdoc, loader, baseuri)
         nextupdate = ALLUPDATES[version]
 

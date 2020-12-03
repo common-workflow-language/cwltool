@@ -18,8 +18,8 @@ if TYPE_CHECKING:
     from .builder import Builder, HasReqsHints
 
 try:
-    from galaxy.tool_util.deps.requirements import ToolRequirement, ToolRequirements
     from galaxy.tool_util import deps
+    from galaxy.tool_util.deps.requirements import ToolRequirement, ToolRequirements
 except ImportError:
     ToolRequirement = None  # type: ignore
     ToolRequirements = None  # type: ignore
@@ -123,11 +123,11 @@ def get_container_from_software_requirements(
 ) -> Optional[str]:
     if use_biocontainers:
         ensure_galaxy_lib_available()
-        from galaxy.tool_util.deps.dependencies import AppInfo, ToolInfo
         from galaxy.tool_util.deps.containers import (
-            ContainerRegistry,
             DOCKER_CONTAINER_TYPE,
+            ContainerRegistry,
         )
+        from galaxy.tool_util.deps.dependencies import AppInfo, ToolInfo
 
         app_info = AppInfo(
             involucro_auto_init=True,

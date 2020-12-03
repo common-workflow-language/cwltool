@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
 """Entry point for cwltool."""
 
 import argparse
@@ -30,6 +31,7 @@ from typing import (
     cast,
 )
 
+import argcomplete
 import coloredlogs
 import pkg_resources  # part of setuptools
 from ruamel import yaml
@@ -63,6 +65,7 @@ from .load_tool import (
     resolve_tool_uri,
 )
 from .loghandler import _logger, defaultStreamHandler
+from .mpi import MpiConfig
 from .mutation import MutationManager
 from .pack import pack
 from .process import (
@@ -100,7 +103,6 @@ from .utils import (
     windows_default_container_id,
 )
 from .workflow import Workflow
-from .mpi import MpiConfig
 
 
 def _terminate_processes() -> None:
@@ -142,7 +144,8 @@ def _signal_handler(signum: int, _: Any) -> None:
 
 
 def generate_example_input(
-    inptype: Optional[CWLOutputType], default: Optional[CWLOutputType],
+    inptype: Optional[CWLOutputType],
+    default: Optional[CWLOutputType],
 ) -> Tuple[Any, str]:
     """Convert a single input schema into an example."""
     example = None
@@ -411,7 +414,8 @@ def init_job_order(
         if "job_order" in cmd_line and cmd_line["job_order"]:
             try:
                 job_order_object = cast(
-                    CWLObjectType, loader.resolve_ref(cmd_line["job_order"])[0],
+                    CWLObjectType,
+                    loader.resolve_ref(cmd_line["job_order"])[0],
                 )
             except Exception:
                 _logger.exception(
@@ -592,7 +596,10 @@ def find_deps(
     return deps
 
 
-def print_pack(loadingContext: LoadingContext, uri: str,) -> str:
+def print_pack(
+    loadingContext: LoadingContext,
+    uri: str,
+) -> str:
     """Return a CWL serialization of the CWL document in JSON."""
     packed = pack(loadingContext, uri)
     if len(cast(Sized, packed["$graph"])) > 1:
@@ -676,7 +683,9 @@ class ProvLogFormatter(logging.Formatter):
 
 
 def setup_provenance(
-    args: argparse.Namespace, argsl: List[str], runtimeContext: RuntimeContext,
+    args: argparse.Namespace,
+    argsl: List[str],
+    runtimeContext: RuntimeContext,
 ) -> Optional[int]:
     if not args.compute_checksum:
         _logger.error("--provenance incompatible with --no-compute-checksum")
@@ -729,7 +738,11 @@ def setup_loadingContext(
     return loadingContext
 
 
-def make_template(tool: Process,) -> None:
+def make_template(
+    tool: Process,
+) -> None:
+    """Make a template CWL input object for the give Process."""
+
     def my_represent_none(
         self: Any, data: Any
     ) -> Any:  # pylint: disable=unused-argument
@@ -747,9 +760,11 @@ def make_template(tool: Process,) -> None:
 
 
 def choose_target(
-    args: argparse.Namespace, tool: Process, loadingContext: LoadingContext,
+    args: argparse.Namespace,
+    tool: Process,
+    loadingContext: LoadingContext,
 ) -> Optional[Process]:
-
+    """Walk the given Workflow and find the process that matches args.target."""
     if loadingContext.loader is None:
         raise Exception("loadingContext.loader cannot be None")
 
@@ -779,7 +794,10 @@ def choose_target(
     return tool
 
 
-def check_working_directories(runtimeContext: RuntimeContext,) -> Optional[int]:
+def check_working_directories(
+    runtimeContext: RuntimeContext,
+) -> Optional[int]:
+    """Make any needed working directories."""
     for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
         if (
             getattr(runtimeContext, dirprefix)
@@ -848,7 +866,9 @@ def main(
             addl = []  # type: List[str]
             if "CWLTOOL_OPTIONS" in os.environ:
                 addl = os.environ["CWLTOOL_OPTIONS"].split(" ")
-            args = arg_parser().parse_args(addl + argsl)
+            parser = arg_parser()
+            argcomplete.autocomplete(parser)
+            args = parser.parse_args(addl + argsl)
             if args.record_container_id:
                 if not args.cidfile_dir:
                     args.cidfile_dir = os.getcwd()
@@ -889,7 +909,7 @@ def main(
                 args.workflow = "CWLFile"
             else:
                 _logger.error("CWL document required, no input file was provided")
-                arg_parser().print_help()
+                parser.print_help()
                 return 1
         if args.relax_path_checks:
             command_line_tool.ACCEPTLIST_RE = command_line_tool.ACCEPTLIST_EN_RELAXED_RE

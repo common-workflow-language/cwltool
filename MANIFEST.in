@@ -12,6 +12,7 @@ include tests/checker_wf/*
 include tests/subgraph/*
 include tests/trs/*
 include tests/wf/generator/*
+include cwltool/py.typed
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.md
@@ -37,6 +38,14 @@ include cwltool/schemas/v1.2.0-dev4/*.yml
 include cwltool/schemas/v1.2.0-dev4/*.md
 include cwltool/schemas/v1.2.0-dev4/salad/schema_salad/metaschema/*.yml
 include cwltool/schemas/v1.2.0-dev4/salad/schema_salad/metaschema/*.md
+include cwltool/schemas/v1.2.0-dev5/*.yml
+include cwltool/schemas/v1.2.0-dev5/*.md
+include cwltool/schemas/v1.2.0-dev5/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/v1.2.0-dev5/salad/schema_salad/metaschema/*.md
+include cwltool/schemas/v1.2/*.yml
+include cwltool/schemas/v1.2/*.md
+include cwltool/schemas/v1.2/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/v1.2/salad/schema_salad/metaschema/*.md
 include cwltool/cwlNodeEngine.js
 include cwltool/cwlNodeEngineJSConsole.js
 include cwltool/cwlNodeEngineWithContext.js
@@ -45,6 +54,7 @@ include cwltool/extensions-v1.1.yml
 include cwltool/jshint/jshint_wrapper.js
 include cwltool/jshint/jshint.js
 include cwltool/hello.simg
+include cwltool/rdfqueries/*.sparql
 prune cwltool/schemas/v1.0/salad/typeshed
 prune cwltool/schemas/v1.0/salad/schema_salad/tests
 prune cwltool/schemas/v1.1.0-dev1/salad/typeshed

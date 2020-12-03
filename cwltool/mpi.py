@@ -1,9 +1,10 @@
+"""Experimental support for MPI."""
+import inspect
 import os
 import re
-import inspect
-from typing import List, Type, TypeVar, Optional, MutableMapping, Mapping, Union
-from ruamel import yaml
+from typing import List, Mapping, MutableMapping, Optional, Type, TypeVar, Union
 
+from ruamel import yaml
 
 MpiConfigT = TypeVar("MpiConfigT", bound="MpiConfig")
 
