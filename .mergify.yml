@@ -2,6 +2,7 @@ pull_request_rules:
   - name: Automatic merge on approval and when when GitHub branch protection passes on main
     conditions:
       - "#approved-reviews-by>=1"
+      - -draft
       - base=main
     actions:
       merge:
@@ -12,6 +13,8 @@ pull_request_rules:
   - name: Automatic merge for leadership team members when there are no reviewers
     conditions:
       - "#review-requested=0"
+      - "#changes-requested-reviews-by<1"
+      - -draft
       - base=main
       - author=@leadership
     actions:
