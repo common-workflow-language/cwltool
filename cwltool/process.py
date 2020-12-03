@@ -824,6 +824,7 @@ hints:
 
         files = []  # type: List[CWLObjectType]
         bindings = CommentedSeq()
+        outdir = ""
         tmpdir = ""
         stagedir = ""
 
@@ -852,8 +853,8 @@ hints:
             tmpdir = runtime_context.docker_tmpdir or "/tmp"  # nosec
             stagedir = runtime_context.docker_stagedir or "/var/lib/cwl"
         else:
-            outdir = fs_access.realpath(runtime_context.get_outdir())
-            if self.tool["class"] != "Workflow":
+            if self.tool["class"] == "CommandLineTool":
+                outdir = fs_access.realpath(runtime_context.get_outdir())
                 tmpdir = fs_access.realpath(runtime_context.get_tmpdir())
                 stagedir = fs_access.realpath(runtime_context.get_stagedir())
 
