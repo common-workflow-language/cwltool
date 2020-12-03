@@ -7,3 +7,14 @@ pull_request_rules:
       merge:
         method: merge
         strict: true
+        
+pull_request_rules:
+  - name: Automatic merge for leadership team members when there are no reviewers
+    conditions:
+      - "#review-requested=0"
+      - base=main
+      - author=@leadership
+    actions:
+      merge:
+        method: merge
+        strict: true
