@@ -6,4 +6,15 @@ pull_request_rules:
     actions:
       merge:
         method: merge
-        strict: true
+        strict: smart+fasttrack
+        
+pull_request_rules:
+  - name: Automatic merge for leadership team members when there are no reviewers
+    conditions:
+      - "#review-requested=0"
+      - base=main
+      - author=@leadership
+    actions:
+      merge:
+        method: merge
+        strict: smart+fasttrack
