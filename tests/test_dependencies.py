@@ -44,6 +44,7 @@ def test_bioconda() -> None:
 @pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
 @pytest.mark.skipif(not which("modulecmd"), reason="modulecmd not installed")
 def test_modules(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Do a basic smoke test using environment modules to satisfy a SoftwareRequirement."""
     wflow = get_data("tests/random_lines.cwl")
     job = get_data("tests/random_lines_job.json")
     monkeypatch.setenv(
@@ -65,6 +66,11 @@ def test_modules(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
 @pytest.mark.skipif(not which("modulecmd"), reason="modulecmd not installed")
 def test_modules_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Check that the environment variables set by a module are being propagated correctly.
+
+    Do so by  by running `env` as the tool and parsing its output.
+    """
     monkeypatch.setenv(
         "MODULEPATH", os.path.join(os.getcwd(), "tests/test_deps_env/modulefiles")
     )
