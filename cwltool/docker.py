@@ -7,7 +7,6 @@ import re
 import shutil
 import subprocess  # nosec
 import sys
-import tempfile
 import threading
 from distutils import spawn
 from io import StringIO, open  # pylint: disable=redefined-builtin
@@ -23,10 +22,9 @@ from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .utils import (
-    DEFAULT_TMP_PREFIX,
     CWLObjectType,
+    create_tmp_dir,
     docker_windows_path_adjust,
-    ensure_non_writable,
     ensure_writable,
     onWindows,
 )
@@ -109,8 +107,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
     def get_image(
         docker_requirement: Dict[str, str],
         pull_image: bool,
-        force_pull: bool = False,
-        tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,
+        force_pull: bool,
+        tmp_outdir_prefix: str,
     ) -> bool:
         """
         Retrieve the relevant Docker container image.
@@ -170,7 +168,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
             elif "dockerFile" in docker_requirement:
-                dockerfile_dir = str(tempfile.mkdtemp(prefix=tmp_outdir_prefix))
+                dockerfile_dir = create_tmp_dir(tmp_outdir_prefix)
                 with open(os.path.join(dockerfile_dir, "Dockerfile"), "wb") as dfile:
                     dfile.write(docker_requirement["dockerFile"].encode("utf-8"))
                 cmd = [
@@ -236,8 +234,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         self,
         r: CWLObjectType,
         pull_image: bool,
-        force_pull: bool = False,
-        tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,
+        force_pull: bool,
+        tmp_outdir_prefix: str,
     ) -> Optional[str]:
         if not spawn.find_executable("docker"):
             raise WorkflowException("docker executable is not available")
@@ -294,8 +292,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     os.makedirs(os.path.dirname(host_outdir_tgt))
                 shutil.copy(volume.resolved, host_outdir_tgt)
             else:
-                tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
-                tmpdir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
+                tmpdir = create_tmp_dir(tmpdir_prefix)
                 file_copy = os.path.join(tmpdir, os.path.basename(volume.resolved))
                 shutil.copy(volume.resolved, file_copy)
                 self.append_volume(runtime, file_copy, volume.target, writable=True)
@@ -312,9 +309,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if volume.resolved.startswith("_:"):
             # Synthetic directory that needs creating first
             if not host_outdir_tgt:
-                tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
                 new_dir = os.path.join(
-                    tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
+                    create_tmp_dir(tmpdir_prefix),
                     os.path.basename(volume.target),
                 )
                 self.append_volume(runtime, new_dir, volume.target, writable=True)
@@ -327,8 +323,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 )
             else:
                 if not host_outdir_tgt:
-                    tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
-                    tmpdir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
+                    tmpdir = create_tmp_dir(tmpdir_prefix)
                     new_dir = os.path.join(tmpdir, os.path.basename(volume.resolved))
                     shutil.copytree(volume.resolved, new_dir)
                     self.append_volume(runtime, new_dir, volume.target, writable=True)
@@ -430,12 +425,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     _logger.error(
                         "--cidfile-dir %s error:\n%s",
                         cidfile_dir,
-                        cidfile_dir + " is not a directory, " "please check it first",
+                        cidfile_dir + " is not a directory, please check it first",
                     )
                     exit(2)
             else:
-                tmp_dir, tmp_prefix = os.path.split(runtimeContext.tmpdir_prefix)
-                cidfile_dir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
+                cidfile_dir = runtimeContext.create_tmpdir()
 
             cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
             if runtimeContext.cidfile_prefix is not None:
@@ -446,7 +440,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             runtime.append("--env=%s=%s" % (key, value))
 
         if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
-            runtime.append("--memory=%dm" % self.builder.resources["ram"])
+            ram = self.builder.resources["ram"]
+            if not isinstance(ram, str):
+                runtime.append("--memory=%dm" % ram)
         elif not user_space_docker_cmd:
             res_req, _ = self.builder.get_requirement("ResourceRequirement")
             if res_req and ("ramMin" in res_req or "ramMax" in res_req):

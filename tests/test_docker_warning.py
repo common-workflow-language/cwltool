@@ -1,6 +1,6 @@
 from typing import Any, cast
 
-import pytest  # type: ignore
+import pytest
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 

@@ -6,7 +6,6 @@ from typing import (
     Any,
     Callable,
     Dict,
-    List,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -21,15 +20,16 @@ from schema_salad.ref_resolver import Loader, ResolveType, SubLoader
 from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
 from .process import shortname, uniquename
+from .update import ORDERED_VERSIONS, update
 from .utils import CWLObjectType, CWLOutputType
-from .loghandler import _logger
-from .update import update, ORDERED_VERSIONS
 
 LoadRefType = Callable[[Optional[str], str], ResolveType]
 
 
 def find_run(
-    d: Union[CWLObjectType, ResolveType], loadref: LoadRefType, runs: Set[str],
+    d: Union[CWLObjectType, ResolveType],
+    loadref: LoadRefType,
+    runs: Set[str],
 ) -> None:
     if isinstance(d, MutableSequence):
         for s in d:

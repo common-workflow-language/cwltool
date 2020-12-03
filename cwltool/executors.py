@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """Single and multi-threaded executors."""
 import datetime
+import functools
 import logging
 import math
 import os
-import tempfile
 import threading
 from abc import ABCMeta, abstractmethod
 from threading import Lock
@@ -32,9 +32,11 @@ from .loghandler import _logger
 from .mutation import MutationManager
 from .process import Process, cleanIntermediate, relocateOutputs
 from .provenance_profile import ProvenanceProfile
-from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, JobsType
+from .utils import CWLObjectType, JobsType
 from .workflow import Workflow
 from .workflow_job import WorkflowJob, WorkflowJobStep
+from .task_queue import TaskQueue
+
 
 TMPDIR_LOCK = Lock()
 
@@ -99,9 +101,7 @@ class JobExecutor(object, metaclass=ABCMeta):
         if isinstance(original_outdir, str):
             finaloutdir = os.path.abspath(original_outdir)
         runtime_context = runtime_context.copy()
-        outdir = tempfile.mkdtemp(
-            prefix=getdefault(runtime_context.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)
-        )
+        outdir = runtime_context.create_outdir()
         self.output_dirs.add(outdir)
         runtime_context.outdir = outdir
         runtime_context.mutation_manager = MutationManager()
@@ -280,7 +280,6 @@ class MultithreadedJobExecutor(JobExecutor):
     def __init__(self) -> None:
         """Initialize."""
         super(MultithreadedJobExecutor, self).__init__()
-        self.threads = set()  # type: Set[threading.Thread]
         self.exceptions = []  # type: List[WorkflowException]
         self.pending_jobs = []  # type: List[JobsType]
         self.pending_jobs_lock = threading.Lock()
@@ -293,23 +292,33 @@ class MultithreadedJobExecutor(JobExecutor):
     def select_resources(
         self, request, runtime_context
     ):  # pylint: disable=unused-argument
-        # type: (Dict[str, Union[int, float]], RuntimeContext) -> Dict[str, Union[int, float]]
+        # type: (Dict[str, Union[int, float, str]], RuntimeContext) -> Dict[str, Union[int, float, str]]
         """Naïve check for available cpu cores and memory."""
-        result = {}  # type: Dict[str, Union[int, float]]
+        result = {}  # type: Dict[str, Union[int, float, str]]
         maxrsc = {"cores": self.max_cores, "ram": self.max_ram}
         for rsc in ("cores", "ram"):
-            if request[rsc + "Min"] > maxrsc[rsc]:
+            rsc_min = request[rsc + "Min"]
+            if not isinstance(rsc_min, str) and rsc_min > maxrsc[rsc]:
                 raise WorkflowException(
                     "Requested at least %d %s but only %d available"
-                    % (request[rsc + "Min"], rsc, maxrsc[rsc])
+                    % (rsc_min, rsc, maxrsc[rsc])
                 )
-            if request[rsc + "Max"] < maxrsc[rsc]:
-                result[rsc] = math.ceil(request[rsc + "Max"])
+            rsc_max = request[rsc + "Max"]
+            if not isinstance(rsc_max, str) and rsc_max < maxrsc[rsc]:
+                result[rsc] = math.ceil(rsc_max)
             else:
                 result[rsc] = maxrsc[rsc]
 
-        result["tmpdirSize"] = math.ceil(request["tmpdirMin"])
-        result["outdirSize"] = math.ceil(request["outdirMin"])
+        result["tmpdirSize"] = (
+            math.ceil(request["tmpdirMin"])
+            if not isinstance(request["tmpdirMin"], str)
+            else request["tmpdirMin"]
+        )
+        result["outdirSize"] = (
+            math.ceil(request["outdirMin"])
+            if not isinstance(request["outdirMin"], str)
+            else request["outdirMin"]
+        )
 
         return result
 
@@ -332,14 +341,19 @@ class MultithreadedJobExecutor(JobExecutor):
         finally:
             if runtime_context.workflow_eval_lock:
                 with runtime_context.workflow_eval_lock:
-                    self.threads.remove(threading.current_thread())
                     if isinstance(job, JobBase):
-                        self.allocated_ram -= job.builder.resources["ram"]
-                        self.allocated_cores -= job.builder.resources["cores"]
+                        ram = job.builder.resources["ram"]
+                        if not isinstance(ram, str):
+                            self.allocated_ram -= ram
+                        cores = job.builder.resources["cores"]
+                        if not isinstance(cores, str):
+                            self.allocated_cores -= cores
                     runtime_context.workflow_eval_lock.notifyAll()
 
     def run_job(
-        self, job: Optional[JobsType], runtime_context: RuntimeContext,
+        self,
+        job: Optional[JobsType],
+        runtime_context: RuntimeContext,
     ) -> None:
         """Execute a single Job in a seperate thread."""
         if job is not None:
@@ -349,11 +363,17 @@ class MultithreadedJobExecutor(JobExecutor):
         with self.pending_jobs_lock:
             n = 0
             while (n + 1) <= len(self.pending_jobs):
+                # Simple greedy resource allocation strategy.  Go
+                # through pending jobs in the order they were
+                # generated and add them to the queue only if there
+                # are resources available.
                 job = self.pending_jobs[n]
                 if isinstance(job, JobBase):
-                    if (job.builder.resources["ram"]) > self.max_ram or (
-                        job.builder.resources["cores"]
-                    ) > self.max_cores:
+                    ram = job.builder.resources["ram"]
+                    cores = job.builder.resources["cores"]
+                    if (not isinstance(ram, str) and ram > self.max_ram) or (
+                        not isinstance(cores, str) and cores > self.max_cores
+                    ):
                         _logger.error(
                             'Job "%s" cannot be run, requests more resources (%s) '
                             "than available on this host (max ram %d, max cores %d",
@@ -368,10 +388,11 @@ class MultithreadedJobExecutor(JobExecutor):
                         return
 
                     if (
-                        (self.allocated_ram + job.builder.resources["ram"])
-                        > self.max_ram
-                        or (self.allocated_cores + job.builder.resources["cores"])
-                        > self.max_cores
+                        not isinstance(ram, str)
+                        and self.allocated_ram + ram > self.max_ram
+                    ) or (
+                        not isinstance(cores, str)
+                        and self.allocated_cores + cores > self.max_cores
                     ):
                         _logger.debug(
                             'Job "%s" cannot run yet, resources (%s) are not '
@@ -387,22 +408,24 @@ class MultithreadedJobExecutor(JobExecutor):
                         n += 1
                         continue
 
-                thread = threading.Thread(
-                    target=self._runner, args=(job, runtime_context, TMPDIR_LOCK)
-                )
-                thread.daemon = True
-                self.threads.add(thread)
                 if isinstance(job, JobBase):
-                    self.allocated_ram += job.builder.resources["ram"]
-                    self.allocated_cores += job.builder.resources["cores"]
-                thread.start()
+                    ram = job.builder.resources["ram"]
+                    if not isinstance(ram, str):
+                        self.allocated_ram += ram
+                    cores = job.builder.resources["cores"]
+                    if not isinstance(cores, str):
+                        self.allocated_cores += cores
+                self.taskqueue.add(
+                    functools.partial(self._runner, job, runtime_context, TMPDIR_LOCK),
+                    runtime_context.workflow_eval_lock,
+                )
                 self.pending_jobs.remove(job)
 
     def wait_for_next_completion(self, runtime_context):
         # type: (RuntimeContext) -> None
         """Wait for jobs to finish."""
         if runtime_context.workflow_eval_lock is not None:
-            runtime_context.workflow_eval_lock.wait()
+            runtime_context.workflow_eval_lock.wait(timeout=3)
         if self.exceptions:
             raise self.exceptions[0]
 
@@ -414,36 +437,46 @@ class MultithreadedJobExecutor(JobExecutor):
         runtime_context: RuntimeContext,
     ) -> None:
 
-        jobiter = process.job(job_order_object, self.output_callback, runtime_context)
+        self.taskqueue = TaskQueue(
+            threading.Lock(), psutil.cpu_count()
+        )  # type: TaskQueue
+        try:
 
-        if runtime_context.workflow_eval_lock is None:
-            raise WorkflowException(
-                "runtimeContext.workflow_eval_lock must not be None"
+            jobiter = process.job(
+                job_order_object, self.output_callback, runtime_context
             )
 
-        runtime_context.workflow_eval_lock.acquire()
-        for job in jobiter:
-            if job is not None:
-                if isinstance(job, JobBase):
-                    job.builder = runtime_context.builder or job.builder
-                    if job.outdir is not None:
-                        self.output_dirs.add(job.outdir)
+            if runtime_context.workflow_eval_lock is None:
+                raise WorkflowException(
+                    "runtimeContext.workflow_eval_lock must not be None"
+                )
 
-            self.run_job(job, runtime_context)
+            runtime_context.workflow_eval_lock.acquire()
+            for job in jobiter:
+                if job is not None:
+                    if isinstance(job, JobBase):
+                        job.builder = runtime_context.builder or job.builder
+                        if job.outdir is not None:
+                            self.output_dirs.add(job.outdir)
 
-            if job is None:
-                if self.threads:
-                    self.wait_for_next_completion(runtime_context)
-                else:
-                    logger.error("Workflow cannot make any more progress.")
-                    break
+                self.run_job(job, runtime_context)
 
-        self.run_job(None, runtime_context)
-        while self.threads:
-            self.wait_for_next_completion(runtime_context)
+                if job is None:
+                    if self.taskqueue.in_flight > 0:
+                        self.wait_for_next_completion(runtime_context)
+                    else:
+                        logger.error("Workflow cannot make any more progress.")
+                        break
+
             self.run_job(None, runtime_context)
+            while self.taskqueue.in_flight > 0:
+                self.wait_for_next_completion(runtime_context)
+                self.run_job(None, runtime_context)
 
-        runtime_context.workflow_eval_lock.release()
+            runtime_context.workflow_eval_lock.release()
+        finally:
+            self.taskqueue.drain()
+            self.taskqueue.join()
 
 
 class NoopJobExecutor(JobExecutor):

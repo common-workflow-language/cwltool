@@ -8,9 +8,11 @@ import re
 import shutil
 import tempfile
 import uuid
+from array import array
 from collections import OrderedDict
 from getpass import getuser
 from io import FileIO, TextIOWrapper, open
+from mmap import mmap
 from pathlib import Path, PurePosixPath
 from typing import (
     IO,
@@ -18,23 +20,20 @@ from typing import (
     BinaryIO,
     Callable,
     Dict,
-    Generator,
     List,
     MutableMapping,
     MutableSequence,
     Optional,
     Set,
     Tuple,
-    Type,
     Union,
     cast,
 )
 
-from schema_salad.utils import json_dumps
-from typing_extensions import TYPE_CHECKING, TypedDict
-
 import prov.model as provM
 from prov.model import PROV, ProvDocument
+from schema_salad.utils import json_dumps
+from typing_extensions import TYPE_CHECKING, TypedDict
 
 from .loghandler import _logger
 from .provenance_constants import (
@@ -62,6 +61,7 @@ from .stdfsaccess import StdFsAccess
 from .utils import (
     CWLObjectType,
     CWLOutputType,
+    create_tmp_dir,
     local_path,
     onWindows,
     posix_path,
@@ -78,10 +78,10 @@ else:
         pass
 
 if TYPE_CHECKING:
-    from .command_line_tool import (
+    from .command_line_tool import (  # pylint: disable=unused-import
         CommandLineTool,
         ExpressionTool,
-    )  # pylint: disable=unused-import
+    )
     from .workflow import Workflow  # pylint: disable=unused-import
 
 
@@ -128,8 +128,9 @@ class WritableBagFile(FileIO):
         _logger.debug("[provenance] Creating WritableBagFile at %s.", path)
         super(WritableBagFile, self).__init__(path, mode="w")
 
-    def write(self, b: Union[bytes, str]) -> int:
-        real_b = b if isinstance(b, bytes) else b.encode("utf-8")
+    def write(self, b: Any) -> int:
+        """Write some content to the Bag."""
+        real_b = b if isinstance(b, (bytes, mmap, array)) else b.encode("utf-8")
         total = 0
         length = len(real_b)
         while total < length:
@@ -298,10 +299,7 @@ class ResearchObject:
         self.temp_prefix = temp_prefix_ro
         self.orcid = "" if not orcid else _valid_orcid(orcid)
         self.full_name = full_name
-        tmp_dir, tmp_prefix = os.path.split(temp_prefix_ro)
-        self.folder = os.path.abspath(
-            tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
-        )  # type: str
+        self.folder = create_tmp_dir(temp_prefix_ro)
         self.closed = False
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}  # type: Dict[str, int]

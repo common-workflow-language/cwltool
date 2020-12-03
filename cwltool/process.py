@@ -9,7 +9,6 @@ import math
 import os
 import shutil
 import stat
-import tempfile
 import textwrap
 import urllib
 import uuid
@@ -19,11 +18,9 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generator,
     Iterable,
     Iterator,
     List,
-    Mapping,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -31,7 +28,6 @@ from typing import (
     Sized,
     Tuple,
     Type,
-    TypeVar,
     Union,
     cast,
 )
@@ -64,7 +60,6 @@ from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION
 from .utils import (
-    DEFAULT_TMP_PREFIX,
     CWLObjectType,
     CWLOutputAtomType,
     CWLOutputType,
@@ -404,12 +399,13 @@ def relocateOutputs(
     def _realpath(
         ob: CWLObjectType,
     ) -> None:  # should be type Union[CWLFile, CWLDirectory]
-        if cast(str, ob["location"]).startswith("file:"):
-            ob["location"] = file_uri(
-                os.path.realpath(uri_file_path(cast(str, ob["location"])))
-            )
-        if cast(str, ob["location"]).startswith("/"):
-            ob["location"] = os.path.realpath(cast(str, ob["location"]))
+        location = cast(str, ob["location"])
+        if location.startswith("file:"):
+            ob["location"] = file_uri(os.path.realpath(uri_file_path(location)))
+        elif location.startswith("/"):
+            ob["location"] = os.path.realpath(location)
+        elif not location.startswith("_:") and ":" in location:
+            ob["location"] = file_uri(fs_access.realpath(location))
 
     outfiles = list(_collectDirEntries(outputObj))
     visit_class(outfiles, ("File", "Directory"), _realpath)
@@ -451,7 +447,9 @@ def add_sizes(fsaccess: StdFsAccess, obj: CWLObjectType) -> None:
 
 
 def fill_in_defaults(
-    inputs: List[CWLObjectType], job: CWLObjectType, fsaccess: StdFsAccess,
+    inputs: List[CWLObjectType],
+    job: CWLObjectType,
+    fsaccess: StdFsAccess,
 ) -> None:
     for e, inp in enumerate(inputs):
         with SourceLine(
@@ -523,7 +521,9 @@ _VAR_SPOOL_ERROR = textwrap.dedent(
 
 
 def var_spool_cwl_detector(
-    obj: CWLOutputType, item: Optional[Any] = None, obj_key: Optional[Any] = None,
+    obj: CWLOutputType,
+    item: Optional[Any] = None,
+    obj_key: Optional[Any] = None,
 ) -> bool:
     """Detect any textual reference to /var/spool/cwl."""
     r = False
@@ -678,12 +678,14 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
 
         with SourceLine(toolpath_object, "inputs", ValidationException):
             self.inputs_record_schema = cast(
-                CWLObjectType, make_valid_avro(self.inputs_record_schema, {}, set()),
+                CWLObjectType,
+                make_valid_avro(self.inputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.inputs_record_schema), self.names)
         with SourceLine(toolpath_object, "outputs", ValidationException):
             self.outputs_record_schema = cast(
-                CWLObjectType, make_valid_avro(self.outputs_record_schema, {}, set()),
+                CWLObjectType,
+                make_valid_avro(self.outputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.outputs_record_schema), self.names)
 
@@ -822,6 +824,7 @@ hints:
 
         files = []  # type: List[CWLObjectType]
         bindings = CommentedSeq()
+        outdir = ""
         tmpdir = ""
         stagedir = ""
 
@@ -850,21 +853,10 @@ hints:
             tmpdir = runtime_context.docker_tmpdir or "/tmp"  # nosec
             stagedir = runtime_context.docker_stagedir or "/var/lib/cwl"
         else:
-            outdir = fs_access.realpath(
-                runtime_context.outdir
-                or tempfile.mkdtemp(
-                    prefix=getdefault(
-                        runtime_context.tmp_outdir_prefix, DEFAULT_TMP_PREFIX
-                    )
-                )
-            )
-            if self.tool["class"] != "Workflow":
-                tmpdir = fs_access.realpath(
-                    runtime_context.tmpdir or tempfile.mkdtemp()
-                )
-                stagedir = fs_access.realpath(
-                    runtime_context.stagedir or tempfile.mkdtemp()
-                )
+            if self.tool["class"] == "CommandLineTool":
+                outdir = fs_access.realpath(runtime_context.get_outdir())
+                tmpdir = fs_access.realpath(runtime_context.get_tmpdir())
+                stagedir = fs_access.realpath(runtime_context.get_stagedir())
 
         cwl_version = cast(
             str,
@@ -956,7 +948,7 @@ hints:
 
     def evalResources(
         self, builder: Builder, runtimeContext: RuntimeContext
-    ) -> Dict[str, Union[int, float]]:
+    ) -> Dict[str, Union[int, float, str]]:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -967,7 +959,7 @@ hints:
             ram = 1024
         else:
             ram = 256
-        request = {
+        request: Dict[str, Union[int, float, str]] = {
             "coresMin": 1,
             "coresMax": 1,
             "ramMin": ram,
@@ -976,7 +968,7 @@ hints:
             "tmpdirMax": 1024,
             "outdirMin": 1024,
             "outdirMax": 1024,
-        }  # type: Dict[str, Union[int, float]]
+        }
         for a in ("cores", "ram", "tmpdir", "outdir"):
             mn = mx = None  # type: Optional[Union[int, float]]
             if resourceReq.get(a + "Min"):
@@ -1006,9 +998,15 @@ hints:
             return runtimeContext.select_resources(request, runtimeContext)
         return {
             "cores": request["coresMin"],
-            "ram": math.ceil(request["ramMin"]),
-            "tmpdirSize": math.ceil(request["tmpdirMin"]),
-            "outdirSize": math.ceil(request["outdirMin"]),
+            "ram": math.ceil(request["ramMin"])
+            if not isinstance(request["ramMin"], str)
+            else request["ramMin"],
+            "tmpdirSize": math.ceil(request["tmpdirMin"])
+            if not isinstance(request["tmpdirMin"], str)
+            else request["tmpdirMin"],
+            "outdirSize": math.ceil(request["outdirMin"])
+            if not isinstance(request["outdirMin"], str)
+            else request["outdirMin"],
         }
 
     def validate_hints(

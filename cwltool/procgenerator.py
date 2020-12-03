@@ -1,18 +1,5 @@
 import copy
-from typing import (
-    Callable,
-    Dict,
-    Generator,
-    Iterable,
-    List,
-    Mapping,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Dict, Optional, Tuple, cast
 
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
@@ -78,7 +65,9 @@ class ProcessGeneratorJob(object):
 
 class ProcessGenerator(Process):
     def __init__(
-        self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
+        self,
+        toolpath_object: CommentedMap,
+        loadingContext: LoadingContext,
     ) -> None:
         """Create a ProcessGenerator from the given dictionary and context."""
         super(ProcessGenerator, self).__init__(toolpath_object, loadingContext)

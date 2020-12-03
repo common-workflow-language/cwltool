@@ -4,20 +4,7 @@ import os
 import stat
 import urllib
 import uuid
-from typing import (
-    Callable,
-    Dict,
-    Iterator,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Set,
-    Text,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Dict, Iterator, List, Optional, Tuple, cast
 
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import uri_file_path
@@ -25,16 +12,7 @@ from schema_salad.sourceline import SourceLine
 
 from .loghandler import _logger
 from .stdfsaccess import abspath
-from .utils import (
-    CWLObjectType,
-    DirectoryType,
-    adjustDirObjs,
-    adjustFileObjs,
-    convert_pathsep_to_unix,
-    dedup,
-    downloadHttpFile,
-    visit_class,
-)
+from .utils import CWLObjectType, convert_pathsep_to_unix, dedup, downloadHttpFile
 
 MapperEnt = collections.namedtuple(
     "MapperEnt", ["resolved", "target", "type", "staged"]
@@ -118,7 +96,10 @@ class PathMapper(object):
     ) -> None:
         stagedir = cast(Optional[str], obj.get("dirname")) or stagedir
         tgt = convert_pathsep_to_unix(
-            os.path.join(stagedir, cast(str, obj["basename"]),)
+            os.path.join(
+                stagedir,
+                cast(str, obj["basename"]),
+            )
         )
         if obj["location"] in self._pathmap:
             return
@@ -212,7 +193,11 @@ class PathMapper(object):
     def items(self) -> List[Tuple[str, MapperEnt]]:
         return list(self._pathmap.items())
 
-    def reversemap(self, target: str,) -> Optional[Tuple[str, str]]:
+    def reversemap(
+        self,
+        target: str,
+    ) -> Optional[Tuple[str, str]]:
+        """Find the (source, resolved_path) for the given target, if any."""
         for k, v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])

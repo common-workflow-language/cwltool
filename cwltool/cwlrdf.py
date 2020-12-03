@@ -7,8 +7,8 @@ from ruamel.yaml.comments import CommentedMap
 from schema_salad.jsonld_context import makerdf
 from schema_salad.ref_resolver import ContextType
 
-from .process import Process
 from .cwlviewer import CWLViewer
+from .process import Process
 
 
 def gather(tool: Process, ctx: ContextType) -> Graph:
@@ -195,7 +195,5 @@ def printdot(
     ctx: ContextType,
     stdout: Union[TextIO, StreamWriter],
 ) -> None:
-    cwl_viewer = CWLViewer(printrdf(wf, ctx, 'n3'))  # type: CWLViewer
-    stdout.write(
-        cwl_viewer.dot()
-    )
+    cwl_viewer = CWLViewer(printrdf(wf, ctx, "n3"))  # type: CWLViewer
+    stdout.write(cwl_viewer.dot())

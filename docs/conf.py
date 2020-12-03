@@ -30,6 +30,9 @@ author = 'Peter Amstutz and contributors'
 extensions = [
         "sphinx.ext.autodoc",
         "sphinx.ext.autosummary",
+        "sphinx.ext.inheritance_diagram",
+        "autoapi.extension",
+        "sphinx_autodoc_typehints",
         "sphinx_rtd_theme",
 ]
 
@@ -58,3 +61,14 @@ html_static_path = ['_static']
 from pkg_resources import get_distribution
 release = get_distribution('cwltool').version
 version = '.'.join(release.split('.')[:2])
+
+autoapi_dirs = ['../cwltool']
+autodoc_typehints = 'description'
+autoapi_keep_files = True
+autoapi_ignore = ['*migrations*', '*.pyi']
+autoapi_options = [ 'members', 'undoc-members', 'show-inheritance', 'show-inheritance-diagram', 'show-module-summary', 'imported-members', 'special-members' ]
+#sphinx-autodoc-typehints
+always_document_param_types = True
+# If False, do not add type info for undocumented parameters.
+# If True, add stub documentation for undocumented parameters to be able to add type info.
+

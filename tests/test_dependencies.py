@@ -1,7 +1,7 @@
 import os
 from distutils import spawn
 
-import pytest  # type: ignore
+import pytest
 
 from cwltool.utils import onWindows
 
@@ -13,8 +13,8 @@ except ImportError:
     deps = None
 
 
-@needs_docker  # type: ignore
-@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")  # type: ignore
+@needs_docker
+@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
 def test_biocontainers() -> None:
     wflow = get_data("tests/seqtk_seq.cwl")
     job = get_data("tests/seqtk_seq_job.json")
@@ -23,8 +23,8 @@ def test_biocontainers() -> None:
     assert error_code == 0
 
 
-@pytest.mark.skipif(onWindows(), reason="bioconda currently not working on MS Windows")  # type: ignore
-@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")  # type: ignore
+@pytest.mark.skipif(onWindows(), reason="bioconda currently not working on MS Windows")
+@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
 def test_bioconda() -> None:
     wflow = get_data("tests/seqtk_seq.cwl")
     job = get_data("tests/seqtk_seq_job.json")
@@ -35,7 +35,7 @@ def test_bioconda() -> None:
     assert error_code == 0, stderr
 
 
-@pytest.mark.skipif(  # type: ignore
+@pytest.mark.skipif(
     not spawn.find_executable("modulecmd"), reason="modulecmd not installed"
 )
 def test_modules() -> None:

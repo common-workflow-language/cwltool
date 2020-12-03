@@ -8,7 +8,6 @@ import logging
 import os
 import re
 import shutil
-import tempfile
 import threading
 import urllib
 from functools import cmp_to_key, partial
@@ -58,6 +57,7 @@ from .process import (
 from .singularity import SingularityCommandLineJob
 from .stdfsaccess import StdFsAccess
 from .udocker import UDockerCommandLineJob
+from .update import ORDERED_VERSIONS
 from .utils import (
     CWLObjectType,
     CWLOutputType,
@@ -79,7 +79,6 @@ from .utils import (
     visit_class,
     windows_default_container_id,
 )
-from .update import ORDERED_VERSIONS
 
 if TYPE_CHECKING:
     from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
@@ -261,7 +260,7 @@ def revmap_file(
         return f
 
     raise WorkflowException(
-        "Output File object is missing both 'location' " "and 'path' fields: %s" % f
+        "Output File object is missing both 'location' and 'path' fields: %s" % f
     )
 
 
@@ -485,7 +484,8 @@ class CommandLineTool(Process):
             # "listing" is an array of either expressions or Dirent so
             # evaluate each item
             for t in cast(
-                MutableSequence[Union[str, CWLObjectType]], initialWorkdir["listing"],
+                MutableSequence[Union[str, CWLObjectType]],
+                initialWorkdir["listing"],
             ):
                 if isinstance(t, Mapping) and "entry" in t:
                     # Dirent
@@ -672,7 +672,9 @@ class CommandLineTool(Process):
                             del d["dirname"]
 
                     visit_class(
-                        entry["listing"], ("File", "Directory"), remove_dirname,
+                        entry["listing"],
+                        ("File", "Directory"),
+                        remove_dirname,
                     )
 
             visit_class(
@@ -933,15 +935,9 @@ class CommandLineTool(Process):
             )
         dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq is not None and runtimeContext.use_container:
-            out_dir, out_prefix = os.path.split(runtimeContext.tmp_outdir_prefix)
-            j.outdir = runtimeContext.outdir or tempfile.mkdtemp(
-                prefix=out_prefix, dir=out_dir
-            )
-            tmpdir_dir, tmpdir_prefix = os.path.split(runtimeContext.tmpdir_prefix)
-            j.tmpdir = runtimeContext.tmpdir or tempfile.mkdtemp(
-                prefix=tmpdir_prefix, dir=tmpdir_dir
-            )
-            j.stagedir = tempfile.mkdtemp(prefix=tmpdir_prefix, dir=tmpdir_dir)
+            j.outdir = runtimeContext.get_outdir()
+            j.tmpdir = runtimeContext.get_tmpdir()
+            j.stagedir = runtimeContext.create_tmpdir()
         else:
             j.outdir = builder.outdir
             j.tmpdir = builder.tmpdir
@@ -1149,6 +1145,7 @@ class CommandLineTool(Process):
         r = []  # type: List[CWLOutputType]
         empty_and_optional = False
         debug = _logger.isEnabledFor(logging.DEBUG)
+        result: Optional[CWLOutputType] = None
         if "outputBinding" in schema:
             binding = cast(
                 MutableMapping[str, Union[bool, str, List[str]]],
@@ -1217,7 +1214,7 @@ class CommandLineTool(Process):
                     rfile = files.copy()
                     revmap(rfile)
                     if files["class"] == "Directory":
-                        ll = schema.get("loadListing") or builder.loadListing
+                        ll = binding.get("loadListing") or builder.loadListing
                         if ll and ll != "no_listing":
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
