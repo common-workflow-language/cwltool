@@ -8,13 +8,13 @@ from pathlib import PurePath, PurePosixPath
 from socket import getfqdn
 from typing import List, MutableMapping, MutableSequence, Optional, Tuple, Union, cast
 
+from prov.identifier import Identifier
+from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
 from typing_extensions import TYPE_CHECKING
 
-from prov.identifier import Identifier
-from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
-
 from .errors import WorkflowException
+from .job import CommandLineJob, JobBase
 from .loghandler import _logger
 from .process import Process, shortname
 from .provenance_constants import (
@@ -258,8 +258,8 @@ class ProvenanceProfile:
         elif not hasattr(job, "workflow"):
             # commandline tool execution as part of workflow
             name = ""
-            if hasattr(job, "name"):
-                name = getattr(job, "name")
+            if isinstance(job, (CommandLineJob, JobBase, WorkflowJob)):
+                name = job.name
             process_name = urllib.parse.quote(name, safe=":/,#")
             process_run_id = self.start_process(process_name, datetime.datetime.now())
         return process_run_id
@@ -340,7 +340,8 @@ class ProvenanceProfile:
         file_id = value.setdefault("@id", uuid.uuid4().urn)
         # A specialized entity that has just these names
         file_entity = self.document.entity(
-            file_id, [(PROV_TYPE, WFPROV["Artifact"]), (PROV_TYPE, WF4EVER["File"])],
+            file_id,
+            [(PROV_TYPE, WFPROV["Artifact"]), (PROV_TYPE, WF4EVER["File"])],
         )  # type: ProvEntity
 
         if "basename" in value:
@@ -398,7 +399,8 @@ class ProvenanceProfile:
         )
         # ORE description of ro:Folder, saved separately
         coll_b = dir_bundle.entity(
-            dir_id, [(PROV_TYPE, RO["Folder"]), (PROV_TYPE, ORE["Aggregation"])],
+            dir_id,
+            [(PROV_TYPE, RO["Folder"]), (PROV_TYPE, ORE["Aggregation"])],
         )
         self.document.mentionOf(dir_id + "#ore", dir_id, dir_bundle.identifier)
 
@@ -432,7 +434,10 @@ class ProvenanceProfile:
             m_entity.add_asserted_type(PROV["KeyEntityPair"])
 
             m_entity.add_attributes(
-                {PROV["pairKey"]: entry["basename"], PROV["pairEntity"]: entity,}
+                {
+                    PROV["pairKey"]: entry["basename"],
+                    PROV["pairEntity"]: entity,
+                }
             )
 
             # As well as a being a
@@ -513,7 +518,8 @@ class ProvenanceProfile:
             # FIXME: Don't naively assume add_data_file uses hash in filename!
             data_id = "data:%s" % PurePosixPath(data_file).stem
             return self.document.entity(
-                data_id, {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)},
+                data_id,
+                {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)},
             )
 
         if isinstance(value, MutableMapping):
@@ -581,7 +587,10 @@ class ProvenanceProfile:
             # If we reached this, then we were allowed to iterate
             coll = self.document.entity(
                 uuid.uuid4().urn,
-                [(PROV_TYPE, WFPROV["Artifact"]), (PROV_TYPE, PROV["Collection"]),],
+                [
+                    (PROV_TYPE, WFPROV["Artifact"]),
+                    (PROV_TYPE, PROV["Collection"]),
+                ],
             )
             if not members:
                 coll.add_asserted_type(PROV["EmptyCollection"])
@@ -690,7 +699,8 @@ class ProvenanceProfile:
             stepnametemp = "wf:main/" + str(step.name)[5:]
             stepname = urllib.parse.quote(stepnametemp, safe=":/,#")
             provstep = self.document.entity(
-                stepname, {PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]},
+                stepname,
+                {PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]},
             )
             self.document.entity(
                 "wf:main",
@@ -718,7 +728,7 @@ class ProvenanceProfile:
         """Transfer the provenance related files to the RO."""
         # NOTE: Relative posix path
         if name is None:
-            # master workflow, fixed filenames
+            # main workflow, fixed filenames
             filename = "primary.cwlprov"
         else:
             # ASCII-friendly filename, avoiding % as we don't want %2520 in manifest.json

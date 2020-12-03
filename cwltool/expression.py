@@ -1,6 +1,7 @@
 """Parse CWL expressions."""
 
 import copy
+import json
 import re
 from typing import (
     Any,
@@ -90,6 +91,7 @@ def scanner(scan: str) -> Optional[Tuple[int, int]]:
                 stack.append(BRACE)
             else:
                 stack.pop()
+                i -= 1
         elif state == PAREN:
             if c == "(":
                 stack.append(PAREN)
@@ -124,14 +126,13 @@ def scanner(scan: str) -> Optional[Tuple[int, int]]:
                 stack.append(BACKSLASH)
         i += 1
 
-    if len(stack) > 1:
+    if len(stack) > 1 and not (len(stack) == 2 and stack[1] in (BACKSLASH, DOLLAR)):
         raise SubstitutionError(
-            "Substitution error, unfinished block starting at position {}: {}".format(
-                start, scan[start:]
+            "Substitution error, unfinished block starting at position {}: '{}' stack was {}".format(
+                start, scan[start:], stack
             )
         )
-    else:
-        return None
+    return None
 
 
 def next_seg(
@@ -269,6 +270,10 @@ def evaluator(
             )
 
 
+def _convert_dumper(string: str) -> str:
+    return "{} + ".format(json.dumps(string))
+
+
 def interpolate(
     scan: str,
     rootvars: CWLObjectType,
@@ -279,38 +284,84 @@ def interpolate(
     debug: bool = False,
     js_console: bool = False,
     strip_whitespace: bool = True,
+    escaping_behavior: int = 2,
+    convert_to_expression: bool = False,
 ) -> Optional[CWLOutputType]:
+    """
+    Interpolate and evaluate.
+
+    Note: only call with convert_to_expression=True on CWL Expressions in $()
+    form that need interpolation.
+    """
     if strip_whitespace:
         scan = scan.strip()
     parts = []
+    if convert_to_expression:
+        dump = _convert_dumper
+        parts.append("${return ")
+    else:
+        dump = lambda x: x
     w = scanner(scan)
     while w:
-        parts.append(scan[0 : w[0]])
+        if convert_to_expression:
+            parts.append('"{}" + '.format(scan[0 : w[0]]))
+        else:
+            parts.append(scan[0 : w[0]])
 
         if scan[w[0]] == "$":
-            e = evaluator(
-                scan[w[0] + 1 : w[1]],
-                jslib,
-                rootvars,
-                timeout,
-                fullJS=fullJS,
-                force_docker_pull=force_docker_pull,
-                debug=debug,
-                js_console=js_console,
-            )
-            if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
-                return e
-            leaf = json_dumps(e, sort_keys=True)
-            if leaf[0] == '"':
-                leaf = leaf[1:-1]
-            parts.append(leaf)
-        elif scan[w[0]] == "\\":
-            e = scan[w[1] - 1]
-            parts.append(e)
+            if not convert_to_expression:
+                e = evaluator(
+                    scan[w[0] + 1 : w[1]],
+                    jslib,
+                    rootvars,
+                    timeout,
+                    fullJS=fullJS,
+                    force_docker_pull=force_docker_pull,
+                    debug=debug,
+                    js_console=js_console,
+                )
+                if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
+                    return e
 
+                leaf = json_dumps(e, sort_keys=True)
+                if leaf[0] == '"':
+                    leaf = json.loads(leaf)
+                parts.append(leaf)
+            else:
+                parts.append(
+                    "function(){var item ="
+                    + scan[w[0] : w[1]][2:-1]
+                    + '; if (typeof(item) === "string"){ return item; } else { return JSON.stringify(item); }}() + '
+                )
+        elif scan[w[0]] == "\\":
+            if escaping_behavior == 1:
+                # Old behavior.  Just skip the next character.
+                e = scan[w[1] - 1]
+                parts.append(dump(e))
+            elif escaping_behavior == 2:
+                # Backslash quoting requires a three character lookahead.
+                e = scan[w[0] : w[1] + 1]
+                if e in ("\\$(", "\\${"):
+                    # Suppress start of a parameter reference, drop the
+                    # backslash.
+                    parts.append(dump(e[1:]))
+                    w = (w[0], w[1] + 1)
+                elif e[1] == "\\":
+                    # Double backslash, becomes a single backslash
+                    parts.append(dump("\\"))
+                else:
+                    # Some other text, add it as-is (including the
+                    # backslash) and resume scanning.
+                    parts.append(dump(e[:2]))
+            else:
+                raise Exception("Unknown escaping behavior %s" % escaping_behavior)
         scan = scan[w[1] :]
         w = scanner(scan)
-    parts.append(scan)
+    if convert_to_expression:
+        parts.append('"{}"'.format(scan))
+        parts.append(";}")
+    else:
+        parts.append(scan)
     return "".join(parts)
 
 
@@ -324,13 +375,14 @@ def do_eval(
     requirements: List[CWLObjectType],
     outdir: Optional[str],
     tmpdir: Optional[str],
-    resources: Dict[str, Union[float, int]],
+    resources: Dict[str, Union[float, int, str]],
     context: Optional[CWLOutputType] = None,
     timeout: float = default_timeout,
     force_docker_pull: bool = False,
     debug: bool = False,
     js_console: bool = False,
     strip_whitespace: bool = True,
+    cwlVersion: str = "",
 ) -> Optional[CWLOutputType]:
 
     runtime = cast(MutableMapping[str, Union[int, str, None]], copy.deepcopy(resources))
@@ -362,6 +414,17 @@ def do_eval(
                 debug=debug,
                 js_console=js_console,
                 strip_whitespace=strip_whitespace,
+                escaping_behavior=1
+                if cwlVersion
+                in (
+                    "v1.0",
+                    "v1.1.0-dev1",
+                    "v1.1",
+                    "v1.2.0-dev1",
+                    "v1.2.0-dev2",
+                    "v1.2.0-dev3",
+                )
+                else 2,
             )
 
         except Exception as e:

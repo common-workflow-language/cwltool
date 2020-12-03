@@ -17,7 +17,6 @@ from threading import Timer
 from typing import (
     IO,
     Callable,
-    Dict,
     Iterable,
     List,
     Match,
@@ -32,27 +31,26 @@ from typing import (
 
 import psutil
 import shellescape
+from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
 
-from prov.model import PROV
-
 from .builder import Builder, HasReqsHints
-from .context import RuntimeContext, getdefault
+from .context import RuntimeContext
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .process import stage_files
 from .secrets import SecretStore
 from .utils import (
-    DEFAULT_TMP_PREFIX,
     CWLObjectType,
     CWLOutputType,
     DirectoryType,
     OutputCallbackType,
     bytes2str_in_dicts,
     copytree_with_merge,
+    create_tmp_dir,
     ensure_non_writable,
     ensure_writable,
     onWindows,
@@ -292,7 +290,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # execution.
         if self.mpi_procs:
             menv = runtimeContext.mpi_config
-            mpi_runtime = [menv.runner, menv.nproc_flag, str(self.mpi_procs)] + menv.extra_flags
+            mpi_runtime = [
+                menv.runner,
+                menv.nproc_flag,
+                str(self.mpi_procs),
+            ] + menv.extra_flags
             runtime = mpi_runtime + runtime
             menv.pass_through_env_vars(env)
             menv.set_env_vars(env)
@@ -377,11 +379,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 stderr_path=stderr_path,
                 env=env,
                 cwd=self.outdir,
-                job_dir=tempfile.mkdtemp(
-                    prefix=getdefault(
-                        runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX
-                    )
-                ),
+                job_dir=runtimeContext.create_outdir(),
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
                 name=self.name,
@@ -411,7 +409,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     )
                 else:
                     raise ValueError(
-                        "'lsiting' in self.generatefiles but no "
+                        "'listing' in self.generatefiles but no "
                         "generatemapper was setup."
                     )
 
@@ -597,14 +595,16 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         self,
         r: CWLObjectType,
         pull_image: bool,
-        force_pull: bool = False,
-        tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,
+        force_pull: bool,
+        tmp_outdir_prefix: str,
     ) -> Optional[str]:
         pass
 
     @abstractmethod
     def create_runtime(
-        self, env: MutableMapping[str, str], runtime_context: RuntimeContext,
+        self,
+        env: MutableMapping[str, str],
+        runtime_context: RuntimeContext,
     ) -> Tuple[List[str], Optional[str]]:
         """Return the list of commands to run the selected container engine."""
 
@@ -651,9 +651,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     ) -> str:
         """Create the file and add a mapping."""
         if not host_outdir_tgt:
-            tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
             new_file = os.path.join(
-                tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
+                create_tmp_dir(tmpdir_prefix),
                 os.path.basename(volume.target),
             )
         writable = True if volume.type == "CreateWritableFile" else False
@@ -765,10 +764,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                         self.get_from_requirements(
                             docker_req,
                             runtimeContext.pull_image,
-                            getdefault(runtimeContext.force_docker_pull, False),
-                            getdefault(
-                                runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX
-                            ),
+                            runtimeContext.force_docker_pull,
+                            runtimeContext.tmp_outdir_prefix,
                         )
                     )
                 if img_id is None:
@@ -863,7 +860,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
-            except (OSError, IOError):
+            except (OSError):
                 cid = None
         max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
@@ -927,11 +924,15 @@ def _job_popen(
         if stdin_path is not None:
             stdin = open(stdin_path, "rb")
 
-        stdout = default_stdout if default_stdout is not None else sys.stderr  # type: Union[IO[bytes], TextIO]
+        stdout = (
+            default_stdout if default_stdout is not None else sys.stderr
+        )  # type: Union[IO[bytes], TextIO]
         if stdout_path is not None:
             stdout = open(stdout_path, "wb")
 
-        stderr = default_stderr if default_stderr is not None else sys.stderr  # type: Union[IO[bytes], TextIO]
+        stderr = (
+            default_stderr if default_stderr is not None else sys.stderr
+        )  # type: Union[IO[bytes], TextIO]
         if stderr_path is not None:
             stderr = open(stderr_path, "wb")
 
@@ -957,8 +958,7 @@ def _job_popen(
             def terminate():  # type: () -> None
                 try:
                     _logger.warning(
-                        "[job %s] exceeded time limit of %d seconds and will"
-                        "be terminated",
+                        "[job %s] exceeded time limit of %d seconds and will be terminated",
                         name,
                         timelimit,
                     )
@@ -976,13 +976,13 @@ def _job_popen(
         if tm is not None:
             tm.cancel()
 
-        if isinstance(stdin, IOBase) and hasattr(stdin, 'close'):
+        if isinstance(stdin, IOBase) and hasattr(stdin, "close"):
             stdin.close()
 
-        if stdout is not sys.stderr and hasattr(stdout, 'close'):
+        if stdout is not sys.stderr and hasattr(stdout, "close"):
             stdout.close()
 
-        if stderr is not sys.stderr and hasattr(stderr, 'close'):
+        if stderr is not sys.stderr and hasattr(stderr, "close"):
             stderr.close()
 
         return rcode

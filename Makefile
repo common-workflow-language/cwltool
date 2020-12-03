@@ -26,7 +26,7 @@ MODULE=cwltool
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
 DEVPKGS=diff_cover black pylint coverage pep257 pydocstyle flake8 mypy\
-	pytest-xdist isort wheel -rtest-requirements.txt
+	pytest-xdist isort wheel autoflake -rtest-requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 VERSION=3.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
@@ -68,6 +68,10 @@ dist: dist/${MODULE}-$(VERSION).tar.gz
 dist/${MODULE}-$(VERSION).tar.gz: $(SOURCES)
 	./setup.py sdist bdist_wheel
 
+## docs	       : make the docs
+docs: FORCE
+	cd docs && $(MAKE) html
+
 ## clean       : clean up all temporary / machine-generated files
 clean: FORCE
 	rm -f ${MODILE}/*.pyc tests/*.pyc
@@ -80,6 +84,9 @@ clean: FORCE
 sort_imports:
 	isort ${MODULE}/*.py tests/*.py setup.py
 
+remove_unused_imports: $(PYSOURCES)
+	autoflake --in-place --remove-all-unused-imports $^
+
 pep257: pydocstyle
 ## pydocstyle      : check Python code style
 pydocstyle: $(PYSOURCES)
@@ -89,7 +96,7 @@ pydocstyle_report.txt: $(PYSOURCES)
 	pydocstyle setup.py $^ > $@ 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt
-	diff-quality --violations=pycodestyle --fail-under=100 $^
+	diff-quality --compare-branch=main --violations=pydocstyle --fail-under=100 $^
 
 ## format      : check/fix all code indentation and formatting (runs black)
 format:
@@ -150,7 +157,7 @@ list-author-emails:
 	@git log --format='%aN,%aE' | sort -u | grep -v 'root'
 
 mypy3: mypy
-mypy: ${PYSOURCES}
+mypy: $(filter-out setup.py gittagger.py,${PYSOURCES})
 	if ! test -f $(shell python3 -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
 	then \
 		rm -Rf typeshed/2and3/ruamel/yaml ; \
@@ -159,10 +166,14 @@ mypy: ${PYSOURCES}
 	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
 	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
 		 --warn-redundant-casts \
-		 cwltool
+		 $^
 
 mypyc: ${PYSOURCES}
 	MYPYPATH=typeshed/2and3/:typeshed/3 CWLTOOL_USE_MYPYC=1 pip install --verbose -e . && pytest --ignore cwltool/schemas --basetemp ./tmp
+
+shellcheck: FORCE
+	shellcheck build-cwl-docker.sh cwl-docker.sh release-test.sh travis.bash \
+		cwltool-in-docker.sh
 
 release-test: FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )

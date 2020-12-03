@@ -5,7 +5,6 @@ import os.path
 import re
 import shutil
 import sys
-import tempfile
 from distutils import spawn
 from subprocess import (  # nosec
     DEVNULL,
@@ -27,6 +26,7 @@ from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .utils import (
     CWLObjectType,
+    create_tmp_dir,
     docker_windows_path_adjust,
     ensure_non_writable,
     ensure_writable,
@@ -47,7 +47,10 @@ def _singularity_supports_userns() -> bool:
                 stdout=DEVNULL,
                 universal_newlines=True,
             ).communicate(timeout=60)[1]
-            _USERNS = "No valid /bin/sh" in result
+            _USERNS = (
+                "No valid /bin/sh" in result
+                or "/bin/sh doesn't exist in container" in result
+            )
         except TimeoutExpired:
             _USERNS = False
     return _USERNS
@@ -95,13 +98,16 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         hints: List[CWLObjectType],
         name: str,
     ) -> None:
+        """Builder for invoking the Singularty software container engine."""
         super(SingularityCommandLineJob, self).__init__(
             builder, joborder, make_path_mapper, requirements, hints, name
         )
 
     @staticmethod
     def get_image(
-        dockerRequirement: Dict[str, str], pull_image: bool, force_pull: bool = False,
+        dockerRequirement: Dict[str, str],
+        pull_image: bool,
+        force_pull: bool = False,
     ) -> bool:
         """
         Acquire the software container image in the specified dockerRequirement.
@@ -154,7 +160,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
             targets.append(os.environ["SINGULARITY_PULLFOLDER"])
         for target in targets:
-            for dirpath, subdirs, files in os.walk(target):
+            for dirpath, _subdirs, files in os.walk(target):
                 for entry in files:
                     if entry in candidates:
                         path = os.path.join(dirpath, entry)
@@ -254,8 +260,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         self,
         r: CWLObjectType,
         pull_image: bool,
-        force_pull: bool = False,
-        tmp_outdir_prefix: Optional[str] = None,
+        force_pull: bool,
+        tmp_outdir_prefix: str,
     ) -> Optional[str]:
         """
         Return the filename of the Singularity image.
@@ -267,7 +273,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         if not self.get_image(cast(Dict[str, str], r), pull_image, force_pull):
             raise WorkflowException(
-                "Container image {} not " "found".format(r["dockerImageId"])
+                "Container image {} not found".format(r["dockerImageId"])
             )
 
         return os.path.abspath(cast(str, r["dockerImageId"]))
@@ -325,9 +331,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             self.append_volume(runtime, volume.resolved, volume.target, writable=True)
             ensure_writable(volume.resolved)
         else:
-            tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
             file_copy = os.path.join(
-                tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
+                create_tmp_dir(tmpdir_prefix),
                 os.path.basename(volume.resolved),
             )
             shutil.copy(volume.resolved, file_copy)
@@ -346,9 +351,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if host_outdir_tgt is not None:
                 new_dir = host_outdir_tgt
             else:
-                tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
                 new_dir = os.path.join(
-                    tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
+                    create_tmp_dir(tmpdir_prefix),
                     os.path.basename(volume.resolved),
                 )
             os.makedirs(new_dir)
@@ -362,9 +366,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 ensure_writable(host_outdir_tgt)
             else:
                 if not self.inplace_update:
-                    tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
                     dir_copy = os.path.join(
-                        tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
+                        create_tmp_dir(tmpdir_prefix),
                         os.path.basename(volume.resolved),
                     )
                     shutil.copytree(volume.resolved, dir_copy)
@@ -385,11 +388,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             "--quiet",
             "exec",
             "--contain",
-            "--pid",
             "--ipc",
         ]
         if _singularity_supports_userns():
             runtime.append("--userns")
+        else:
+            runtime.append("--pid")
         if is_version_3_1_or_newer():
             runtime.append("--home")
             runtime.append(

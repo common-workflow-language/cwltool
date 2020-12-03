@@ -44,10 +44,10 @@ from schema_salad.ref_resolver import Loader
 from typing_extensions import TYPE_CHECKING, Deque
 
 if TYPE_CHECKING:
+    from .command_line_tool import CallbackJob, ExpressionJob
     from .job import CommandLineJob, JobBase
-    from .workflow_job import WorkflowJob
-    from .command_line_tool import ExpressionJob, CallbackJob
     from .stdfsaccess import StdFsAccess
+    from .workflow_job import WorkflowJob
 
 __random_outdir = None  # type: Optional[str]
 
@@ -543,14 +543,6 @@ def normalizeFilesDirs(
             if d.get("nameext") != ne:
                 d["nameext"] = str(ne)
 
-            contents = d.get("contents")
-            if contents and len(contents) > CONTENT_LIMIT:
-                if len(contents) > CONTENT_LIMIT:
-                    raise ValidationException(
-                        "File object contains contents with number of bytes that exceeds CONTENT_LIMIT length (%d)"
-                        % CONTENT_LIMIT
-                    )
-
     visit_class(job, ("File", "Directory"), addLocation)
 
 
@@ -560,3 +552,9 @@ def posix_path(local_path: str) -> str:
 
 def local_path(posix_path: str) -> str:
     return str(Path(posix_path))
+
+
+def create_tmp_dir(tmpdir_prefix: str) -> str:
+    """Create a temporary directory that respects the given tmpdir_prefix."""
+    tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
+    return tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)

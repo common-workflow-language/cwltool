@@ -16,7 +16,10 @@ STEP = "step"
 
 
 def subgraph_visit(
-    current: str, nodes: MutableMapping[str, Node], visited: Set[str], direction: str,
+    current: str,
+    nodes: MutableMapping[str, Node],
+    visited: Set[str],
+    direction: str,
 ) -> None:
 
     if current in visited:

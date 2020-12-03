@@ -6,18 +6,11 @@ import random
 from typing import (
     Callable,
     Dict,
-    Generator,
-    Iterable,
     List,
     Mapping,
     MutableMapping,
     MutableSequence,
-    NamedTuple,
     Optional,
-    Sequence,
-    Sized,
-    Tuple,
-    Union,
     cast,
 )
 from uuid import UUID
@@ -73,15 +66,17 @@ context.default_make_tool = default_make_tool
 
 class Workflow(Process):
     def __init__(
-        self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
+        self,
+        toolpath_object: CommentedMap,
+        loadingContext: LoadingContext,
     ) -> None:
         """Initialize this Workflow."""
         super(Workflow, self).__init__(toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
         if loadingContext.research_obj is not None:
             run_uuid = None  # type: Optional[UUID]
-            is_master = not loadingContext.prov_obj  # Not yet set
-            if is_master:
+            is_main = not loadingContext.prov_obj  # Not yet set
+            if is_main:
                 run_uuid = loadingContext.research_obj.ro_uuid
 
             self.provenance_object = ProvenanceProfile(
@@ -92,8 +87,8 @@ class Workflow(Process):
                 orcid=loadingContext.orcid,
                 run_uuid=run_uuid,
                 fsaccess=loadingContext.research_obj.fsaccess,
-            )  # inherit RO UUID for master wf run
-            # TODO: Is Workflow(..) only called when we are the master workflow?
+            )  # inherit RO UUID for main wf run
+            # TODO: Is Workflow(..) only called when we are the main workflow?
             self.parent_wf = self.provenance_object
 
         # FIXME: Won't this overwrite prov_obj for nested workflows?
@@ -415,7 +410,6 @@ class WorkflowStep(Process):
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         """Initialize sub-workflow as a step in the parent profile."""
-
         if (
             self.embedded_tool.tool["class"] == "Workflow"
             and runtimeContext.research_obj

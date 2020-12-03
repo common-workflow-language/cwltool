@@ -1,13 +1,14 @@
+"""Classes and methods relevant for all CWL Proccess types."""
 import abc
 import copy
 import functools
 import hashlib
 import json
 import logging
+import math
 import os
 import shutil
 import stat
-import tempfile
 import textwrap
 import urllib
 import uuid
@@ -17,11 +18,9 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generator,
     Iterable,
     Iterator,
     List,
-    Mapping,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -29,7 +28,6 @@ from typing import (
     Sized,
     Tuple,
     Type,
-    TypeVar,
     Union,
     cast,
 )
@@ -62,7 +60,6 @@ from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION
 from .utils import (
-    DEFAULT_TMP_PREFIX,
     CWLObjectType,
     CWLOutputAtomType,
     CWLOutputType,
@@ -266,7 +263,6 @@ def stage_files(
     fix_conflicts: bool = False,
 ) -> None:
     """Link or copy files to their targets. Create them as needed."""
-
     targets = {}  # type: Dict[str, MapperEnt]
     for key, entry in pathmapper.items():
         if "File" not in entry.type:
@@ -275,12 +271,13 @@ def stage_files(
             targets[entry.target] = entry
         elif targets[entry.target].resolved != entry.resolved:
             if fix_conflicts:
-                tgt = entry.target
+                # find first key that does not clash with an existing entry in targets
+                # start with entry.target + '_' + 2 and then keep incrementing the number till there is no clash
                 i = 2
-                tgt = "%s_%s" % (tgt, i)
+                tgt = "%s_%s" % (entry.target, i)
                 while tgt in targets:
                     i += 1
-                    tgt = "%s_%s" % (tgt, i)
+                    tgt = "%s_%s" % (entry.target, i)
                 targets[tgt] = pathmapper.update(
                     key, entry.resolved, tgt, entry.type, entry.staged
                 )
@@ -402,12 +399,13 @@ def relocateOutputs(
     def _realpath(
         ob: CWLObjectType,
     ) -> None:  # should be type Union[CWLFile, CWLDirectory]
-        if cast(str, ob["location"]).startswith("file:"):
-            ob["location"] = file_uri(
-                os.path.realpath(uri_file_path(cast(str, ob["location"])))
-            )
-        if cast(str, ob["location"]).startswith("/"):
-            ob["location"] = os.path.realpath(cast(str, ob["location"]))
+        location = cast(str, ob["location"])
+        if location.startswith("file:"):
+            ob["location"] = file_uri(os.path.realpath(uri_file_path(location)))
+        elif location.startswith("/"):
+            ob["location"] = os.path.realpath(location)
+        elif not location.startswith("_:") and ":" in location:
+            ob["location"] = file_uri(fs_access.realpath(location))
 
     outfiles = list(_collectDirEntries(outputObj))
     visit_class(outfiles, ("File", "Directory"), _realpath)
@@ -449,7 +447,9 @@ def add_sizes(fsaccess: StdFsAccess, obj: CWLObjectType) -> None:
 
 
 def fill_in_defaults(
-    inputs: List[CWLObjectType], job: CWLObjectType, fsaccess: StdFsAccess,
+    inputs: List[CWLObjectType],
+    job: CWLObjectType,
+    fsaccess: StdFsAccess,
 ) -> None:
     for e, inp in enumerate(inputs):
         with SourceLine(
@@ -521,7 +521,9 @@ _VAR_SPOOL_ERROR = textwrap.dedent(
 
 
 def var_spool_cwl_detector(
-    obj: CWLOutputType, item: Optional[Any] = None, obj_key: Optional[Any] = None,
+    obj: CWLOutputType,
+    item: Optional[Any] = None,
+    obj_key: Optional[Any] = None,
 ) -> bool:
     """Detect any textual reference to /var/spool/cwl."""
     r = False
@@ -676,12 +678,14 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
 
         with SourceLine(toolpath_object, "inputs", ValidationException):
             self.inputs_record_schema = cast(
-                CWLObjectType, make_valid_avro(self.inputs_record_schema, {}, set()),
+                CWLObjectType,
+                make_valid_avro(self.inputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.inputs_record_schema), self.names)
         with SourceLine(toolpath_object, "outputs", ValidationException):
             self.outputs_record_schema = cast(
-                CWLObjectType, make_valid_avro(self.outputs_record_schema, {}, set()),
+                CWLObjectType,
+                make_valid_avro(self.outputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.outputs_record_schema), self.names)
 
@@ -848,22 +852,15 @@ hints:
             tmpdir = runtime_context.docker_tmpdir or "/tmp"  # nosec
             stagedir = runtime_context.docker_stagedir or "/var/lib/cwl"
         else:
-            outdir = fs_access.realpath(
-                runtime_context.outdir
-                or tempfile.mkdtemp(
-                    prefix=getdefault(
-                        runtime_context.tmp_outdir_prefix, DEFAULT_TMP_PREFIX
-                    )
-                )
-            )
+            outdir = fs_access.realpath(runtime_context.get_outdir())
             if self.tool["class"] != "Workflow":
-                tmpdir = fs_access.realpath(
-                    runtime_context.tmpdir or tempfile.mkdtemp()
-                )
-                stagedir = fs_access.realpath(
-                    runtime_context.stagedir or tempfile.mkdtemp()
-                )
+                tmpdir = fs_access.realpath(runtime_context.get_tmpdir())
+                stagedir = fs_access.realpath(runtime_context.get_stagedir())
 
+        cwl_version = cast(
+            str,
+            self.metadata.get("http://commonwl.org/cwltool#original_cwlVersion", None),
+        )
         builder = Builder(
             job,
             files,
@@ -886,6 +883,7 @@ hints:
             outdir,
             tmpdir,
             stagedir,
+            cwl_version,
         )
 
         bindings.extend(
@@ -949,7 +947,7 @@ hints:
 
     def evalResources(
         self, builder: Builder, runtimeContext: RuntimeContext
-    ) -> Dict[str, Union[int, float]]:
+    ) -> Dict[str, Union[int, float, str]]:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -960,7 +958,7 @@ hints:
             ram = 1024
         else:
             ram = 256
-        request = {
+        request: Dict[str, Union[int, float, str]] = {
             "coresMin": 1,
             "coresMax": 1,
             "ramMin": ram,
@@ -969,7 +967,7 @@ hints:
             "tmpdirMax": 1024,
             "outdirMin": 1024,
             "outdirMax": 1024,
-        }  # type: Dict[str, Union[int, float]]
+        }
         for a in ("cores", "ram", "tmpdir", "outdir"):
             mn = mx = None  # type: Optional[Union[int, float]]
             if resourceReq.get(a + "Min"):
@@ -999,9 +997,15 @@ hints:
             return runtimeContext.select_resources(request, runtimeContext)
         return {
             "cores": request["coresMin"],
-            "ram": request["ramMin"],
-            "tmpdirSize": request["tmpdirMin"],
-            "outdirSize": request["outdirMin"],
+            "ram": math.ceil(request["ramMin"])
+            if not isinstance(request["ramMin"], str)
+            else request["ramMin"],
+            "tmpdirSize": math.ceil(request["tmpdirMin"])
+            if not isinstance(request["tmpdirMin"], str)
+            else request["tmpdirMin"],
+            "outdirSize": math.ceil(request["outdirMin"])
+            if not isinstance(request["outdirMin"], str)
+            else request["outdirMin"],
         }
 
     def validate_hints(
@@ -1230,7 +1234,13 @@ def scandeps(
                     if nestdirs:
                         deps = nestdir(base, deps)
                     r.append(deps)
-            elif k not in ("listing", "secondaryFiles"):
+            elif doc.get("class") in ("File", "Directory") and k in (
+                "listing",
+                "secondaryFiles",
+            ):
+                # should be handled earlier.
+                pass
+            else:
                 r.extend(
                     scandeps(
                         base,

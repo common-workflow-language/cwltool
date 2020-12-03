@@ -11,7 +11,7 @@ from typing import Any, Generator, cast
 import arcp
 import bagit
 import py.path
-import pytest  # type: ignore
+import pytest
 from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DC, DCTERMS, RDF
 from rdflib.term import Literal
@@ -35,7 +35,7 @@ CWLPROV = Namespace("https://w3id.org/cwl/prov#")
 OA = Namespace("http://www.w3.org/ns/oa#")
 
 
-@pytest.fixture  # type: ignore
+@pytest.fixture
 def folder(tmpdir: py.path.local) -> Generator[str, None, None]:
     directory = str(tmpdir)
     yield directory
@@ -54,7 +54,7 @@ def cwltool(folder: str, *args: Any) -> None:
             assert status == 0, "Failed: cwltool.main(%r)" % (args)
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_hello_workflow(folder: str) -> None:
     cwltool(
         folder,
@@ -65,7 +65,7 @@ def test_hello_workflow(folder: str) -> None:
     check_provenance(folder)
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_hello_single_tool(folder: str) -> None:
     cwltool(
         folder, get_data("tests/wf/hello_single_tool.cwl"), "--message", "Hello tool"
@@ -73,7 +73,7 @@ def test_hello_single_tool(folder: str) -> None:
     check_provenance(folder, single_tool=True)
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_revsort_workflow(folder: str) -> None:
     cwltool(
         folder, get_data("tests/wf/revsort.cwl"), get_data("tests/wf/revsort-job.json")
@@ -82,13 +82,13 @@ def test_revsort_workflow(folder: str) -> None:
     check_provenance(folder)
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_nested_workflow(folder: str) -> None:
     cwltool(folder, get_data("tests/wf/nested.cwl"))
     check_provenance(folder, nested=True)
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_secondary_files_implicit(folder: str, tmpdir: py.path.local) -> None:
     file1 = tmpdir.join("foo1.txt")
     file1idx = tmpdir.join("foo1.txt.idx")
@@ -104,7 +104,7 @@ def test_secondary_files_implicit(folder: str, tmpdir: py.path.local) -> None:
     check_secondary_files(folder)
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_secondary_files_explicit(folder: str, tmpdir: py.path.local) -> None:
     orig_tempdir = tempfile.tempdir
     tempfile.tempdir = str(tmpdir)
@@ -124,7 +124,11 @@ def test_secondary_files_explicit(folder: str, tmpdir: py.path.local) -> None:
             "path": file1,
             "basename": "foo1.txt",
             "secondaryFiles": [
-                {"class": "File", "path": file1idx, "basename": "foo1.txt.idx",}
+                {
+                    "class": "File",
+                    "path": file1idx,
+                    "basename": "foo1.txt.idx",
+                }
             ],
         }
     }
@@ -139,7 +143,7 @@ def test_secondary_files_explicit(folder: str, tmpdir: py.path.local) -> None:
     tempfile.tempdir = orig_tempdir
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_secondary_files_output(folder: str) -> None:
     # secondary will be picked up by .idx
     cwltool(folder, get_data("tests/wf/sec-wf-out.cwl"))
@@ -148,7 +152,7 @@ def test_secondary_files_output(folder: str) -> None:
     # self.check_secondary_files()
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_directory_workflow(folder: str, tmpdir: py.path.local) -> None:
     dir2 = tmpdir.join("dir2")
     os.makedirs(str(dir2))
@@ -451,10 +455,10 @@ def check_prov(
         g.serialize(sys.stdout, format="ttl")
     runs = set(g.subjects(RDF.type, WFPROV.WorkflowRun))
 
-    # master workflow run URI (as urn:uuid:) should correspond to arcp uuid part
+    # main workflow run URI (as urn:uuid:) should correspond to arcp uuid part
     uuid = arcp.parse_arcp(arcp_root).uuid
-    master_run = URIRef(uuid.urn)
-    assert master_run in runs, "Can't find run %s in %s" % (master_run, runs)
+    main_run = URIRef(uuid.urn)
+    assert main_run in runs, "Can't find run %s in %s" % (main_run, runs)
     # TODO: we should not need to parse arcp, but follow
     # the has_provenance annotations in manifest.json instead
 
@@ -466,7 +470,7 @@ def check_prov(
     engine = engines.pop()
 
     assert (
-        master_run,
+        main_run,
         PROV.wasAssociatedWith,
         engine,
     ) in g, "Wf run not associated with wf engine"
@@ -483,15 +487,15 @@ def check_prov(
         # than the tool run
         # (NOTE: the WorkflowEngine is also activity, but not declared explicitly)
     else:
-        # Check all process runs were started by the master worklow
+        # Check all process runs were started by the main worklow
         stepActivities = set(g.subjects(RDF.type, WFPROV.ProcessRun))
         # Although semantically a WorkflowEngine is also a ProcessRun,
         # we don't declare that,
         # thus only the step activities should be in this set.
-        assert master_run not in stepActivities
+        assert main_run not in stepActivities
         assert stepActivities, "No steps executed in workflow"
         for step in stepActivities:
-            # Let's check it was started by the master_run. Unfortunately, unlike PROV-N
+            # Let's check it was started by the main_run. Unfortunately, unlike PROV-N
             # in PROV-O RDF we have to check through the n-ary qualifiedStart relation
             starts = set(g.objects(step, PROV.qualifiedStart))
             assert starts, "Could not find qualifiedStart of step %s" % step
@@ -500,8 +504,8 @@ def check_prov(
             assert (
                 start,
                 PROV.hadActivity,
-                master_run,
-            ) in g, "Step activity not started by master activity"
+                main_run,
+            ) in g, "Step activity not started by main activity"
             # Tip: Any nested workflow step executions should not be in this prov file,
             # but in separate file
     if nested:
@@ -579,7 +583,7 @@ def check_prov(
             assert str(prim_basename) == "%s%s" % (prim_nameroot, prim_nameext)
 
 
-@pytest.fixture  # type: ignore
+@pytest.fixture
 def research_object() -> Generator[ResearchObject, None, None]:
     re_ob = ResearchObject(StdFsAccess(""))
     yield re_ob
@@ -638,7 +642,7 @@ def test_writable_unicode_string(research_object: ResearchObject) -> None:
 def test_writable_bytes(research_object: ResearchObject) -> None:
     string = "Here is a snowman: \u2603 \n".encode("UTF-8")
     with research_object.write_bag_file("file.txt", encoding=None) as fh:
-        fh.write(string)
+        fh.write(string)  # type: ignore
 
 
 def test_data(research_object: ResearchObject) -> None:
@@ -698,7 +702,7 @@ mod_validness = [
 ]
 
 
-@pytest.mark.parametrize("mod11,valid", mod_validness)  # type: ignore
+@pytest.mark.parametrize("mod11,valid", mod_validness)
 def test_check_mod_11_2(mod11: str, valid: bool) -> None:
     assert provenance._check_mod_11_2(mod11) == valid
 
@@ -717,7 +721,7 @@ orcid_uris = [
 ]
 
 
-@pytest.mark.parametrize("orcid,expected", orcid_uris)  # type: ignore
+@pytest.mark.parametrize("orcid,expected", orcid_uris)
 def test_valid_orcid(orcid: str, expected: str) -> None:
     assert provenance._valid_orcid(orcid) == expected
 
@@ -743,7 +747,7 @@ invalid_orcids = [
 ]
 
 
-@pytest.mark.parametrize("orcid", invalid_orcids)  # type: ignore
+@pytest.mark.parametrize("orcid", invalid_orcids)
 def test_invalid_orcid(orcid: str) -> None:
     with pytest.raises(ValueError):
         provenance._valid_orcid(orcid)

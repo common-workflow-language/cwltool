@@ -1,41 +1,40 @@
 #!/bin/bash
 venv() {
         if ! test -d "$1" ; then
-                virtualenv -p python"${PYTHON_VERSION}" "$1"
+                virtualenv -p python3 "$1"
         fi
 	# shellcheck source=/dev/null
         source "$1"/bin/activate
 }
-
+version=${version:-v1.0}
 if [[ "$version" = "v1.0" ]] ; then
-   wget https://github.com/common-workflow-language/common-workflow-language/archive/master.tar.gz
-   tar xzf master.tar.gz && rm master.tar.gz
+   wget https://github.com/common-workflow-language/common-workflow-language/archive/main.tar.gz
+   tar xzf main.tar.gz && rm main.tar.gz
 else
-    repo=$(echo $version | sed 's/\(v[0-9]*\.\)\([0-9]*\).*/\1\2/')
-    wget https://github.com/common-workflow-language/cwl-${repo}/archive/master.tar.gz
-    tar xzf master.tar.gz && rm master.tar.gz
+    # shellcheck disable=SC2001
+    repo=$(echo "$version" | sed 's/\(v[0-9]*\.\)\([0-9]*\).*/\1\2/')  
+    wget https://github.com/common-workflow-language/cwl-"${repo}"/archive/main.tar.gz
+    tar xzf main.tar.gz && rm main.tar.gz
 fi
 
 docker pull node:slim
 
-for PYTHON_VERSION in 3
-do
+# shellcheck disable=SC2043
 for CONTAINER in docker
 # for CONTAINER in docker singularity
 # singularity having issues on ci.commonwl.org; tests pass with https://gist.github.com/mr-c/0ec90d717617d074017c0cb38b72d1a4
 do
-	venv cwltool-venv${PYTHON_VERSION}
-	# use pip2.7 and pip3 in separate loop runs
-	pip${PYTHON_VERSION} install -U setuptools wheel pip
-	pip${PYTHON_VERSION} uninstall -y cwltool
-	pip${PYTHON_VERSION} install -e .
-	pip${PYTHON_VERSION} install "cwltest>=1.0.20180518074130" codecov
+	venv cwltool-venv3
+	pip3 install -U setuptools wheel pip
+	pip3 uninstall -y cwltool
+	pip3 install -e .
+	pip3 install "cwltest>=1.0.20180518074130" codecov
 	if [[ "$version" = "v1.0" ]]
 	then
 		DRAFT="DRAFT=v1.0"
-		pushd common-workflow-language-master || exit 1
+		pushd common-workflow-language-main || exit 1
 	else
-		pushd cwl-${repo}-master || exit 1
+		pushd cwl-"${repo}"-main || exit 1
 	fi
 	rm -f .coverage* coverage.xml
 	source=$(realpath ../cwltool)
@@ -55,7 +54,7 @@ ignore_errors = True
 omit =
     tests/*
 EOF
-	CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov${PYTHON_VERSION}
+	CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov3
 	cat > "${CWLTOOL_WITH_COV}" <<EOF
 #!/bin/bash
 coverage run --parallel-mode --rcfile=${COVERAGE_RC} \
@@ -76,9 +75,10 @@ EOF
 	then
 		EXTRA="EXTRA=${EXTRA}"
 	fi
-	if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]] && [ $PYTHON_VERSION -eq 3 ]
+	if [ "$GIT_BRANCH" = "origin/main" ] && [[ "$version" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]]
 	then
 		rm -Rf conformance
+                # shellcheck disable=SC2154
 		git clone http://"${jenkins_cwl_conformance}"@github.com/common-workflow-language/conformance.git
 
 		git -C conformance config user.email "cwl-bot@users.noreply.github.com"
@@ -86,7 +86,7 @@ EOF
 		CONFORMANCE_MSG=$(cat << EOM
 Conformance test of cwltool ${tool_ver} for CWL ${version}
 Commit: ${GIT_COMMIT}
-Python version: ${PYTHON_VERSION}
+Python version: 3
 Container: ${CONTAINER}
 EOM
 )
@@ -98,31 +98,30 @@ EOM
 		BADGE=" --badgedir=${badgedir}"
 	fi
 	# shellcheck disable=SC2086
-	LC_ALL=C.UTF-8 ./run_test.sh --junit-xml=result${PYTHON_VERSION}.xml \
+	LC_ALL=C.UTF-8 ./run_test.sh --junit-xml=result3.xml \
 		RUNNER=${CWLTOOL_WITH_COV} "-j$(nproc)" ${BADGE} \
 		${DRAFT} "${EXTRA}" \
-		"--classname=py${PYTHON_VERSION}_${CONTAINER}"
+		"--classname=py3_${CONTAINER}"
 	# LC_ALL=C is to work around junit-xml ASCII only bug
 	CODE=$((CODE+$?)) # capture return code of ./run_test.sh
-	coverage combine "--rcfile=${COVERAGE_RC}" $(find . -name '.coverage.*')
+	coverage combine "--rcfile=${COVERAGE_RC}" "$(find . -name '.coverage.*')"
 	coverage xml "--rcfile=${COVERAGE_RC}"
 	codecov --file coverage.xml
 
 	if [ -d conformance ]
 	then
-		rm -rf conformance/cwltool/cwl_${version}/cwltool_latest
-		cp -r conformance/cwltool/cwl_${version}/cwltool_${tool_ver} conformance/cwltool/cwl_${version}/cwltool_latest
+		rm -rf conformance/cwltool/cwl_"${version}"/cwltool_latest
+		cp -r conformance/cwltool/cwl_"${version}"/cwltool_"${tool_ver}" conformance/cwltool/cwl_"${version}"/cwltool_latest
 		git -C conformance add --all
 		git -C conformance diff-index --quiet HEAD || git -C conformance commit -m "${CONFORMANCE_MSG}"
-		git -C conformance push http://${jenkins_cwl_conformance}:x-oauth-basic@github.com/common-workflow-language/conformance.git
+		git -C conformance push http://"${jenkins_cwl_conformance}":x-oauth-basic@github.com/common-workflow-language/conformance.git
 	fi
 
 	deactivate
-	popd
-done
+	popd || exit
 done
 # build new docker container
-if [ "$GIT_BRANCH" = "origin/master" ] && [[ "$version" = "v1.0" ]]
+if [ "$GIT_BRANCH" = "origin/main" ] && [[ "$version" = "v1.0" ]]
 then
   ./build-cwl-docker.sh || true
 fi
