@@ -436,7 +436,7 @@ class Builder(HasReqsHints):
                                         )
                                         == sfname
                                     ):
-                                        # the secondary file has already been processed; use established location
+                                        # the secondary file has already been processed;  use established location
                                         sf_location = existing_processed_secondaryfile[
                                             "location"
                                         ]
