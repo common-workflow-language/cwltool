@@ -317,11 +317,11 @@ This file may be specified as either XML or YAML and very simply describes vario
 plugins to enable to "resolve" ``SoftwareRequirement`` dependencies.
 
 Using these hints will allow cwltool to modify the environment in
-which your tool runs, for example by loading one or more environment
-modules. The enviroment is constructed as normal (i.e. standard CWL
+which your tool runs, for example by loading one or more Environment
+Modules. The environment is constructed as normal (i.e. standard CWL
 runtime enviroment, ``EnvVarRequirement``, ``--preserve-environment``
-are applied), then this is modified. This currently means that you
-cannot override variables set in this way.
+are applied), then the environment may modified by the selected tool resolver.  This currently means that you
+cannot override any environment variables set by the selected tool resolver.
 
 To discuss some of these plugins and how to configure them, first consider the
 following ``hint`` definition for an example CWL tool.
