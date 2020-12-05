@@ -426,7 +426,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         self.append_volume_raw(
             runtime,
             docker_windows_path_adjust(os.path.realpath(self.tmpdir)),
-            "/tmp",
+            "/tmp",  # nosec
             True,
         )
 
@@ -456,7 +456,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         elif runtime_context.disable_net:
             runtime.append("--net")
 
-        env["SINGULARITYENV_TMPDIR"] = "/tmp"
+        env["SINGULARITYENV_TMPDIR"] = "/tmp"  # nosec
         env["SINGULARITYENV_HOME"] = self.builder.outdir
 
         for name, value in self.environment.items():
