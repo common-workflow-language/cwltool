@@ -608,10 +608,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     ) -> Tuple[List[str], Optional[str]]:
         """Return the list of commands to run the selected container engine."""
 
-    @staticmethod
     @abstractmethod
     def append_volume(
-        runtime: List[str], source: str, target: str, writable: bool = False
+        self, runtime: List[str], source: str, target: str, writable: bool = False
     ) -> None:
         """Add binding arguments to the runtime list."""
 

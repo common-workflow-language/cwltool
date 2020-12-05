@@ -246,9 +246,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             return cast(Optional[str], r["dockerImageId"])
         raise WorkflowException("Docker image %s not found" % r["dockerImageId"])
 
-    @staticmethod
     def append_volume(
-        runtime: List[str], source: str, target: str, writable: bool = False
+        self, runtime: List[str], source: str, target: str, writable: bool = False
     ) -> None:
         """Add binding arguments to the runtime list."""
         options = [

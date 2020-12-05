@@ -19,7 +19,7 @@ from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
 from cwltool.utils import create_tmp_dir
 
-from .util import get_data, needs_docker
+from .util import get_data, needs_docker, get_empty_builder
 
 
 def test_docker_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
@@ -135,30 +135,7 @@ def test_docker_tmpdir_prefix(tmp_path: Path) -> None:
     runtime_context = RuntimeContext(
         {"tmpdir_prefix": tmpdir_prefix, "user_space_docker_cmd": None}
     )
-    builder = Builder(
-        {},
-        [],
-        [],
-        {},
-        schema.Names(),
-        [],
-        [],
-        {},
-        None,
-        None,
-        StdFsAccess,
-        StdFsAccess(""),
-        None,
-        0.1,
-        False,
-        False,
-        False,
-        "",
-        runtime_context.get_outdir(),
-        runtime_context.get_tmpdir(),
-        runtime_context.get_stagedir(),
-        INTERNAL_VERSION,
-    )
+    builder = get_empty_builder(runtime_context)
     job = DockerCommandLineJob(builder, {}, PathMapper, [], [], "")
     runtime: List[str] = []
 

@@ -102,6 +102,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         super(SingularityCommandLineJob, self).__init__(
             builder, joborder, make_path_mapper, requirements, hints, name
         )
+        self.bind_env: List[str] = []
 
     @staticmethod
     def get_image(
@@ -278,18 +279,30 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         return os.path.abspath(cast(str, r["dockerImageId"]))
 
-    @staticmethod
     def append_volume(
-        runtime: List[str], source: str, target: str, writable: bool = False
+        self, runtime: List[str], source: str, target: str, writable: bool = False
     ) -> None:
-        runtime.append("--bind")
-        runtime.append(
-            "{}:{}:{}".format(
-                docker_windows_path_adjust(source),
-                docker_windows_path_adjust(target),
-                "rw" if writable else "ro",
-            )
+        self.append_volume_raw(
+            runtime,
+            docker_windows_path_adjust(source),
+            docker_windows_path_adjust(target),
+            writable,
         )
+
+    def append_volume_raw(
+        self, runtime: List[str], source: str, target: str, writable: bool = False
+    ) -> None:
+        """Append without adjusting paths."""
+        bind = "{}:{}:{}".format(
+            source,
+            target,
+            "rw" if writable else "ro",
+        )
+        if is_version_3_or_newer():
+            self.bind_env.append(bind)
+        else:
+            runtime.append("--bind")
+            runtime.append(bind)
 
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
@@ -403,19 +416,18 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 )
             )
         else:
-            runtime.append("--bind")
-            runtime.append(
-                "{}:{}:rw".format(
-                    docker_windows_path_adjust(os.path.realpath(self.outdir)),
-                    self.builder.outdir,
-                )
+            self.append_volume_raw(
+                runtime,
+                docker_windows_path_adjust(os.path.realpath(self.outdir)),
+                self.builder.outdir,
+                True,
             )
-        runtime.append("--bind")
-        tmpdir = "/tmp"  # nosec
-        runtime.append(
-            "{}:{}:rw".format(
-                docker_windows_path_adjust(os.path.realpath(self.tmpdir)), tmpdir
-            )
+
+        self.append_volume_raw(
+            runtime,
+            docker_windows_path_adjust(os.path.realpath(self.tmpdir)),
+            "/tmp",
+            True,
         )
 
         self.add_volumes(
@@ -444,9 +456,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         elif runtime_context.disable_net:
             runtime.append("--net")
 
-        env["SINGULARITYENV_TMPDIR"] = tmpdir
+        env["SINGULARITYENV_TMPDIR"] = "/tmp"
         env["SINGULARITYENV_HOME"] = self.builder.outdir
 
         for name, value in self.environment.items():
             env["SINGULARITYENV_{}".format(name)] = str(value)
+        if is_version_3_or_newer():
+            env["SINGULARITY_BIND"] = ":".join(self.bind_env)
         return (runtime, None)

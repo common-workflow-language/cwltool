@@ -8,9 +8,8 @@ from .docker import DockerCommandLineJob
 class UDockerCommandLineJob(DockerCommandLineJob):
     """Runs a CommandLineJob in a sofware container using the udocker engine."""
 
-    @staticmethod
     def append_volume(
-        runtime: List[str], source: str, target: str, writable: bool = False
+        self, runtime: List[str], source: str, target: str, writable: bool = False
     ) -> None:
         """Add binding arguments to the runtime list."""
         runtime.append(

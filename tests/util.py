@@ -12,6 +12,10 @@ from typing import Generator, List, Mapping, Optional, Tuple, Union
 import pytest
 from pkg_resources import Requirement, ResolutionError, resource_filename
 
+from schema_salad.avro import schema
+from cwltool.builder import Builder
+from cwltool.stdfsaccess import StdFsAccess
+from cwltool.update import INTERNAL_VERSION
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.executors import JobExecutor
 from cwltool.factory import Factory
@@ -121,3 +125,31 @@ def working_directory(path: Union[str, Path]) -> Generator[None, None, None]:
         yield
     finally:
         os.chdir(str(prev_cwd))
+
+
+def get_empty_builder(runtime_context: RuntimeContext) -> Builder:
+    """Produce an empty Builder for testing purposes."""
+    return Builder(
+        {},
+        [],
+        [],
+        {},
+        schema.Names(),
+        [],
+        [],
+        {},
+        None,
+        None,
+        StdFsAccess,
+        StdFsAccess(""),
+        None,
+        0.1,
+        False,
+        False,
+        False,
+        "",
+        runtime_context.get_outdir(),
+        runtime_context.get_tmpdir(),
+        runtime_context.get_stagedir(),
+        INTERNAL_VERSION,
+    )
