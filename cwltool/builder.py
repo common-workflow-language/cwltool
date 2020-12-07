@@ -7,6 +7,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterable,
     List,
     MutableMapping,
     MutableSequence,
@@ -425,21 +426,35 @@ class Builder(HasReqsHints):
                             if isinstance(sfname, str):
                                 d_location = cast(str, datum["location"])
                                 sf_location = None
-                                for existing_processed_secondaryfile in datum.get(
-                                    "secondaryFiles", []
-                                ):
-                                    if (
-                                        os.path.basename(
-                                            existing_processed_secondaryfile.get(
-                                                "location", ""
-                                            )
-                                        )
-                                        == sfname
-                                    ):
-                                        # the secondary file has already been processed;  use established location
-                                        sf_location = existing_processed_secondaryfile[
-                                            "location"
-                                        ]
+                                if isinstance(datum, MutableMapping) and datum.get("secondaryFiles"):
+                                    if isinstance(datum["secondaryFiles"], Iterable):
+                                        for existing_processed_secondaryfile in datum[
+                                            "secondaryFiles"
+                                        ]:
+                                            if isinstance(
+                                                existing_processed_secondaryfile,
+                                                MutableMapping,
+                                            ):
+                                                existing_processed_location = existing_processed_secondaryfile.get(
+                                                    "location"
+                                                )
+                                                if (
+                                                    existing_processed_location
+                                                    and isinstance(
+                                                        existing_processed_location, str
+                                                    )
+                                                ):
+                                                    if (
+                                                        os.path.basename(
+                                                            existing_processed_location
+                                                        )
+                                                        == sfname
+                                                    ):
+                                                        # the secondary file has already been processed;
+                                                        # use established location
+                                                        sf_location = existing_processed_secondaryfile[
+                                                            "location"
+                                                        ]
                                 if not sf_location:
                                     if "/" in d_location:
                                         sf_location = (
@@ -490,7 +505,7 @@ class Builder(HasReqsHints):
                                         sfname,
                                     )
                                 elif discover_secondaryFiles and self.fs_access.exists(
-                                    sf_location
+                                    cast(str, sf_location)
                                 ):
                                     addsf(
                                         cast(
