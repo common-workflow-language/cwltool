@@ -465,7 +465,7 @@ class Builder(HasReqsHints):
                                             + sfname
                                         )
                                     else:
-                                        sf_location = d_location + sfname
+                                        sf_location = f'{d_location}{sfname}'
                                 sfbasename = sfname
                             elif isinstance(sfname, MutableMapping):
                                 sf_location = sfname["location"]
