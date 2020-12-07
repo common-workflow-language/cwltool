@@ -426,7 +426,10 @@ class Builder(HasReqsHints):
                             if isinstance(sfname, str):
                                 d_location = cast(str, datum["location"])
                                 sf_location = None
-                                if isinstance(datum, MutableMapping) and "secondaryFiles" in datum:
+                                if (
+                                    isinstance(datum, MutableMapping)
+                                    and "secondaryFiles" in datum
+                                ):
                                     if isinstance(datum["secondaryFiles"], Iterable):
                                         for existing_processed_secondaryfile in datum[
                                             "secondaryFiles"
