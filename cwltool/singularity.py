@@ -103,8 +103,6 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         super(SingularityCommandLineJob, self).__init__(
             builder, joborder, make_path_mapper, requirements, hints, name
         )
-        self.tempdir_associations = dict()
-        self.hardlink_tree_associations = dict()
         self.staged_volumes_for_mounting = list()
 
     @staticmethod
@@ -389,9 +387,16 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         staged_files = {src: {'dst': dst, 'writable': writable} for src, dst, writable in self.staged_volumes_for_mounting}
         minimal_bindmounts = self.minimal_bindmounts(staged_files, tmpdir_prefix)
 
+        final_volumes = dict()
         for src, dst, writable in self.staged_volumes_for_mounting:
             src, dst = self.use_minimal_bindmount(src, dst, minimal_bindmounts)
-            self._append_volume(runtime, src, dst, writable)
+            if (src, dst) not in final_volumes:
+                final_volumes[(src, dst)] = writable
+            elif writable:
+                final_volumes[(src, dst)] = writable
+
+        for k, v in final_volumes.items():
+            self._append_volume(runtime, k[0], k[1], v)
 
 
     def use_minimal_bindmount(self, src, dst, minimal_bindmounts):
