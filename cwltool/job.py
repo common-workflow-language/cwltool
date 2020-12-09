@@ -616,6 +616,10 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         """Add binding arguments to the runtime list."""
 
     @abstractmethod
+    def resolve_volumes(self, runtime: List[str], tmpdir_prefix: str) -> None:
+        """Minimize the number of volumes to mount if necessary."""
+
+    @abstractmethod
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
     ) -> None:
@@ -709,6 +713,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix
                 )
                 pathmapper.update(key, new_path, vol.target, vol.type, vol.staged)
+
+        self.resolve_volumes(runtime, tmpdir_prefix)  # only needed on singularity
 
     def run(
         self,

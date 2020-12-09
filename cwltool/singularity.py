@@ -5,6 +5,7 @@ import os.path
 import re
 import shutil
 import sys
+import tempfile
 from distutils import spawn
 from subprocess import (  # nosec
     DEVNULL,
@@ -102,6 +103,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         super(SingularityCommandLineJob, self).__init__(
             builder, joborder, make_path_mapper, requirements, hints, name
         )
+        self.tempdir_associations = dict()
+        self.hardlink_tree_associations = dict()
+        self.staged_volumes_for_mounting = list()
 
     @staticmethod
     def get_image(
@@ -278,18 +282,21 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         return os.path.abspath(cast(str, r["dockerImageId"]))
 
-    @staticmethod
     def append_volume(
-        runtime: List[str], source: str, target: str, writable: bool = False
+        self, runtime: List[str], source: str, target: str, writable: bool = False
     ) -> None:
-        runtime.append("--bind")
-        runtime.append(
-            "{}:{}:{}".format(
-                docker_windows_path_adjust(source),
-                docker_windows_path_adjust(target),
-                "rw" if writable else "ro",
-            )
-        )
+        self.staged_volumes_for_mounting.append((source, target, writable))
+
+    def _append_volume(
+        self, runtime: List[str], source: str, target: str, writable: bool = False
+    ) -> None:
+        src = docker_windows_path_adjust(source)
+        dst = docker_windows_path_adjust(target)
+        writable = "rw" if writable else "ro"
+
+        bind_arg = f"--bind={src}:{dst}:{writable}"
+        if bind_arg not in runtime:
+            runtime.append(bind_arg)
 
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
@@ -377,6 +384,53 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     source = volume.resolved
                 self.append_volume(runtime, source, volume.target, writable=True)
                 ensure_writable(source)
+
+    def resolve_volumes(self, runtime: List[str], tmpdir_prefix: str) -> None:
+        staged_files = {src: {'dst': dst, 'writable': writable} for src, dst, writable in self.staged_volumes_for_mounting}
+        minimal_bindmounts = self.minimal_bindmounts(staged_files, tmpdir_prefix)
+
+        for src, dst, writable in self.staged_volumes_for_mounting:
+            src, dst = self.use_minimal_bindmount(src, dst, minimal_bindmounts)
+            self._append_volume(runtime, src, dst, writable)
+
+
+    def use_minimal_bindmount(self, src, dst, minimal_bindmounts):
+        for basedir in minimal_bindmounts:
+            if src.startswith(basedir) and minimal_bindmounts[basedir]['tmp_dir'] is not None:
+                staged = os.path.join(minimal_bindmounts[basedir]['tmp_dir'], src[len(basedir):])
+                os.link(src, staged)
+                return staged, minimal_bindmounts[basedir]['dst']
+        return src, dst
+
+    def no_common_basedir(self, src_dir: str, dst_dir: str, basedirs: MutableMapping[str, str]):
+        # if importing '/a' and importing '/a/b', only import '/a'
+        no_common_path = True
+        for base_src_dir, base_dst_dir in basedirs.items():
+            if src_dir == base_src_dir:
+                if dst_dir == base_dst_dir:
+                    no_common_path = False
+            elif src_dir.startswith(base_src_dir):
+                no_common_path = False
+        return no_common_path
+
+    def minimal_bindmounts(self, staged_files, tmpdir_prefix: str):
+        """For keeping bind mounts minimal."""
+        minimal_bindmounts = dict()
+        # sorts from shortest to longest, ensuring we hit more fundamental dirs first,
+        # ... unless symlinked? (verify that .resolve resolves symlinks before reaching this point?)
+        for src in sorted(staged_files.keys(), key=len):
+            dst = staged_files[src]['dst']
+            writable = staged_files[src]['writable']
+            if os.path.isdir(src) and self.no_common_basedir(src, dst, minimal_bindmounts):
+                minimal_bindmounts[src.rstrip('/')] = {'dst': dst,
+                                                       'tmp_dir': None}  # already a dir; use as-is
+            elif not src.startswith("_:"):
+                basedir = os.path.dirname(src)
+                if os.path.isfile(src) and self.no_common_basedir(basedir, dst, minimal_bindmounts):
+                    tmp_dir = create_tmp_dir(tmpdir_prefix)
+                    minimal_bindmounts[basedir.rstrip('/')] = {'dst': os.path.dirname(dst),
+                                                               'tmp_dir': tmp_dir.rstrip('/')}
+        return minimal_bindmounts
 
     def create_runtime(
         self, env: MutableMapping[str, str], runtime_context: RuntimeContext

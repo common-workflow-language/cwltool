@@ -158,7 +158,7 @@ def docker_windows_path_adjust(path: str) -> str:
         split = path.split(":")
         if len(split) == 2:
             if platform.win32_ver()[0] in ("7", "8"):
-                # Docker toolbox uses lowecase windows Drive letters
+                # Docker toolbox uses lowercase windows Drive letters
                 split[0] = split[0].lower()
             else:
                 split[0] = split[0].capitalize()
