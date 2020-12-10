@@ -5,6 +5,8 @@ import os.path
 import re
 import shutil
 import sys
+import tempfile
+from uuid import uuid4
 from distutils import spawn
 from subprocess import (  # nosec
     DEVNULL,
@@ -102,6 +104,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         super(SingularityCommandLineJob, self).__init__(
             builder, joborder, make_path_mapper, requirements, hints, name
         )
+        self.universal_file_bindmount_dir = tempfile.mkdtemp(suffix='-cwl-singularity-mnt')
+        self.bindings_map = []
 
     @staticmethod
     def get_image(
@@ -278,18 +282,25 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         return os.path.abspath(cast(str, r["dockerImageId"]))
 
-    @staticmethod
     def append_volume(
-        runtime: List[str], source: str, target: str, writable: bool = False
+        self, runtime: List[str], source: str, target: str, writable: bool = False
     ) -> None:
-        runtime.append("--bind")
-        runtime.append(
-            "{}:{}:{}".format(
-                docker_windows_path_adjust(source),
-                docker_windows_path_adjust(target),
-                "rw" if writable else "ro",
-            )
-        )
+        src = docker_windows_path_adjust(source)
+        dst = docker_windows_path_adjust(target)
+        writable = "rw" if writable else "ro"
+
+        # use only "os.path.isfile(source)" for Windows? check on this...
+        if os.path.isfile(source) or os.path.isfile(src):
+            bindmount_path = os.path.join(self.universal_file_bindmount_dir, str(uuid4()))
+            os.link(src, bindmount_path)
+            self.bindings_map.append((bindmount_path, dst, writable))
+            # don't add a bind arg for the shared self.universal_file_bindmount_dir
+            # here but at the very end
+        else:
+            # TODO: We can still bind enough dirs to exceed the max command line length.
+            #  Not sure how to handle this, since outputs deposited in mounted dirs
+            #  need to be there after the run.
+            runtime.append(f"--bind={src}:{dst}:{writable}")
 
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]

@@ -4,10 +4,12 @@ import itertools
 import logging
 import os
 import re
+import resource
 import shutil
 import subprocess  # nosec
 import sys
 import tempfile
+import textwrap
 import threading
 import time
 import uuid
@@ -529,6 +531,15 @@ class CommandLineJob(JobBase):
         tmpdir_lock: Optional[threading.Lock] = None,
     ) -> None:
 
+        # attempt to set an "unlimited" (-1) heap size for this process
+        # (& thus commandline size) on any system that supports it
+        # TODO: Do containers inherit the processes's limits?
+        #  Can they be configured from outside of the container?
+        try:
+            resource.setrlimit(resource.RLIMIT_DATA, (-1, -1))
+        except Exception:
+            pass
+
         if tmpdir_lock:
             with tmpdir_lock:
                 if not os.path.exists(self.tmpdir):
@@ -589,6 +600,20 @@ CONTROL_CODE_RE = r"\x1b\[[0-9;]*[a-zA-Z]"
 
 class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     """Commandline job using containers."""
+    def __init__(
+        self,
+        builder: Builder,
+        joborder: CWLObjectType,
+        make_path_mapper: Callable[..., PathMapper],
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
+        name: str,
+    ) -> None:
+        super(JobBase, self).__init__(
+            builder, joborder, make_path_mapper, requirements, hints, name
+        )
+        self.universal_file_bindmount_dir = None
+        self.bindings_map = None
 
     @abstractmethod
     def get_from_requirements(
@@ -709,6 +734,41 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix
                 )
                 pathmapper.update(key, new_path, vol.target, vol.type, vol.staged)
+
+        # Dir of individual file inputs for the job (all named as uuid4).
+        # This creates the same dir inside of the container as exists outside of it,
+        # Overlayfs must be supported/enabled (which should always be true for CWL).
+        src = dst = self.universal_file_bindmount_dir
+        runtime.append(f"--bind={src}:{dst}:rw")
+
+        # Make a TSV of the file mappings.
+        mapping_tsv = os.path.join(self.universal_file_bindmount_dir, 'mapping.tsv')
+        with open(mapping_tsv, 'w') as f:
+            # 1. Sort by the destination path, which should sort alphabetically
+            #    and by shortest path first.
+            # 2. Then, when we go to hardlink the files, we
+            #    should then just be able to hardlink them in order.
+            for (src, dst, writable) in sorted(self.bindings_map, key=lambda x: len(x[1])):
+                f.write('\t'.join((src, dst, writable)) + '\n')
+
+        # Make the script that uses the TSV file mappings to hardlink everything
+        # inside of the container to where the job expects to find them.
+        # This script needs to be the first thing run inside of the container.
+        linking_script = os.path.join(self.universal_file_bindmount_dir, 'hard_linking_script.py')
+        # TODO: Write in bash instead.  All images might not have python.
+        with open(linking_script, 'w') as f:
+            f.write(textwrap.dedent(f"""
+                import os
+
+                with open('{mapping_tsv}', 'r') as f:
+                    for line in f:
+                        src, dst, writable = line.split('\\t')
+                        os.makedirs(os.path.dirname(dst), exist_ok=True)
+                        os.link(src, dst)
+                        # TODO: set the permissions on the file here after linking
+
+                """[1:]))
+        os.chmod(linking_script, 0o777)
 
     def run(
         self,
