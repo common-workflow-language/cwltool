@@ -103,6 +103,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         super(DockerCommandLineJob, self).__init__(
             builder, joborder, make_path_mapper, requirements, hints, name
         )
+        # TODO: Unused; Implement for docker as well.
         self.universal_file_bindmount_dir = tempfile.mkdtemp(suffix='-cwl-docker-mnt')
         self.bindings_map = []
 

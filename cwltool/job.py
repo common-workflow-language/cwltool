@@ -631,10 +631,6 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         """Add binding arguments to the runtime list."""
 
     @abstractmethod
-    def resolve_volumes(self, runtime: List[str], tmpdir_prefix: str) -> None:
-        """Minimize the number of volumes to mount if necessary."""
-
-    @abstractmethod
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
     ) -> None:
@@ -759,6 +755,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                         src, dst, writable = line.split('\\t')
                         os.makedirs(os.path.dirname(dst), exist_ok=True)
                         os.link(src, dst)
+                        # TODO: set the permissions on the file here after linking
 
                 """[1:]))
         os.chmod(linking_script, 0o777)

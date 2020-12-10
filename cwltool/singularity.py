@@ -289,7 +289,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         dst = docker_windows_path_adjust(target)
         writable = "rw" if writable else "ro"
 
-        # use only "os.path.isfile(source)" for Windows? check
+        # use only "os.path.isfile(source)" for Windows? check on this...
         if os.path.isfile(source) or os.path.isfile(src):
             bindmount_path = os.path.join(self.universal_file_bindmount_dir, str(uuid4()))
             os.link(src, bindmount_path)
@@ -297,6 +297,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             # don't add a bind arg for the shared self.universal_file_bindmount_dir
             # here but at the very end
         else:
+            # TODO: We can still bind enough dirs to exceed the max command line length.
+            #  Not sure how to handle this, since outputs deposited in mounted dirs
+            #  need to be there after the run.
             runtime.append(f"--bind={src}:{dst}:{writable}")
 
     def add_file_or_directory_volume(
