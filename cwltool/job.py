@@ -728,7 +728,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 pathmapper.update(key, new_path, vol.target, vol.type, vol.staged)
 
         # Dir of individual file inputs for the job (all named as uuid4).
-        # This creates the same dir inside of the container as exists outside of it.
+        # This creates the same dir inside of the container as exists outside of it,
+        # Overlayfs must be supported/enabled (which should always be true for CWL).
         src = dst = self.universal_file_bindmount_dir
         runtime.append(f"--bind={src}:{dst}:rw")
 
