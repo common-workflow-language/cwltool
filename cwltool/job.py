@@ -600,8 +600,18 @@ CONTROL_CODE_RE = r"\x1b\[[0-9;]*[a-zA-Z]"
 
 class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     """Commandline job using containers."""
-    def __init__(self, *args, **kwargs) -> None:
-        super(JobBase, self).__init__()
+    def __init__(
+        self,
+        builder: Builder,
+        joborder: CWLObjectType,
+        make_path_mapper: Callable[..., PathMapper],
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
+        name: str,
+    ) -> None:
+        super(JobBase, self).__init__(
+            builder, joborder, make_path_mapper, requirements, hints, name
+        )
         self.universal_file_bindmount_dir = None
         self.bindings_map = None
 
