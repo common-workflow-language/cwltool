@@ -388,14 +388,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         final_volumes = dict()
         for src, dst, writable in self.staged_volumes_for_mounting:
             src, dst = self.use_minimal_bindmount(src, dst, minimal_bindmounts)
-            if (src, dst) not in final_volumes:
-                final_volumes[(src, dst)] = writable
-            elif writable:
+            if (src, dst) not in final_volumes or writable:
                 final_volumes[(src, dst)] = writable
 
         for k, v in final_volumes.items():
             self._append_volume(runtime, k[0], k[1], v)
-
 
     def use_minimal_bindmount(self, src, dst, minimal_bindmounts):
         for basedir in minimal_bindmounts:

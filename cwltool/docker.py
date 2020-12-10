@@ -230,6 +230,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         return found
 
+    def resolve_volumes(self, runtime: List[str], tmpdir_prefix: str) -> None:
+        pass
+
     def get_from_requirements(
         self,
         r: CWLObjectType,
