@@ -4,6 +4,7 @@ import itertools
 import logging
 import os
 import re
+import resource
 import shutil
 import subprocess  # nosec
 import sys
@@ -530,6 +531,13 @@ class CommandLineJob(JobBase):
         tmpdir_lock: Optional[threading.Lock] = None,
     ) -> None:
 
+        # attempt to set an "unlimited" (-1) heap size
+        # (& thus commandline size) on any system that supports it
+        try:
+            resource.setrlimit(resource.RLIMIT_DATA, (-1, -1))
+        except Exception:
+            pass
+
         if tmpdir_lock:
             with tmpdir_lock:
                 if not os.path.exists(self.tmpdir):
@@ -719,35 +727,38 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 )
                 pathmapper.update(key, new_path, vol.target, vol.type, vol.staged)
 
-        src = self.universal_file_bindmount_dir
-        dst = self.universal_file_bindmount_dir  # assuming singularity always has this set to create
-        writable = 'rw'
-        runtime.append(f"--bind={src}:{dst}:{writable}")
-        # everything in this directory should be a file named as a uuid4
-        hardlink_mapping_tsv = os.path.join(self.universal_file_bindmount_dir, 'mapping.tsv')
-        with open(hardlink_mapping_tsv, 'w') as f:
+        # Dir of individual file inputs for the job (all named as uuid4).
+        # This creates the same dir inside of the container as exists outside of it.
+        src = dst = self.universal_file_bindmount_dir
+        runtime.append(f"--bind={src}:{dst}:rw")
+
+        # Make a TSV of the file mappings.
+        mapping_tsv = os.path.join(self.universal_file_bindmount_dir, 'mapping.tsv')
+        with open(mapping_tsv, 'w') as f:
             # 1. Sort by the destination path, which should sort alphabetically
             #    and by shortest path first.
             # 2. Then, when we go to hardlink the files, we
             #    should then just be able to hardlink them in order.
-            for mapping in sorted(self.bindings_map, key=lambda x: len(x[1])):
-                f.write('\t'.join(mapping) + '\n')
+            for (src, dst, writable) in sorted(self.bindings_map, key=lambda x: len(x[1])):
+                f.write('\t'.join((src, dst, writable)) + '\n')
 
-        hard_linking_script = textwrap.dedent(f"""
+        # Make the script that uses the TSV file mappings to hardlink everything
+        # inside of the container to where the job expects to find them.
+        # This script needs to be the first thing run inside of the container.
+        linking_script = os.path.join(self.universal_file_bindmount_dir, 'hard_linking_script.py')
+        # TODO: Write in bash instead.  All images might not have python.
+        with open(linking_script, 'w') as f:
+            f.write(textwrap.dedent(f"""
                 import os
 
-                with open('{hardlink_mapping_tsv}', 'r') as f:
+                with open('{mapping_tsv}', 'r') as f:
                     for line in f:
                         src, dst, writable = line.split('\\t')
                         os.makedirs(os.path.dirname(dst), exist_ok=True)
                         os.link(src, dst)
 
-                """[1:])
-        hard_linking_script_path = os.path.join(self.universal_file_bindmount_dir, 'hard_linking_script.py')
-
-        with open(hard_linking_script_path, 'w') as f:
-            f.write(hard_linking_script)
-        os.chmod(hard_linking_script_path, 0o777)
+                """[1:]))
+        os.chmod(linking_script, 0o777)
 
     def run(
         self,
