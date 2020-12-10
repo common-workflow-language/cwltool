@@ -531,8 +531,10 @@ class CommandLineJob(JobBase):
         tmpdir_lock: Optional[threading.Lock] = None,
     ) -> None:
 
-        # attempt to set an "unlimited" (-1) heap size
+        # attempt to set an "unlimited" (-1) heap size for this process
         # (& thus commandline size) on any system that supports it
+        # TODO: Do containers inherit the processes's limits?
+        #  Can they be configured from outside of the container?
         try:
             resource.setrlimit(resource.RLIMIT_DATA, (-1, -1))
         except Exception:
