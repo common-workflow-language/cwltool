@@ -8,6 +8,7 @@ import shutil
 import subprocess  # nosec
 import sys
 import tempfile
+import textwrap
 import threading
 import time
 import uuid
@@ -589,6 +590,10 @@ CONTROL_CODE_RE = r"\x1b\[[0-9;]*[a-zA-Z]"
 
 class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     """Commandline job using containers."""
+    def __init__(self, *args, **kwargs) -> None:
+        super(JobBase, self).__init__()
+        self.universal_file_bindmount_dir = None
+        self.bindings_map = None
 
     @abstractmethod
     def get_from_requirements(
@@ -714,7 +719,35 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 )
                 pathmapper.update(key, new_path, vol.target, vol.type, vol.staged)
 
-        self.resolve_volumes(runtime, tmpdir_prefix)  # only needed on singularity
+        src = self.universal_file_bindmount_dir
+        dst = self.universal_file_bindmount_dir  # assuming singularity always has this set to create
+        writable = 'rw'
+        runtime.append(f"--bind={src}:{dst}:{writable}")
+        # everything in this directory should be a file named as a uuid4
+        hardlink_mapping_tsv = os.path.join(self.universal_file_bindmount_dir, 'mapping.tsv')
+        with open(hardlink_mapping_tsv, 'w') as f:
+            # 1. Sort by the destination path, which should sort alphabetically
+            #    and by shortest path first.
+            # 2. Then, when we go to hardlink the files, we
+            #    should then just be able to hardlink them in order.
+            for mapping in sorted(self.bindings_map, key=lambda x: len(x[1])):
+                f.write('\t'.join(mapping) + '\n')
+
+        hard_linking_script = textwrap.dedent(f"""
+                import os
+
+                with open('{hardlink_mapping_tsv}', 'r') as f:
+                    for line in f:
+                        src, dst, writable = line.split('\\t')
+                        os.makedirs(os.path.dirname(dst), exist_ok=True)
+                        os.link(src, dst)
+
+                """[1:])
+        hard_linking_script_path = os.path.join(self.universal_file_bindmount_dir, 'hard_linking_script.py')
+
+        with open(hard_linking_script_path, 'w') as f:
+            f.write(hard_linking_script)
+        os.chmod(hard_linking_script_path, 0o777)
 
     def run(
         self,
