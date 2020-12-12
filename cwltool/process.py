@@ -311,16 +311,15 @@ def stage_files(
 
     check_conflicts(pathmapper, fix_conflicts)
 
-    for key, entry in (itm for itm in pathmapper.items() if itm[1].staged):
+    for key, entry in (itm for itm in pathmapper.items() if itm[1].staged and itm[1].type in entry_types):
         if container_outdirs:
             if entry.target.startswith(container_outdirs[0] + "/"):
                 staging_dir = os.path.join(
                     container_outdirs[1], entry.target[len(container_outdirs[0]) + 1:]
                 )
-        if not entry.staged or entry.type not in entry_types:
-            continue
-        os.makedirs(os.path.dirname(entry.target), exist_ok=True)
+
         destination = staging_dir if staging_dir else entry.target
+        os.makedirs(os.path.dirname(entry.target), exist_ok=True)
         if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
             if linking == 'symlink' and not onWindows():
                 os.symlink(entry.resolved, destination)
