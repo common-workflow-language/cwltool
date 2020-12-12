@@ -70,6 +70,7 @@ from .utils import (
     cmp_like_py2,
     copytree_with_merge,
     ensure_writable,
+    ensure_non_writable,
     get_listing,
     normalizeFilesDirs,
     onWindows,
@@ -254,15 +255,7 @@ def checkRequirements(
             checkRequirements(entry2, supported_process_requirements)
 
 
-def stage_files(
-    pathmapper: PathMapper,
-    stage_func: Optional[Callable[[str, str], None]] = None,
-    ignore_writable: bool = False,
-    symlink: bool = True,
-    secret_store: Optional[SecretStore] = None,
-    fix_conflicts: bool = False,
-) -> None:
-    """Link or copy files to their targets. Create them as needed."""
+def check_conflicts(pathmapper: PathMapper, fix_conflicts: bool):
     targets = {}  # type: Dict[str, MapperEnt]
     for key, entry in pathmapper.items():
         if "File" not in entry.type:
@@ -287,33 +280,71 @@ def stage_files(
                     % (targets[entry.target].resolved, entry.resolved, entry.target)
                 )
 
-    for key, entry in pathmapper.items():
-        if not entry.staged:
+
+def change_file_paths_to(universal_file_dir: str):
+    pass
+    # for key, entry in pathmapper.items():
+
+
+
+def stage_files(
+    pathmapper: PathMapper,
+    stage_func: Optional[Callable[[str, str], None]] = None,
+    ignore_writable: bool = False,
+    linking: str = 'symlink',
+    secret_store: Optional[SecretStore] = None,
+    fix_conflicts: bool = False,
+    staging_dir: Optional[str] = None,
+    container_outdirs: Optional[Tuple[Any, str]] = None,
+    entry_types: Tuple[str] = (  # defaults to all of them
+            "File",
+            "Directory",
+            "WritableFile",
+            "WritableDirectory",
+            "CreateFile",
+            "CreateWritableFile"
+    )
+) -> None:
+    """Link or copy files to their targets. Create them as needed."""
+    linking_choices = ('symlink', 'hardlink', 'copy')
+    assert linking in linking_choices, f'Linking {linking} not in {linking_choices}!'
+
+    check_conflicts(pathmapper, fix_conflicts)
+
+    for key, entry in (itm for itm in pathmapper.items() if itm[1].staged):
+        if container_outdirs:
+            if entry.target.startswith(container_outdirs[0] + "/"):
+                staging_dir = os.path.join(
+                    container_outdirs[1], entry.target[len(container_outdirs[0]) + 1:]
+                )
+        if not entry.staged or entry.type not in entry_types:
             continue
-        if not os.path.exists(os.path.dirname(entry.target)):
-            os.makedirs(os.path.dirname(entry.target))
+        os.makedirs(os.path.dirname(entry.target), exist_ok=True)
+        destination = staging_dir if staging_dir else entry.target
         if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
-            if symlink:  # Use symlink func if allowed
-                if onWindows():
-                    if entry.type == "File":
-                        shutil.copy(entry.resolved, entry.target)
-                    elif entry.type == "Directory":
-                        if os.path.exists(entry.target) and os.path.isdir(entry.target):
-                            shutil.rmtree(entry.target)
-                        copytree_with_merge(entry.resolved, entry.target)
-                else:
-                    os.symlink(entry.resolved, entry.target)
-            elif stage_func is not None:
-                stage_func(entry.resolved, entry.target)
+            if linking == 'symlink' and not onWindows():
+                os.symlink(entry.resolved, destination)
+            elif linking == 'hardlink' and entry.type == "File" and not onWindows():
+                os.link(entry.resolved, destination)
+            # TODO: Should the stage_func itself determine if it should run on Windows?
+            elif stage_func is not None and not onWindows():
+                stage_func(entry.resolved, destination)
+            elif entry.type == "File":
+                shutil.copy(entry.resolved, destination)
+            elif entry.type == "Directory":
+                if os.path.isdir(destination):
+                    shutil.rmtree(destination)
+                copytree_with_merge(entry.resolved, destination)
+            # ensure_non_writable(destination)
         elif (
             entry.type == "Directory"
-            and not os.path.exists(entry.target)
+            and not os.path.exists(destination)
             and entry.resolved.startswith("_:")
         ):
-            os.makedirs(entry.target)
+            os.makedirs(destination)
         elif entry.type == "WritableFile" and not ignore_writable:
-            shutil.copy(entry.resolved, entry.target)
-            ensure_writable(entry.target)
+            shutil.copy(entry.resolved, destination)
+            ensure_writable(destination)
         elif entry.type == "WritableDirectory" and not ignore_writable:
             if entry.resolved.startswith("_:"):
                 os.makedirs(entry.target)
@@ -410,7 +441,7 @@ def relocateOutputs(
     outfiles = list(_collectDirEntries(outputObj))
     visit_class(outfiles, ("File", "Directory"), _realpath)
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
-    stage_files(pm, stage_func=_relocate, symlink=False, fix_conflicts=True)
+    stage_files(pm, stage_func=_relocate, linking='copy', fix_conflicts=True)
 
     def _check_adjust(a_file: CWLObjectType) -> CWLObjectType:
         a_file["location"] = file_uri(pm.mapper(cast(str, a_file["location"]))[1])

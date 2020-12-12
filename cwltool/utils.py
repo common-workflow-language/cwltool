@@ -12,7 +12,7 @@ import sys
 import tempfile
 import urllib
 import uuid
-from functools import partial
+from functools import partial, lru_cache
 from itertools import zip_longest
 from pathlib import Path, PurePosixPath
 from tempfile import NamedTemporaryFile
@@ -158,7 +158,7 @@ def docker_windows_path_adjust(path: str) -> str:
         split = path.split(":")
         if len(split) == 2:
             if platform.win32_ver()[0] in ("7", "8"):
-                # Docker toolbox uses lowercase windows Drive letters
+                # Docker toolbox uses lowecase windows Drive letters
                 split[0] = split[0].lower()
             else:
                 split[0] = split[0].capitalize()
@@ -205,6 +205,7 @@ def docker_windows_reverse_fileuri_adjust(fileuri: str) -> str:
     return fileuri
 
 
+@lru_cache(maxsize=1)
 def onWindows() -> bool:
     """Check if we are on Windows OS."""
     return os.name == "nt"
