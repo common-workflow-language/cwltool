@@ -92,7 +92,7 @@ pep257: pydocstyle
 pydocstyle: $(PYSOURCES)
 	pydocstyle --add-ignore=D100,D101,D102,D103 $^ || true
 
-pydocstyle_report.txt: $(PYSOURCES)
+pydocstyle_report.txt: $(filter-out tests/%,${PYSOURCES})
 	pydocstyle setup.py $^ > $@ 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt

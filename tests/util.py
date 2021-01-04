@@ -103,21 +103,11 @@ def get_main_output(
 
 
 @contextlib.contextmanager
-def temp_dir(suffix: str = "") -> Generator[str, None, None]:
-    c_dir = tempfile.mkdtemp(suffix, dir=os.curdir)
-    try:
-        yield c_dir
-    finally:
-        shutil.rmtree(c_dir, ignore_errors=True)
-
-
-@contextlib.contextmanager
 def working_directory(path: Union[str, Path]) -> Generator[None, None, None]:
     """Change working directory and returns to previous on exit."""
     prev_cwd = Path.cwd()
-    # before python 3.6 chdir doesn't support paths from pathlib
-    os.chdir(str(path))
+    os.chdir(path)
     try:
         yield
     finally:
-        os.chdir(str(prev_cwd))
+        os.chdir(prev_cwd)

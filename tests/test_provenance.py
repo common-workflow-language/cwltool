@@ -3,14 +3,12 @@ import os
 import pickle
 import shutil
 import sys
-import tempfile
 import urllib
 from pathlib import Path
 from typing import Any, Generator, cast
 
 import arcp
 import bagit
-import py.path
 import pytest
 from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DC, DCTERMS, RDF
@@ -22,7 +20,7 @@ from cwltool.main import main
 from cwltool.provenance import ResearchObject
 from cwltool.stdfsaccess import StdFsAccess
 
-from .util import get_data, needs_docker, temp_dir, working_directory
+from .util import get_data, needs_docker, working_directory
 
 # RDF namespaces we'll query for later
 ORE = Namespace("http://www.openarchives.org/ore/terms/")
@@ -35,63 +33,65 @@ CWLPROV = Namespace("https://w3id.org/cwl/prov#")
 OA = Namespace("http://www.w3.org/ns/oa#")
 
 
-@pytest.fixture
-def folder(tmpdir: py.path.local) -> Generator[str, None, None]:
-    directory = str(tmpdir)
-    yield directory
-
-    if not os.environ.get("DEBUG"):
-        shutil.rmtree(directory)
-
-
-def cwltool(folder: str, *args: Any) -> None:
-    new_args = ["--provenance", folder]
+def cwltool(tmp_path: Path, *args: Any) -> Path:
+    prov_folder = tmp_path / "provenance"
+    prov_folder.mkdir()
+    new_args = ["--provenance", str(prov_folder)]
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
-    with temp_dir("cwltool-run") as tmp_dir:
-        with working_directory(tmp_dir):
-            status = main(new_args)
-            assert status == 0, "Failed: cwltool.main(%r)" % (args)
+    tmp_dir = tmp_path / "cwltool-run"
+    tmp_dir.mkdir()
+    with working_directory(tmp_dir):
+        status = main(new_args)
+        assert status == 0, "Failed: cwltool.main(%r)" % (args)
+    return prov_folder
 
 
 @needs_docker
-def test_hello_workflow(folder: str) -> None:
-    cwltool(
-        folder,
-        get_data("tests/wf/hello-workflow.cwl"),
-        "--usermessage",
-        "Hello workflow",
+def test_hello_workflow(tmp_path: Path) -> None:
+    check_provenance(
+        cwltool(
+            tmp_path,
+            get_data("tests/wf/hello-workflow.cwl"),
+            "--usermessage",
+            "Hello workflow",
+        )
     )
-    check_provenance(folder)
 
 
 @needs_docker
-def test_hello_single_tool(folder: str) -> None:
-    cwltool(
-        folder, get_data("tests/wf/hello_single_tool.cwl"), "--message", "Hello tool"
+def test_hello_single_tool(tmp_path: Path) -> None:
+    check_provenance(
+        cwltool(
+            tmp_path,
+            get_data("tests/wf/hello_single_tool.cwl"),
+            "--message",
+            "Hello tool",
+        ),
+        single_tool=True,
     )
-    check_provenance(folder, single_tool=True)
 
 
 @needs_docker
-def test_revsort_workflow(folder: str) -> None:
-    cwltool(
-        folder, get_data("tests/wf/revsort.cwl"), get_data("tests/wf/revsort-job.json")
+def test_revsort_workflow(tmp_path: Path) -> None:
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/revsort.cwl"),
+        get_data("tests/wf/revsort-job.json"),
     )
     check_output_object(folder)
     check_provenance(folder)
 
 
 @needs_docker
-def test_nested_workflow(folder: str) -> None:
-    cwltool(folder, get_data("tests/wf/nested.cwl"))
-    check_provenance(folder, nested=True)
+def test_nested_workflow(tmp_path: Path) -> None:
+    check_provenance(cwltool(tmp_path, get_data("tests/wf/nested.cwl")), nested=True)
 
 
 @needs_docker
-def test_secondary_files_implicit(folder: str, tmpdir: py.path.local) -> None:
-    file1 = tmpdir.join("foo1.txt")
-    file1idx = tmpdir.join("foo1.txt.idx")
+def test_secondary_files_implicit(tmp_path: Path) -> None:
+    file1 = tmp_path / "foo1.txt"
+    file1idx = tmp_path / "foo1.txt.idx"
 
     with open(str(file1), "w", encoding="ascii") as f:
         f.write("foo")
@@ -99,18 +99,20 @@ def test_secondary_files_implicit(folder: str, tmpdir: py.path.local) -> None:
         f.write("bar")
 
     # secondary will be picked up by .idx
-    cwltool(folder, get_data("tests/wf/sec-wf.cwl"), "--file1", str(file1))
+    folder = cwltool(tmp_path, get_data("tests/wf/sec-wf.cwl"), "--file1", str(file1))
     check_provenance(folder, secondary_files=True)
     check_secondary_files(folder)
 
 
 @needs_docker
-def test_secondary_files_explicit(folder: str, tmpdir: py.path.local) -> None:
-    orig_tempdir = tempfile.tempdir
-    tempfile.tempdir = str(tmpdir)
+def test_secondary_files_explicit(tmp_path: Path) -> None:
     # Deliberately do NOT have common basename or extension
-    file1 = tempfile.mktemp("foo")
-    file1idx = tempfile.mktemp("bar")
+    file1dir = tmp_path / "foo"
+    file1dir.mkdir()
+    file1 = file1dir / "foo"
+    file1idxdir = tmp_path / "bar"
+    file1idxdir.mkdir()
+    file1idx = file1idxdir / "bar"
 
     with open(file1, "w", encoding="ascii") as f:
         f.write("foo")
@@ -121,41 +123,41 @@ def test_secondary_files_explicit(folder: str, tmpdir: py.path.local) -> None:
     job = {
         "file1": {
             "class": "File",
-            "path": file1,
+            "path": str(file1),
             "basename": "foo1.txt",
             "secondaryFiles": [
                 {
                     "class": "File",
-                    "path": file1idx,
+                    "path": str(file1idx),
                     "basename": "foo1.txt.idx",
                 }
             ],
         }
     }
-    jobJson = tempfile.mktemp("job.json")
+
+    jobJson = tmp_path / "job.json"
     with open(jobJson, "wb") as fp:
         j = json.dumps(job, ensure_ascii=True)
         fp.write(j.encode("ascii"))
 
-    cwltool(folder, get_data("tests/wf/sec-wf.cwl"), jobJson)
+    folder = cwltool(tmp_path, get_data("tests/wf/sec-wf.cwl"), str(jobJson))
     check_provenance(folder, secondary_files=True)
     check_secondary_files(folder)
-    tempfile.tempdir = orig_tempdir
 
 
 @needs_docker
-def test_secondary_files_output(folder: str) -> None:
+def test_secondary_files_output(tmp_path: Path) -> None:
     # secondary will be picked up by .idx
-    cwltool(folder, get_data("tests/wf/sec-wf-out.cwl"))
+    folder = cwltool(tmp_path, get_data("tests/wf/sec-wf-out.cwl"))
     check_provenance(folder, secondary_files=True)
     # Skipped, not the same secondary files as above
     # self.check_secondary_files()
 
 
 @needs_docker
-def test_directory_workflow(folder: str, tmpdir: py.path.local) -> None:
-    dir2 = tmpdir.join("dir2")
-    os.makedirs(str(dir2))
+def test_directory_workflow(tmp_path: Path) -> None:
+    dir2 = tmp_path / "dir2"
+    dir2.mkdir()
     sha1 = {
         # Expected hashes of ASCII letters (no linefeed)
         # as returned from:
@@ -166,34 +168,35 @@ def test_directory_workflow(folder: str, tmpdir: py.path.local) -> None:
     }
     for x in "abc":
         # Make test files with predictable hashes
-        with open(str(dir2.join(x)), "w", encoding="ascii") as f:
+        with open(dir2 / x, "w", encoding="ascii") as f:
             f.write(x)
 
-    cwltool(folder, get_data("tests/wf/directory.cwl"), "--dir", str(dir2))
+    folder = cwltool(tmp_path, get_data("tests/wf/directory.cwl"), "--dir", str(dir2))
     check_provenance(folder, directory=True)
 
     # Output should include ls stdout of filenames a b c on each line
-    file_list = os.path.join(
-        folder,
-        "data",
+    file_list = (
+        folder
+        / "data"
+        /
         # checksum as returned from:
         # echo -e "a\nb\nc" | sha1sum
         # 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
-        "3c",
-        "3ca69e8d6c234a469d16ac28a4a658c92267c423",
+        "3c"
+        / "3ca69e8d6c234a469d16ac28a4a658c92267c423"
     )
-    assert os.path.isfile(file_list)
+    assert file_list.is_file()
 
     # Input files should be captured by hash value,
     # even if they were inside a class: Directory
     for (l, l_hash) in sha1.items():
         prefix = l_hash[:2]  # first 2 letters
-        p = os.path.join(folder, "data", prefix, l_hash)
-        assert os.path.isfile(p), "Could not find %s as %s" % (l, p)
+        p = folder / "data" / prefix / l_hash
+        assert p.is_file(), "Could not find %s as %s" % (l, p)
 
 
-def check_output_object(base_path: str) -> None:
-    output_obj = os.path.join(base_path, "workflow", "primary-output.json")
+def check_output_object(base_path: Path) -> None:
+    output_obj = base_path / "workflow" / "primary-output.json"
     compare_checksum = "sha1$b9214658cc453331b62c2282b772a5c063dbd284"
     compare_location = "../data/b9/b9214658cc453331b62c2282b772a5c063dbd284"
     with open(output_obj) as fp:
@@ -203,23 +206,22 @@ def check_output_object(base_path: str) -> None:
     assert f1["location"] == compare_location
 
 
-def check_secondary_files(base_path: str) -> None:
-    foo_data = os.path.join(
-        base_path,
-        "data",
+def check_secondary_files(base_path: Path) -> None:
+    foo_data = (
+        base_path
+        / "data"
+        /
         # checksum as returned from:
         # $ echo -n foo | sha1sum
         # 0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33  -
-        "0b",
-        "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33",
+        "0b"
+        / "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"
     )
-    bar_data = os.path.join(
-        base_path, "data", "62", "62cdb7020ff920e5aa642c3d4066950dd1f01f4d"
-    )
-    assert os.path.isfile(foo_data), "Did not capture file.txt 'foo'"
-    assert os.path.isfile(bar_data), "Did not capture secondary file.txt.idx 'bar"
+    bar_data = base_path / "data" / "62" / "62cdb7020ff920e5aa642c3d4066950dd1f01f4d"
+    assert foo_data.is_file(), "Did not capture file.txt 'foo'"
+    assert bar_data.is_file(), "Did not capture secondary file.txt.idx 'bar"
 
-    primary_job = os.path.join(base_path, "workflow", "primary-job.json")
+    primary_job = base_path / "workflow" / "primary-job.json"
     with open(primary_job) as fp:
         job_json = json.load(fp)
     # TODO: Verify secondaryFile in primary-job.json
@@ -235,7 +237,7 @@ def check_secondary_files(base_path: str) -> None:
 
 
 def check_provenance(
-    base_path: str,
+    base_path: Path,
     nested: bool = False,
     single_tool: bool = False,
     directory: bool = False,
@@ -253,7 +255,7 @@ def check_provenance(
     )
 
 
-def check_folders(base_path: str) -> None:
+def check_folders(base_path: Path) -> None:
     required_folders = [
         "data",
         "snapshot",
@@ -263,10 +265,10 @@ def check_folders(base_path: str) -> None:
     ]
 
     for folder in required_folders:
-        assert os.path.isdir(os.path.join(base_path, folder))
+        assert (base_path / folder).is_dir()
 
 
-def check_bagit(base_path: str) -> None:
+def check_bagit(base_path: Path) -> None:
     # check bagit structure
     required_files = [
         "bagit.txt",
@@ -277,10 +279,9 @@ def check_bagit(base_path: str) -> None:
     ]
 
     for basename in required_files:
-        file_path = os.path.join(base_path, basename)
-        assert os.path.isfile(file_path)
+        assert (base_path / basename).is_file()
 
-    bag = bagit.Bag(base_path)
+    bag = bagit.Bag(str(base_path))
     assert bag.has_oxum()
     (only_manifest, only_fs) = bag.compare_manifests_with_fs()
     assert not list(only_manifest), "Some files only in manifest"
@@ -292,16 +293,16 @@ def check_bagit(base_path: str) -> None:
     assert arcp.is_arcp_uri(bag.info.get("External-Identifier"))
 
 
-def find_arcp(base_path: str) -> str:
+def find_arcp(base_path: Path) -> str:
     # First try to find External-Identifier
-    bag = bagit.Bag(base_path)
+    bag = bagit.Bag(str(base_path))
     ext_id = bag.info.get("External-Identifier")
     if arcp.is_arcp_uri(ext_id):
-        return cast(str, ext_id)
+        return str(ext_id)
     raise Exception("Can't find External-Identifier")
 
 
-def _arcp2file(base_path: str, uri: str) -> str:
+def _arcp2file(base_path: Path, uri: str) -> Path:
     parsed = arcp.parse_arcp(uri)
     # arcp URIs, ensure they are local to our RO
     assert (
@@ -310,13 +311,12 @@ def _arcp2file(base_path: str, uri: str) -> str:
 
     path = parsed.path[1:]  # Strip first /
     # Convert to local path, in case it uses \ on Windows
-    lpath = str(Path(path))
-    return os.path.join(base_path, lpath)
+    return base_path / Path(path)
 
 
-def check_ro(base_path: str, nested: bool = False) -> None:
-    manifest_file = os.path.join(base_path, "metadata", "manifest.json")
-    assert os.path.isfile(manifest_file), "Can't find " + manifest_file
+def check_ro(base_path: Path, nested: bool = False) -> None:
+    manifest_file = base_path / "metadata" / "manifest.json"
+    assert manifest_file.is_file(), "Can't find {}".format(manifest_file)
     arcp_root = find_arcp(base_path)
     base = urllib.parse.urljoin(arcp_root, "metadata/manifest.json")
     g = Graph()
@@ -357,7 +357,7 @@ def check_ro(base_path: str, nested: bool = False) -> None:
             continue
         lfile = _arcp2file(base_path, aggregate)
         paths.append(os.path.relpath(lfile, base_path))
-        assert os.path.isfile(lfile), "Can't find aggregated " + lfile
+        assert os.path.isfile(lfile), "Can't find aggregated {}".format(lfile)
 
     assert paths, "Didn't find any arcp aggregates"
     assert externals, "Didn't find any data URIs"
@@ -436,14 +436,14 @@ def check_ro(base_path: str, nested: bool = False) -> None:
 
 
 def check_prov(
-    base_path: str,
+    base_path: Path,
     nested: bool = False,
     single_tool: bool = False,
     directory: bool = False,
     secondary_files: bool = False,
 ) -> None:
-    prov_file = os.path.join(base_path, "metadata", "provenance", "primary.cwlprov.nt")
-    assert os.path.isfile(prov_file), "Can't find " + prov_file
+    prov_file = base_path / "metadata" / "provenance" / "primary.cwlprov.nt"
+    assert prov_file.is_file(), "Can't find {}".format(prov_file)
     arcp_root = find_arcp(base_path)
     # Note: We don't need to include metadata/provnance in base URI
     # as .nt always use absolute URIs

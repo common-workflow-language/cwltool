@@ -1,10 +1,9 @@
 import argparse
 import os
 from io import StringIO
-from tempfile import NamedTemporaryFile
+from pathlib import Path
 from typing import Callable
 
-import py.path
 import pytest
 
 import cwltool.executors
@@ -87,37 +86,32 @@ scripts_argparse_params = [
 @needs_docker
 @pytest.mark.parametrize("name,script_contents,params", scripts_argparse_params)
 def test_argparse(
-    name: str, script_contents: str, params: Callable[[str], str], tmpdir: py.path.local
+    name: str, script_contents: str, params: Callable[[str], str], tmp_path: Path
 ) -> None:
-    script = None
+    script_name = tmp_path / "script"
     try:
-        script = NamedTemporaryFile(mode="w", delete=False)
-        script.write(script_contents)
-        script.close()
+        with script_name.open(mode="w") as script:
+            script.write(script_contents)
 
-        my_params = ["--outdir", str(tmpdir)]
+        my_params = ["--outdir", str(tmp_path / "outdir")]
         my_params.extend(params(script.name))
         assert main(my_params) == 0, name
 
     except SystemExit as err:
         assert err.code == 0, name
-    finally:
-        if script and script.name and os.path.exists(script.name):
-            os.unlink(script.name)
 
 
-def test_dont_require_inputs() -> None:
+def test_dont_require_inputs(tmp_path: Path) -> None:
     stream = StringIO()
 
-    script = None
+    script_name = tmp_path / "script"
     try:
-        script = NamedTemporaryFile(mode="w", delete=False)
-        script.write(script_a)
-        script.close()
+        with script_name.open(mode="w") as script:
+            script.write(script_a)
 
         assert (
             main(
-                argsl=["--debug", script.name, "--input", script.name],
+                argsl=["--debug", str(script_name), "--input", str(script_name)],
                 executor=cwltool.executors.NoopJobExecutor(),
                 stdout=stream,
             )
@@ -125,7 +119,7 @@ def test_dont_require_inputs() -> None:
         )
         assert (
             main(
-                argsl=["--debug", script.name],
+                argsl=["--debug", str(script_name)],
                 executor=cwltool.executors.NoopJobExecutor(),
                 stdout=stream,
             )
@@ -133,7 +127,7 @@ def test_dont_require_inputs() -> None:
         )
         assert (
             main(
-                argsl=["--debug", script.name],
+                argsl=["--debug", str(script_name)],
                 executor=cwltool.executors.NoopJobExecutor(),
                 input_required=False,
                 stdout=stream,
@@ -142,10 +136,7 @@ def test_dont_require_inputs() -> None:
         )
 
     except SystemExit as err:
-        assert err.code == 0, script.name if script else None
-    finally:
-        if script and script.name and os.path.exists(script.name):
-            os.unlink(script.name)
+        assert err.code == 0, script_name if script else None
 
 
 def test_argparser_with_doc() -> None:
