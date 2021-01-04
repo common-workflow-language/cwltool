@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Union, cast
 from urllib.parse import urlparse
 
-import py.path
 import pydot  # type: ignore
 import pytest
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -34,7 +33,6 @@ from .util import (
     get_main_output,
     get_windows_safe_factory,
     needs_docker,
-    temp_dir,
     windows_needs_docker,
 )
 
@@ -1053,62 +1051,64 @@ def test_no_js_console(factor: str) -> None:
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_cid_file_dir(tmpdir: py.path.local, factor: str) -> None:
+def test_cid_file_dir(tmp_path: Path, factor: str) -> None:
+    """Test --cidfile-dir option works."""
     test_file = "cache_test_workflow.cwl"
-    cwd = tmpdir.chdir()
+    cwd = Path.cwd()
+    os.chdir(tmp_path)
     commands = factor.split()
-    commands.extend(["--cidfile-dir", str(tmpdir), get_data("tests/wf/" + test_file)])
+    commands.extend(["--cidfile-dir", str(tmp_path), get_data("tests/wf/" + test_file)])
     error_code, stdout, stderr = get_main_output(commands)
     assert "completed success" in stderr
     assert error_code == 0
-    cidfiles_count = sum(1 for _ in tmpdir.visit(fil="*"))
+    cidfiles_count = sum(1 for _ in tmp_path.glob("**/*"))
     assert cidfiles_count == 2
-    cwd.chdir()
-    tmpdir.remove(ignore_errors=True)
+    os.chdir(cwd)
 
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_cid_file_dir_arg_is_file_instead_of_dir(
-    tmpdir: py.path.local, factor: str
-) -> None:
+def test_cid_file_dir_arg_is_file_instead_of_dir(tmp_path: Path, factor: str) -> None:
+    """Test --cidfile-dir with a file produces the correct error."""
     test_file = "cache_test_workflow.cwl"
-    bad_cidfile_dir = str(tmpdir.ensure("cidfile-dir-actually-a-file"))
+    bad_cidfile_dir = tmp_path / "cidfile-dir-actually-a-file"
+    bad_cidfile_dir.touch()
     commands = factor.split()
     commands.extend(
-        ["--cidfile-dir", bad_cidfile_dir, get_data("tests/wf/" + test_file)]
+        ["--cidfile-dir", str(bad_cidfile_dir), get_data("tests/wf/" + test_file)]
     )
     error_code, _, stderr = get_main_output(commands)
     assert "is not a directory, please check it first" in stderr, stderr
     assert error_code == 2 or error_code == 1, stderr
-    tmpdir.remove(ignore_errors=True)
 
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_cid_file_non_existing_dir(tmpdir: py.path.local, factor: str) -> None:
+def test_cid_file_non_existing_dir(tmp_path: Path, factor: str) -> None:
+    """Test that --cachedir with a bad path should produce a specific error."""
     test_file = "cache_test_workflow.cwl"
-    bad_cidfile_dir = str(tmpdir.join("cidfile-dir-badpath"))
+    bad_cidfile_dir = tmp_path / "cidfile-dir-badpath"
     commands = factor.split()
     commands.extend(
         [
             "--record-container-id",
             "--cidfile-dir",
-            bad_cidfile_dir,
+            str(bad_cidfile_dir),
             get_data("tests/wf/" + test_file),
         ]
     )
     error_code, _, stderr = get_main_output(commands)
     assert "directory doesn't exist, please create it first" in stderr, stderr
     assert error_code == 2 or error_code == 1, stderr
-    tmpdir.remove(ignore_errors=True)
 
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_cid_file_w_prefix(tmpdir: py.path.local, factor: str) -> None:
+def test_cid_file_w_prefix(tmp_path: Path, factor: str) -> None:
+    """Test that --cidfile-prefix works."""
     test_file = "cache_test_workflow.cwl"
-    cwd = tmpdir.chdir()
+    cwd = Path.cwd()
+    os.chdir(tmp_path)
     try:
         commands = factor.split()
         commands.extend(
@@ -1120,13 +1120,12 @@ def test_cid_file_w_prefix(tmpdir: py.path.local, factor: str) -> None:
         )
         error_code, stdout, stderr = get_main_output(commands)
     finally:
-        listing = tmpdir.listdir()
-        cwd.chdir()
-        cidfiles_count = sum(1 for _ in tmpdir.visit(fil="pytestcid*"))
-        tmpdir.remove(ignore_errors=True)
+        listing = tmp_path.iterdir()
+        os.chdir(cwd)
+        cidfiles_count = sum(1 for _ in tmp_path.glob("**/pytestcid*"))
     assert "completed success" in stderr
     assert error_code == 0
-    assert cidfiles_count == 2, "{}/n{}".format(listing, stderr)
+    assert cidfiles_count == 2, "{}/n{}".format(list(listing), stderr)
 
 
 @needs_docker
@@ -1178,22 +1177,23 @@ def test_secondary_files_v1_0(factor: str) -> None:
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_wf_without_container(tmpdir: py.path.local, factor: str) -> None:
+def test_wf_without_container(tmp_path: Path, factor: str) -> None:
+    """Confirm that we can run a workflow without a container."""
     test_file = "hello-workflow.cwl"
-    with temp_dir("cwltool_cache") as cache_dir:
-        commands = factor.split()
-        commands.extend(
-            [
-                "--cachedir",
-                cache_dir,
-                "--outdir",
-                str(tmpdir),
-                get_data("tests/wf/" + test_file),
-                "--usermessage",
-                "hello",
-            ]
-        )
-        error_code, _, stderr = get_main_output(commands)
+    cache_dir = str(tmp_path / "cwltool_cache")
+    commands = factor.split()
+    commands.extend(
+        [
+            "--cachedir",
+            cache_dir,
+            "--outdir",
+            str(tmp_path / "outdir"),
+            get_data("tests/wf/" + test_file),
+            "--usermessage",
+            "hello",
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
 
     assert "completed success" in stderr
     assert error_code == 0
@@ -1201,22 +1201,23 @@ def test_wf_without_container(tmpdir: py.path.local, factor: str) -> None:
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_issue_740_fixed(factor: str) -> None:
+def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
+    """Confirm that re-running a particular workflow with caching suceeds."""
     test_file = "cache_test_workflow.cwl"
-    with temp_dir("cwltool_cache") as cache_dir:
-        commands = factor.split()
-        commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
-        error_code, _, stderr = get_main_output(commands)
+    cache_dir = str(tmp_path / "cwltool_cache")
+    commands = factor.split()
+    commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
+    error_code, _, stderr = get_main_output(commands)
 
-        assert "completed success" in stderr
-        assert error_code == 0
+    assert "completed success" in stderr
+    assert error_code == 0
 
-        commands = factor.split()
-        commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
-        error_code, _, stderr = get_main_output(commands)
+    commands = factor.split()
+    commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
+    error_code, _, stderr = get_main_output(commands)
 
-        assert "Output of job will be cached in" not in stderr
-        assert error_code == 0, stderr
+    assert "Output of job will be cached in" not in stderr
+    assert error_code == 0, stderr
 
 
 @needs_docker
@@ -1238,7 +1239,7 @@ def test_compute_checksum() -> None:
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_no_compute_chcksum(tmpdir: py.path.local, factor: str) -> None:
+def test_no_compute_chcksum(tmp_path: Path, factor: str) -> None:
     test_file = "tests/wf/wc-tool.cwl"
     job_file = "tests/wf/wc-job.json"
     commands = factor.split()
@@ -1246,7 +1247,7 @@ def test_no_compute_chcksum(tmpdir: py.path.local, factor: str) -> None:
         [
             "--no-compute-checksum",
             "--outdir",
-            str(tmpdir),
+            str(tmp_path),
             get_data(test_file),
             get_data(job_file),
         ]
@@ -1379,9 +1380,10 @@ def test_v1_0_arg_empty_prefix_separate_false() -> None:
     assert error_code == 0
 
 
-def test_scatter_output_filenames(tmpdir: py.path.local) -> None:
+def test_scatter_output_filenames(tmp_path: Path) -> None:
     """If a scatter step produces identically named output then confirm that the final output is renamed correctly."""
-    cwd = tmpdir.chdir()
+    cwd = Path.cwd()
+    os.chdir(tmp_path)
     rtc = RuntimeContext()
     rtc.outdir = str(cwd)
     factory = cwltool.factory.Factory(runtime_context=rtc)
