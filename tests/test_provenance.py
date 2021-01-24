@@ -14,8 +14,8 @@ from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DC, DCTERMS, RDF
 from rdflib.term import Literal
 
-# Module to be tested
 from cwltool import provenance
+from cwltool import provenance_constants
 from cwltool.main import main
 from cwltool.provenance import ResearchObject
 from cwltool.stdfsaccess import StdFsAccess
@@ -343,7 +343,7 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
         profile = dc
         break
     assert profile is not None, "Can't find profile with dct:conformsTo"
-    assert profile == URIRef(provenance.CWLPROV_VERSION), (
+    assert profile == URIRef(provenance_constants.CWLPROV_VERSION), (
         "Unexpected cwlprov version " + profile
     )
 
@@ -407,7 +407,7 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
         # Check all prov elements are listed
         formats = set()
         for prov in g.objects(p, OA.hasBody):
-            assert (prov, DCTERMS.conformsTo, URIRef(provenance.CWLPROV_VERSION)) in g
+            assert (prov, DCTERMS.conformsTo, URIRef(provenance_constants.CWLPROV_VERSION)) in g
             # NOTE: DC.format is a Namespace method and does not resolve like other terms
             formats.update(set(g.objects(prov, DC["format"])))
         assert formats, "Could not find media types"

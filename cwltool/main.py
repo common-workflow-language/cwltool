@@ -37,14 +37,12 @@ from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import (
-    ContextType,
-    FetcherCallableType,
     Loader,
     file_uri,
     uri_file_path,
 )
 from schema_salad.sourceline import strip_dup_lineno
-from schema_salad.utils import json_dumps
+from schema_salad.utils import json_dumps, ContextType, FetcherCallableType
 
 from . import command_line_tool, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
