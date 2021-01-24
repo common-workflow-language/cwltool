@@ -4,7 +4,7 @@ from typing import Dict, cast
 from .errors import WorkflowException
 from .utils import CWLObjectType
 
-MutationState = namedtuple("MutationTracker", ["generation", "readers", "stepname"])
+MutationState = namedtuple("MutationState", ["generation", "readers", "stepname"])
 
 _generation = "http://commonwl.org/cwltool#generation"
 

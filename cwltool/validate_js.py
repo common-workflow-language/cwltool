@@ -116,7 +116,7 @@ def get_expressions(
         return []
 
 
-JSHintJSReturn = namedtuple("jshint_return", ["errors", "globals"])
+JSHintJSReturn = namedtuple("JSHintJSReturn", ["errors", "globals"])
 
 
 def jshint_js(
