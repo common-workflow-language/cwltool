@@ -97,7 +97,7 @@ setup(
         "ruamel.yaml >= 0.12.4, <= 0.16.5",
         "rdflib >= 4.2.2, < 5.1.0",
         "shellescape >= 3.4.1, < 3.5",
-        "schema-salad >= 7.0.20210124093443, < 8",
+        "schema-salad >= 7.1, < 8",
         "mypy-extensions",
         "psutil",
         "prov == 1.5.1",
