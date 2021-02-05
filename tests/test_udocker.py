@@ -1,7 +1,6 @@
 """Test optional udocker feature."""
 import copy
 import os
-import shutil
 import subprocess
 import sys
 
@@ -12,7 +11,6 @@ except ImportError:
 
 
 from pathlib import Path
-from typing import Generator
 
 import pytest
 from _pytest.tmpdir import TempPathFactory

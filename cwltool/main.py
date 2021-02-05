@@ -36,15 +36,11 @@ import pkg_resources  # part of setuptools
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
-from schema_salad.ref_resolver import (
-    Loader,
-    file_uri,
-    uri_file_path,
-)
+from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
-from schema_salad.utils import json_dumps, ContextType, FetcherCallableType
+from schema_salad.utils import ContextType, FetcherCallableType, json_dumps
 
-from . import command_line_tool, workflow
+from . import CWL_CONTENT_TYPES, command_line_tool, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
 from .builder import HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -332,7 +328,11 @@ def load_job_order(
             if args.basedir
             else os.path.abspath(os.path.dirname(job_order_file))
         )
-        job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
+        job_order_object, _ = loader.resolve_ref(
+            job_order_file,
+            checklinks=False,
+            content_types=CWL_CONTENT_TYPES,
+        )
 
     if (
         job_order_object is not None

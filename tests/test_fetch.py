@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 from urllib.parse import urljoin, urlsplit
 
 import pytest
@@ -26,7 +26,7 @@ class CWLTestFetcher(Fetcher):
     ) -> None:
         """Create a Fetcher that provides a fixed result for testing purposes."""
 
-    def fetch_text(self, url):  # type: (str) -> str
+    def fetch_text(self, url: str, content_types: Optional[List[str]] = None) -> str:
         if url == "baz:bar/foo.cwl":
             return """
 cwlVersion: v1.0
