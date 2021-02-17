@@ -7,7 +7,6 @@ import re
 import shutil
 import subprocess  # nosec
 import sys
-import tempfile
 import threading
 from distutils import spawn
 from io import StringIO, open  # pylint: disable=redefined-builtin
@@ -103,9 +102,6 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         super(DockerCommandLineJob, self).__init__(
             builder, joborder, make_path_mapper, requirements, hints, name
         )
-        # TODO: Unused; Implement for docker as well.
-        self.universal_file_bindmount_dir = tempfile.mkdtemp(suffix='-cwl-docker-mnt')
-        self.bindings_map = []
 
     @staticmethod
     def get_image(

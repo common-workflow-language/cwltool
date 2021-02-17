@@ -64,10 +64,18 @@ class PathMapper(object):
         separateDirs: bool = True,
     ) -> None:
         """Initialize the PathMapper."""
+        self.referenced_files = dedup(referenced_files)
+        self.basedir = basedir
         self._pathmap = {}  # type: Dict[str, MapperEnt]
         self.stagedir = stagedir
         self.separateDirs = separateDirs
-        self.setup(dedup(referenced_files), basedir)
+        self.setup(self.referenced_files, basedir)
+
+    def reset_stagedir(self, stagedir: str) -> None:
+        """Changes the target stagedir for mapped files."""
+        self.stagedir = stagedir
+        self._pathmap = {}  # type: Dict[str, MapperEnt]
+        self.setup(self.referenced_files, self.basedir)
 
     def visitlisting(
         self,

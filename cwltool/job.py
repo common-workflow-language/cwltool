@@ -4,12 +4,10 @@ import itertools
 import logging
 import os
 import re
-import resource
 import shutil
 import subprocess  # nosec
 import sys
 import tempfile
-import textwrap
 import threading
 import time
 import uuid
@@ -531,15 +529,6 @@ class CommandLineJob(JobBase):
         tmpdir_lock: Optional[threading.Lock] = None,
     ) -> None:
 
-        # attempt to set an "unlimited" (-1) heap size for this process
-        # (& thus commandline size) on any system that supports it
-        # TODO: Do containers inherit the processes's limits?
-        #  Can they be configured from outside of the container?
-        try:
-            resource.setrlimit(resource.RLIMIT_DATA, (-1, -1))
-        except Exception:
-            pass
-
         if tmpdir_lock:
             with tmpdir_lock:
                 if not os.path.exists(self.tmpdir):
@@ -600,20 +589,6 @@ CONTROL_CODE_RE = r"\x1b\[[0-9;]*[a-zA-Z]"
 
 class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     """Commandline job using containers."""
-    def __init__(
-        self,
-        builder: Builder,
-        joborder: CWLObjectType,
-        make_path_mapper: Callable[..., PathMapper],
-        requirements: List[CWLObjectType],
-        hints: List[CWLObjectType],
-        name: str,
-    ) -> None:
-        super(JobBase, self).__init__(
-            builder, joborder, make_path_mapper, requirements, hints, name
-        )
-        self.universal_file_bindmount_dir = None
-        self.bindings_map = None
 
     @abstractmethod
     def get_from_requirements(
@@ -706,69 +681,10 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         any_path_okay: bool = False,
     ) -> None:
         """Append volume mappings to the runtime option list."""
-        container_outdir = self.builder.outdir
-        for key, vol in (itm for itm in pathmapper.items() if itm[1].staged):
-            host_outdir_tgt = None  # type: Optional[str]
-            if vol.target.startswith(container_outdir + "/"):
-                host_outdir_tgt = os.path.join(
-                    self.outdir, vol.target[len(container_outdir) + 1 :]
-                )
-            if not host_outdir_tgt and not any_path_okay:
-                raise WorkflowException(
-                    "No mandatory DockerRequirement, yet path is outside "
-                    "the designated output directory, also know as "
-                    "$(runtime.outdir): {}".format(vol)
-                )
-            if vol.type in ("File", "Directory"):
-                self.add_file_or_directory_volume(runtime, vol, host_outdir_tgt)
-            elif vol.type == "WritableFile":
-                self.add_writable_file_volume(
-                    runtime, vol, host_outdir_tgt, tmpdir_prefix
-                )
-            elif vol.type == "WritableDirectory":
-                self.add_writable_directory_volume(
-                    runtime, vol, host_outdir_tgt, tmpdir_prefix
-                )
-            elif vol.type in ["CreateFile", "CreateWritableFile"]:
-                new_path = self.create_file_and_add_volume(
-                    runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix
-                )
-                pathmapper.update(key, new_path, vol.target, vol.type, vol.staged)
-
-        # Dir of individual file inputs for the job (all named as uuid4).
-        # This creates the same dir inside of the container as exists outside of it,
-        # Overlayfs must be supported/enabled (which should always be true for CWL).
-        src = dst = self.universal_file_bindmount_dir
-        runtime.append(f"--bind={src}:{dst}:rw")
-
-        # Make a TSV of the file mappings.
-        mapping_tsv = os.path.join(self.universal_file_bindmount_dir, 'mapping.tsv')
-        with open(mapping_tsv, 'w') as f:
-            # 1. Sort by the destination path, which should sort alphabetically
-            #    and by shortest path first.
-            # 2. Then, when we go to hardlink the files, we
-            #    should then just be able to hardlink them in order.
-            for (src, dst, writable) in sorted(self.bindings_map, key=lambda x: len(x[1])):
-                f.write('\t'.join((src, dst, writable)) + '\n')
-
-        # Make the script that uses the TSV file mappings to hardlink everything
-        # inside of the container to where the job expects to find them.
-        # This script needs to be the first thing run inside of the container.
-        linking_script = os.path.join(self.universal_file_bindmount_dir, 'hard_linking_script.py')
-        # TODO: Write in bash instead.  All images might not have python.
-        with open(linking_script, 'w') as f:
-            f.write(textwrap.dedent(f"""
-                import os
-
-                with open('{mapping_tsv}', 'r') as f:
-                    for line in f:
-                        src, dst, writable = line.split('\\t')
-                        os.makedirs(os.path.dirname(dst), exist_ok=True)
-                        os.link(src, dst)
-                        # TODO: set the permissions on the file here after linking
-
-                """[1:]))
-        os.chmod(linking_script, 0o777)
+        staging_dir = tempfile.mkdtemp()
+        pathmapper.reset_stagedir(staging_dir)
+        stage_files(pathmapper, symlink=False)
+        self.append_volume(runtime, staging_dir, staging_dir)
 
     def run(
         self,
