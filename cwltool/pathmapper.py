@@ -64,6 +64,7 @@ class PathMapper(object):
         separateDirs: bool = True,
     ) -> None:
         """Initialize the PathMapper."""
+        # separateDirs = False
         self._pathmap = {}  # type: Dict[str, MapperEnt]
         self.stagedir = stagedir
         self.separateDirs = separateDirs

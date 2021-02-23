@@ -877,8 +877,14 @@ class CommandLineTool(Process):
             )
             _logger.debug("[job %s] %s", j.name, json_dumps(builder.job, indent=4))
 
+        dockerReq, _ = self.get_requirement("DockerRequirement")
+
+        separateDirs = True
+        if dockerReq is not None and runtimeContext.use_container:
+            separateDirs = False
+
         builder.pathmapper = self.make_path_mapper(
-            reffiles, builder.stagedir, runtimeContext, True
+            reffiles, builder.stagedir, runtimeContext, separateDirs
         )
         builder.requirements = j.requirements
 
@@ -933,7 +939,6 @@ class CommandLineTool(Process):
                 j.name,
                 json_dumps(builder.bindings, indent=4),
             )
-        dockerReq, _ = self.get_requirement("DockerRequirement")
         if dockerReq is not None and runtimeContext.use_container:
             j.outdir = runtimeContext.get_outdir()
             j.tmpdir = runtimeContext.get_tmpdir()

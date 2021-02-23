@@ -282,14 +282,15 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     def append_volume(
         runtime: List[str], source: str, target: str, writable: bool = False
     ) -> None:
-        runtime.append("--bind")
-        runtime.append(
-            "{}:{}:{}".format(
-                docker_windows_path_adjust(source),
-                docker_windows_path_adjust(target),
-                "rw" if writable else "ro",
-            )
-        )
+        src = docker_windows_path_adjust(source)
+        dst = docker_windows_path_adjust(target)
+        rw = "rw" if writable else "ro"
+        if os.path.isfile(src) and dst.endswith(os.path.basename(src)):
+            src = os.path.dirname(src)
+            dst = os.path.dirname(dst)
+        bind_arg = f"--bind={src}:{dst}:{rw}"
+        if bind_arg not in runtime:
+            runtime.append(bind_arg)
 
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
@@ -403,18 +404,14 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 )
             )
         else:
-            runtime.append("--bind")
-            runtime.append(
-                "{}:{}:rw".format(
+            runtime.append("--bind={}:{}:rw".format(
                     docker_windows_path_adjust(os.path.realpath(self.outdir)),
                     self.builder.outdir,
                 )
             )
-        runtime.append("--bind")
-        tmpdir = "/tmp"  # nosec
-        runtime.append(
-            "{}:{}:rw".format(
-                docker_windows_path_adjust(os.path.realpath(self.tmpdir)), tmpdir
+        runtime.append("--bind={}:{}:rw".format(
+                docker_windows_path_adjust(os.path.realpath(self.tmpdir)),
+                '/tmp'
             )
         )
 
