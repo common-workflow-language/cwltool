@@ -681,10 +681,34 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         any_path_okay: bool = False,
     ) -> None:
         """Append volume mappings to the runtime option list."""
-        staging_dir = tempfile.mkdtemp()
-        pathmapper.reset_stagedir(staging_dir)
-        stage_files(pathmapper, symlink=False)
-        self.append_volume(runtime, staging_dir, staging_dir)
+        container_outdir = self.builder.outdir
+        for key, vol in (itm for itm in pathmapper.items() if itm[1].staged):
+            host_outdir_tgt = None  # type: Optional[str]
+            if vol.target.startswith(container_outdir + "/"):
+                host_outdir_tgt = os.path.join(
+                    self.outdir, vol.target[len(container_outdir) + 1 :]
+                )
+            if not host_outdir_tgt and not any_path_okay:
+                raise WorkflowException(
+                    "No mandatory DockerRequirement, yet path is outside "
+                    "the designated output directory, also know as "
+                    "$(runtime.outdir): {}".format(vol)
+                )
+            if vol.type in ("File", "Directory"):
+                self.add_file_or_directory_volume(runtime, vol, host_outdir_tgt)
+            elif vol.type == "WritableFile":
+                self.add_writable_file_volume(
+                    runtime, vol, host_outdir_tgt, tmpdir_prefix
+                )
+            elif vol.type == "WritableDirectory":
+                self.add_writable_directory_volume(
+                    runtime, vol, host_outdir_tgt, tmpdir_prefix
+                )
+            elif vol.type in ["CreateFile", "CreateWritableFile"]:
+                new_path = self.create_file_and_add_volume(
+                    runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix
+                )
+                pathmapper.update(key, new_path, vol.target, vol.type, vol.staged)
 
     def run(
         self,
