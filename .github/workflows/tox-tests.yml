@@ -20,6 +20,9 @@ jobs:
         with:
           python-version: ${{ matrix.py-semver }}
 
+      - name: Give the test runner user a name to make provenance happy.
+        run: sudo usermod -c 'CI Runner' $(whoami)
+
       - name: Install Tox and any other packages
         run: |
           python -m pip install --upgrade pip
