@@ -16,11 +16,9 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up Singularity
-        run: |
-          wget -O- http://neuro.debian.net/lists/focal.us-nh.full | sudo tee /etc/apt/sources.list.d/neurodebian.sources.list
-          sudo apt-key add .travis.singularity_key.txt
-          sudo apt-get update
-          sudo apt-get install -y singularity-container
+        uses: eWaterCycle/setup-singularity@v5
+        with:
+          singularity-version: 3.6.4
 
       - name: Set up Python ${{ matrix.py-semver }}
         uses: actions/setup-python@v2
