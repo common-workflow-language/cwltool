@@ -9,3 +9,4 @@ mypy-extensions
 psutil
 typing-extensions
 coloredlogs
+pydot>=1.4.1
