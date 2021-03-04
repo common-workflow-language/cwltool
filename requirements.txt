@@ -10,3 +10,4 @@ psutil
 typing-extensions
 coloredlogs
 pydot>=1.4.1
+argcomplete>=1.12.0
