@@ -1,4 +1,4 @@
-name: CI tests
+name: Continous integration tests
 
 on:
   push:
@@ -20,7 +20,10 @@ env:
 jobs:
 
   tox:
+    name: CI tests via Tox
+
     runs-on: ubuntu-20.04
+
     strategy:
       matrix:
         py-semver: [3.6]
@@ -67,9 +70,13 @@ jobs:
           fail_ci_if_error: true
 
   conformance_tests:
+    name: CWL spec conformance tests
+
     runs-on: ubuntu-20.04
+
     env:
       py-semver: 3.8
+
     strategy:
       matrix:
         cwl-version: [v1.0, v1.1, v1.2.0-dev4]
@@ -88,6 +95,8 @@ jobs:
         run: ./travis.bash
 
   release_test:
+    name: CWL release test
+
     runs-on: ubuntu-20.04
 
     env:
