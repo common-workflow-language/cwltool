@@ -80,3 +80,29 @@ jobs:
         env:
           version: ${{ matrix.cwl-version }}
         run: ./travis.bash
+
+  release_test:
+    runs-on: ubuntu-20.04
+
+    env:
+      py-semver: 3.7
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.py-semver }}
+
+      - name: Give the test runner user a name to make provenance happy.
+        run: sudo usermod -c 'CI Runner' $(whoami)
+
+      - name: Install packages
+        run: pip install -rrequirements.txt -rtest-requirements.txt virtualenv
+
+      - name: Release test
+        env:
+          RELEASE_SKIP: head
+          TRAVIS_PULL_REQUEST_SLUG: ${{github.head_ref}}
+        run: ./release-test.sh
