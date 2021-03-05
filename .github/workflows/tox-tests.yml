@@ -6,6 +6,16 @@ on:
 
 env:
   singularity_version: 3.6.4
+  pip_extras: >
+    tox
+    tox-gh-actions
+    virtualenv
+    codecov
+    pytest-xdist
+    pytest-cov
+    galaxy-tool-util
+    flake8-bugbear black
+    bandit
 
 jobs:
 
@@ -37,16 +47,16 @@ jobs:
       - name: Give the test runner user a name to make provenance happy.
         run: sudo usermod -c 'CI Runner' $(whoami)
 
-      - name: Cache installed python modules
+      - name: Cache for pip
         uses: actions/cache@v2
         with:
-          path: ${{ env.pythonLocation }}
-          key: ${{ env.pythonLocation }}-${{ hashFiles('requirements.txt', 'test-requirements.txt') }}
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'test-requirements.txt') }}
 
-      - name: Install Tox and any other packages
+      - name: Install Tox and any other packages used on all python versions
         run: |
-          python -m pip install --upgrade pip
-          pip install -rrequirements.txt -rtest-requirements.txt tox tox-gh-actions
+          pip install -U pip setuptools wheel
+          pip install -rrequirements.txt -rtest-requirements.txt ${{env.pip_extras}}
 
       - name: MyPy cache
         uses: actions/cache@v2
@@ -56,6 +66,11 @@ jobs:
 
       - name: Test with tox
         run: tox
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          fail_ci_if_error: true
 
   conformance_tests:
     runs-on: ubuntu-20.04
@@ -72,9 +87,6 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.py-semver }}
-
-      - name: Give the test runner user a name to make provenance happy.
-        run: sudo usermod -c 'CI Runner' $(whoami)
 
       - name: Run CWL conformance tests ${{ matrix.cwl-version }}
         env:
@@ -98,8 +110,16 @@ jobs:
       - name: Give the test runner user a name to make provenance happy.
         run: sudo usermod -c 'CI Runner' $(whoami)
 
+      - name: Cache for pip
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'test-requirements.txt') }}
+
       - name: Install packages
-        run: pip install -rrequirements.txt -rtest-requirements.txt virtualenv
+        run: |
+          pip install -U pip setuptools wheel
+          pip install -rrequirements.txt -rtest-requirements.txt ${{env.pip_extras}}
 
       - name: Release test
         env:
