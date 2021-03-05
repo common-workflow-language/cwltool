@@ -6,16 +6,6 @@ on:
 
 env:
   singularity_version: 3.6.4
-  pip_extras: >
-    tox
-    tox-gh-actions
-    virtualenv
-    codecov
-    pytest-xdist
-    pytest-cov
-    galaxy-tool-util
-    flake8-bugbear black
-    bandit
 
 jobs:
 
@@ -41,13 +31,13 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up Singularity
-        if: ${{ matrix.step == 'unit' }}
+        if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
         uses: eWaterCycle/setup-singularity@v6
         with:
           singularity-version: ${{ env.singularity_version }}
 
       - name: Give the test runner user a name to make provenance happy.
-        if: ${{ matrix.step == 'unit' }}
+        if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
         run: sudo usermod -c 'CI Runner' $(whoami)
 
       - name: Set up Python
@@ -61,10 +51,10 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ matrix.step }}-${{ hashFiles('requirements.txt', 'tox.ini') }}
 
-      - name: Install Tox and any other packages used on all runs
+      - name: Upgrade setuptools and install tox
         run: |
           pip install -U pip setuptools wheel
-          pip install -rrequirements.txt tox tox-gh-actions
+          pip install tox tox-gh-actions
 
       - name: MyPy cache
         if: ${{ matrix.step == 'mypy' }}
@@ -83,7 +73,7 @@ jobs:
           fail_ci_if_error: true
 
   tox-style:
-    name: CI tests via Tox
+    name: CI linters via Tox
 
     runs-on: ubuntu-20.04
 
@@ -111,11 +101,10 @@ jobs:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ matrix.step }}-${{ hashFiles('requirements.txt') }}
 
-      - name: Install Tox and any other packages used on all runs
+      - name: Upgrade setuptools and install tox
         run: |
           pip install -U pip setuptools wheel
           pip install tox tox-gh-actions
-          pip install -rrequirements.txt
 
       - name: Test with tox
         run: tox
@@ -184,7 +173,7 @@ jobs:
       - name: Install packages
         run: |
           pip install -U pip setuptools wheel
-          pip install -rrequirements.txt -rtest-requirements.txt ${{env.pip_extras}}
+          pip install virtualenv
 
       - name: Release test
         env:
