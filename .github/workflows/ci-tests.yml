@@ -26,48 +26,99 @@ jobs:
 
     strategy:
       matrix:
-        py-semver: [3.6]
+        py-ver-major: [3]
+        py-ver-minor: [6]
+        step: [lint, unit, bandit, mypy]
+        exclude:
+          - py-ver-minor: 9
+            step: mypy
+
+    env:
+      py-semver: ${{ format('{0}.{1}', matrix.py-ver-major, matrix.py-ver-minor) }}
+      TOXENV: ${{ format('py{0}{1}-{2}', matrix.py-ver-major, matrix.py-ver-minor, matrix.step) }}
 
     steps:
       - uses: actions/checkout@v2
 
       - name: Set up Singularity
+        if: ${{ matrix.step == 'unit' }}
         uses: eWaterCycle/setup-singularity@v6
         with:
           singularity-version: ${{ env.singularity_version }}
 
-      - name: Set up Python ${{ matrix.py-semver }}
+      - name: Give the test runner user a name to make provenance happy.
+        if: ${{ matrix.step == 'unit' }}
+        run: sudo usermod -c 'CI Runner' $(whoami)
+
+      - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.py-semver }}
-
-      - name: Give the test runner user a name to make provenance happy.
-        run: sudo usermod -c 'CI Runner' $(whoami)
+          python-version: ${{ env.py-semver }}
 
       - name: Cache for pip
         uses: actions/cache@v2
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'test-requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ matrix.step }}-${{ hashFiles('requirements.txt', 'tox.ini') }}
 
-      - name: Install Tox and any other packages used on all python versions
+      - name: Install Tox and any other packages used on all runs
         run: |
           pip install -U pip setuptools wheel
-          pip install -rrequirements.txt -rtest-requirements.txt ${{env.pip_extras}}
+          pip install -rrequirements.txt tox tox-gh-actions
 
       - name: MyPy cache
+        if: ${{ matrix.step == 'mypy' }}
         uses: actions/cache@v2
         with:
-          path: .mypy_cache/${{ matrix.py-semver }}
-          key: mypy-${{ matrix.py-semver }}
+          path: .mypy_cache/${{ env.py-semver }}
+          key: mypy-${{ env.py-semver }}
 
       - name: Test with tox
         run: tox
 
       - name: Upload coverage to Codecov
+        if: ${{ matrix.step == 'unit' }}
         uses: codecov/codecov-action@v1
         with:
           fail_ci_if_error: true
+
+  tox-style:
+    name: CI tests via Tox
+
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        py-ver-major: [3]
+        py-ver-minor: [8]
+        step: [lint-readme, shellcheck, pydocstyle]
+
+    env:
+      py-semver: ${{ format('{0}.{1}', matrix.py-ver-major, matrix.py-ver-minor) }}
+      TOXENV: ${{ format('py{0}{1}-{2}', matrix.py-ver-major, matrix.py-ver-minor, matrix.step) }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.py-semver }}
+
+      - name: Cache for pip
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.step }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Install Tox and any other packages used on all runs
+        run: |
+          pip install -U pip setuptools wheel
+          pip install tox tox-gh-actions
+          pip install -rrequirements.txt
+
+      - name: Test with tox
+        run: tox
 
   conformance_tests:
     name: CWL spec conformance tests
@@ -88,6 +139,12 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.py-semver }}
+
+      - name: Cache for pip
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-conformance-${{ matrix.step }}-${{ hashFiles('requirements.txt') }}
 
       - name: Run CWL conformance tests ${{ matrix.cwl-version }}
         env:
@@ -122,7 +179,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'test-requirements.txt') }}
+          key: ${{ runner.os }}-pip-release-${{ hashFiles('requirements.txt', 'test-requirements.txt') }}
 
       - name: Install packages
         run: |
