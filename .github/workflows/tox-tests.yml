@@ -28,14 +28,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Cache singularity
-        uses: actions/cache@v2
-        with:
-          path: ${{ runner.tool_cache }}/singularity/${{ env.singularity_version }}/x64
-          key: singularity-${{ env.singularity_version }}
-
       - name: Set up Singularity
-        uses: eWaterCycle/setup-singularity@v5
+        uses: eWaterCycle/setup-singularity@v6
         with:
           singularity-version: ${{ env.singularity_version }}
 
@@ -101,6 +95,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
+      - name: Set up Singularity
+        uses: eWaterCycle/setup-singularity@v6
+        with:
+          singularity-version: ${{ env.singularity_version }}
 
       - name: Set up Python
         uses: actions/setup-python@v2
