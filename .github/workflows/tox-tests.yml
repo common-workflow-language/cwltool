@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+env:
+  singularity_version: 3.6.4
+
 jobs:
 
   tox:
@@ -15,10 +18,16 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Cache singularity
+        uses: actions/cache@v2
+        with:
+          path: ${{ runner.tool_cache }}/singularity/${{ env.singularity_version }}/x64
+          key: singularity-${{ env.singularity_version }}
+
       - name: Set up Singularity
         uses: eWaterCycle/setup-singularity@v5
         with:
-          singularity-version: 3.6.4
+          singularity-version: ${{ env.singularity_version }}
 
       - name: Set up Python ${{ matrix.py-semver }}
         uses: actions/setup-python@v2
