@@ -56,3 +56,27 @@ jobs:
 
       - name: Test with tox
         run: tox
+
+  conformance_tests:
+    runs-on: ubuntu-20.04
+    env:
+      py-semver: 3.8
+    strategy:
+      matrix:
+        cwl-version: [v1.0, v1.1, v1.2.0-dev4]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.py-semver }}
+
+      - name: Give the test runner user a name to make provenance happy.
+        run: sudo usermod -c 'CI Runner' $(whoami)
+
+      - name: Run CWL conformance tests ${{ matrix.cwl-version }}
+        env:
+          version: ${{ matrix.cwl-version }}
+        run: ./travis.bash
