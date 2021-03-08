@@ -8,9 +8,9 @@ env:
   singularity_version: 3.6.4
   # We need the components separately because of the limitations of
   # GitHub Actions expressions + tox enviroment names.
-  default-py-ver-major: 3
-  default-py-ver-minor: 9
-  default-py-semver: 3.9
+  default_py_ver_major: 3
+  default_py_ver_minor: 9
+  default_py_semver: 3.9
 
 jobs:
 
@@ -88,8 +88,8 @@ jobs:
         step: [lint-readme, shellcheck, pydocstyle]
 
     env:
-      py-semver: ${{ env.default-py-semver }}
-      TOXENV: ${{ format('py{0}{1}-{2}', env.default-py-ver-major, env.default-py-ver-minor, matrix.step) }}
+      py-semver: ${{ env.default_py_semver }}
+      TOXENV: ${{ format('py{0}{1}-{2}', env.default_py_ver_major, env.default_py_ver_minor, matrix.step) }}
 
     steps:
       - uses: actions/checkout@v2
@@ -134,7 +134,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.default-py-semver }}
+          python-version: ${{ env.default_py_semver }}
 
       - name: Cache for pip
         uses: actions/cache@v2
@@ -163,7 +163,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.default-py-semver }}
+          python-version: ${{ env.default_py_semver }}
 
       - name: Give the test runner user a name to make provenance happy.
         run: sudo usermod -c 'CI Runner' $(whoami)
