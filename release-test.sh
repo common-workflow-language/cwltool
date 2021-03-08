@@ -11,10 +11,10 @@ module=cwltool
 if [ "$GITHUB_ACTIONS" = "true" ]; then
     # We are running as a GH Action
     repo=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git
-    export HEAD=${GITHUB_SHA}
+    HEAD=${GITHUB_SHA}
 else
     repo=https://github.com/common-workflow-language/cwltool.git
-    export HEAD=$(git rev-parse HEAD)
+    HEAD=$(git rev-parse HEAD)
 fi
 
 test_prefix=""
