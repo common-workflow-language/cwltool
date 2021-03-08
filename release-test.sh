@@ -7,8 +7,16 @@ export LC_ALL=C
 
 package=cwltool
 module=cwltool
-slug=${TRAVIS_PULL_REQUEST_SLUG:=common-workflow-language/cwltool}
-repo=https://github.com/${slug}.git
+
+if [ "$GITHUB_ACTIONS" = "true" ]; then
+    # We are running as a GH Action
+    repo=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git
+    export HEAD=${GITHUB_SHA}
+else
+    repo=https://github.com/common-workflow-language/cwltool.git
+    export HEAD=$(git rev-parse HEAD)
+fi
+
 test_prefix=""
 run_tests() {
 	local mod_loc
@@ -24,7 +32,6 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 rm -Rf testenv? || /bin/true
 
-export HEAD=${TRAVIS_PULL_REQUEST_SHA:-$(git rev-parse HEAD)}
 
 if [ "${RELEASE_SKIP}" != "head" ]
 then

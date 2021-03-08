@@ -179,5 +179,4 @@ jobs:
       - name: Release test
         env:
           RELEASE_SKIP: head
-          TRAVIS_PULL_REQUEST_SLUG: ${{github.head_ref}}
         run: ./release-test.sh
