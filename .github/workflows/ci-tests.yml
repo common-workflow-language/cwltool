@@ -109,6 +109,10 @@ jobs:
           pip install -U pip setuptools wheel
           pip install tox tox-gh-actions
 
+      - if: ${{ matrix.step == 'pydocstyle' }}
+        name: Create local branch main == origin/main for diff-quality
+        run: git branch main origin/main
+
       - name: Test with tox
         run: tox
 
