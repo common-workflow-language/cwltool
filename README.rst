@@ -61,7 +61,7 @@ please follow the install instructions for `conda-forge <https://conda-forge.org
    conda install -c conda-forge cwltool
 
 All of the above methods of installing ``cwltool`` use packages which might contain bugs already fixed in newer versions, or be missing features that you desire.
-If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv`::
+If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv``::
 
 .. code:: bash
 
