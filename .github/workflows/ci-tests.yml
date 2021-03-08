@@ -145,7 +145,7 @@ jobs:
       - name: Run CWL conformance tests ${{ matrix.cwl-version }}
         env:
           version: ${{ matrix.cwl-version }}
-        run: ./travis.bash
+        run: ./conformance-test.sh
 
   release_test:
     name: CWL release test
