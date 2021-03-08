@@ -4,8 +4,8 @@ Common Workflow Language tool description reference implementation
 
 |Linux Status| |Debian Stable package| |Debian Testing package| |Windows Status| |Coverage Status| |Downloads|
 
-.. |Linux Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/main.svg?label=Linux%20builds
-   :target: https://travis-ci.org/common-workflow-language/cwltool
+.. |Linux Status| image:: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml/badge.svg?branch=main
+   :target: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml
 
 .. |Debian Stable package| image:: https://badges.debian.net/badges/debian/stable/cwltool/version.svg
    :target: https://packages.debian.org/stable/cwltool
@@ -61,7 +61,7 @@ please follow the install instructions for `conda-forge <https://conda-forge.org
    conda install -c conda-forge cwltool
 
 All of the above methods of installing ``cwltool`` use packages which might contain bugs already fixed in newer versions, or be missing features that you desire.
-If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv`::
+If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv``::
 
 .. code:: bash
 

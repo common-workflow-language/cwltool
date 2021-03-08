@@ -172,7 +172,7 @@ mypyc: ${PYSOURCES}
 	MYPYPATH=typeshed/2and3/:typeshed/3 CWLTOOL_USE_MYPYC=1 pip install --verbose -e . && pytest --ignore cwltool/schemas --basetemp ./tmp
 
 shellcheck: FORCE
-	shellcheck build-cwl-docker.sh cwl-docker.sh release-test.sh travis.bash \
+	shellcheck build-cwl-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
 		cwltool-in-docker.sh
 
 release-test: FORCE
