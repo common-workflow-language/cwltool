@@ -1,6 +1,5 @@
 from distutils import spawn
-
-import py.path
+from pathlib import Path
 
 from cwltool.main import main
 
@@ -8,20 +7,21 @@ from .util import get_data, get_main_output, needs_docker
 
 
 @needs_docker
-def test_docker_workflow(tmpdir: py.path.local) -> None:
+def test_docker_workflow(tmp_path: Path) -> None:
+    """Basic test for docker with a CWL Workflow."""
     result_code, _, stderr = get_main_output(
         [
             "--default-container",
             "debian",
             "--outdir",
-            str(tmpdir),
+            str(tmp_path),
             get_data("tests/wf/hello-workflow.cwl"),
             "--usermessage",
             "hello",
         ]
     )
     assert "completed success" in stderr
-    assert (tmpdir / "response.txt").read_text("utf-8") == "hello"
+    assert (tmp_path / "response.txt").read_text("utf-8") == "hello"
     assert result_code == 0
 
 

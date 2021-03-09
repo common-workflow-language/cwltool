@@ -92,7 +92,7 @@ pep257: pydocstyle
 pydocstyle: $(PYSOURCES)
 	pydocstyle --add-ignore=D100,D101,D102,D103 $^ || true
 
-pydocstyle_report.txt: $(PYSOURCES)
+pydocstyle_report.txt: $(filter-out tests/%,${PYSOURCES})
 	pydocstyle setup.py $^ > $@ 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt
@@ -172,7 +172,7 @@ mypyc: ${PYSOURCES}
 	MYPYPATH=typeshed/2and3/:typeshed/3 CWLTOOL_USE_MYPYC=1 pip install --verbose -e . && pytest --ignore cwltool/schemas --basetemp ./tmp
 
 shellcheck: FORCE
-	shellcheck build-cwl-docker.sh cwl-docker.sh release-test.sh travis.bash \
+	shellcheck build-cwl-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
 		cwltool-in-docker.sh
 
 release-test: FORCE

@@ -1,6 +1,5 @@
 import json
-
-import py.path
+from pathlib import Path
 
 from cwltool.context import RuntimeContext
 from cwltool.executors import MultithreadedJobExecutor
@@ -9,11 +8,11 @@ from .util import get_data, get_windows_safe_factory, windows_needs_docker
 
 
 @windows_needs_docker
-def test_sequential_workflow(tmpdir: py.path.local) -> None:
+def test_sequential_workflow(tmp_path: Path) -> None:
     test_file = "tests/wf/count-lines1-wf.cwl"
     executor = MultithreadedJobExecutor()
     runtime_context = RuntimeContext()
-    runtime_context.outdir = str(tmpdir)
+    runtime_context.outdir = str(tmp_path)
     runtime_context.select_resources = executor.select_resources
     factory = get_windows_safe_factory(
         executor=executor, runtime_context=runtime_context

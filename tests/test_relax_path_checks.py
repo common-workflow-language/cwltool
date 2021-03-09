@@ -1,7 +1,5 @@
 import os
-from tempfile import NamedTemporaryFile
-
-import py.path
+from pathlib import Path
 
 from cwltool.main import main
 
@@ -27,26 +25,20 @@ baseCommand: [cat]
 
 
 @needs_docker
-def test_spaces_in_input_files(tmpdir: py.path.local) -> None:
-    try:
-        script_file = NamedTemporaryFile(mode="w", delete=False)
+def test_spaces_in_input_files(tmp_path: Path) -> None:
+    script_name = tmp_path / "script"
+    spaces = tmp_path / "test with spaces"
+    spaces.touch()
+    with script_name.open(mode="w") as script_file:
         script_file.write(script)
-        script_file.flush()
-        script_file.close()
 
-        spaces = NamedTemporaryFile(prefix="test with spaces", delete=False)
-        spaces.close()
-
-        params = [
-            "--debug",
-            "--outdir",
-            str(tmpdir),
-            script_file.name,
-            "--input",
-            spaces.name,
-        ]
-        assert main(params) == 1
-        assert main(["--relax-path-checks"] + params) == 0
-    finally:
-        os.remove(script_file.name)
-        os.remove(spaces.name)
+    params = [
+        "--debug",
+        "--outdir",
+        str(tmp_path / "outdir"),
+        str(script_name),
+        "--input",
+        str(spaces),
+    ]
+    assert main(params) == 1
+    assert main(["--relax-path-checks"] + params) == 0

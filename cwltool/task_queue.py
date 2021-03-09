@@ -5,7 +5,6 @@
 
 import queue
 import threading
-
 from typing import Callable, Optional
 
 from .loghandler import _logger
