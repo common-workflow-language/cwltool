@@ -99,7 +99,6 @@ def get_main_output(
         rc = main(argsl=args, stdout=stdout, stderr=stderr)
     except SystemExit as e:
         rc = e.code
-``
     return (
         rc,
         stdout.getvalue(),
