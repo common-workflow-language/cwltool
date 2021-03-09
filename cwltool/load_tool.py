@@ -128,6 +128,8 @@ def fetch_document(
             document_loader=loadingContext.loader,
         )
         workflowobj = cast(CommentedMap, loadingContext.loader.fetch(fileuri))
+        if 'name' in workflowobj:
+            workflowobj['id'] = workflowobj['name']
         return loadingContext, workflowobj, uri
     if isinstance(argsworkflow, MutableMapping):
         uri = (
