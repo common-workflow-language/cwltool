@@ -1153,7 +1153,15 @@ def scandeps(
                 if doc["class"] == "Directory" and "listing" in doc:
                     deps["listing"] = doc["listing"]
                 if doc["class"] == "File" and "secondaryFiles" in doc:
-                    deps["secondaryFiles"] = doc["secondaryFiles"]
+                    deps["secondaryFiles"] = scandeps(
+                            base,
+                            doc["secondaryFiles"],
+                            reffields,
+                            urlfields,
+                            loadref,
+                            urljoin=urljoin,
+                            nestdirs=nestdirs,
+                        )
                 if nestdirs:
                     deps = nestdir(base, deps)
                 r.append(deps)
