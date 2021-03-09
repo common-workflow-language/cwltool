@@ -2,7 +2,9 @@ name: Continous integration tests
 
 on:
   push:
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 env:
   singularity_version: 3.6.4
@@ -139,7 +141,7 @@ jobs:
         run: ./conformance-test.sh
 
   release_test:
-    name: CWL release test
+    name: cwltool release test
 
     runs-on: ubuntu-20.04
 
