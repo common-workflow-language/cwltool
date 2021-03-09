@@ -104,7 +104,7 @@ if __name__ == "__main__":
         "env_pass": ["USER"],
     }
     plat_conf_file = mpitmp / "plat_mpi.yml"
-    plat_conf_file.write_text(yaml.round_trip_dump(plat_conf))
+    plat_conf_file.write_text(yaml.main.round_trip_dump(plat_conf))
 
     yield str(plat_conf_file)
 

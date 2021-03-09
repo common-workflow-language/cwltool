@@ -95,9 +95,9 @@ setup(
         "requests >= 2.6.1",  # >= 2.6.1 to workaround
         # https://github.com/ionrock/cachecontrol/issues/137
         "ruamel.yaml >= 0.12.4, <= 0.16.5",
-        "rdflib >= 4.2.2, < 4.3.0",
+        "rdflib >= 4.2.2, < 5.1.0",
         "shellescape >= 3.4.1, < 3.5",
-        "schema-salad >= 7, < 8",
+        "schema-salad >= 7.1, < 8",
         "mypy-extensions",
         "psutil",
         "prov == 1.5.1",
@@ -121,7 +121,7 @@ setup(
     setup_requires=PYTEST_RUNNER,
     test_suite="tests",
     tests_require=[
-        "pytest < 7",
+        "pytest >= 6.0.2, < 6.2",
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
         "arcp >= 0.2.0",

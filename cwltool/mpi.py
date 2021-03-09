@@ -53,7 +53,7 @@ class MpiConfig:
         optional).
         """
         with open(config_file_name) as cf:
-            data = yaml.round_trip_load(cf)
+            data = yaml.main.round_trip_load(cf)
         try:
             return cls(**data)
         except TypeError as e:

@@ -8,7 +8,8 @@ from typing import IO, Any, Callable, Dict, Iterable, List, Optional, TextIO, Un
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names
-from schema_salad.ref_resolver import FetcherCallableType, Loader
+from schema_salad.ref_resolver import Loader
+from schema_salad.utils import FetcherCallableType
 from typing_extensions import TYPE_CHECKING
 
 from .builder import Builder, HasReqsHints

@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional, TextIO, Union, cast
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.jsonld_context import makerdf
-from schema_salad.ref_resolver import ContextType
+from schema_salad.utils import ContextType
 
 from .cwlviewer import CWLViewer
 from .process import Process

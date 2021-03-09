@@ -4,10 +4,9 @@ import tempfile
 from collections.abc import Sized
 from functools import partial
 from io import StringIO
-from tempfile import NamedTemporaryFile
+from pathlib import Path
 from typing import Dict
 
-import py.path
 import pytest
 from ruamel import yaml
 
@@ -155,17 +154,17 @@ def test_pack_missing_cwlVersion(cwl_path: str) -> None:
     assert packed["cwlVersion"] == "v1.0"
 
 
-def test_pack_idempotence_tool() -> None:
+def test_pack_idempotence_tool(tmp_path: Path) -> None:
     """Ensure that pack produces exactly the same document for an already packed CommandLineTool."""
-    _pack_idempotently("tests/wf/hello_single_tool.cwl")
+    _pack_idempotently("tests/wf/hello_single_tool.cwl", tmp_path)
 
 
-def test_pack_idempotence_workflow() -> None:
+def test_pack_idempotence_workflow(tmp_path: Path) -> None:
     """Ensure that pack produces exactly the same document for an already packed workflow."""
-    _pack_idempotently("tests/wf/count-lines1-wf.cwl")
+    _pack_idempotently("tests/wf/count-lines1-wf.cwl", tmp_path)
 
 
-def _pack_idempotently(document: str) -> None:
+def _pack_idempotently(document: str, tmp_path: Path) -> None:
     loadingContext, workflowobj, uri = fetch_document(get_data(document))
     loadingContext.do_update = False
     loadingContext, uri = resolve_and_validate_document(
@@ -179,26 +178,24 @@ def _pack_idempotently(document: str) -> None:
     packed_text = print_pack(loadingContext, uri)
     packed = json.loads(packed_text)
 
-    tmp = NamedTemporaryFile(mode="w", delete=False)
-    try:
-        tmp.write(packed_text)
-        tmp.flush()
-        tmp.close()
+    tmp_name = tmp_path / "packed.cwl"
+    tmp = tmp_name.open(mode="w")
+    tmp.write(packed_text)
+    tmp.flush()
+    tmp.close()
 
-        loadingContext, workflowobj, uri2 = fetch_document(tmp.name)
-        loadingContext.do_update = False
-        loadingContext, uri2 = resolve_and_validate_document(
-            loadingContext, workflowobj, uri2
-        )
-        loader2 = loadingContext.loader
-        assert loader2
-        loader2.resolve_ref(uri2)[0]
+    loadingContext, workflowobj, uri2 = fetch_document(tmp.name)
+    loadingContext.do_update = False
+    loadingContext, uri2 = resolve_and_validate_document(
+        loadingContext, workflowobj, uri2
+    )
+    loader2 = loadingContext.loader
+    assert loader2
+    loader2.resolve_ref(uri2)[0]
 
-        # generate pack output dict
-        packed_text = print_pack(loadingContext, uri2)
-        double_packed = json.loads(packed_text)
-    finally:
-        os.remove(tmp.name)
+    # generate pack output dict
+    packed_text = print_pack(loadingContext, uri2)
+    double_packed = json.loads(packed_text)
 
     assert uri != uri2
     assert packed == double_packed
@@ -213,7 +210,7 @@ cwl_to_run = [
 @needs_docker
 @pytest.mark.parametrize("wf_path,job_path,namespaced", cwl_to_run)
 def test_packed_workflow_execution(
-    wf_path: str, job_path: str, namespaced: bool, tmpdir: py.path.local
+    wf_path: str, job_path: str, namespaced: bool, tmp_path: Path
 ) -> None:
     loadingContext = LoadingContext()
     loadingContext.resolver = tool_resolver
@@ -236,10 +233,10 @@ def test_packed_workflow_execution(
     normal_output = StringIO()
     packed_output = StringIO()
 
-    normal_params = ["--outdir", str(tmpdir), get_data(wf_path), get_data(job_path)]
+    normal_params = ["--outdir", str(tmp_path), get_data(wf_path), get_data(job_path)]
     packed_params = [
         "--outdir",
-        str(tmpdir),
+        str(tmp_path),
         "--debug",
         wf_packed_path,
         get_data(job_path),

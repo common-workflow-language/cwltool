@@ -3,8 +3,6 @@ import os
 import sys
 from pathlib import Path
 
-import py.path
-
 from cwltool.main import main
 
 from .util import (
@@ -22,7 +20,7 @@ sys.argv = [""]
 def test_singularity_pullfolder(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir_new"
     workdir.mkdir()
-    os.chdir(str(workdir))
+    os.chdir(workdir)
     pullfolder = tmp_path / "pullfolder"
     pullfolder.mkdir()
     env = os.environ.copy()
@@ -44,8 +42,8 @@ def test_singularity_pullfolder(tmp_path: Path) -> None:
 
 
 @needs_singularity
-def test_singularity_workflow(tmpdir: py.path.local) -> None:
-    with working_directory(str(tmpdir)):
+def test_singularity_workflow(tmp_path: Path) -> None:
+    with working_directory(tmp_path):
         error_code, _, stderr = get_main_output(
             [
                 "--singularity",
@@ -98,7 +96,7 @@ def test_singularity_incorrect_image_pull() -> None:
 def test_singularity_local(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
-    os.chdir(str(workdir))
+    os.chdir(workdir)
     result_code, stdout, stderr = get_main_output(
         [
             "--singularity",
@@ -114,7 +112,7 @@ def test_singularity_local(tmp_path: Path) -> None:
 def test_singularity_docker_image_id_in_tool(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
-    os.chdir(str(workdir))
+    os.chdir(workdir)
     result_code, stdout, stderr = get_main_output(
         [
             "--singularity",

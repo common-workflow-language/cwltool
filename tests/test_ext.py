@@ -1,14 +1,14 @@
 import os
 import re
 from io import StringIO
+from pathlib import Path
 
-import py.path
 import pytest
 
 import cwltool.process
 from cwltool.main import main
 
-from .util import get_data, needs_docker, temp_dir, windows_needs_docker
+from .util import get_data, needs_docker, windows_needs_docker
 
 
 @needs_docker
@@ -90,162 +90,168 @@ def test_listing_v1_1() -> None:
 
 
 @needs_docker
-def test_double_overwrite(tmpdir: py.path.local) -> None:
-    with temp_dir() as tmp:
-        tmp_name = os.path.join(tmp, "value")
+def test_double_overwrite(tmp_path: Path) -> None:
+    """Test that overwriting an input using cwltool:InplaceUpdateRequirement works."""
+    tmp_name = str(tmp_path / "value")
 
-        before_value, expected_value = "1", "3"
+    before_value, expected_value = "1", "3"
 
-        with open(tmp_name, "w") as f:
-            f.write(before_value)
+    with open(tmp_name, "w") as f:
+        f.write(before_value)
 
-        assert (
-            main(
-                [
-                    "--enable-ext",
-                    "--outdir",
-                    str(tmpdir),
-                    get_data("tests/wf/mut2.cwl"),
-                    "-a",
-                    tmp_name,
-                ]
-            )
-            == 0
-        )
-
-        with open(tmp_name, "r") as f:
-            actual_value = f.read()
-
-        assert actual_value == expected_value
-
-
-@needs_docker
-def test_disable_file_overwrite_without_ext() -> None:
-    with temp_dir() as tmp:
-        with temp_dir() as out:
-            tmp_name = os.path.join(tmp, "value")
-            out_name = os.path.join(out, "value")
-
-            before_value, expected_value = "1", "2"
-
-            with open(tmp_name, "w") as f:
-                f.write(before_value)
-
-            assert (
-                main(
-                    [
-                        "--outdir",
-                        out,
-                        get_data("tests/wf/updateval.cwl"),
-                        "-r",
-                        tmp_name,
-                    ]
-                )
-                == 0
-            )
-
-            with open(tmp_name, "r") as f:
-                tmp_value = f.read()
-            with open(out_name, "r") as f:
-                out_value = f.read()
-
-            assert tmp_value == before_value
-            assert out_value == expected_value
-
-
-@needs_docker
-def test_disable_dir_overwrite_without_ext() -> None:
-    with temp_dir() as tmp:
-        with temp_dir() as out:
-
-            assert (
-                main(["--outdir", out, get_data("tests/wf/updatedir.cwl"), "-r", tmp])
-                == 0
-            )
-
-            assert not os.listdir(tmp)
-            assert os.listdir(out)
-
-
-@needs_docker
-def test_disable_file_creation_in_outdir_with_ext() -> None:
-    with temp_dir() as tmp:
-        with temp_dir() as out:
-
-            tmp_name = os.path.join(tmp, "value")
-            out_name = os.path.join(out, "value")
-
-            before_value, expected_value = "1", "2"
-
-            with open(tmp_name, "w") as f:
-                f.write(before_value)
-
-            params = [
+    assert (
+        main(
+            [
                 "--enable-ext",
-                "--leave-outputs",
                 "--outdir",
-                out,
-                get_data("tests/wf/updateval_inplace.cwl"),
-                "-r",
+                str(tmp_path / "outdir"),
+                get_data("tests/wf/mut2.cwl"),
+                "-a",
                 tmp_name,
             ]
-            assert main(params) == 0
+        )
+        == 0
+    )
 
-            with open(tmp_name, "r") as f:
-                tmp_value = f.read()
+    with open(tmp_name, "r") as f:
+        actual_value = f.read()
 
-            assert tmp_value == expected_value
-            assert not os.path.exists(out_name)
+    assert actual_value == expected_value
 
 
 @needs_docker
-def test_disable_dir_creation_in_outdir_with_ext() -> None:
-    with temp_dir() as tmp:
-        with temp_dir() as out:
-            params = [
-                "--enable-ext",
-                "--leave-outputs",
+def test_disable_file_overwrite_without_ext(tmp_path: Path) -> None:
+    """Test that overwriting an input using an unprefixed InplaceUpdateRequirement works."""
+    tmpdir = tmp_path / "tmp"
+    tmpdir.mkdir()
+    tmp_name = tmpdir / "value"
+    outdir = tmp_path / "out"
+    outdir.mkdir()
+    out_name = outdir / "value"
+    before_value, expected_value = "1", "2"
+
+    with open(tmp_name, "w") as f:
+        f.write(before_value)
+
+    assert (
+        main(
+            [
                 "--outdir",
-                out,
-                get_data("tests/wf/updatedir_inplace.cwl"),
+                str(outdir),
+                get_data("tests/wf/updateval.cwl"),
                 "-r",
-                tmp,
+                str(tmp_name),
             ]
-            assert main(params) == 0
+        )
+        == 0
+    )
 
-            assert os.listdir(tmp)
-            assert not os.listdir(out)
+    with open(tmp_name, "r") as f:
+        tmp_value = f.read()
+    with open(out_name, "r") as f:
+        out_value = f.read()
+
+    assert tmp_value == before_value
+    assert out_value == expected_value
 
 
 @needs_docker
-def test_write_write_conflict() -> None:
-    with temp_dir("tmp") as tmp:
-        tmp_name = os.path.join(tmp, "value")
+def test_disable_dir_overwrite_without_ext(tmp_path: Path) -> None:
+    """Test that we can write into a "writable" input Directory w/o ext."""
+    tmp = tmp_path / "tmp"
+    out = tmp_path / "outdir"
+    tmp.mkdir()
+    out.mkdir()
+    assert (
+        main(["--outdir", str(out), get_data("tests/wf/updatedir.cwl"), "-r", str(tmp)])
+        == 0
+    )
 
-        before_value, expected_value = "1", "2"
+    assert not os.listdir(tmp)
+    assert os.listdir(out)
 
-        with open(tmp_name, "w") as f:
-            f.write(before_value)
 
-        assert main(["--enable-ext", get_data("tests/wf/mut.cwl"), "-a", tmp_name]) != 0
+@needs_docker
+def test_disable_file_creation_in_outdir_with_ext(tmp_path: Path) -> None:
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+    out = tmp_path / "outdir"
+    tmp_name = tmp / "value"
+    out_name = out / "value"
 
-        with open(tmp_name, "r") as f:
-            tmp_value = f.read()
+    before_value, expected_value = "1", "2"
 
-        assert tmp_value == expected_value
+    with open(tmp_name, "w") as f:
+        f.write(before_value)
+
+    params = [
+        "--enable-ext",
+        "--leave-outputs",
+        "--outdir",
+        str(out),
+        get_data("tests/wf/updateval_inplace.cwl"),
+        "-r",
+        str(tmp_name),
+    ]
+    assert main(params) == 0
+
+    with open(tmp_name, "r") as f:
+        tmp_value = f.read()
+
+    assert tmp_value == expected_value
+    assert not out_name.exists()
+
+
+@needs_docker
+def test_disable_dir_creation_in_outdir_with_ext(tmp_path: Path) -> None:
+    tmp = tmp_path / "tmp"
+    tmp.mkdir()
+    out = tmp_path / "outdir"
+    out.mkdir()
+    params = [
+        "--enable-ext",
+        "--leave-outputs",
+        "--outdir",
+        str(out),
+        get_data("tests/wf/updatedir_inplace.cwl"),
+        "-r",
+        str(tmp),
+    ]
+    assert main(params) == 0
+
+    assert os.listdir(tmp)
+    assert not os.listdir(out)
+
+
+@needs_docker
+def test_write_write_conflict(tmp_path: Path) -> None:
+    tmp_name = tmp_path / "value"
+
+    before_value, expected_value = "1", "2"
+
+    with open(tmp_name, "w") as f:
+        f.write(before_value)
+
+    assert (
+        main(["--enable-ext", get_data("tests/wf/mut.cwl"), "-a", str(tmp_name)]) != 0
+    )
+
+    with open(tmp_name, "r") as f:
+        tmp_value = f.read()
+
+    assert tmp_value == expected_value
 
 
 @pytest.mark.skip(reason="This test is non-deterministic")
-def test_read_write_conflict() -> None:
-    with temp_dir("tmp") as tmp:
-        tmp_name = os.path.join(tmp, "value")
+def test_read_write_conflict(tmp_path: Path) -> None:
+    tmp_name = tmp_path / "value"
 
-        with open(tmp_name, "w") as f:
-            f.write("1")
+    with open(tmp_name, "w") as f:
+        f.write("1")
 
-        assert (
-            main(["--enable-ext", get_data("tests/wf/mut3.cwl"), "-a", tmp_name]) != 0
-        )
+    assert (
+        main(["--enable-ext", get_data("tests/wf/mut3.cwl"), "-a", str(tmp_name)]) != 0
+    )
 
 
 @needs_docker
@@ -256,13 +262,13 @@ def test_require_prefix_networkaccess() -> None:
 
 
 @needs_docker
-def test_require_prefix_workreuse(tmpdir: py.path.local) -> None:
+def test_require_prefix_workreuse(tmp_path: Path) -> None:
     assert (
         main(
             [
                 "--enable-ext",
                 "--outdir",
-                str(tmpdir),
+                str(tmp_path),
                 get_data("tests/wf/workreuse.cwl"),
             ]
         )

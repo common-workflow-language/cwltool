@@ -379,7 +379,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 stderr_path=stderr_path,
                 env=env,
                 cwd=self.outdir,
-                job_dir=runtimeContext.create_outdir(),
+                make_job_dir=lambda: runtimeContext.create_outdir(),
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
                 name=self.name,
@@ -909,7 +909,7 @@ def _job_popen(
     stderr_path: Optional[str],
     env: MutableMapping[str, str],
     cwd: str,
-    job_dir: str,
+    make_job_dir: Callable[[], str],
     job_script_contents: Optional[str] = None,
     timelimit: Optional[int] = None,
     name: Optional[str] = None,
@@ -1004,11 +1004,12 @@ def _job_popen(
             "stdin_path": stdin_path,
         }
 
-        with open(
-            os.path.join(job_dir, "job.json"), mode="w", encoding="utf-8"
-        ) as job_file:
-            json_dump(job_description, job_file, ensure_ascii=False)
+        job_dir = make_job_dir()
         try:
+            with open(
+                os.path.join(job_dir, "job.json"), mode="w", encoding="utf-8"
+            ) as job_file:
+                json_dump(job_description, job_file, ensure_ascii=False)
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as _:
                 _.write(job_script_contents.encode("utf-8"))
