@@ -90,6 +90,9 @@ MS Windows users
 4.  Reboot if you have not yet already.
 5.  Launch Debian and follow the Linux instructions above (``apt-get install cwltool`` or use the ``venv`` method)
 
+``cwltool`` development version
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Or you can skip the direct ``pip`` commands above and install the latest development version of ``cwltool``:
 
 .. code:: bash
