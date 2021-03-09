@@ -8,7 +8,7 @@ import io
 import logging
 import os
 import signal
-import subprocess
+import subprocess  # nosec
 import sys
 import time
 import urllib
@@ -117,7 +117,7 @@ def _terminate_processes() -> None:
         cidfile = [str(arg).split("=")[1] for arg in process.args if "--cidfile" in str(arg)]
         if cidfile:
             with open(cidfile[0], "r") as inp_stream:
-                p = subprocess.Popen(["docker", "kill", inp_stream.read()], shell=False)
+                p = subprocess.Popen(["docker", "kill", inp_stream.read()], shell=False)  # nosec
                 try:
                     p.wait(timeout=10)
                 except subprocess.TimeoutExpired:
