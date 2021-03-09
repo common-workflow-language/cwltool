@@ -1,0 +1,42 @@
+{
+    "class": "Workflow",
+    "cwlVersion": "v1.0",
+    "id": "count-lines1-wf.cwl",
+    "inputs": [
+        {
+            "id": "count-lines1-wf.cwl#file1",
+            "type": "File"
+        },
+        {
+            "id": "count-lines1-wf.cwl#file3",
+            "type": "File"
+        }
+    ],
+    "outputs": [
+        {
+            "id": "count-lines1-wf.cwl#output5",
+            "outputSource": "count-lines1-wf.cwl#step5/output",
+            "type": "File"
+        }
+    ],
+    "steps": [
+        {
+            "id": "count-lines1-wf.cwl#step5",
+            "in": [
+                {
+                    "id": "count-lines1-wf.cwl#step5/file1",
+                    "source": "count-lines1-wf.cwl#file1"
+                },
+                {
+                    "id": "count-lines1-wf.cwl#step5/file3",
+                    "source": "count-lines1-wf.cwl#file3"
+                }
+            ],
+            "label": "step with two inputs",
+            "out": [
+                "count-lines1-wf.cwl#step5/output"
+            ],
+            "run": "wc-tool.cwl"
+        }
+    ]
+}

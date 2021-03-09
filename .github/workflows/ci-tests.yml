@@ -1,0 +1,178 @@
+name: Continous integration tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  singularity_version: 3.6.4
+
+jobs:
+
+  tox:
+    name: CI tests via Tox
+
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        py-ver-major: [3]
+        py-ver-minor: [6, 7, 8, 9]
+        step: [lint, unit, bandit, mypy]
+
+    env:
+      py-semver: ${{ format('{0}.{1}', matrix.py-ver-major, matrix.py-ver-minor) }}
+      TOXENV: ${{ format('py{0}{1}-{2}', matrix.py-ver-major, matrix.py-ver-minor, matrix.step) }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Singularity
+        if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
+        uses: eWaterCycle/setup-singularity@v6
+        with:
+          singularity-version: ${{ env.singularity_version }}
+
+      - name: Give the test runner user a name to make provenance happy.
+        if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
+        run: sudo usermod -c 'CI Runner' $(whoami)
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.py-semver }}
+
+      - name: Cache for pip
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.step }}-${{ hashFiles('requirements.txt', 'tox.ini') }}
+
+      - name: Upgrade setuptools and install tox
+        run: |
+          pip install -U pip setuptools wheel
+          pip install tox tox-gh-actions
+
+      - name: MyPy cache
+        if: ${{ matrix.step == 'mypy' }}
+        uses: actions/cache@v2
+        with:
+          path: .mypy_cache/${{ env.py-semver }}
+          key: mypy-${{ env.py-semver }}
+
+      - name: Test with tox
+        run: tox
+
+      - name: Upload coverage to Codecov
+        if: ${{ matrix.step == 'unit' }}
+        uses: codecov/codecov-action@v1
+        with:
+          fail_ci_if_error: true
+
+  tox-style:
+    name: CI linters via Tox
+
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        step: [lint-readme, shellcheck, pydocstyle]
+
+    env:
+      py-semver: 3.9
+      TOXENV: ${{ format('py39-{0}', matrix.step) }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ env.py-semver }}
+
+      - name: Cache for pip
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.step }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Upgrade setuptools and install tox
+        run: |
+          pip install -U pip setuptools wheel
+          pip install tox tox-gh-actions
+
+      - if: ${{ matrix.step == 'pydocstyle' && github.event_name == 'pull_request'}}
+        name: Create local branch for diff-quality for PRs
+        run: git branch ${{github.base_ref}} origin/${{github.base_ref}}
+
+      - name: Test with tox
+        run: tox
+
+  conformance_tests:
+    name: CWL spec conformance tests
+
+    runs-on: ubuntu-20.04
+
+    strategy:
+      matrix:
+        cwl-version: [v1.0, v1.1, v1.2]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Cache for pip
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-conformance-${{ matrix.step }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Run CWL conformance tests ${{ matrix.cwl-version }}
+        env:
+          version: ${{ matrix.cwl-version }}
+        run: ./conformance-test.sh
+
+  release_test:
+    name: cwltool release test
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Singularity
+        uses: eWaterCycle/setup-singularity@v6
+        with:
+          singularity-version: ${{ env.singularity_version }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Give the test runner user a name to make provenance happy.
+        run: sudo usermod -c 'CI Runner' $(whoami)
+
+      - name: Cache for pip
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-release-${{ hashFiles('requirements.txt', 'test-requirements.txt') }}
+
+      - name: Install packages
+        run: |
+          pip install -U pip setuptools wheel
+          pip install virtualenv
+
+      - name: Release test
+        env:
+          RELEASE_SKIP: head
+        run: ./release-test.sh

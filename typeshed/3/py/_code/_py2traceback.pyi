@@ -1,0 +1,3 @@
+from typing import Any
+
+def format_exception_only(etype: Any, value: Any): ...
