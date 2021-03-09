@@ -80,7 +80,7 @@ from .software_requirements import (
     get_container_from_software_requirements,
 )
 from .stdfsaccess import StdFsAccess
-from .subgraph import get_subgraph
+from .subgraph import get_step, get_subgraph
 from .update import ALLUPDATES, UPDATES
 from .utils import (
     DEFAULT_TMP_PREFIX,
@@ -114,11 +114,15 @@ def _terminate_processes() -> None:
     # we're executing, so it's not safe to use a for loop here.
     while processes_to_kill:
         process = processes_to_kill.popleft()
-        cidfile = [str(arg).split("=")[1] for arg in process.args if "--cidfile" in str(arg)]
+        cidfile = [
+            str(arg).split("=")[1] for arg in process.args if "--cidfile" in str(arg)
+        ]
         if cidfile:
             try:
                 with open(cidfile[0], "r") as inp_stream:
-                    p = subprocess.Popen(["docker", "kill", inp_stream.read()], shell=False)  # nosec
+                    p = subprocess.Popen(  # nosec
+                        ["docker", "kill", inp_stream.read()], shell=False  # nosec
+                    )
                     try:
                         p.wait(timeout=10)
                     except subprocess.TimeoutExpired:
@@ -764,7 +768,7 @@ def choose_target(
     tool: Process,
     loadingContext: LoadingContext,
 ) -> Optional[Process]:
-    """Walk the given Workflow and find the process that matches args.target."""
+    """Walk the Workflow, extract the subset matches all the args.targets."""
     if loadingContext.loader is None:
         raise Exception("loadingContext.loader cannot be None")
 
@@ -784,6 +788,38 @@ def choose_target(
             )
     else:
         _logger.error("Can only use --target on Workflows")
+        return None
+    if isinstance(loadingContext.loader.idx, MutableMapping):
+        loadingContext.loader.idx[extracted["id"]] = extracted
+        tool = make_tool(extracted["id"], loadingContext)
+    else:
+        raise Exception("Missing loadingContext.loader.idx!")
+
+    return tool
+
+
+def choose_step(
+    args: argparse.Namespace,
+    tool: Process,
+    loadingContext: LoadingContext,
+) -> Optional[Process]:
+    """Walk the given Workflow and extract just args.single_step."""
+    if loadingContext.loader is None:
+        raise Exception("loadingContext.loader cannot be None")
+
+    if isinstance(tool, Workflow):
+        url = urllib.parse.urlparse(tool.tool["id"])
+        if url.fragment:
+            extracted = get_step(tool, tool.tool["id"] + "/" + args.singe_step)
+        else:
+            extracted = get_step(
+                tool,
+                loadingContext.loader.fetcher.urljoin(
+                    tool.tool["id"], "#" + args.single_step
+                ),
+            )
+    else:
+        _logger.error("Can only use --single-step on Workflows")
         return None
     if isinstance(loadingContext.loader.idx, MutableMapping):
         loadingContext.loader.idx[extracted["id"]] = extracted
@@ -1028,6 +1064,13 @@ def main(
 
             if args.target:
                 ctool = choose_target(args, tool, loadingContext)
+                if ctool is None:
+                    return 1
+                else:
+                    tool = ctool
+
+            elif args.single_step:
+                ctool = choose_step(args, tool, loadingContext)
                 if ctool is None:
                     return 1
                 else:
