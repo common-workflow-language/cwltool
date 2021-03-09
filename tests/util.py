@@ -95,7 +95,11 @@ def get_main_output(
     if env is not None:
         assert monkeypatch is not None
         monkeypatch.setattr(os, "environ", env)
-    rc = main(argsl=args, stdout=stdout, stderr=stderr)
+    try:
+        rc = main(argsl=args, stdout=stdout, stderr=stderr)
+    except SystemExit as e:
+        rc = e.code
+``
     return (
         rc,
         stdout.getvalue(),
