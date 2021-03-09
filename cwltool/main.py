@@ -116,13 +116,15 @@ def _terminate_processes() -> None:
         process = processes_to_kill.popleft()
         cidfile = [str(arg).split("=")[1] for arg in process.args if "--cidfile" in str(arg)]
         if cidfile:
-            with open(cidfile[0], "r") as inp_stream:
-                p = subprocess.Popen(["docker", "kill", inp_stream.read()], shell=False)  # nosec
-                try:
-                    p.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    p.kill()
-        process.kill()
+            try:
+                with open(cidfile[0], "r") as inp_stream:
+                    p = subprocess.Popen(["docker", "kill", inp_stream.read()], shell=False)  # nosec
+                    try:
+                        p.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        p.kill()
+            except FileNotFoundError:
+                pass
 
 
 def _signal_handler(signum: int, _: Any) -> None:
