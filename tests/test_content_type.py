@@ -1,9 +1,6 @@
 import pydot  # type: ignore
 
-
-from .util import (
-    get_main_output,
-)
+from .util import get_main_output
 
 
 def test_content_types() -> None:
