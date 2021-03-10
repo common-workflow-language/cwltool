@@ -31,7 +31,7 @@ from schema_salad.utils import (
     json_dumps,
 )
 
-from . import process, update
+from . import CWL_CONTENT_TYPES, process, update
 from .context import LoadingContext
 from .errors import WorkflowException
 from .loghandler import _logger
@@ -127,7 +127,10 @@ def fetch_document(
             resolver=loadingContext.resolver,
             document_loader=loadingContext.loader,
         )
-        workflowobj = cast(CommentedMap, loadingContext.loader.fetch(fileuri))
+        workflowobj = cast(
+            CommentedMap,
+            loadingContext.loader.fetch(fileuri, content_types=CWL_CONTENT_TYPES),
+        )
         return loadingContext, workflowobj, uri
     if isinstance(argsworkflow, MutableMapping):
         uri = (

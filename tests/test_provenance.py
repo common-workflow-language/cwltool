@@ -1,11 +1,10 @@
 import json
 import os
 import pickle
-import shutil
 import sys
 import urllib
 from pathlib import Path
-from typing import Any, Generator, cast
+from typing import Any, Generator
 
 import arcp
 import bagit
@@ -14,8 +13,7 @@ from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DC, DCTERMS, RDF
 from rdflib.term import Literal
 
-from cwltool import provenance
-from cwltool import provenance_constants
+from cwltool import provenance, provenance_constants
 from cwltool.main import main
 from cwltool.provenance import ResearchObject
 from cwltool.stdfsaccess import StdFsAccess
@@ -407,7 +405,11 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
         # Check all prov elements are listed
         formats = set()
         for prov in g.objects(p, OA.hasBody):
-            assert (prov, DCTERMS.conformsTo, URIRef(provenance_constants.CWLPROV_VERSION)) in g
+            assert (
+                prov,
+                DCTERMS.conformsTo,
+                URIRef(provenance_constants.CWLPROV_VERSION),
+            ) in g
             # NOTE: DC.format is a Namespace method and does not resolve like other terms
             formats.update(set(g.objects(prov, DC["format"])))
         assert formats, "Could not find media types"

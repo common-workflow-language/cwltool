@@ -3,10 +3,8 @@ import distutils.spawn  # pylint: disable=no-name-in-module,import-error
 import functools
 import io
 import os
-import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any, Generator, List, Mapping, Optional, Tuple, Union
 

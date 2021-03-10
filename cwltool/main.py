@@ -8,6 +8,7 @@ import io
 import logging
 import os
 import signal
+import subprocess  # nosec
 import sys
 import time
 import urllib
@@ -36,15 +37,11 @@ import pkg_resources  # part of setuptools
 from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
-from schema_salad.ref_resolver import (
-    Loader,
-    file_uri,
-    uri_file_path,
-)
+from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
-from schema_salad.utils import json_dumps, ContextType, FetcherCallableType
+from schema_salad.utils import ContextType, FetcherCallableType, json_dumps
 
-from . import command_line_tool, workflow
+from . import CWL_CONTENT_TYPES, command_line_tool, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
 from .builder import HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -83,7 +80,7 @@ from .software_requirements import (
     get_container_from_software_requirements,
 )
 from .stdfsaccess import StdFsAccess
-from .subgraph import get_subgraph
+from .subgraph import get_step, get_subgraph
 from .update import ALLUPDATES, UPDATES
 from .utils import (
     DEFAULT_TMP_PREFIX,
@@ -116,7 +113,22 @@ def _terminate_processes() -> None:
     # It's possible that another thread will spawn a new task while
     # we're executing, so it's not safe to use a for loop here.
     while processes_to_kill:
-        processes_to_kill.popleft().kill()
+        process = processes_to_kill.popleft()
+        cidfile = [
+            str(arg).split("=")[1] for arg in process.args if "--cidfile" in str(arg)
+        ]
+        if cidfile:
+            try:
+                with open(cidfile[0], "r") as inp_stream:
+                    p = subprocess.Popen(  # nosec
+                        ["docker", "kill", inp_stream.read()], shell=False  # nosec
+                    )
+                    try:
+                        p.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        p.kill()
+            except FileNotFoundError:
+                pass
 
 
 def _signal_handler(signum: int, _: Any) -> None:
@@ -332,7 +344,11 @@ def load_job_order(
             if args.basedir
             else os.path.abspath(os.path.dirname(job_order_file))
         )
-        job_order_object, _ = loader.resolve_ref(job_order_file, checklinks=False)
+        job_order_object, _ = loader.resolve_ref(
+            job_order_file,
+            checklinks=False,
+            content_types=CWL_CONTENT_TYPES,
+        )
 
     if (
         job_order_object is not None
@@ -752,7 +768,7 @@ def choose_target(
     tool: Process,
     loadingContext: LoadingContext,
 ) -> Optional[Process]:
-    """Walk the given Workflow and find the process that matches args.target."""
+    """Walk the Workflow, extract the subset matches all the args.targets."""
     if loadingContext.loader is None:
         raise Exception("loadingContext.loader cannot be None")
 
@@ -772,6 +788,38 @@ def choose_target(
             )
     else:
         _logger.error("Can only use --target on Workflows")
+        return None
+    if isinstance(loadingContext.loader.idx, MutableMapping):
+        loadingContext.loader.idx[extracted["id"]] = extracted
+        tool = make_tool(extracted["id"], loadingContext)
+    else:
+        raise Exception("Missing loadingContext.loader.idx!")
+
+    return tool
+
+
+def choose_step(
+    args: argparse.Namespace,
+    tool: Process,
+    loadingContext: LoadingContext,
+) -> Optional[Process]:
+    """Walk the given Workflow and extract just args.single_step."""
+    if loadingContext.loader is None:
+        raise Exception("loadingContext.loader cannot be None")
+
+    if isinstance(tool, Workflow):
+        url = urllib.parse.urlparse(tool.tool["id"])
+        if url.fragment:
+            extracted = get_step(tool, tool.tool["id"] + "/" + args.singe_step)
+        else:
+            extracted = get_step(
+                tool,
+                loadingContext.loader.fetcher.urljoin(
+                    tool.tool["id"], "#" + args.single_step
+                ),
+            )
+    else:
+        _logger.error("Can only use --single-step on Workflows")
         return None
     if isinstance(loadingContext.loader.idx, MutableMapping):
         loadingContext.loader.idx[extracted["id"]] = extracted
@@ -1016,6 +1064,13 @@ def main(
 
             if args.target:
                 ctool = choose_target(args, tool, loadingContext)
+                if ctool is None:
+                    return 1
+                else:
+                    tool = ctool
+
+            elif args.single_step:
+                ctool = choose_step(args, tool, loadingContext)
                 if ctool is None:
                     return 1
                 else:
