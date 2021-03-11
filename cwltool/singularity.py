@@ -280,12 +280,16 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     @staticmethod
     def append_volume(
-            runtime: List[str], source: str, target: str, writable: bool = False
+        runtime: List[str], source: str, target: str, writable: bool = False
     ) -> None:
         src = docker_windows_path_adjust(source)
         dst = docker_windows_path_adjust(target)
         writable = "rw" if writable else "ro"
-        if os.path.isfile(src) and dst.endswith(os.path.basename(src)) and writable == 'ro':
+        if (
+            os.path.isfile(src)
+            and dst.endswith(os.path.basename(src))
+            and writable == "ro"
+        ):
             src = os.path.dirname(src)
             dst = os.path.dirname(dst)
         bind_arg = f"--bind={src}:{dst}:{writable}"
@@ -404,7 +408,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 )
             )
         else:
-            runtime.append("--bind={}:{}:rw".format(
+            runtime.append(
+                "--bind={}:{}:rw".format(
                     docker_windows_path_adjust(os.path.realpath(self.outdir)),
                     self.builder.outdir,
                 )
