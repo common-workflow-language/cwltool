@@ -1,11 +1,12 @@
 import contextlib
 import distutils.spawn  # pylint: disable=no-name-in-module,import-error
 import functools
+import io
 import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Generator, List, Mapping, Optional, Tuple, Union
+from typing import Any, Generator, List, Mapping, Optional, Tuple, Union
 
 import pytest
 from pkg_resources import Requirement, ResolutionError, resource_filename
@@ -13,6 +14,7 @@ from pkg_resources import Requirement, ResolutionError, resource_filename
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.executors import JobExecutor
 from cwltool.factory import Factory
+from cwltool.main import main
 from cwltool.singularity import is_version_2_6, is_version_3_or_newer
 from cwltool.utils import onWindows, windows_default_container_id
 
@@ -84,19 +86,21 @@ def get_main_output(
     env: Union[
         Mapping[bytes, Union[bytes, str]], Mapping[str, Union[bytes, str]], None
     ] = None,
+    monkeypatch: Any = None,
 ) -> Tuple[Optional[int], str, str]:
-    process = subprocess.Popen(
-        [sys.executable, "-m", "cwltool"] + args,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=env,
-    )
-
-    stdout, stderr = process.communicate()
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    if env is not None:
+        assert monkeypatch is not None
+        monkeypatch.setattr(os, "environ", env)
+    try:
+        rc = main(argsl=args, stdout=stdout, stderr=stderr)
+    except SystemExit as e:
+        rc = e.code
     return (
-        process.returncode,
-        stdout.decode() if stdout else "",
-        stderr.decode() if stderr else "",
+        rc,
+        stdout.getvalue(),
+        stderr.getvalue(),
     )
 
 
