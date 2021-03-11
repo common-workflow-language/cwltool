@@ -284,15 +284,15 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     ) -> None:
         src = docker_windows_path_adjust(source)
         dst = docker_windows_path_adjust(target)
-        writable = "rw" if writable else "ro"
+        writable_flag = "rw" if writable else "ro"
         if (
             os.path.isfile(src)
             and dst.endswith(os.path.basename(src))
-            and writable == "ro"
+            and writable_flag == "ro"
         ):
             src = os.path.dirname(src)
             dst = os.path.dirname(dst)
-        bind_arg = f"--bind={src}:{dst}:{writable}"
+        bind_arg = f"--bind={src}:{dst}:{writable_flag}"
         if bind_arg not in runtime:
             runtime.append(bind_arg)
 
