@@ -544,7 +544,7 @@ def test_scandeps_defaults_with_secondaryfiles() -> None:
         json.loads(stream.getvalue())["secondaryFiles"][0]["secondaryFiles"][0][
             "location"
         ]
-        == "tests/wf/indir1"
+        == os.path.join(get_data("tests/wf"), "indir1")
     )
 
 
