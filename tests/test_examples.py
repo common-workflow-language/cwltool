@@ -540,12 +540,9 @@ def test_scandeps_defaults_with_secondaryfiles() -> None:
         ],
         stdout=stream,
     )
-    assert (
-        json.loads(stream.getvalue())["secondaryFiles"][0]["secondaryFiles"][0][
-            "location"
-        ]
-        == os.path.join(get_data("tests/wf"), "indir1")
-    )
+    assert json.loads(stream.getvalue())["secondaryFiles"][0]["secondaryFiles"][0][
+        "location"
+    ] == os.path.join(get_data("tests/wf"), "indir1")
 
 
 def test_input_deps() -> None:
