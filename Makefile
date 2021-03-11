@@ -160,16 +160,14 @@ mypy3: mypy
 mypy: $(filter-out setup.py gittagger.py,${PYSOURCES})
 	if ! test -f $(shell python3 -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
 	then \
-		rm -Rf typeshed/2and3/ruamel/yaml ; \
+		rm -Rf typeshed/ruamel/yaml ; \
 		ln -s $(shell python3 -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-			typeshed/2and3/ruamel/ ; \
+			typeshed/ruamel/ ; \
 	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
-	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
-		 --warn-redundant-casts \
-		 $^
+	MYPYPATH=$$MYPYPATH:typeshed mypy $^
 
 mypyc: ${PYSOURCES}
-	MYPYPATH=typeshed/2and3/:typeshed/3 CWLTOOL_USE_MYPYC=1 pip install --verbose -e . && pytest --ignore cwltool/schemas --basetemp ./tmp
+	MYPYPATH=typeshed CWLTOOL_USE_MYPYC=1 pip install --verbose -e . && pytest --ignore cwltool/schemas --basetemp ./tmp
 
 shellcheck: FORCE
 	shellcheck build-cwl-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
