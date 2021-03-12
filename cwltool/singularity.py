@@ -50,6 +50,7 @@ def _singularity_supports_userns() -> bool:
             _USERNS = (
                 "No valid /bin/sh" in result
                 or "/bin/sh doesn't exist in container" in result
+                or "executable file not found in" in result
             )
         except TimeoutExpired:
             _USERNS = False
