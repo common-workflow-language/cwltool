@@ -10,13 +10,16 @@ ways to adapt new packages managers and such as well.
 import argparse  # pylint: disable=unused-import
 import os
 import string
-from typing import Dict, List, MutableSequence, Optional
+from typing import Dict, List, MutableMapping, MutableSequence, Optional, Union, cast
 
-from .builder import Builder, HasReqsHints
+from typing_extensions import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .builder import Builder, HasReqsHints
 
 try:
-    from galaxy.tool_util.deps.requirements import ToolRequirement, ToolRequirements
     from galaxy.tool_util import deps
+    from galaxy.tool_util.deps.requirements import ToolRequirement, ToolRequirements
 except ImportError:
     ToolRequirement = None  # type: ignore
     ToolRequirements = None  # type: ignore
@@ -34,8 +37,7 @@ python3 "run_job.py" "job.json"
 
 
 class DependenciesConfiguration(object):
-    def __init__(self, args):
-        # type: (argparse.Namespace) -> None
+    def __init__(self, args: argparse.Namespace) -> None:
         """Initialize."""
         conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)
         tool_dependency_dir = getattr(args, "beta_dependencies_directory", None)
@@ -55,8 +57,7 @@ class DependenciesConfiguration(object):
         else:
             self.use_tool_dependencies = False
 
-    def build_job_script(self, builder, command):
-        # type: (Builder, List[str]) -> str
+    def build_job_script(self, builder: "Builder", command: List[str]) -> str:
         ensure_galaxy_lib_available()
         resolution_config_dict = {
             "use": self.use_tool_dependencies,
@@ -87,11 +88,14 @@ class DependenciesConfiguration(object):
         return job_script
 
 
-def get_dependencies(builder):  # type: (HasReqsHints) -> ToolRequirements
+def get_dependencies(builder: "HasReqsHints") -> ToolRequirements:
     (software_requirement, _) = builder.get_requirement("SoftwareRequirement")
     dependencies = []  # type: List[ToolRequirement]
     if software_requirement and software_requirement.get("packages"):
-        packages = software_requirement.get("packages")
+        packages = cast(
+            MutableSequence[MutableMapping[str, Union[str, MutableSequence[str]]]],
+            software_requirement.get("packages"),
+        )
         for package in packages:
             version = package.get("version", None)
             if isinstance(version, MutableSequence):
@@ -103,7 +107,7 @@ def get_dependencies(builder):  # type: (HasReqsHints) -> ToolRequirements
             dependencies.append(
                 ToolRequirement.from_dict(
                     dict(
-                        name=package["package"].split("#")[-1],
+                        name=cast(str, package["package"]).split("#")[-1],
                         version=version,
                         type="package",
                         specs=specs,
@@ -114,15 +118,16 @@ def get_dependencies(builder):  # type: (HasReqsHints) -> ToolRequirements
     return ToolRequirements.from_list(dependencies)
 
 
-def get_container_from_software_requirements(use_biocontainers, builder):
-    # type: (bool, HasReqsHints) -> Optional[str]
+def get_container_from_software_requirements(
+    use_biocontainers: bool, builder: "HasReqsHints"
+) -> Optional[str]:
     if use_biocontainers:
         ensure_galaxy_lib_available()
-        from galaxy.tool_util.deps.dependencies import AppInfo, ToolInfo
         from galaxy.tool_util.deps.containers import (
-            ContainerRegistry,
             DOCKER_CONTAINER_TYPE,
+            ContainerRegistry,
         )
+        from galaxy.tool_util.deps.dependencies import AppInfo, ToolInfo
 
         app_info = AppInfo(
             involucro_auto_init=True,
@@ -141,8 +146,7 @@ def get_container_from_software_requirements(use_biocontainers, builder):
     return None
 
 
-def ensure_galaxy_lib_available():
-    # type: () -> None
+def ensure_galaxy_lib_available() -> None:
     if not SOFTWARE_REQUIREMENTS_ENABLED:
         raise Exception(
             "Optional Python library galaxy-lib not available, it is required for this configuration."

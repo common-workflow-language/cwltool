@@ -1,29 +1,21 @@
 """Resolves references to CWL documents from local or remote places."""
 
 import os
-import sys
 import urllib
-from typing import Any, Optional
-
-from pathlib2 import Path
+from pathlib import Path
+from typing import Optional
 
 from schema_salad.ref_resolver import Loader
 
 from .loghandler import _logger
 
-if not getattr(__builtins__, "WindowsError", None):
 
-    class WindowsError(OSError):
-        pass
-
-
-def resolve_local(document_loader, uri):
-    # type: (Loader, str) -> Optional[str]
+def resolve_local(document_loader: Optional[Loader], uri: str) -> Optional[str]:
     pathpart, frag = urllib.parse.urldefrag(uri)
 
     try:
         pathobj = Path(pathpart).resolve()
-    except (WindowsError, OSError):
+    except OSError:
         _logger.debug("local resolver could not resolve %s", uri)
         return None
 

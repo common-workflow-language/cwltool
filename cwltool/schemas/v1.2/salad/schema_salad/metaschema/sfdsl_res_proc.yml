@@ -1,0 +1,21 @@
+[
+    {
+        "secondaryFiles": {
+          "pattern": ".bai",
+          "required": null
+    },
+    {
+        "secondaryFiles": {
+          "pattern": ".bai",
+          "required": false
+    },
+    {
+        "secondaryFiles": {
+          "pattern": ".bai?"
+    },
+    {
+        "secondaryFiles": {
+          "pattern": ".bai?",
+          "required": true
+    },
+]

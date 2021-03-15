@@ -42,6 +42,7 @@ lib/
 .cache/
 cache/
 .coverage
+.coverage.*
 coverage.xml
 htmlcov
 output
@@ -51,3 +52,5 @@ response.txt
 test.txt
 time.txt
 value
+
+.python-version

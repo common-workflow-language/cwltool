@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from cwltool import sandboxjs
@@ -15,7 +17,7 @@ node_versions = [
 
 
 @pytest.mark.parametrize("version,supported", node_versions)
-def test_node_version(version, supported, mocker):
+def test_node_version(version: str, supported: bool, mocker: Any) -> None:
     mocked_subprocess = mocker.patch("cwltool.sandboxjs.subprocess")
     mocked_subprocess.check_output = mocker.Mock(return_value=version)
 
@@ -23,7 +25,7 @@ def test_node_version(version, supported, mocker):
 
 
 @windows_needs_docker
-def test_value_from_two_concatenated_expressions():
+def test_value_from_two_concatenated_expressions() -> None:
     factory = get_windows_safe_factory()
     echo = factory.make(get_data("tests/wf/vf-concat.cwl"))
     file = {"class": "File", "location": get_data("tests/wf/whale.txt")}
@@ -34,7 +36,7 @@ def test_value_from_two_concatenated_expressions():
 @pytest.mark.skipif(
     onWindows(), reason="Caching processes for windows is not supported."
 )
-def test_caches_js_processes(mocker):
+def test_caches_js_processes(mocker: Any) -> None:
     sandboxjs.exec_js_process("7", context="{}")
 
     mocked_new_js_proc = mocker.patch("cwltool.sandboxjs.new_js_proc")

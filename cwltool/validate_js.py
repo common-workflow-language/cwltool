@@ -16,12 +16,17 @@ from typing import (
 )
 
 from pkg_resources import resource_stream
-
 from ruamel.yaml.comments import CommentedMap
-from schema_salad import avro
+from schema_salad.avro.schema import (
+    ArraySchema,
+    EnumSchema,
+    RecordSchema,
+    Schema,
+    UnionSchema,
+)
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
-from schema_salad.validate import Schema, validate_ex
+from schema_salad.validate import validate_ex
 
 from .errors import WorkflowException
 from .expression import SubstitutionError
@@ -33,7 +38,7 @@ from .sandboxjs import code_fragment_to_js, exec_js_process
 def is_expression(tool, schema):
     # type: (Any, Optional[Schema]) -> bool
     return (
-        isinstance(schema, avro.schema.EnumSchema)
+        isinstance(schema, EnumSchema)
         and schema.name == "Expression"
         and isinstance(tool, str)
     )
@@ -55,12 +60,12 @@ _logger_validation_warnings.addFilter(SuppressLog("cwltool.validation_warnings")
 
 def get_expressions(
     tool: Union[CommentedMap, str],
-    schema: Optional[Union[avro.schema.Schema, avro.schema.ArraySchema]],
+    schema: Optional[Union[Schema, ArraySchema]],
     source_line: Optional[SourceLine] = None,
 ) -> List[Tuple[str, Optional[SourceLine]]]:
     if is_expression(tool, schema):
         return [(cast(str, tool), source_line)]
-    elif isinstance(schema, avro.schema.UnionSchema):
+    elif isinstance(schema, UnionSchema):
         valid_schema = None
 
         for possible_schema in schema.schemas:
@@ -75,7 +80,7 @@ def get_expressions(
                 valid_schema = possible_schema
 
         return get_expressions(tool, valid_schema, source_line)
-    elif isinstance(schema, avro.schema.ArraySchema):
+    elif isinstance(schema, ArraySchema):
         if not isinstance(tool, MutableSequence):
             return []
 
@@ -90,7 +95,7 @@ def get_expressions(
             )
         )
 
-    elif isinstance(schema, avro.schema.RecordSchema):
+    elif isinstance(schema, RecordSchema):
         if not isinstance(tool, MutableMapping):
             return []
 
@@ -111,14 +116,14 @@ def get_expressions(
         return []
 
 
-JSHintJSReturn = namedtuple("jshint_return", ["errors", "globals"])
+JSHintJSReturn = namedtuple("JSHintJSReturn", ["errors", "globals"])
 
 
 def jshint_js(
     js_text: str,
     globals: Optional[List[str]] = None,
     options: Optional[Dict[str, Union[List[str], str, int]]] = None,
-) -> Tuple[List[str], List[str]]:
+) -> JSHintJSReturn:
     if globals is None:
         globals = []
     if options is None:
@@ -132,16 +137,16 @@ def jshint_js(
             "esversion": 5,
         }
 
-    with resource_stream(__name__, "jshint/jshint.js") as file:
+    with resource_stream(__name__, "jshint/jshint.js") as res:
         # NOTE: we need a global variable for lodash (which jshint depends on)
-        jshint_functions_text = "var global = this;" + file.read().decode("utf-8")
+        jshint_functions_text = "var global = this;" + res.read().decode("utf-8")
 
-    with resource_stream(__name__, "jshint/jshint_wrapper.js") as file:
+    with resource_stream(__name__, "jshint/jshint_wrapper.js") as res2:
         # NOTE: we need to assign to ob, as the expression {validateJS: validateJS} as an expression
         # is interpreted as a block with a label `validateJS`
         jshint_functions_text += (
             "\n"
-            + file.read().decode("utf-8")
+            + res2.read().decode("utf-8")
             + "\nvar ob = {validateJS: validateJS}; ob"
         )
 
@@ -186,8 +191,9 @@ def jshint_js(
     return JSHintJSReturn(jshint_errors, jshint_json.get("globals", []))
 
 
-def print_js_hint_messages(js_hint_messages, source_line):
-    # type: (List[str], Optional[SourceLine]) -> None
+def print_js_hint_messages(
+    js_hint_messages: List[str], source_line: Optional[SourceLine]
+) -> None:
     if source_line is not None:
         for js_hint_message in js_hint_messages:
             _logger.warning(source_line.makeError(js_hint_message))
