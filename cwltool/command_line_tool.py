@@ -82,9 +82,9 @@ from .utils import (
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
-ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
+ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[\w0-9._+\- \u2600-\u26FF]+$")  # accept unicode word characters and emojis
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
-ACCEPTLIST_RE = re.compile("^[\w0-9._+\- \u2600-\u26FF]+$")  # accept unicode word characters and emojis
+ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
 DEFAULT_CONTAINER_MSG = """
 We are on Microsoft Windows and not all components of this CWL description have a
 container specified. This means that these steps will be executed in the default container,
