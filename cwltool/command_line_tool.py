@@ -11,6 +11,7 @@ import shutil
 import tempfile
 import threading
 import urllib
+import urllib.parse
 from functools import cmp_to_key, partial
 from typing import (
     IO,
@@ -83,7 +84,7 @@ if TYPE_CHECKING:
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
-ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
+ACCEPTLIST_RE = re.compile("^[\w0-9._+\- \u2600-\u26FF]+$")  # accept unicode word characters and emojis
 DEFAULT_CONTAINER_MSG = """
 We are on Microsoft Windows and not all components of this CWL description have a
 container specified. This means that these steps will be executed in the default container,
@@ -913,7 +914,7 @@ class CommandLineTool(Process):
                                     {
                                         "location": g,
                                         "path": fs_access.join(
-                                            builder.outdir, g[len(prefix[0]) + 1 :]
+                                            builder.outdir, urllib.parse.unquote(g[len(prefix[0]) + 1 :])
                                         ),
                                         "basename": os.path.basename(g),
                                         "nameroot": os.path.splitext(
