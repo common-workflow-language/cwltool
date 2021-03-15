@@ -82,7 +82,9 @@ from .utils import (
 if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
-ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[\w0-9._+\- \u2600-\u26FF]+$")  # accept unicode word characters and emojis
+ACCEPTLIST_EN_STRICT_RE = re.compile(
+    r"^[\w0-9._+\- \u2600-\u26FF]+$"
+)  # accept unicode word characters and emojis
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
 DEFAULT_CONTAINER_MSG = """
@@ -914,7 +916,10 @@ class CommandLineTool(Process):
                                     {
                                         "location": g,
                                         "path": fs_access.join(
-                                            builder.outdir, urllib.parse.unquote(g[len(prefix[0]) + 1 :])
+                                            builder.outdir,
+                                            urllib.parse.unquote(
+                                                g[len(prefix[0]) + 1 :]
+                                            ),
                                         ),
                                         "basename": os.path.basename(g),
                                         "nameroot": os.path.splitext(
