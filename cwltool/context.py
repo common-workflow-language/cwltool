@@ -27,7 +27,9 @@ if TYPE_CHECKING:
     from .provenance_profile import ProvenanceProfile
 
 
-class ContextBase(object):
+class ContextBase:
+    """Shared kwargs based initilizer for {Runtime,Loading}Context."""
+
     def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
         """Initialize."""
         if kwargs:
@@ -73,7 +75,7 @@ class LoadingContext(ContextBase):
         self.jobdefaults = None  # type: Optional[CommentedMap]
         self.doc_cache = True  # type: bool
 
-        super(LoadingContext, self).__init__(kwargs)
+        super().__init__(kwargs)
 
     def copy(self):
         # type: () -> LoadingContext
@@ -149,7 +151,7 @@ class RuntimeContext(ContextBase):
         self.mpi_config = MpiConfig()  # type: MpiConfig
         self.default_stdout = None  # type: Optional[Union[IO[bytes], TextIO]]
         self.default_stderr = None  # type: Optional[Union[IO[bytes], TextIO]]
-        super(RuntimeContext, self).__init__(kwargs)
+        super().__init__(kwargs)
         if self.tmp_outdir_prefix == "":
             self.tmp_outdir_prefix = self.tmpdir_prefix
 

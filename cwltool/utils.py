@@ -120,8 +120,8 @@ def versionstring() -> str:
     """Version of CWLtool used to execute the workflow."""
     pkg = pkg_resources.require("cwltool")
     if pkg:
-        return "%s %s" % (sys.argv[0], pkg[0].version)
-    return "%s %s" % (sys.argv[0], "unknown version")
+        return "{} {}".format(sys.argv[0], pkg[0].version)
+    return "{} {}".format(sys.argv[0], "unknown version")
 
 
 def aslist(thing: Any) -> MutableSequence[Any]:

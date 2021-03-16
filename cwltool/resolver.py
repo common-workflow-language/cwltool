@@ -21,7 +21,7 @@ def resolve_local(document_loader: Optional[Loader], uri: str) -> Optional[str]:
 
     if pathobj.is_file():
         if frag:
-            return "{}#{}".format(pathobj.as_uri(), frag)
+            return f"{pathobj.as_uri()}#{frag}"
         return pathobj.as_uri()
 
     sharepaths = [
@@ -39,8 +39,8 @@ def resolve_local(document_loader: Optional[Loader], uri: str) -> Optional[str]:
     for path in shares:
         if os.path.exists(path):
             return Path(uri).as_uri()
-        if os.path.exists("{}.cwl".format(path)):
-            return Path("{}.cwl".format(path)).as_uri()
+        if os.path.exists(f"{path}.cwl"):
+            return Path(f"{path}.cwl").as_uri()
     return None
 
 

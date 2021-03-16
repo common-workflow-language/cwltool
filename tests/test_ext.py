@@ -113,7 +113,7 @@ def test_double_overwrite(tmp_path: Path) -> None:
         == 0
     )
 
-    with open(tmp_name, "r") as f:
+    with open(tmp_name) as f:
         actual_value = f.read()
 
     assert actual_value == expected_value
@@ -146,9 +146,9 @@ def test_disable_file_overwrite_without_ext(tmp_path: Path) -> None:
         == 0
     )
 
-    with open(tmp_name, "r") as f:
+    with open(tmp_name) as f:
         tmp_value = f.read()
-    with open(out_name, "r") as f:
+    with open(out_name) as f:
         out_value = f.read()
 
     assert tmp_value == before_value
@@ -195,7 +195,7 @@ def test_disable_file_creation_in_outdir_with_ext(tmp_path: Path) -> None:
     ]
     assert main(params) == 0
 
-    with open(tmp_name, "r") as f:
+    with open(tmp_name) as f:
         tmp_value = f.read()
 
     assert tmp_value == expected_value
@@ -236,7 +236,7 @@ def test_write_write_conflict(tmp_path: Path) -> None:
         main(["--enable-ext", get_data("tests/wf/mut.cwl"), "-a", str(tmp_name)]) != 0
     )
 
-    with open(tmp_name, "r") as f:
+    with open(tmp_name) as f:
         tmp_value = f.read()
 
     assert tmp_value == expected_value

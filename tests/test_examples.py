@@ -1413,4 +1413,4 @@ def test_scatter_output_filenames(tmp_path: Path) -> None:
         locations[0].endswith("output.txt")
         and locations[1].endswith("output.txt_2")
         and locations[2].endswith("output.txt_3")
-    ), "Locations {} do not end with {}".format(locations, output_names)
+    ), f"Locations {locations} do not end with {output_names}"

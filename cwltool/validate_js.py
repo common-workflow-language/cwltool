@@ -48,7 +48,7 @@ class SuppressLog(logging.Filter):
     def __init__(self, name):  # type: (str) -> None
         """Initialize this log suppressor."""
         name = str(name)
-        super(SuppressLog, self).__init__(name)
+        super().__init__(name)
 
     def filter(self, record):  # type: (logging.LogRecord) -> bool
         return False
@@ -182,7 +182,7 @@ def jshint_js(
     for jshint_error_obj in jshint_json.get("errors", []):
         text = "JSHINT: " + js_text_lines[jshint_error_obj["line"] - 1] + "\n"
         text += "JSHINT: " + " " * (jshint_error_obj["character"] - 1) + "^\n"
-        text += "JSHINT: %s: %s" % (
+        text += "JSHINT: {}: {}".format(
             jshint_error_obj["code"],
             jshint_error_obj["reason"],
         )

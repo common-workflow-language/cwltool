@@ -4,7 +4,7 @@ rdflib>=4.2.2,<5.1
 shellescape>=3.4.1,<3.5
 schema-salad>=7.1,<8
 prov==1.5.1
-bagit==1.7.0
+bagit==1.8.1
 mypy-extensions
 psutil<5.8.0
 typing-extensions

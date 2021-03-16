@@ -1,7 +1,6 @@
 from typing import Any, Optional
+from unittest import mock
 from unittest.mock import MagicMock
-
-import mock
 
 from cwltool.main import main
 
@@ -61,19 +60,19 @@ def mocked_requests_get(*args: Any, **kwargs: Any) -> MockResponse2:
         args[0]
         == "https://dockstore.org/api/api/ga4gh/v2/tools/quay.io%2Fbriandoconnor%2Fdockstore-tool-md5sum/versions/1.0.4/plain-CWL/descriptor/Dockstore.cwl"
     ):
-        string = open(get_data("tests/trs/Dockstore.cwl"), "r").read()
+        string = open(get_data("tests/trs/Dockstore.cwl")).read()
         return MockResponse2(string, 200)
     elif (
         args[0]
         == "https://dockstore.org/api/api/ga4gh/v2/tools/%23workflow%2Fgithub.com%2Fdockstore-testing%2Fmd5sum-checker/versions/develop/plain-CWL/descriptor/md5sum-tool.cwl"
     ):
-        string = open(get_data("tests/trs/md5sum-tool.cwl"), "r").read()
+        string = open(get_data("tests/trs/md5sum-tool.cwl")).read()
         return MockResponse2(string, 200)
     elif (
         args[0]
         == "https://dockstore.org/api/api/ga4gh/v2/tools/%23workflow%2Fgithub.com%2Fdockstore-testing%2Fmd5sum-checker/versions/develop/plain-CWL/descriptor/md5sum-workflow.cwl"
     ):
-        string = open(get_data("tests/trs/md5sum-workflow.cwl"), "r").read()
+        string = open(get_data("tests/trs/md5sum-workflow.cwl")).read()
         return MockResponse2(string, 200)
     elif (
         args[0]

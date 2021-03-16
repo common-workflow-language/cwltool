@@ -130,7 +130,9 @@ def check_format(
         )
 
 
-class HasReqsHints(object):
+class HasReqsHints:
+    """Base class for get_requirement()."""
+
     def __init__(self) -> None:
         """Initialize this reqs decorator."""
         self.requirements = []  # type: List[CWLObjectType]
@@ -294,7 +296,7 @@ class Builder(HasReqsHints):
                         bound_input = True
             if not bound_input:
                 raise ValidationException(
-                    "'%s' is not a valid union %s" % (datum, schema["type"])
+                    "'{}' is not a valid union {}".format(datum, schema["type"])
                 )
         elif isinstance(schema["type"], MutableMapping):
             st = copy.deepcopy(schema["type"])
@@ -398,7 +400,9 @@ class Builder(HasReqsHints):
                             ) as f2:
                                 datum["contents"] = content_limit_respected_read(f2)
                         except Exception as e:
-                            raise Exception("Reading %s\n%s" % (datum["location"], e))
+                            raise Exception(
+                                "Reading {}\n{}".format(datum["location"], e)
+                            )
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
@@ -545,7 +549,7 @@ class Builder(HasReqsHints):
         ):
             if "path" not in value:
                 raise WorkflowException(
-                    u'%s object missing "path": %s' % (value["class"], value)
+                    '{} object missing "path": {}'.format(value["class"], value)
                 )
 
             # Path adjust for windows file path when passing to docker, docker accepts unix like path only

@@ -9,7 +9,7 @@ import subprocess  # nosec
 import sys
 import threading
 from distutils import spawn
-from io import StringIO, open  # pylint: disable=redefined-builtin
+from io import StringIO  # pylint: disable=redefined-builtin
 from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple, cast
 
 import requests
@@ -99,9 +99,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         name: str,
     ) -> None:
         """Initialize a command line builder using the Docker software container engine."""
-        super(DockerCommandLineJob, self).__init__(
-            builder, joborder, make_path_mapper, requirements, hints, name
-        )
+        super().__init__(builder, joborder, make_path_mapper, requirements, hints, name)
 
     @staticmethod
     def get_image(
@@ -261,7 +259,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         output = StringIO()
         csv.writer(output).writerow(options)
         mount_arg = output.getvalue().strip()
-        runtime.append("--mount={}".format(mount_arg))
+        runtime.append(f"--mount={mount_arg}")
         # Unlike "--volume", "--mount" will fail if the volume doesn't already exist.
         if not os.path.exists(source):
             os.makedirs(source)
@@ -382,7 +380,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
             if self.networkaccess:
                 if runtimeContext.custom_net:
-                    runtime.append("--net={0}".format(runtimeContext.custom_net))
+                    runtime.append(f"--net={runtimeContext.custom_net}")
             else:
                 runtime.append("--net=none")
 
@@ -437,7 +435,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             cidfile_path = os.path.join(cidfile_dir, cidfile_name)
             runtime.append("--cidfile=%s" % cidfile_path)
         for key, value in self.environment.items():
-            runtime.append("--env=%s=%s" % (key, value))
+            runtime.append(f"--env={key}={value}")
 
         if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
             ram = self.builder.resources["ram"]

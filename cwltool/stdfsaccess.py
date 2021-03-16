@@ -23,7 +23,7 @@ def abspath(src: str, basedir: str) -> str:
     return abpath
 
 
-class StdFsAccess(object):
+class StdFsAccess:
     """Local filesystem implementation."""
 
     def __init__(self, basedir: str) -> None:

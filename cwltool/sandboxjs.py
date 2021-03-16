@@ -344,7 +344,7 @@ def code_fragment_to_js(jscript: str, jslib: str = "") -> str:
     else:
         inner_js = "{return (%s);}" % jscript
 
-    return u'"use strict";\n{}\n(function(){})()'.format(jslib, inner_js)
+    return f'"use strict";\n{jslib}\n(function(){inner_js})()'
 
 
 def execjs(
@@ -394,15 +394,17 @@ def execjs(
                 % (returncode, fn_linenum(), stdfmt(stdout), stdfmt(stderr))
             )
         else:
-            info = "Javascript expression was: %s\nstdout was: %s\nstderr was: %s" % (
-                js,
-                stdfmt(stdout),
-                stdfmt(stderr),
+            info = (
+                "Javascript expression was: {}\nstdout was: {}\nstderr was: {}".format(
+                    js,
+                    stdfmt(stdout),
+                    stdfmt(stderr),
+                )
             )
 
         if returncode == -1:
             raise JavascriptException(
-                "Long-running script killed after {} seconds: {}".format(timeout, info)
+                f"Long-running script killed after {timeout} seconds: {info}"
             )
         else:
             raise JavascriptException(info)

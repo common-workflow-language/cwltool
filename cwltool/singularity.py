@@ -100,9 +100,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         name: str,
     ) -> None:
         """Builder for invoking the Singularty software container engine."""
-        super(SingularityCommandLineJob, self).__init__(
-            builder, joborder, make_path_mapper, requirements, hints, name
-        )
+        super().__init__(builder, joborder, make_path_mapper, requirements, hints, name)
 
     @staticmethod
     def get_image(
@@ -449,5 +447,5 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         env["SINGULARITYENV_HOME"] = self.builder.outdir
 
         for name, value in self.environment.items():
-            env["SINGULARITYENV_{}".format(name)] = str(value)
+            env[f"SINGULARITYENV_{name}"] = str(value)
         return (runtime, None)
