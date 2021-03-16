@@ -171,7 +171,9 @@ class PathMapper(object):
         stagedir = self.stagedir
         for fob in referenced_files:
             if self.separateDirs:
-                stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
+                stagedir = os.path.join(self.stagedir,
+                                        "s5g%s" % uuid.uuid5(uuid.UUID('6a56ca02-b6f0-4c1a-a4b0-fb0068ce80ad'),
+                                                             os.path.dirname(fob['location'])))
             self.visit(
                 fob,
                 stagedir,
