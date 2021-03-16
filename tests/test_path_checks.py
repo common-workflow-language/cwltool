@@ -50,7 +50,9 @@ def test_spaces_in_input_files(tmp_path: Path) -> None:
 
 
 @needs_docker
-@pytest.mark.parametrize("filename", ["測試", "그래프", "график", "𒁃", "☕😍", "امتحان", "abc+DEFGZ.z_12345-"])
+@pytest.mark.parametrize(
+    "filename", ["測試", "그래프", "график", "𒁃", "☕😍", "امتحان", "abc+DEFGZ.z_12345-"]
+)
 def test_unicode_in_input_files(tmp_path: Path, filename: str) -> None:
     script_name = tmp_path / "script"
     inputfile = tmp_path / filename
@@ -72,7 +74,9 @@ def test_unicode_in_input_files(tmp_path: Path, filename: str) -> None:
 
 
 @needs_docker
-@pytest.mark.parametrize("filename", ["測試", "그래프", "график", "𒁃", "☕😍", "امتحان", "abc+DEFGZ.z_12345-"])
+@pytest.mark.parametrize(
+    "filename", ["測試", "그래프", "график", "𒁃", "☕😍", "امتحان", "abc+DEFGZ.z_12345-"]
+)
 def test_unicode_in_output_files(tmp_path: Path, filename: str) -> None:
     script_name = tmp_path / "script"
     inputfile = tmp_path / "test"
