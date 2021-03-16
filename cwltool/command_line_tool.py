@@ -83,7 +83,7 @@ if TYPE_CHECKING:
     from .provenance import ProvenanceProfile  # pylint: disable=unused-import
 
 ACCEPTLIST_EN_STRICT_RE = re.compile(
-    r"^[\w0-9._+\- \u2600-\u26FF]+$"
+    r"^[\w.+\-\u2600-\u26FF\U0001f600-\U0001f64f]+$"
 )  # accept unicode word characters and emojis
 ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
 ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
