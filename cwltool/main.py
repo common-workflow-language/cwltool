@@ -681,7 +681,7 @@ class ProvLogFormatter(logging.Formatter):
     def formatTime(
         self, record: logging.LogRecord, datefmt: Optional[str] = None
     ) -> str:
-        formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(record.created))
+        formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(float(record.created)))
         with_msecs = "%s,%03f" % (formatted_time, record.msecs)
         return with_msecs
 
