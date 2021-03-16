@@ -877,13 +877,8 @@ class CommandLineTool(Process):
             )
             _logger.debug("[job %s] %s", j.name, json_dumps(builder.job, indent=4))
 
-        separateDirs = True
-        # sufficient conditional for docker/singularity?
-        if runtimeContext.use_container:
-            separateDirs = False
-
         builder.pathmapper = self.make_path_mapper(
-            reffiles, builder.stagedir, runtimeContext, separateDirs
+            reffiles, builder.stagedir, runtimeContext, True
         )
         builder.requirements = j.requirements
 
