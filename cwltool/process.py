@@ -12,7 +12,6 @@ import stat
 import textwrap
 import urllib
 import uuid
-from io import open
 from os import scandir
 from typing import (
     Any,
@@ -86,7 +85,7 @@ class LogAsDebugFilter(logging.Filter):
     def __init__(self, name: str, parent: logging.Logger) -> None:
         """Initialize."""
         name = str(name)
-        super(LogAsDebugFilter, self).__init__(name)
+        super().__init__(name)
         self.parent = parent
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -196,23 +195,23 @@ def get_schema(
         version = ".".join(version.split(".")[:-1])
     for f in cwl_files:
         try:
-            res = resource_stream(__name__, "schemas/%s/%s" % (version, f))
+            res = resource_stream(__name__, f"schemas/{version}/{f}")
             cache["https://w3id.org/cwl/" + f] = res.read().decode("UTF-8")
             res.close()
-        except IOError:
+        except OSError:
             pass
 
     for f in salad_files:
         try:
             res = resource_stream(
                 __name__,
-                "schemas/{}/salad/schema_salad/metaschema/{}".format(version, f),
+                f"schemas/{version}/salad/schema_salad/metaschema/{f}",
             )
             cache[
                 "https://w3id.org/cwl/salad/schema_salad/metaschema/" + f
             ] = res.read().decode("UTF-8")
             res.close()
-        except IOError:
+        except OSError:
             pass
 
     if version in custom_schemas:
@@ -274,10 +273,10 @@ def stage_files(
                 # find first key that does not clash with an existing entry in targets
                 # start with entry.target + '_' + 2 and then keep incrementing the number till there is no clash
                 i = 2
-                tgt = "%s_%s" % (entry.target, i)
+                tgt = f"{entry.target}_{i}"
                 while tgt in targets:
                     i += 1
-                    tgt = "%s_%s" % (entry.target, i)
+                    tgt = f"{entry.target}_{i}"
                 targets[tgt] = pathmapper.update(
                     key, entry.resolved, tgt, entry.type, entry.staged
                 )
@@ -357,12 +356,10 @@ def relocateOutputs(
                 yield obj
             else:
                 for sub_obj in obj.values():
-                    for dir_entry in _collectDirEntries(sub_obj):
-                        yield dir_entry
+                    yield from _collectDirEntries(sub_obj)
         elif isinstance(obj, MutableSequence):
             for sub_obj in obj:
-                for dir_entry in _collectDirEntries(sub_obj):
-                    yield dir_entry
+                yield from _collectDirEntries(sub_obj)
 
     def _relocate(src: str, dst: str) -> None:
         if src == dst:
@@ -568,7 +565,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         self, toolpath_object: CommentedMap, loadingContext: LoadingContext
     ) -> None:
         """Build a Process object from the provided dictionary."""
-        super(Process, self).__init__()
+        super().__init__()
         self.metadata = getdefault(loadingContext.metadata, {})  # type: CWLObjectType
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
         self.parent_wf = None  # type: Optional[ProvenanceProfile]
@@ -1019,11 +1016,11 @@ hints:
                     avsc_names.get_name(cast(str, r["class"]), None) is not None
                     and self.doc_loader is not None
                 ):
-                    plain_hint = dict(
-                        (key, r[key])
+                    plain_hint = {
+                        key: r[key]
                         for key in r
                         if key not in self.doc_loader.identifiers
-                    )  # strip identifiers
+                    }  # strip identifiers
                     validate_ex(
                         cast(
                             Schema,
@@ -1061,7 +1058,7 @@ def uniquename(stem: str, names: Optional[Set[str]] = None) -> str:
     u = stem
     while u in names:
         c += 1
-        u = "%s_%s" % (stem, c)
+        u = f"{stem}_{c}"
     names.add(u)
     return u
 

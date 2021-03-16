@@ -5,7 +5,7 @@ from typing import Dict, List, MutableMapping, MutableSequence, Optional, cast
 from .utils import CWLObjectType, CWLOutputType
 
 
-class SecretStore(object):
+class SecretStore:
     """Minimal implementation of a secret storage."""
 
     def __init__(self) -> None:

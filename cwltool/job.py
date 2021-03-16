@@ -188,7 +188,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         name: str,
     ) -> None:
         """Initialize the job object."""
-        super(JobBase, self).__init__()
+        super().__init__()
         self.builder = builder
         self.joborder = joborder
         self.stdin = None  # type: Optional[str]
@@ -335,9 +335,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             if self.stdin is not None:
                 rmap = self.pathmapper.reversemap(self.stdin)
                 if rmap is None:
-                    raise WorkflowException(
-                        "{} missing from pathmapper".format(self.stdin)
-                    )
+                    raise WorkflowException(f"{self.stdin} missing from pathmapper")
                 else:
                     stdin_path = rmap[1]
 
@@ -807,7 +805,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 _logger.debug("%s error", container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
-                        "%s is required to run this tool: %s" % (container, str(err))
+                        "{} is required to run this tool: {}".format(
+                            container, str(err)
+                        )
                     ) from err
                 else:
                     raise WorkflowException(

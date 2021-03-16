@@ -104,7 +104,7 @@ hints:
 """
 
 
-class ExpressionJob(object):
+class ExpressionJob:
     """Job for ExpressionTools."""
 
     def __init__(
@@ -267,7 +267,9 @@ def revmap_file(
     )
 
 
-class CallbackJob(object):
+class CallbackJob:
+    """Callback Job class, used by CommandLine.job()."""
+
     def __init__(
         self,
         job: "CommandLineTool",
@@ -352,7 +354,7 @@ OutputPortsType = Dict[str, Optional[CWLOutputType]]
 class ParameterOutputWorkflowException(WorkflowException):
     def __init__(self, msg: str, port: CWLObjectType, **kwargs: Any) -> None:
         """Exception for when there was an error collecting output for a parameter."""
-        super(ParameterOutputWorkflowException, self).__init__(
+        super().__init__(
             "Error collecting output for parameter '%s':\n%s"
             % (shortname(cast(str, port["id"])), msg),
             kwargs,
@@ -364,7 +366,7 @@ class CommandLineTool(Process):
         self, toolpath_object: CommentedMap, loadingContext: LoadingContext
     ) -> None:
         """Initialize this CommandLineTool."""
-        super(CommandLineTool, self).__init__(toolpath_object, loadingContext)
+        super().__init__(toolpath_object, loadingContext)
         self.prov_obj = loadingContext.prov_obj
 
     def make_job_runner(self, runtimeContext: RuntimeContext) -> Type[JobBase]:
@@ -792,7 +794,7 @@ class CommandLineTool(Process):
             jobcache = os.path.join(runtimeContext.cachedir, cachekey)
 
             # Create a lockfile to manage cache status.
-            jobcachepending = "{}.status".format(jobcache)
+            jobcachepending = f"{jobcache}.status"
             jobcachelock = None
             jobstatus = None
 

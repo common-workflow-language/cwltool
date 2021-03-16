@@ -119,7 +119,7 @@ def _terminate_processes() -> None:
         ]
         if cidfile:
             try:
-                with open(cidfile[0], "r") as inp_stream:
+                with open(cidfile[0]) as inp_stream:
                     p = subprocess.Popen(  # nosec
                         ["docker", "kill", inp_stream.read()], shell=False  # nosec
                     )
@@ -175,7 +175,7 @@ def generate_example_input(
             example, comment = generate_example_input(inptype[0], default)
             if optional:
                 if comment:
-                    comment = "{} (optional)".format(comment)
+                    comment = f"{comment} (optional)"
                 else:
                     comment = "optional"
         else:
@@ -194,7 +194,7 @@ def generate_example_input(
                 # array of just an enum then list all the options
                 example = first_item["symbols"]
                 if "name" in first_item:
-                    comment = u'array of type "{}".'.format(first_item["name"])
+                    comment = 'array of type "{}".'.format(first_item["name"])
             else:
                 value, comment = generate_example_input(inptype["items"], None)
                 comment = "array of " + comment
@@ -214,27 +214,27 @@ def generate_example_input(
                 example = symbols[0]
             else:
                 example = "{}_enum_value".format(inptype.get("name", "valid"))
-            comment = u'enum; valid values: "{}"'.format('", "'.join(symbols))
+            comment = 'enum; valid values: "{}"'.format('", "'.join(symbols))
         elif inptype["type"] == "record":
             example = yaml.comments.CommentedMap()
             if "name" in inptype:
-                comment = u'"{}" record type.'.format(inptype["name"])
+                comment = '"{}" record type.'.format(inptype["name"])
             for field in cast(List[CWLObjectType], inptype["fields"]):
                 value, f_comment = generate_example_input(field["type"], None)
                 example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
         elif "default" in inptype:
             example = inptype["default"]
-            comment = u'default value of type "{}".'.format(inptype["type"])
+            comment = 'default value of type "{}".'.format(inptype["type"])
         else:
             example = defaults.get(cast(str, inptype["type"]), str(inptype))
-            comment = u'type "{}".'.format(inptype["type"])
+            comment = 'type "{}".'.format(inptype["type"])
     else:
         if not default:
             example = defaults.get(str(inptype), str(inptype))
-            comment = u'type "{}"'.format(inptype)
+            comment = f'type "{inptype}"'
         else:
             example = default
-            comment = u'default value of type "{}".'.format(inptype)
+            comment = f'default value of type "{inptype}".'
     return example, comment
 
 
@@ -456,7 +456,7 @@ def init_job_order(
     if job_order_object is None:
         if process.tool["inputs"]:
             if toolparser is not None:
-                print("\nOptions for {} ".format(args.workflow))
+                print(f"\nOptions for {args.workflow} ")
                 toolparser.print_help()
             _logger.error("")
             _logger.error("Input object required, use --help for details")
@@ -676,13 +676,15 @@ class ProvLogFormatter(logging.Formatter):
 
     def __init__(self) -> None:
         """Use the default formatter with our custom formatstring."""
-        super(ProvLogFormatter, self).__init__("[%(asctime)sZ] %(message)s")
+        super().__init__("[%(asctime)sZ] %(message)s")
 
     def formatTime(
         self, record: logging.LogRecord, datefmt: Optional[str] = None
     ) -> str:
-        formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(float(record.created)))
-        with_msecs = "%s,%03f" % (formatted_time, record.msecs)
+        formatted_time = time.strftime(
+            "%Y-%m-%dT%H:%M:%S", time.gmtime(float(record.created))
+        )
+        with_msecs = f"{formatted_time},{record.msecs:03f}"
         return with_msecs
 
 
@@ -1038,7 +1040,7 @@ def main(
                 return 0
 
             if args.validate:
-                print("{} is valid CWL.".format(args.workflow))
+                print(f"{args.workflow} is valid CWL.")
                 return 0
 
             if args.print_rdf:

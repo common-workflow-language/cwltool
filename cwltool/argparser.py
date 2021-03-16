@@ -694,7 +694,7 @@ class FSAction(argparse.Action):
         """Fail if nargs is used."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
-        super(FSAction, self).__init__(option_strings, dest, **kwargs)
+        super().__init__(option_strings, dest, **kwargs)
 
     def __call__(
         self,
@@ -722,7 +722,7 @@ class FSAppendAction(argparse.Action):
         """Initialize."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
-        super(FSAppendAction, self).__init__(option_strings, dest, **kwargs)
+        super().__init__(option_strings, dest, **kwargs)
 
     def __call__(
         self,

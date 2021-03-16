@@ -189,7 +189,7 @@ def test_directory_workflow(tmp_path: Path) -> None:
     for (l, l_hash) in sha1.items():
         prefix = l_hash[:2]  # first 2 letters
         p = folder / "data" / prefix / l_hash
-        assert p.is_file(), "Could not find %s as %s" % (l, p)
+        assert p.is_file(), f"Could not find {l} as {p}"
 
 
 def check_output_object(base_path: Path) -> None:
@@ -312,7 +312,7 @@ def _arcp2file(base_path: Path, uri: str) -> Path:
 
 def check_ro(base_path: Path, nested: bool = False) -> None:
     manifest_file = base_path / "metadata" / "manifest.json"
-    assert manifest_file.is_file(), "Can't find {}".format(manifest_file)
+    assert manifest_file.is_file(), f"Can't find {manifest_file}"
     arcp_root = find_arcp(base_path)
     base = urllib.parse.urljoin(arcp_root, "metadata/manifest.json")
     g = Graph()
@@ -320,7 +320,7 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
     # Avoid resolving JSON-LD context https://w3id.org/bundle/context
     # so this test works offline
     context = Path(get_data("tests/bundle-context.jsonld")).as_uri()
-    with open(manifest_file, "r", encoding="UTF-8") as fh:
+    with open(manifest_file, encoding="UTF-8") as fh:
         jsonld = fh.read()
         # replace with file:/// URI
         jsonld = jsonld.replace("https://w3id.org/bundle/context", context)
@@ -328,14 +328,14 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
     if os.environ.get("DEBUG"):
         print("Parsed manifest:\n\n")
         g.serialize(sys.stdout, format="ttl")
-    ro = None
+    _ro = None
 
     for _ro in g.subjects(ORE.isDescribedBy, URIRef(base)):
         break
     assert _ro is not None, "Can't find RO with ore:isDescribedBy"
 
     profile = None
-    for dc in g.objects(ro, DCTERMS.conformsTo):
+    for dc in g.objects(_ro, DCTERMS.conformsTo):
         profile = dc
         break
     assert profile is not None, "Can't find profile with dct:conformsTo"
@@ -345,7 +345,7 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
 
     paths = []
     externals = []
-    for aggregate in g.objects(ro, ORE.aggregates):
+    for aggregate in g.objects(_ro, ORE.aggregates):
         if not arcp.is_arcp_uri(aggregate):
             externals.append(aggregate)
             # Won't check external URIs existence here
@@ -353,7 +353,7 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
             continue
         lfile = _arcp2file(base_path, aggregate)
         paths.append(os.path.relpath(lfile, base_path))
-        assert os.path.isfile(lfile), "Can't find aggregated {}".format(lfile)
+        assert os.path.isfile(lfile), f"Can't find aggregated {lfile}"
 
     assert paths, "Didn't find any arcp aggregates"
     assert externals, "Didn't find any data URIs"
@@ -411,7 +411,7 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
             # NOTE: DC.format is a Namespace method and does not resolve like other terms
             formats.update(set(g.objects(prov, DC["format"])))
         assert formats, "Could not find media types"
-        expected = set(
+        expected = {
             Literal(f)
             for f in (
                 "application/json",
@@ -421,7 +421,7 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
                 'text/turtle; charset="UTF-8"',
                 "application/xml",
             )
-        )
+        }
         assert formats == expected, "Did not match expected PROV media types"
 
     if nested:
@@ -443,7 +443,7 @@ def check_prov(
     secondary_files: bool = False,
 ) -> None:
     prov_file = base_path / "metadata" / "provenance" / "primary.cwlprov.nt"
-    assert prov_file.is_file(), "Can't find {}".format(prov_file)
+    assert prov_file.is_file(), f"Can't find {prov_file}"
     arcp_root = find_arcp(base_path)
     # Note: We don't need to include metadata/provnance in base URI
     # as .nt always use absolute URIs
@@ -458,7 +458,7 @@ def check_prov(
     # main workflow run URI (as urn:uuid:) should correspond to arcp uuid part
     uuid = arcp.parse_arcp(arcp_root).uuid
     main_run = URIRef(uuid.urn)
-    assert main_run in runs, "Can't find run %s in %s" % (main_run, runs)
+    assert main_run in runs, f"Can't find run {main_run} in {runs}"
     # TODO: we should not need to parse arcp, but follow
     # the has_provenance annotations in manifest.json instead
 
@@ -572,7 +572,7 @@ def check_prov(
             sec_basename = set(g.objects(sec, CWLPROV.basename)).pop()
             sec_nameroot = set(g.objects(sec, CWLPROV.nameroot)).pop()
             sec_nameext = set(g.objects(sec, CWLPROV.nameext)).pop()
-            assert str(sec_basename) == "%s%s" % (sec_nameroot, sec_nameext)
+            assert str(sec_basename) == f"{sec_nameroot}{sec_nameext}"
             # TODO: Check hash data file exist in RO
 
             # The primary entity should have the same, but different values
@@ -580,7 +580,7 @@ def check_prov(
             prim_basename = set(g.objects(prim, CWLPROV.basename)).pop()
             prim_nameroot = set(g.objects(prim, CWLPROV.nameroot)).pop()
             prim_nameext = set(g.objects(prim, CWLPROV.nameext)).pop()
-            assert str(prim_basename) == "%s%s" % (prim_nameroot, prim_nameext)
+            assert str(prim_basename) == f"{prim_nameroot}{prim_nameext}"
 
 
 @pytest.fixture
@@ -609,7 +609,7 @@ def test_writable_string(research_object: ResearchObject) -> None:
     sha1 = os.path.join(research_object.folder, "tagmanifest-sha1.txt")
     assert os.path.isfile(sha1)
 
-    with open(sha1, "r", encoding="UTF-8") as sha_file:
+    with open(sha1, encoding="UTF-8") as sha_file:
         stripped_sha = sha_file.readline().strip()
     assert stripped_sha.endswith("file.txt")
     # stain@biggie:~/src/cwltool$ echo Hello | sha1sum
@@ -619,7 +619,7 @@ def test_writable_string(research_object: ResearchObject) -> None:
     sha256 = os.path.join(research_object.folder, "tagmanifest-sha256.txt")
     assert os.path.isfile(sha256)
 
-    with open(sha256, "r", encoding="UTF-8") as sha_file:
+    with open(sha256, encoding="UTF-8") as sha_file:
         stripped_sha = sha_file.readline().strip()
 
     assert stripped_sha.endswith("file.txt")
@@ -640,7 +640,7 @@ def test_writable_unicode_string(research_object: ResearchObject) -> None:
 
 
 def test_writable_bytes(research_object: ResearchObject) -> None:
-    string = "Here is a snowman: \u2603 \n".encode("UTF-8")
+    string = "Here is a snowman: \u2603 \n".encode()
     with research_object.write_bag_file("file.txt", encoding=None) as fh:
         fh.write(string)  # type: ignore
 
@@ -655,7 +655,7 @@ def test_data(research_object: ResearchObject) -> None:
     # rather than tagmanifest
     sha1 = os.path.join(research_object.folder, "manifest-sha1.txt")
     assert os.path.isfile(sha1)
-    with open(sha1, "r", encoding="UTF-8") as fh2:
+    with open(sha1, encoding="UTF-8") as fh2:
         stripped_sha = fh2.readline().strip()
         assert stripped_sha.endswith("data/file.txt")
 
@@ -663,14 +663,14 @@ def test_data(research_object: ResearchObject) -> None:
 def test_not_seekable(research_object: ResearchObject) -> None:
     with research_object.write_bag_file("file.txt") as fh:
         assert not fh.seekable()
-        with pytest.raises(IOError):
+        with pytest.raises(OSError):
             fh.seek(0)
 
 
 def test_not_readable(research_object: ResearchObject) -> None:
     with research_object.write_bag_file("file.txt") as fh:
         assert not fh.readable()
-        with pytest.raises(IOError):
+        with pytest.raises(OSError):
             fh.read()
 
 
@@ -679,7 +679,7 @@ def test_truncate_fails(research_object: ResearchObject) -> None:
         fh.write("Hello there")
         fh.truncate()  # OK as we're always at end
         # Will fail because the checksum can't rewind
-        with pytest.raises(IOError):
+        with pytest.raises(OSError):
             fh.truncate(0)
 
 

@@ -19,7 +19,7 @@ MapperEnt = collections.namedtuple(
 )
 
 
-class PathMapper(object):
+class PathMapper:
     """
     Mapping of files from relative path provided in the file to a tuple.
 
