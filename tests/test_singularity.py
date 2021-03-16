@@ -1,10 +1,8 @@
 import distutils.spawn
 import os
 import sys
+from pathlib import Path
 
-import pytest
-
-import schema_salad.validate
 from cwltool.main import main
 
 from .util import (
@@ -19,10 +17,10 @@ sys.argv = [""]
 
 
 @needs_singularity_2_6
-def test_singularity_pullfolder(tmp_path):
+def test_singularity_pullfolder(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir_new"
     workdir.mkdir()
-    os.chdir(str(workdir))
+    os.chdir(workdir)
     pullfolder = tmp_path / "pullfolder"
     pullfolder.mkdir()
     env = os.environ.copy()
@@ -44,8 +42,8 @@ def test_singularity_pullfolder(tmp_path):
 
 
 @needs_singularity
-def test_singularity_workflow(tmpdir):
-    with working_directory(str(tmpdir)):
+def test_singularity_workflow(tmp_path: Path) -> None:
+    with working_directory(tmp_path):
         error_code, _, stderr = get_main_output(
             [
                 "--singularity",
@@ -61,7 +59,7 @@ def test_singularity_workflow(tmpdir):
     assert error_code == 0
 
 
-def test_singularity_iwdr():
+def test_singularity_iwdr() -> None:
     result_code = main(
         [
             "--singularity",
@@ -80,7 +78,7 @@ def test_singularity_iwdr():
 
 
 @needs_singularity
-def test_singularity_incorrect_image_pull():
+def test_singularity_incorrect_image_pull() -> None:
     result_code, _, stderr = get_main_output(
         [
             "--singularity",
@@ -95,10 +93,10 @@ def test_singularity_incorrect_image_pull():
 
 
 @needs_singularity
-def test_singularity_local(tmp_path):
+def test_singularity_local(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
-    os.chdir(str(workdir))
+    os.chdir(workdir)
     result_code, stdout, stderr = get_main_output(
         [
             "--singularity",
@@ -111,10 +109,10 @@ def test_singularity_local(tmp_path):
 
 
 @needs_singularity_2_6
-def test_singularity_docker_image_id_in_tool(tmp_path):
+def test_singularity_docker_image_id_in_tool(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
-    os.chdir(str(workdir))
+    os.chdir(workdir)
     result_code, stdout, stderr = get_main_output(
         [
             "--singularity",

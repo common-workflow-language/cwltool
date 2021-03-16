@@ -1,25 +1,27 @@
 import urllib
-from typing import IO, Any, Dict, MutableMapping, cast
+from codecs import StreamWriter
+from typing import Any, Dict, Optional, TextIO, Union, cast
 
 from rdflib import Graph
-
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.jsonld_context import makerdf
-from schema_salad.ref_resolver import ContextType
+from schema_salad.utils import ContextType
 
+from .cwlviewer import CWLViewer
 from .process import Process
 
 
-def gather(tool, ctx):  # type: (Process, ContextType) -> Graph
+def gather(tool: Process, ctx: ContextType) -> Graph:
     g = Graph()
 
-    def visitor(t):  # type: (MutableMapping[str, Any]) -> None
+    def visitor(t: CommentedMap) -> None:
         makerdf(t["id"], t, ctx, graph=g)
 
     tool.visit(visitor)
     return g
 
 
-def printrdf(wflow, ctx, style):  # type: (Process, ContextType, str) -> str
+def printrdf(wflow: Process, ctx: ContextType, style: str) -> str:
     """Serialize the CWL document into a string, ready for printing."""
     rdf = gather(wflow, ctx).serialize(format=style, encoding="utf-8")
     if not rdf:
@@ -27,14 +29,14 @@ def printrdf(wflow, ctx, style):  # type: (Process, ContextType, str) -> str
     return cast(str, rdf.decode("utf-8"))
 
 
-def lastpart(uri):  # type: (Any) -> str
+def lastpart(uri: Any) -> str:
     uri2 = str(uri)
     if "/" in uri2:
         return uri2[uri2.rindex("/") + 1 :]
     return uri2
 
 
-def dot_with_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
+def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
     qres = g.query(
         """SELECT ?step ?run ?runtype
            WHERE {
@@ -107,7 +109,7 @@ def dot_with_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
         stdout.write(u'"%s" [shape=octagon]\n' % (lastpart(inp)))
 
 
-def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
+def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
     dotname = {}  # type: Dict[str,str]
     clusternode = {}
 
@@ -136,8 +138,8 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
            } ORDER BY ?wf"""
     )
 
-    currentwf = None
-    for wf, step, run, runtype in qres:
+    currentwf = None  # type: Optional[str]
+    for wf, step, _run, runtype in qres:
         if step not in dotname:
             dotname[step] = lastpart(step)
 
@@ -188,17 +190,10 @@ def dot_without_parameters(g, stdout):  # type: (Graph, IO[Any]) -> None
         stdout.write(u'"%s" -> "%s" [%s]\n' % (dotname[src], dotname[sink], attr))
 
 
-def printdot(wf, ctx, stdout, include_parameters=False):
-    # type: (Process, ContextType, Any, bool) -> None
-    g = gather(wf, ctx)
-
-    stdout.write("digraph {")
-
-    # g.namespace_manager.qname(predicate)
-
-    if include_parameters:
-        dot_with_parameters(g, stdout)
-    else:
-        dot_without_parameters(g, stdout)
-
-    stdout.write("}")
+def printdot(
+    wf: Process,
+    ctx: ContextType,
+    stdout: Union[TextIO, StreamWriter],
+) -> None:
+    cwl_viewer = CWLViewer(printrdf(wf, ctx, "n3"))  # type: CWLViewer
+    stdout.write(cwl_viewer.dot())

@@ -1,0 +1,12 @@
+[{
+  "secondaryFiles": ".bai"
+}, {
+  "secondaryFiles": ".bai?"
+}, {
+  "secondaryFiles": {
+    "pattern": ".bai?"
+}, {
+  "secondaryFiles": {
+    "pattern": ".bai?",
+    "required": true
+}]

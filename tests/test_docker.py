@@ -1,32 +1,31 @@
 from distutils import spawn
+from pathlib import Path
 
-import pytest
-
-from cwltool.docker import DockerCommandLineJob
 from cwltool.main import main
 
-from .util import get_data, get_main_output, needs_docker, needs_singularity
+from .util import get_data, get_main_output, needs_docker
 
 
 @needs_docker
-def test_docker_workflow(tmpdir):
+def test_docker_workflow(tmp_path: Path) -> None:
+    """Basic test for docker with a CWL Workflow."""
     result_code, _, stderr = get_main_output(
         [
             "--default-container",
             "debian",
             "--outdir",
-            str(tmpdir),
+            str(tmp_path),
             get_data("tests/wf/hello-workflow.cwl"),
             "--usermessage",
             "hello",
         ]
     )
     assert "completed success" in stderr
-    assert (tmpdir / "response.txt").read_text("utf-8") == "hello"
+    assert (tmp_path / "response.txt").read_text("utf-8") == "hello"
     assert result_code == 0
 
 
-def test_docker_iwdr():
+def test_docker_iwdr() -> None:
     result_code = main(
         [
             "--default-container",
@@ -44,7 +43,7 @@ def test_docker_iwdr():
 
 
 @needs_docker
-def test_docker_incorrect_image_pull():
+def test_docker_incorrect_image_pull() -> None:
     result_code = main(
         [
             "--default-container",
@@ -58,7 +57,7 @@ def test_docker_incorrect_image_pull():
 
 
 @needs_docker
-def test_docker_file_mount():
+def test_docker_file_mount() -> None:
     # test for bug in
     # ContainerCommandLineJob.create_file_and_add_volume()
     #

@@ -1,13 +1,20 @@
-import copy
 import urllib
 from collections import namedtuple
-from typing import Any, Dict, MutableMapping, MutableSequence, Optional, Set, Tuple
+from typing import (
+    Dict,
+    List,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Set,
+    Tuple,
+    cast,
+)
 
 from ruamel.yaml.comments import CommentedMap
 
-from .process import shortname
-from .utils import aslist
-from .workflow import Workflow
+from .utils import CWLObjectType, aslist
+from .workflow import Workflow, WorkflowStep
 
 Node = namedtuple("Node", ("up", "down", "type"))
 UP = "up"
@@ -18,11 +25,11 @@ STEP = "step"
 
 
 def subgraph_visit(
-    current,  # type: str
-    nodes,  # type: MutableMapping[str, Node]
-    visited,  # type: Set[str]
-    direction,  # type: str
-):  # type: (...) -> None
+    current: str,
+    nodes: MutableMapping[str, Node],
+    visited: Set[str],
+    direction: str,
+) -> None:
 
     if current in visited:
         return
@@ -36,8 +43,7 @@ def subgraph_visit(
         subgraph_visit(c, nodes, visited, direction)
 
 
-def declare_node(nodes, nodeid, tp):
-    # type: (Dict[str, Node], str, Optional[str]) -> Node
+def declare_node(nodes: Dict[str, Node], nodeid: str, tp: Optional[str]) -> Node:
     if nodeid in nodes:
         n = nodes[nodeid]
         if n.type is None:
@@ -47,11 +53,18 @@ def declare_node(nodes, nodeid, tp):
     return nodes[nodeid]
 
 
+def find_step(steps: List[WorkflowStep], stepid: str) -> Optional[CWLObjectType]:
+    for st in steps:
+        if st.tool["id"] == stepid:
+            return st.tool
+    return None
+
+
 def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
     if tool.tool["class"] != "Workflow":
         raise Exception("Can only extract subgraph from workflow")
 
-    nodes = {}  # type: Dict[str, Node]
+    nodes: Dict[str, Node] = {}
 
     for inp in tool.tool["inputs"]:
         declare_node(nodes, inp["id"], INPUT)
@@ -84,22 +97,16 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
             nodes[out].up.append(st["id"])
 
     # Find all the downstream nodes from the starting points
-    visited_down = set()  # type: Set[str]
+    visited_down: Set[str] = set()
     for r in roots:
         if nodes[r].type == OUTPUT:
             subgraph_visit(r, nodes, visited_down, UP)
         else:
             subgraph_visit(r, nodes, visited_down, DOWN)
 
-    def find_step(stepid):  # type: (str) -> Optional[MutableMapping[str, Any]]
-        for st in tool.steps:
-            if st.tool["id"] == stepid:
-                return st.tool
-        return None
-
     # Now make sure all the nodes are connected to upstream inputs
-    visited = set()  # type: Set[str]
-    rewire = {}  # type: Dict[str, Tuple[str, str]]
+    visited: Set[str] = set()
+    rewire: Dict[str, Tuple[str, CWLObjectType]] = {}
     for v in visited_down:
         visited.add(v)
         if nodes[v].type in (STEP, OUTPUT):
@@ -111,13 +118,17 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
                 else:
                     # rewire
                     df = urllib.parse.urldefrag(u)
-                    rn = df[0] + "#" + df[1].replace("/", "_")
+                    rn = str(df[0] + "#" + df[1].replace("/", "_"))
                     if nodes[v].type == STEP:
-                        wfstep = find_step(v)
+                        wfstep = find_step(tool.steps, v)
                         if wfstep is not None:
-                            for inp in wfstep["inputs"]:
-                                if u in inp["source"]:
-                                    rewire[u] = (rn, inp["type"])
+                            for inp in cast(
+                                MutableSequence[CWLObjectType], wfstep["inputs"]
+                            ):
+                                if "source" in inp and u in cast(
+                                    CWLObjectType, inp["source"]
+                                ):
+                                    rewire[u] = (rn, cast(CWLObjectType, inp["type"]))
                                     break
                         else:
                             raise Exception("Could not find step %s" % v)
@@ -146,5 +157,37 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
 
     for rv in rewire.values():
         extracted["inputs"].append({"id": rv[0], "type": rv[1]})
+
+    return extracted
+
+
+def get_step(tool: Workflow, step_id: str) -> CommentedMap:
+
+    extracted = CommentedMap()
+
+    step = find_step(tool.steps, step_id)
+    if step is None:
+        raise Exception(f"Step {step_id} was not found")
+
+    extracted["steps"] = [step]
+    extracted["inputs"] = []
+    extracted["outputs"] = []
+
+    for inport in cast(List[CWLObjectType], step["in"]):
+        name = cast(str, inport["id"]).split("#")[-1].split("/")[-1]
+        extracted["inputs"].append({"id": name, "type": "Any"})
+        inport["source"] = name
+        if "linkMerge" in inport:
+            del inport["linkMerge"]
+
+    for outport in cast(List[str], step["out"]):
+        name = outport.split("#")[-1].split("/")[-1]
+        extracted["outputs"].append(
+            {"id": name, "type": "Any", "outputSource": f"{step_id}/{name}"}
+        )
+
+    for f in tool.tool:
+        if f not in ("steps", "inputs", "outputs"):
+            extracted[f] = tool.tool[f]
 
     return extracted

@@ -1,0 +1,24 @@
+pull_request_rules:
+  - name: Automatic merge on approval and when when GitHub branch protection passes on main
+    conditions:
+      - "#approved-reviews-by>=1"
+      - -draft
+      - base=main
+    actions:
+      merge:
+        method: merge
+        strict: smart+fasttrack
+        
+pull_request_rules:
+  - name: Automatic merge for leadership team members when there are no reviewers and the label is "ready"
+    conditions:
+      - "#review-requested=0"
+      - "#changes-requested-reviews-by<1"
+      - -draft
+      - base=main
+      - author=@leadership
+      - label=ready
+    actions:
+      merge:
+        method: merge
+        strict: smart+fasttrack

@@ -1,6 +1,6 @@
-import os
+# -*- coding: utf-8 -*-
 import pytest
-from tempfile import NamedTemporaryFile
+from pathlib import Path
 
 from cwltool.main import main
 
@@ -28,84 +28,66 @@ baseCommand: [cat]
 
 
 @needs_docker
-def test_spaces_in_input_files(tmpdir):
-    try:
-        script_file = NamedTemporaryFile(mode="w", delete=False)
+def test_spaces_in_input_files(tmp_path: Path) -> None:
+    script_name = tmp_path / "script"
+    spaces = tmp_path / "test with spaces"
+    spaces.touch()
+    with script_name.open(mode="w") as script_file:
         script_file.write(script)
-        script_file.flush()
-        script_file.close()
 
-        spaces = NamedTemporaryFile(prefix="test with spaces", delete=False)
-        spaces.close()
-
-        params = [
-            "--debug",
-            "--outdir",
-            str(tmpdir),
-            script_file.name,
-            "--input",
-            spaces.name,
-            "--output",
-            "test.txt",
-        ]
-        assert main(params) == 1
-        assert main(["--relax-path-checks"] + params) == 0
-    finally:
-        os.remove(script_file.name)
-        os.remove(spaces.name)
+    params = [
+        "--debug",
+        "--outdir",
+        str(tmp_path / "outdir"),
+        str(script_name),
+        "--input",
+        str(spaces),
+        "--output",
+        "test.txt",
+    ]
+    assert main(params) == 1
+    assert main(["--relax-path-checks"] + params) == 0
 
 
 @needs_docker
-@pytest.mark.parametrize("filename", ["測試", "그래프", "график", "𒁃", "☕😍", "امتحان"])
-def test_unicode_in_input_files(tmpdir, filename):
-    try:
-        script_file = NamedTemporaryFile(mode="w", delete=False)
+@pytest.mark.parametrize("filename", ["測試", "그래프", "график", "𒁃", "☕😍", "امتحان", "abc+DEFGZ.z_12345-"])
+def test_unicode_in_input_files(tmp_path: Path, filename: str) -> None:
+    script_name = tmp_path / "script"
+    inputfile = tmp_path / filename
+    inputfile.touch()
+    with script_name.open(mode="w") as script_file:
         script_file.write(script)
-        script_file.flush()
-        script_file.close()
 
-        inputfile = NamedTemporaryFile(prefix=filename, delete=False)
-        inputfile.close()
-
-        params = [
-            "--debug",
-            "--outdir",
-            str(tmpdir),
-            script_file.name,
-            "--input",
-            inputfile.name,
-            "--output",
-            "test.txt",
-        ]
-        assert main(params) == 0
-    finally:
-        os.remove(script_file.name)
-        os.remove(inputfile.name)
+    params = [
+        "--debug",
+        "--outdir",
+        str(tmp_path / "outdir"),
+        str(script_name),
+        "--input",
+        str(inputfile),
+        "--output",
+        "test.txt",
+    ]
+    assert main(params) == 0
 
 
 @needs_docker
-@pytest.mark.parametrize("filename", ["測試", "그래프", "график", "𒁃", "☕😍", "امتحان"])
-def test_unicode_in_output_files(tmpdir, filename):
-    try:
-        script_file = NamedTemporaryFile(mode="w", delete=False)
+@pytest.mark.parametrize("filename", ["測試", "그래프", "график", "𒁃", "☕😍", "امتحان", "abc+DEFGZ.z_12345-"])
+def test_unicode_in_output_files(tmp_path: Path, filename: str) -> None:
+    script_name = tmp_path / "script"
+    inputfile = tmp_path / "test"
+    inputfile.touch()
+    with script_name.open(mode="w") as script_file:
         script_file.write(script)
-        script_file.flush()
-        script_file.close()
 
-        inputfile = NamedTemporaryFile(prefix="test", delete=False)
-        inputfile.close()
-
-        params = [
-            "--debug",
-            "--outdir",
-            str(tmpdir),
-            script_file.name,
-            "--input",
-            inputfile.name,
-            "--output",
-            filename,
-        ]
-        assert main(params) == 0
-    finally:
-        os.remove(script_file.name)
-        os.remove(inputfile.name)
+    params = [
+        "--debug",
+        "--outdir",
+        str(tmp_path / "outdir"),
+        str(script_name),
+        "--input",
+        str(inputfile),
+        "--output",
+        filename,
+    ]
+    assert main(params) == 0

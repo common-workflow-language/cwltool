@@ -1,9 +1,9 @@
 import json
 from io import StringIO
+from typing import Dict, List
 
 import pytest
 
-from cwltool import load_tool
 from cwltool.main import main
 
 from .util import get_data, needs_docker
@@ -76,7 +76,7 @@ override_parameters = [
 
 @needs_docker
 @pytest.mark.parametrize("parameters,result", override_parameters)
-def test_overrides(parameters, result):
+def test_overrides(parameters: List[str], result: Dict[str, str]) -> None:
     sio = StringIO()
 
     assert main(parameters, stdout=sio) == 0
@@ -99,7 +99,7 @@ failing_override_parameters = [
             get_data("tests/override/env-tool_cwl-requirement_override.yaml"),
         ],
         "Version 'v1.1.0-dev1' is a development or deprecated version.\n"
-        " Update your document to a stable version (v1.0, v1.1) or use --enable-dev to "
+        " Update your document to a stable version (v1.0, v1.1, v1.2) or use --enable-dev to "
         "enable support for development and deprecated versions.",
     ),
     (
@@ -115,7 +115,7 @@ failing_override_parameters = [
     (
         [get_data("tests/override/env-tool_cwl-requirement_override_default.yaml")],
         "Version 'v1.1.0-dev1' is a development or deprecated version.\n"
-        " Update your document to a stable version (v1.0, v1.1) or use --enable-dev to "
+        " Update your document to a stable version (v1.0, v1.1, v1.2) or use --enable-dev to "
         "enable support for development and deprecated versions.",
     ),
 ]
@@ -123,7 +123,7 @@ failing_override_parameters = [
 
 @needs_docker
 @pytest.mark.parametrize("parameters,expected_error", failing_override_parameters)
-def test_overrides_fails(parameters, expected_error):
+def test_overrides_fails(parameters: List[str], expected_error: str) -> None:
     sio = StringIO()
 
     assert main(parameters, stderr=sio) == 1

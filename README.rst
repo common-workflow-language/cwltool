@@ -2,20 +2,18 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Coverage Status| |Downloads|
+|Linux Status| |Debian Stable package| |Debian Testing package| |Windows Status| |Coverage Status| |Downloads|
 
-|CommandLineTool Support| |DockerRequirement Support| |EnvVarRequirement Support| |ExpressionTool Support|
-|InitialWorkDirRequirement Support| |InlineJavascriptRequirement Support| |MultipleInputRequirement Support| |Core Support|
-|ResourceRequirement Support| |ScatterRequirement Support| |SchemaDefRequirement Support| |ShellCommandequirement Support|
-|StepInputRequirement Support| |SubWorkflowRequirement Support| |Workflow Support|
+.. |Linux Status| image:: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml/badge.svg?branch=main
+   :target: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml
 
-.. |Conformance Status| image:: https://ci.commonwl.org/buildStatus/icon?job=cwltool-conformance
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
+.. |Debian Stable package| image:: https://badges.debian.net/badges/debian/stable/cwltool/version.svg
+   :target: https://packages.debian.org/stable/cwltool
 
-.. |Linux Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/master.svg?label=Linux%20builds
-   :target: https://travis-ci.org/common-workflow-language/cwltool
+.. |Debian Testing package| image:: https://badges.debian.net/badges/debian/testing/cwltool/version.svg
+   :target: https://packages.debian.org/testing/cwltool
 
-.. |Windows Status| image:: https://img.shields.io/appveyor/ci/mr-c/cwltool/master.svg?label=Windows%20builds
+.. |Windows Status| image:: https://img.shields.io/appveyor/ci/mr-c/cwltool/main.svg?label=Windows%20builds
    :target: https://ci.appveyor.com/project/mr-c/cwltool
 
 .. |Coverage Status| image:: https://img.shields.io/codecov/c/github/common-workflow-language/cwltool.svg
@@ -24,58 +22,12 @@ CWL conformance tests: |Conformance Status| |Linux Status| |Windows Status| |Cov
 .. |Downloads| image:: https://pepy.tech/badge/cwltool/month
    :target: https://pepy.tech/project/cwltool
 
-.. |CommandLineTool Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/command_line_tool.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |DockerRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/docker.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |EnvVarRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/env_var.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |ExpressionTool Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/expression_tool.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |InitialWorkDirRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/initial_work_dir.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |InlineJavascriptRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/inline_javascript.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |MultipleInputRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/multiple_input.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |Core Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/required.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |ResourceRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/resource.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |ScatterRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/scatter.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |SchemaDefRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/schema_def.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |ShellCommandequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/shell_command.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |StepInputRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/step_input.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |SubWorkflowRequirement Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/subworkflow.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-.. |Workflow Support| image:: https://badgen.net/https/raw.githubusercontent.com/common-workflow-language/conformance/master/cwltool/cwl_v1.0/cwltool_latest/workflow.json?icon=commonwl
-   :target: https://ci.commonwl.org/job/cwltool-conformance/
-
-
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
 This is written and tested for
-`Python <https://www.python.org/>`_ ``3.x {x = 5, 6, 7, 8}``
+`Python <https://www.python.org/>`_ ``3.x {x = 6, 7, 8, 9}``
 
 The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
@@ -85,55 +37,83 @@ The ``cwlref-runner`` package is optional and provides an additional entry point
 under the alias ``cwl-runner``, which is the implementation-agnostic name for the
 default CWL interpreter installed on a host.
 
-``cwltool`` is provided by the CWL project, `a member project of Software Freedom Conservancy <https://sfconservancy.org/news/2018/apr/11/cwl-new-member-project/>`_ and our `many contributors <https://github.com/common-workflow-language/cwltool/graphs/contributors>`_.
+``cwltool`` is provided by the CWL project, `a member project of Software Freedom Conservancy <https://sfconservancy.org/news/2018/apr/11/cwl-new-member-project/>`_
+and our `many contributors <https://github.com/common-workflow-language/cwltool/graphs/contributors>`_.
 
 Install
 -------
 
-Your operating system may offer cwltool directly. For `Debian <https://tracker.debian.org/pkg/cwltool>`_  or `Ubuntu <https://launchpad.net/ubuntu/+source/cwltool>`_ try
+``cwltool`` packages
+^^^^^^^^^^^^^^^^^^^^
+
+Your operating system may offer cwltool directly. For `Debian <https://tracker.debian.org/pkg/cwltool>`_, `Ubuntu <https://launchpad.net/ubuntu/+source/cwltool>`_,
+and similar Linux distribution try
 
 .. code:: bash
 
-  apt-get install cwltool
+  sudo apt-get install cwltool
 
-Otherwise, to
-avoid conflicting versions of the same library,
-it is recommended to do the following:
+If you are running MacOS X or other UNIXes and you want to use packages prepared by the conda-forge project, then
+please follow the install instructions for `conda-forge <https://conda-forge.org/#about>`_ (if you haven't already) and then 
 
 .. code:: bash
 
-  virtualenv -p python3 venv   # Create a virtual environment
-  source venv/bin/activate     # Activate environment before installing `cwltool`
+   conda install -c conda-forge cwltool
 
-Installing the official package from PyPi (will install "cwltool" package as
+All of the above methods of installing ``cwltool`` use packages which might contain bugs already fixed in newer versions, or be missing features that you desire.
+If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv``::
+
+.. code:: bash
+
+  python3 -m venv env      # Create a virtual environment named 'env' in the current directory
+  source env/bin/activate  # Activate environment before installing `cwltool`
+
+Then install the latest ``cwlref-runner`` package from PyPi (which will install the latest ``cwltool`` package as
 well)
 
 .. code:: bash
 
   pip install cwlref-runner
 
-If installing alongside another CWL implementation then
+If installing alongside another CWL implementation (like ``toil-cwl-runner`` or ``arvados-cwl-runner``) then instead run
 
 .. code:: bash
 
   pip install cwltool
 
-Or you can install from source:
+MS Windows users
+^^^^^^^^^^^^^^^^
+
+1.  Install `"Windows Subsystem for Linux 2" (WSL2) and Docker Desktop <https://docs.docker.com/docker-for-windows/wsl/#prerequisites>`_
+2.  Install `Debian from the Microsoft Store <https://www.microsoft.com/en-us/p/debian/9msvkqc78pk6>`_
+3.  Set Debian as your default WSL 2 distro: ``wsl --set-default debian``
+4.  Reboot if you have not yet already.
+5.  Launch Debian and follow the Linux instructions above (``apt-get install cwltool`` or use the ``venv`` method)
+
+``cwltool`` development version
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Or you can skip the direct ``pip`` commands above and install the latest development version of ``cwltool``:
 
 .. code:: bash
 
-  git clone https://github.com/common-workflow-language/cwltool.git # clone cwltool repo
-  cd cwltool         # Switch to source directory
-  pip install .      # Install `cwltool` from source
+  git clone https://github.com/common-workflow-language/cwltool.git # clone (copy) the cwltool git repository
+  cd cwltool         # Change to source directory that git clone just downloaded
+  pip install .      # Installs ``cwltool`` from source
   cwltool --version  # Check if the installation works correctly
 
 Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
 system link or `another facility <https://wiki.debian.org/DebianAlternatives>`_.
 
-=====
-Usage
-=====
+Recommended Software
+^^^^^^^^^^^^^^^^^^^^
+
+You may also want to have the following installed: 
+- `node.js <https://nodejs.org/en/download/>`_
+- Docker, udocker, or Singularity (optional)
+
+Without these, some examples in the CWL tutorials at http://www.commonwl.org/user_guide/ may not work. 
 
 Run on the command line
 -----------------------
@@ -143,7 +123,7 @@ Simple command::
   cwl-runner [tool-or-workflow-description] [input-job-settings]
 
 Or if you have multiple CWL implementations installed and you want to override
-the default cwl-runner use::
+the default cwl-runner then use::
 
   cwltool [tool-or-workflow-description] [input-job-settings]
 
@@ -152,8 +132,8 @@ these will be inserted at the beginning of the command line::
 
   export CWLTOOL_OPTIONS="--debug"
 
-Use with boot2docker
---------------------
+Use with boot2docker on macOS
+-----------------------------
 boot2docker runs Docker inside a virtual machine and it only mounts ``Users``
 on it. The default behavior of CWL is to create temporary directories under e.g.
 ``/Var`` which is not accessible to Docker containers.
@@ -163,33 +143,24 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 
     $ cwl-runner --tmp-outdir-prefix=/Users/username/project --tmpdir-prefix=/Users/username/project wc-tool.cwl wc-job.json
 
-Using user-space replacements for Docker
-----------------------------------------
+Using uDocker
+-------------
 
 Some shared computing environments don't support Docker software containers for technical or policy reasons.
 As a work around, the CWL reference runner supports using alternative ``docker`` implementations on Linux
 with the ``--user-space-docker-cmd`` option.
 
-One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker and another
-is ``dx-docker`` https://wiki.dnanexus.com/Developer-Tutorials/Using-Docker-Images
+One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker
 
-udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-indigo-datacloud-repositories
-
-dx-docker installation: start with the DNAnexus toolkit (see https://wiki.dnanexus.com/Downloads for instructions).
+udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-udockertools-tarball
 
 Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
 
 .. code:: bash
 
-  cwltool --user-space-docker-cmd=udocker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
+  cwltool --user-space-docker-cmd=udocker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/empty.json
 
-or
-
-.. code:: bash
-
-  cwltool --user-space-docker-cmd=dx-docker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/empty.json
-
-``cwltool`` can use `Singularity <http://singularity.lbl.gov/>`_ version 2.6.1
+``cwltool`` can also use `Singularity <https://github.com/hpcng/singularity/releases/>`_ version 2.6.1
 or later as a Docker container runtime.
 ``cwltool`` with Singularity will run software containers specified in
 ``DockerRequirement`` and therefore works with Docker images only, native
@@ -198,10 +169,10 @@ runtime, provide ``--singularity`` command line option to ``cwltool``.
 With Singularity, ``cwltool`` can pass all CWL v1.0 conformance tests, except
 those involving Docker container ENTRYPOINTs.
 
-
+Example:
 .. code:: bash
 
-  cwltool --singularity https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/master/v1.0/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/blob/master/v1.0/v1.0/cat-job.json
+  cwltool --singularity https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/blob/main/v1.0/v1.0/cat-job.json
 
 Running a tool or workflow from remote or local locations
 ---------------------------------------------------------
@@ -558,6 +529,80 @@ For this example, grab the test.json (and input file) from https://github.com/Ca
 
 .. _`GA4GH Tool Registry API`: https://github.com/ga4gh/tool-registry-schemas
 
+Running MPI-based tools that need to be launched
+------------------------------------------------
+
+Cwltool supports an extension to the CWL spec
+``http://commonwl.org/cwltool#MPIRequirement``. When the tool
+definition has this in its ``requirements``/``hints`` section, and
+cwltool has been run with ``--enable-ext``, then the tool's command
+line will be extended with the commands needed to launch it with
+``mpirun`` or similar. You can specify the number of processes to
+start as either a literal integer or an expression (that will result
+in an integer). For example::
+
+  #!/usr/bin/env cwl-runner
+  cwlVersion: v1.1
+  class: CommandLineTool
+  $namespaces:
+    cwltool: "http://commonwl.org/cwltool#"
+  requirements:
+    cwltool:MPIRequirement:
+      processes: $(inputs.nproc)
+  inputs:
+    nproc:
+      type: int
+
+Interaction with containers: the MPIRequirement currently prepends its
+commands to the front of the command line that is constructed. If you
+wish to run a containerised application in parallel, for simple use
+cases this does work with Singularity, depending upon the platform
+setup. However this combination should be considered "alpha" -- please
+do report any issues you have! This does not work with Docker at the
+moment. (More precisely, you get `n` copies of the same single process
+image run at the same time that cannot communicate with each other.)
+
+The host-specific parameters are configured in a simple YAML file
+(specified with the ``--mpi-config-file`` flag). The allowed keys are
+given in the following table; all are optional.
+
++----------------+------------------+----------+------------------------------+
+| Key            | Type             | Default  | Description                  |
++================+==================+==========+==============================+
+| runner         | str              | "mpirun" | The primary command to use.  |
++----------------+------------------+----------+------------------------------+
+| nproc_flag     | str              | "-n"     | Flag to set number of        |
+|                |                  |          | processes to start.          |
++----------------+------------------+----------+------------------------------+
+| default_nproc  | int              | 1        | Default number of processes. |
++----------------+------------------+----------+------------------------------+
+| extra_flags    | List[str]        | []       | A list of any other flags to |
+|                |                  |          | be added to the runner's     |
+|                |                  |          | command line before          |
+|                |                  |          | the ``baseCommand``.         |
++----------------+------------------+----------+------------------------------+
+| env_pass       | List[str]        | []       | A list of environment        |
+|                |                  |          | variables that should be     |
+|                |                  |          | passed from the host         |
+|                |                  |          | environment through to the   |
+|                |                  |          | tool (e.g. giving the        |
+|                |                  |          | nodelist as set by your      |
+|                |                  |          | scheduler).                  |
++----------------+------------------+----------+------------------------------+
+| env_pass_regex | List[str]        | []       | A list of python regular     |
+|                |                  |          | expressions that will be     |
+|                |                  |          | matched against the host's   |
+|                |                  |          | environment. Those that match|
+|                |                  |          | will be passed through.      |
++----------------+------------------+----------+------------------------------+
+| env_set        | Mapping[str,str] | {}       | A dictionary whose keys are  |
+|                |                  |          | the environment variables set|
+|                |                  |          | and the values being the     |
+|                |                  |          | values.                      |
++----------------+------------------+----------+------------------------------+
+
+
+
 ===========
 Development
 ===========
@@ -574,7 +619,7 @@ To run the basic tests after installing `cwltool` execute the following:
   pip install -rtest-requirements.txt
   py.test --ignore cwltool/schemas/ --pyarg cwltool
 
-To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/master/tox.ini>`_. To run the test suite in all supported Python environments
+To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/main/tox.ini>`_. To run the test suite in all supported Python environments
 first downloading the complete code repository (see the ``git clone`` instructions above) and then run
 the following in the terminal:
 ``pip install tox; tox``
@@ -592,7 +637,7 @@ The GitHub repository for the CWL specifications contains a script that tests a 
 implementation against a wide array of valid CWL files using the `cwltest <https://github.com/common-workflow-language/cwltest>`_
 program
 
-Instructions for running these tests can be found in the Common Workflow Language Specification repository at https://github.com/common-workflow-language/common-workflow-language/blob/master/CONFORMANCE_TESTS.md
+Instructions for running these tests can be found in the Common Workflow Language Specification repository at https://github.com/common-workflow-language/common-workflow-language/blob/main/CONFORMANCE_TESTS.md
 
 Import as a module
 ------------------
