@@ -25,8 +25,8 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=diff_cover black pylint coverage pep257 pydocstyle flake8 mypy\
-	pytest-xdist isort wheel autoflake -rtest-requirements.txt
+DEVPKGS=diff_cover black pylint coverage pep257 pydocstyle flake8\
+	isort wheel autoflake flake8-bugbear pyupgrade bandit -rtest-requirements.txt -rmypy_requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 VERSION=3.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
@@ -81,8 +81,8 @@ clean: FORCE
 
 # Linting and code style related targets
 ## sorting imports using isort: https://github.com/timothycrosley/isort
-sort_imports:
-	isort ${MODULE}/*.py tests/*.py setup.py
+sort_imports: $(PYSOURCES)
+	isort $^
 
 remove_unused_imports: $(PYSOURCES)
 	autoflake --in-place --remove-all-unused-imports $^
@@ -92,7 +92,7 @@ pep257: pydocstyle
 pydocstyle: $(PYSOURCES)
 	pydocstyle --add-ignore=D100,D101,D102,D103 $^ || true
 
-pydocstyle_report.txt: $(filter-out tests/%,${PYSOURCES})
+pydocstyle_report.txt: $(PYSOURCES)
 	pydocstyle setup.py $^ > $@ 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt
@@ -101,6 +101,9 @@ diff_pydocstyle_report: pydocstyle_report.txt
 ## format      : check/fix all code indentation and formatting (runs black)
 format:
 	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests
+
+format-check:
+	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests
 
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)
@@ -173,6 +176,9 @@ shellcheck: FORCE
 	shellcheck build-cwl-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
 		cwltool-in-docker.sh
 
+pyupgrade: ${PYSOURCES}
+	pyupgrade --exit-zero-even-if-changed --py36-plus $^
+
 release-test: FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )
 	./release-test.sh
@@ -183,6 +189,9 @@ release: release-test
 		pip install twine && \
 		twine upload testenv2/src/${MODULE}/dist/* && \
 		git tag ${VERSION} && git push --tags
+
+flake8: $(filter-out setup.py,${PYSOURCES})
+	flake8 $^
 
 FORCE:
 

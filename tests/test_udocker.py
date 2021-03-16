@@ -4,12 +4,6 @@ import os
 import subprocess
 import sys
 
-try:
-    from psutil.tests import TRAVIS  # type: ignore
-except ImportError:
-    TRAVIS = True
-
-
 from pathlib import Path
 
 import pytest
@@ -41,12 +35,12 @@ def udocker(tmp_path_factory: TempPathFactory) -> str:
         ],
     ]
 
-    os.environ["UDOCKER_DIR"] = os.path.join(docker_install_dir, ".udocker")
-    os.environ["HOME"] = docker_install_dir
+    test_environ["UDOCKER_DIR"] = os.path.join(docker_install_dir, ".udocker")
+    test_environ["HOME"] = docker_install_dir
 
     results = []
     for _ in range(3):
-        results = [subprocess.call(cmds) for cmds in install_cmds]
+        results = [subprocess.call(cmds, env=test_environ) for cmds in install_cmds]
         if sum(results) == 0:
             break
         subprocess.call(["rm", "./udocker"])
@@ -55,7 +49,6 @@ def udocker(tmp_path_factory: TempPathFactory) -> str:
 
     udocker_path = os.path.join(docker_install_dir, "udocker")
     os.chdir(test_cwd)
-    os.environ = test_environ
     return udocker_path
 
 
@@ -86,8 +79,8 @@ def test_udocker_usage_should_not_write_cid_file(udocker: str, tmp_path: Path) -
 
 
 @pytest.mark.skipif(
-    not LINUX or TRAVIS,
-    reason="Linux only & not reliable on single threaded test on Travis-CI.",
+    not LINUX or "GITHUB" in os.environ,
+    reason="Linux only",
 )
 def test_udocker_should_display_memory_usage(udocker: str, tmp_path: Path) -> None:
     """Confirm that memory ussage is logged even with udocker."""

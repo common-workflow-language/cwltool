@@ -176,12 +176,11 @@ def test_directory_workflow(tmp_path: Path) -> None:
     file_list = (
         folder
         / "data"
-        /
+        / "3c"
+        / "3ca69e8d6c234a469d16ac28a4a658c92267c423"
         # checksum as returned from:
         # echo -e "a\nb\nc" | sha1sum
         # 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
-        "3c"
-        / "3ca69e8d6c234a469d16ac28a4a658c92267c423"
     )
     assert file_list.is_file()
 
@@ -208,12 +207,11 @@ def check_secondary_files(base_path: Path) -> None:
     foo_data = (
         base_path
         / "data"
-        /
+        / "0b"
+        / "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"
         # checksum as returned from:
         # $ echo -n foo | sha1sum
         # 0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33  -
-        "0b"
-        / "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"
     )
     bar_data = base_path / "data" / "62" / "62cdb7020ff920e5aa642c3d4066950dd1f01f4d"
     assert foo_data.is_file(), "Did not capture file.txt 'foo'"
@@ -332,9 +330,9 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
         g.serialize(sys.stdout, format="ttl")
     ro = None
 
-    for ro in g.subjects(ORE.isDescribedBy, URIRef(base)):
+    for _ro in g.subjects(ORE.isDescribedBy, URIRef(base)):
         break
-    assert ro is not None, "Can't find RO with ore:isDescribedBy"
+    assert _ro is not None, "Can't find RO with ore:isDescribedBy"
 
     profile = None
     for dc in g.objects(ro, DCTERMS.conformsTo):
@@ -393,10 +391,10 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
         assert (d, OA.hasTarget, URIRef(uuid.urn)) in g
 
     linked = set(g.subjects(OA.motivatedBy, OA.linking))
-    for l in linked:
-        assert (l, OA.hasBody, URIRef(packed)) in g
-        assert (l, OA.hasBody, URIRef(primary_job)) in g
-        assert (l, OA.hasTarget, URIRef(uuid.urn)) in g
+    for link in linked:
+        assert (link, OA.hasBody, URIRef(packed)) in g
+        assert (link, OA.hasBody, URIRef(primary_job)) in g
+        assert (link, OA.hasTarget, URIRef(uuid.urn)) in g
 
     has_provenance = set(g.subjects(OA.hasBody, URIRef(primary_prov_nt)))
     for p in has_provenance:

@@ -255,11 +255,8 @@ interpolate_bad_parameters = [
 @pytest.mark.parametrize("pattern", interpolate_bad_parameters)
 def test_expression_interpolate_failures(pattern: str) -> None:
     result = None
-    try:
+    with pytest.raises(JavascriptException):
         result = expr.interpolate(pattern, interpolate_input)
-    except JavascriptException:
-        return
-    assert False, 'Should have produced a JavascriptException, got "{}".'.format(result)
 
 
 interpolate_escapebehavior = (
