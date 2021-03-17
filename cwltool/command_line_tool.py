@@ -1,6 +1,7 @@
 """Implementation of CommandLineTool."""
 
 import copy
+from enum import Enum
 import hashlib
 import json
 import locale
@@ -22,6 +23,7 @@ from typing import (
     MutableMapping,
     MutableSequence,
     Optional,
+    Pattern,
     Set,
     TextIO,
     Union,
@@ -84,11 +86,19 @@ from .utils import (
 if TYPE_CHECKING:
     from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
-ACCEPTLIST_EN_STRICT_RE = re.compile(
-    r"^[\w.+\-\u2600-\u26FF\U0001f600-\U0001f64f]+$"
-)  # accept unicode word characters and emojis
-ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
-ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
+
+class PathCheckingMode(Enum):
+    """What characters are allowed in path names.
+
+    We have the strict, default mode and the relaxed mode.
+    """
+
+    STRICT = re.compile(
+        r"^[\w.+\-\u2600-\u26FF\U0001f600-\U0001f64f]+$"
+    )  # accept unicode word characters and emojis
+    RELAXED = re.compile(r".*")  # Accept anything
+
+
 DEFAULT_CONTAINER_MSG = """
 We are on Microsoft Windows and not all components of this CWL description have a
 container specified. This means that these steps will be executed in the default container,
@@ -301,7 +311,9 @@ class CallbackJob:
             )
 
 
-def check_adjust(builder: Builder, file_o: CWLObjectType) -> CWLObjectType:
+def check_adjust(
+    accept_re: Pattern[str], builder: Builder, file_o: CWLObjectType
+) -> CWLObjectType:
     """
     Map files to assigned path inside a container.
 
@@ -327,7 +339,7 @@ def check_adjust(builder: Builder, file_o: CWLObjectType) -> CWLObjectType:
             file_o["nameroot"] = str(nr)
         if file_o.get("nameext") != ne:
             file_o["nameext"] = str(ne)
-    if not ACCEPTLIST_RE.match(basename):
+    if not accept_re.match(basename):
         raise WorkflowException(
             "Invalid filename: '{}' contains illegal characters".format(
                 file_o["basename"]
@@ -368,6 +380,11 @@ class CommandLineTool(Process):
         """Initialize this CommandLineTool."""
         super().__init__(toolpath_object, loadingContext)
         self.prov_obj = loadingContext.prov_obj
+        self.path_check_mode = (
+            PathCheckingMode.RELAXED
+            if loadingContext.relax_path_checks
+            else PathCheckingMode.STRICT
+        )  # type: PathCheckingMode
 
     def make_job_runner(self, runtimeContext: RuntimeContext) -> Type[JobBase]:
         dockerReq, dockerRequired = self.get_requirement("DockerRequirement")
@@ -685,7 +702,7 @@ class CommandLineTool(Process):
             visit_class(
                 [builder.files, builder.bindings],
                 ("File", "Directory"),
-                partial(check_adjust, builder),
+                partial(check_adjust, self.path_check_mode.value, builder),
             )
 
     def job(
@@ -713,7 +730,9 @@ class CommandLineTool(Process):
                 cachebuilder.stagedir,
                 separateDirs=False,
             )
-            _check_adjust = partial(check_adjust, cachebuilder)
+            _check_adjust = partial(
+                check_adjust, self.path_check_mode.value, cachebuilder
+            )
             visit_class(
                 [cachebuilder.files, cachebuilder.bindings],
                 ("File", "Directory"),
@@ -887,7 +906,7 @@ class CommandLineTool(Process):
         )
         builder.requirements = j.requirements
 
-        _check_adjust = partial(check_adjust, builder)
+        _check_adjust = partial(check_adjust, self.path_check_mode.value, builder)
 
         visit_class(
             [builder.files, builder.bindings], ("File", "Directory"), _check_adjust

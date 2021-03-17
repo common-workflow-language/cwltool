@@ -41,7 +41,7 @@ from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 from schema_salad.utils import ContextType, FetcherCallableType, json_dumps
 
-from . import CWL_CONTENT_TYPES, command_line_tool, workflow
+from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
 from .builder import HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -949,8 +949,6 @@ def main(
                 _logger.error("CWL document required, no input file was provided")
                 parser.print_help()
                 return 1
-        if args.relax_path_checks:
-            command_line_tool.ACCEPTLIST_RE = command_line_tool.ACCEPTLIST_EN_RELAXED_RE
 
         if args.ga4gh_tool_registries:
             ga4gh_tool_registries[:] = args.ga4gh_tool_registries
