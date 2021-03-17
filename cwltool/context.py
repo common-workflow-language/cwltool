@@ -74,6 +74,7 @@ class LoadingContext(ContextBase):
         self.do_update = None  # type: Optional[bool]
         self.jobdefaults = None  # type: Optional[CommentedMap]
         self.doc_cache = True  # type: bool
+        self.relax_path_checks = False  # type: bool
 
         super().__init__(kwargs)
 
