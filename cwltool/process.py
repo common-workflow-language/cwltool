@@ -67,11 +67,9 @@ from .utils import (
     adjustDirObjs,
     aslist,
     cmp_like_py2,
-    copytree_with_merge,
     ensure_writable,
     get_listing,
     normalizeFilesDirs,
-    onWindows,
     random_outdir,
     visit_class,
 )
@@ -293,15 +291,7 @@ def stage_files(
             os.makedirs(os.path.dirname(entry.target))
         if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
             if symlink:  # Use symlink func if allowed
-                if onWindows():
-                    if entry.type == "File":
-                        shutil.copy(entry.resolved, entry.target)
-                    elif entry.type == "Directory":
-                        if os.path.exists(entry.target) and os.path.isdir(entry.target):
-                            shutil.rmtree(entry.target)
-                        copytree_with_merge(entry.resolved, entry.target)
-                else:
-                    os.symlink(entry.resolved, entry.target)
+                os.symlink(entry.resolved, entry.target)
             elif stage_func is not None:
                 stage_func(entry.resolved, entry.target)
         elif (

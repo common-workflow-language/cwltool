@@ -9,11 +9,9 @@ from cwltool.process import use_custom_schema, use_standard_schema
 from cwltool.update import INTERNAL_VERSION
 from cwltool.utils import CWLObjectType
 
-from .test_fetch import norm
-from .util import get_data, windows_needs_docker
+from .util import get_data
 
 
-@windows_needs_docker
 def test_check_version() -> None:
     """
     It is permitted to load without updating, but not execute.
@@ -48,17 +46,16 @@ def test_use_metadata() -> None:
 def test_checklink_outputSource() -> None:
     """Is outputSource resolved correctly independent of value of do_validate."""
     outsrc = (
-        norm(Path(get_data("tests/wf/1st-workflow.cwl")).as_uri())
-        + "#argument/classfile"
+        Path(get_data("tests/wf/1st-workflow.cwl")).as_uri() + "#argument/classfile"
     )
 
     loadingContext = LoadingContext({"do_validate": True})
     tool = load_tool(get_data("tests/wf/1st-workflow.cwl"), loadingContext)
-    assert norm(tool.tool["outputs"][0]["outputSource"]) == outsrc
+    assert tool.tool["outputs"][0]["outputSource"] == outsrc
 
     loadingContext = LoadingContext({"do_validate": False})
     tool = load_tool(get_data("tests/wf/1st-workflow.cwl"), loadingContext)
-    assert norm(tool.tool["outputs"][0]["outputSource"]) == outsrc
+    assert tool.tool["outputs"][0]["outputSource"] == outsrc
 
 
 def test_load_graph_fragment() -> None:

@@ -76,7 +76,7 @@ else:
 
 setup(
     name="cwltool",
-    version="3.0",
+    version="3.1",
     description="Common workflow language reference implementation",
     long_description=open(README).read(),
     long_description_content_type="text/x-rst",
@@ -141,12 +141,6 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX",
         "Operating System :: POSIX :: Linux",
-        "Operating System :: OS Independent",
-        "Operating System :: Microsoft :: Windows",
-        "Operating System :: Microsoft :: Windows :: Windows 10",
-        "Operating System :: Microsoft :: Windows :: Windows 8.1",
-        # 'Operating System :: Microsoft :: Windows :: Windows 8',  # not tested
-        # 'Operating System :: Microsoft :: Windows :: Windows 7',  # not tested
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",

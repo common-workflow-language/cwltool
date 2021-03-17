@@ -21,12 +21,7 @@ from schema_salad.utils import json_dumps
 from .errors import WorkflowException
 from .loghandler import _logger
 from .sandboxjs import JavascriptException, default_timeout, execjs
-from .utils import (
-    CWLObjectType,
-    CWLOutputType,
-    bytes2str_in_dicts,
-    docker_windows_path_adjust,
-)
+from .utils import CWLObjectType, CWLOutputType, bytes2str_in_dicts
 
 
 def jshead(engine_config: List[str], rootvars: CWLObjectType) -> str:
@@ -378,8 +373,8 @@ def do_eval(
 ) -> Optional[CWLOutputType]:
 
     runtime = cast(MutableMapping[str, Union[int, str, None]], copy.deepcopy(resources))
-    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir) if tmpdir else None
-    runtime["outdir"] = docker_windows_path_adjust(outdir) if outdir else None
+    runtime["tmpdir"] = tmpdir if tmpdir else None
+    runtime["outdir"] = outdir if outdir else None
 
     rootvars = cast(
         CWLObjectType,

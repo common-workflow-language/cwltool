@@ -1,7 +1,6 @@
 """Implementation of CommandLineTool."""
 
 import copy
-from enum import Enum
 import hashlib
 import json
 import locale
@@ -12,6 +11,7 @@ import shutil
 import threading
 import urllib
 import urllib.parse
+from enum import Enum
 from functools import cmp_to_key, partial
 from typing import (
     Any,
@@ -70,17 +70,13 @@ from .utils import (
     adjustDirObjs,
     adjustFileObjs,
     aslist,
-    convert_pathsep_to_unix,
-    docker_windows_path_adjust,
     get_listing,
     normalizeFilesDirs,
-    onWindows,
     random_outdir,
     shared_file_lock,
     trim_listing,
     upgrade_lock,
     visit_class,
-    windows_default_container_id,
 )
 
 if TYPE_CHECKING:
@@ -97,21 +93,6 @@ class PathCheckingMode(Enum):
         r"^[\w.+\-\u2600-\u26FF\U0001f600-\U0001f64f]+$"
     )  # accept unicode word characters and emojis
     RELAXED = re.compile(r".*")  # Accept anything
-
-
-DEFAULT_CONTAINER_MSG = """
-We are on Microsoft Windows and not all components of this CWL description have a
-container specified. This means that these steps will be executed in the default container,
-which is %s.
-
-Note, this could affect portability if this CWL description relies on non-POSIX features
-or commands in this container. For best results add the following to your CWL
-description's hints section:
-
-hints:
-  DockerRequirement:
-    dockerPull: %s
-"""
 
 
 class ExpressionJob:
@@ -224,7 +205,7 @@ def revmap_file(
     if "location" in f and "path" not in f:
         location = cast(str, f["location"])
         if location.startswith("file://"):
-            f["path"] = convert_pathsep_to_unix(uri_file_path(location))
+            f["path"] = uri_file_path(location)
         else:
             return f
 
@@ -324,9 +305,7 @@ def check_adjust(
         raise ValueError(
             "Do not call check_adjust using a builder that doesn't have a pathmapper."
         )
-    file_o["path"] = path = docker_windows_path_adjust(
-        builder.pathmapper.mapper(cast(str, file_o["location"]))[1]
-    )
+    file_o["path"] = path = builder.pathmapper.mapper(cast(str, file_o["location"]))[1]
     basename = cast(str, file_o.get("basename"))
     dn, bn = os.path.split(path)
     if file_o.get("dirname") != dn:
@@ -404,17 +383,6 @@ class CommandLineTool(Process):
                     else:
                         self.requirements.insert(0, dockerReq)
                         dockerRequired = True
-
-                    if (
-                        default_container == windows_default_container_id
-                        and runtimeContext.use_container
-                        and onWindows()
-                    ):
-                        _logger.warning(
-                            DEFAULT_CONTAINER_MSG,
-                            windows_default_container_id,
-                            windows_default_container_id,
-                        )
 
         if dockerReq is not None and runtimeContext.use_container:
             if mpiReq is not None:

@@ -1,12 +1,12 @@
-import os
+"""ProcessGenerator related tests."""
+
 from typing import Any
 
 from cwltool.main import main
 
-from .util import get_data, windows_needs_docker
+from .util import get_data
 
 
-@windows_needs_docker
 def test_missing_enable_ext(monkeypatch: Any) -> None:
     """Test missing enable-ext option fails.
 

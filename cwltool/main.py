@@ -89,12 +89,10 @@ from .utils import (
     CWLOutputType,
     adjustDirObjs,
     normalizeFilesDirs,
-    onWindows,
     processes_to_kill,
     trim_listing,
     versionstring,
     visit_class,
-    windows_default_container_id,
 )
 from .workflow import Workflow
 
@@ -916,13 +914,6 @@ def main(
             runtimeContext = RuntimeContext(vars(args))
         else:
             runtimeContext = runtimeContext.copy()
-
-        # If on Windows platform, a default Docker Container is used if not
-        # explicitely provided by user
-        if onWindows() and not runtimeContext.default_container:
-            # This docker image is a minimal alpine image with bash installed
-            # (size 6 mb). source: https://github.com/frol/docker-alpine-bash
-            runtimeContext.default_container = windows_default_container_id
 
         # If caller parsed its own arguments, it may not include every
         # cwltool option, so fill in defaults to avoid crashing when

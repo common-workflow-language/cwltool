@@ -1,6 +1,6 @@
 """Tests for docker engine."""
-from shutil import which
 from pathlib import Path
+from shutil import which
 
 from cwltool.main import main
 

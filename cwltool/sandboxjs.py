@@ -3,11 +3,9 @@
 import errno
 import json
 import os
-import queue
 import re
 import select
 import subprocess  # nosec
-import sys
 import threading
 from io import BytesIO
 from typing import List, Optional, Tuple, cast
@@ -16,7 +14,7 @@ from pkg_resources import resource_stream
 from schema_salad.utils import json_dumps
 
 from .loghandler import _logger
-from .utils import CWLOutputType, onWindows, processes_to_kill
+from .utils import CWLOutputType, processes_to_kill
 
 
 class JavascriptException(Exception):
@@ -180,7 +178,7 @@ def exec_js_process(
     else:
         nodejs = localdata.procs.get(js_engine)
 
-    if nodejs is None or nodejs.poll() is not None or onWindows():
+    if nodejs is None or nodejs.poll() is not None:
         res = resource_stream(__name__, js_engine)
         js_engine_code = res.read().decode("utf-8")
 
@@ -226,95 +224,20 @@ def exec_js_process(
             PROCESS_FINISHED_STR
         ) and stderr_buf.getvalue().decode("utf-8").endswith(PROCESS_FINISHED_STR)
 
-    # On windows system standard input/output are not handled properly by select module
-    # (modules like  pywin32, msvcrt, gevent don't work either)
-    if sys.platform == "win32":
-        READ_BYTES_SIZE = 512
-
-        # creating queue for reading from a thread to queue
-        input_queue = queue.Queue()
-        output_queue = queue.Queue()
-        error_queue = queue.Queue()
-
-        # To tell threads that output has ended and threads can safely exit
-        no_more_output = threading.Lock()
-        no_more_output.acquire()
-        no_more_error = threading.Lock()
-        no_more_error.acquire()
-
-        # put constructed command to input queue which then will be passed to nodejs's stdin
-        def put_input(input_queue):
-            while True:
-                buf = stdin_buf.read(READ_BYTES_SIZE)
+    while not process_finished() and timer.is_alive():
+        rready, wready, _ = select.select(rselect, wselect, [])
+        try:
+            if nodejs.stdin in wready:
+                buf = stdin_buf.read(select.PIPE_BUF)
                 if buf:
-                    input_queue.put(buf)
-                else:
-                    break
-
-        # get the output from nodejs's stdout and continue till output ends
-        def get_output(output_queue):
-            while not no_more_output.acquire(False):
-                buf = os.read(nodejs.stdout.fileno(), READ_BYTES_SIZE)
-                if buf:
-                    output_queue.put(buf)
-
-        # get the output from nodejs's stderr and continue till error output ends
-        def get_error(error_queue):
-            while not no_more_error.acquire(False):
-                buf = os.read(nodejs.stderr.fileno(), READ_BYTES_SIZE)
-                if buf:
-                    error_queue.put(buf)
-
-        # Threads managing nodejs.stdin, nodejs.stdout and nodejs.stderr respectively
-        input_thread = threading.Thread(target=put_input, args=(input_queue,))
-        input_thread.daemon = True
-        input_thread.start()
-        output_thread = threading.Thread(target=get_output, args=(output_queue,))
-        output_thread.daemon = True
-        output_thread.start()
-        error_thread = threading.Thread(target=get_error, args=(error_queue,))
-        error_thread.daemon = True
-        error_thread.start()
-
-        finished = False
-
-        while not finished and timer.is_alive():
-            try:
-                if nodejs.stdin in wselect:
-                    if not input_queue.empty():
-                        os.write(nodejs.stdin.fileno(), input_queue.get())
-                    elif not input_thread.is_alive():
-                        wselect = []
-                if nodejs.stdout in rselect:
-                    if not output_queue.empty():
-                        stdout_buf.write(output_queue.get())
-
-                if nodejs.stderr in rselect:
-                    if not error_queue.empty():
-                        stderr_buf.write(error_queue.get())
-
-                if process_finished() and error_queue.empty() and output_queue.empty():
-                    finished = True
-                    no_more_output.release()
-                    no_more_error.release()
-            except OSError:
-                break
-
-    else:
-        while not process_finished() and timer.is_alive():
-            rready, wready, _ = select.select(rselect, wselect, [])
-            try:
-                if nodejs.stdin in wready:
-                    buf = stdin_buf.read(select.PIPE_BUF)
+                    os.write(nodejs.stdin.fileno(), buf)
+            for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
+                if pipes[0] in rready:
+                    buf = os.read(pipes[0].fileno(), select.PIPE_BUF)
                     if buf:
-                        os.write(nodejs.stdin.fileno(), buf)
-                for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
-                    if pipes[0] in rready:
-                        buf = os.read(pipes[0].fileno(), select.PIPE_BUF)
-                        if buf:
-                            pipes[1].write(buf)
-            except OSError:
-                break
+                        pipes[1].write(buf)
+        except OSError:
+            break
     timer.cancel()
 
     stdin_buf.close()
@@ -330,10 +253,6 @@ def exec_js_process(
             returncode = nodejs.returncode
     else:
         returncode = 0
-        # On windows currently a new instance of nodejs process is used due to
-        # problem with blocking on read operation on windows
-        if onWindows():
-            nodejs.kill()
 
     return returncode, stdoutdata.decode("utf-8"), stderrdata.decode("utf-8")
 

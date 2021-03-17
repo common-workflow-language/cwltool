@@ -2,7 +2,7 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-|Linux Status| |Debian Stable package| |Debian Testing package| |Windows Status| |Coverage Status| |Downloads|
+|Linux Status| |Debian Stable package| |Debian Testing package| |Coverage Status| |Downloads|
 
 .. |Linux Status| image:: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml/badge.svg?branch=main
    :target: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml
@@ -12,9 +12,6 @@ Common Workflow Language tool description reference implementation
 
 .. |Debian Testing package| image:: https://badges.debian.net/badges/debian/testing/cwltool/version.svg
    :target: https://packages.debian.org/testing/cwltool
-
-.. |Windows Status| image:: https://img.shields.io/appveyor/ci/mr-c/cwltool/main.svg?label=Windows%20builds
-   :target: https://ci.appveyor.com/project/mr-c/cwltool
 
 .. |Coverage Status| image:: https://img.shields.io/codecov/c/github/common-workflow-language/cwltool.svg
    :target: https://codecov.io/gh/common-workflow-language/cwltool

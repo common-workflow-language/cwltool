@@ -26,16 +26,9 @@ from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.process import CWL_IANA
 from cwltool.sandboxjs import JavascriptException
-from cwltool.utils import CWLObjectType, dedup, onWindows
+from cwltool.utils import CWLObjectType, dedup
 
-from .util import (
-    get_data,
-    get_main_output,
-    get_windows_safe_factory,
-    needs_docker,
-    windows_needs_docker,
-    working_directory,
-)
+from .util import get_data, get_main_output, needs_docker, working_directory
 
 sys.argv = [""]
 
@@ -295,9 +288,8 @@ def test_expression_interpolate_escapebehavior(
     )
 
 
-@windows_needs_docker
 def test_factory() -> None:
-    factory = get_windows_safe_factory()
+    factory = cwltool.factory.Factory()
     echo = factory.make(get_data("tests/echo.cwl"))
 
     assert echo(inp="foo") == {"out": "foo\n"}
@@ -1237,7 +1229,7 @@ def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
 def test_compute_checksum() -> None:
     runtime_context = RuntimeContext()
     runtime_context.compute_checksum = True
-    runtime_context.use_container = onWindows()
+    runtime_context.use_container = False
     factory = cwltool.factory.Factory(runtime_context=runtime_context)
     echo = factory.make(get_data("tests/wf/cat-tool.cwl"))
     output = echo(
@@ -1271,7 +1263,6 @@ def test_no_compute_chcksum(tmp_path: Path, factor: str) -> None:
     assert "checksum" not in stdout
 
 
-@pytest.mark.skipif(onWindows(), reason="udocker is Linux/macOS only")
 @pytest.mark.parametrize("factor", test_factors)
 def test_bad_userspace_runtime(factor: str) -> None:
     test_file = "tests/wf/wc-tool.cwl"
@@ -1290,7 +1281,6 @@ def test_bad_userspace_runtime(factor: str) -> None:
     assert error_code == 1
 
 
-@windows_needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_bad_basecommand(factor: str) -> None:
     test_file = "tests/wf/missing-tool.cwl"
@@ -1323,7 +1313,6 @@ def test_v1_0_position_expression(factor: str) -> None:
     assert error_code == 1
 
 
-@windows_needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_optional_numeric_output_0(factor: str) -> None:
     test_file = "tests/wf/optional-numerical-output-0.cwl"
@@ -1337,7 +1326,6 @@ def test_optional_numeric_output_0(factor: str) -> None:
 
 
 @pytest.mark.parametrize("factor", test_factors)
-@windows_needs_docker
 def test_env_filtering(factor: str) -> None:
     test_file = "tests/env.cwl"
     commands = factor.split()
@@ -1367,9 +1355,7 @@ def test_env_filtering(factor: str) -> None:
 
     assert "completed success" in stderr, (error_code, stdout, stderr)
     assert error_code == 0, (error_code, stdout, stderr)
-    if onWindows():
-        target = 5
-    elif sh_name == "dash":
+    if sh_name == "dash":
         target = 4
     else:  # bash adds "SHLVL" and "_" environment variables
         target = 6
@@ -1383,7 +1369,6 @@ def test_env_filtering(factor: str) -> None:
     assert result == target, (error_code, sh_name, sh_name_err, details, stdout, stderr)
 
 
-@windows_needs_docker
 def test_v1_0_arg_empty_prefix_separate_false() -> None:
     test_file = "tests/arg-empty-prefix-separate-false.cwl"
     error_code, stdout, stderr = get_main_output(
