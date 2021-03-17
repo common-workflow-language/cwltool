@@ -1,22 +1,15 @@
 from pathlib import Path
 from typing import Any
 
+from cwltool.factory import Factory
 from cwltool.main import main
 
-from .util import (
-    get_data,
-    get_main_output,
-    get_windows_safe_factory,
-    needs_docker,
-    needs_singularity,
-    windows_needs_docker,
-)
+from .util import get_data, get_main_output, needs_docker, needs_singularity
 
 
-@windows_needs_docker
 def test_newline_in_entry() -> None:
     """Files in a InitialWorkingDirectory are created with a newline character."""
-    factory = get_windows_safe_factory()
+    factory = Factory()
     echo = factory.make(get_data("tests/wf/iwdr-entry.cwl"))
     assert echo(message="hello") == {"out": "CONFIGVAR=hello\n"}
 

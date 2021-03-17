@@ -9,17 +9,16 @@ from cwltool.load_tool import load_tool
 from cwltool.subgraph import get_step, get_subgraph
 from cwltool.workflow import Workflow, default_make_tool
 
-from .test_fetch import norm
 from .util import get_data
 
 
 def test_get_subgraph() -> None:
     loadingContext = LoadingContext({"construct_tool_object": default_make_tool})
-    wf = norm(Path(get_data("tests/subgraph/count-lines1-wf.cwl")).as_uri())
+    wf = Path(get_data("tests/subgraph/count-lines1-wf.cwl")).as_uri()
     loadingContext.do_update = False
     tool = load_tool(wf, loadingContext)
 
-    sg = norm(Path(get_data("tests/subgraph")).as_uri())
+    sg = Path(get_data("tests/subgraph")).as_uri()
 
     def clean(val: Any) -> Any:
         if isinstance(val, str):
@@ -53,12 +52,12 @@ def test_get_subgraph() -> None:
 
 def test_get_step() -> None:
     loadingContext = LoadingContext({"construct_tool_object": default_make_tool})
-    wf = norm(Path(get_data("tests/subgraph/count-lines1-wf.cwl")).as_uri())
+    wf = Path(get_data("tests/subgraph/count-lines1-wf.cwl")).as_uri()
     loadingContext.do_update = False
     tool = load_tool(wf, loadingContext)
     assert isinstance(tool, Workflow)
 
-    sg = norm(Path(get_data("tests/subgraph")).as_uri())
+    sg = Path(get_data("tests/subgraph")).as_uri()
 
     def clean(val: Any) -> Any:
         if isinstance(val, str):

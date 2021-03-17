@@ -23,13 +23,7 @@ from .errors import UnsupportedRequirement, WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
-from .utils import (
-    CWLObjectType,
-    create_tmp_dir,
-    docker_windows_path_adjust,
-    ensure_non_writable,
-    ensure_writable,
-)
+from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_writable
 
 _USERNS = None  # type: Optional[bool]
 _SINGULARITY_VERSION = ""
@@ -283,8 +277,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         runtime.append("--bind")
         runtime.append(
             "{}:{}:{}".format(
-                docker_windows_path_adjust(source),
-                docker_windows_path_adjust(target),
+                source,
+                target,
                 "rw" if writable else "ro",
             )
         )
@@ -396,7 +390,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             runtime.append("--home")
             runtime.append(
                 "{}:{}".format(
-                    docker_windows_path_adjust(os.path.realpath(self.outdir)),
+                    os.path.realpath(self.outdir),
                     self.builder.outdir,
                 )
             )
@@ -404,17 +398,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             runtime.append("--bind")
             runtime.append(
                 "{}:{}:rw".format(
-                    docker_windows_path_adjust(os.path.realpath(self.outdir)),
+                    os.path.realpath(self.outdir),
                     self.builder.outdir,
                 )
             )
         runtime.append("--bind")
         tmpdir = "/tmp"  # nosec
-        runtime.append(
-            "{}:{}:rw".format(
-                docker_windows_path_adjust(os.path.realpath(self.tmpdir)), tmpdir
-            )
-        )
+        runtime.append("{}:{}:rw".format(os.path.realpath(self.tmpdir), tmpdir))
 
         self.add_volumes(
             self.pathmapper,
@@ -433,7 +423,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             )
 
         runtime.append("--pwd")
-        runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
+        runtime.append(self.builder.outdir)
 
         if runtime_context.custom_net:
             raise UnsupportedRequirement(

@@ -9,7 +9,7 @@ import pytest
 import cwltool.process
 from cwltool.main import main
 
-from .util import get_data, needs_docker, windows_needs_docker
+from .util import get_data, needs_docker
 
 
 @needs_docker
@@ -273,7 +273,6 @@ def test_require_prefix_workreuse(tmp_path: Path) -> None:
     assert main(["--enable-ext", get_data("tests/wf/workreuse-fail.cwl")]) != 0
 
 
-@windows_needs_docker
 def test_require_prefix_timelimit() -> None:
     assert main(["--enable-ext", get_data("tests/wf/timelimit.cwl")]) == 0
     assert main([get_data("tests/wf/timelimit.cwl")]) != 0

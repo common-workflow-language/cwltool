@@ -1,11 +1,9 @@
 import os
 from shutil import which
 from types import ModuleType
-from typing import Any, Optional
+from typing import Optional
 
 import pytest
-
-from cwltool.utils import onWindows
 
 from .util import get_data, get_main_output, needs_docker
 
@@ -26,7 +24,6 @@ def test_biocontainers() -> None:
     assert error_code == 0
 
 
-@pytest.mark.skipif(onWindows(), reason="bioconda currently not working on MS Windows")
 @pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
 def test_bioconda() -> None:
     wflow = get_data("tests/seqtk_seq.cwl")

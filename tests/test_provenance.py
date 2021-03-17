@@ -306,7 +306,6 @@ def _arcp2file(base_path: Path, uri: str) -> Path:
     ), "arcp URI must be local to the research object"
 
     path = parsed.path[1:]  # Strip first /
-    # Convert to local path, in case it uses \ on Windows
     return base_path / Path(path)
 
 
@@ -604,7 +603,6 @@ def test_writable_string(research_object: ResearchObject) -> None:
     with research_object.write_bag_file("file.txt") as fh:
         assert fh.writable()
         fh.write("Hello\n")
-        # TODO: Check Windows does not modify \n to \r\n here
 
     sha1 = os.path.join(research_object.folder, "tagmanifest-sha1.txt")
     assert os.path.isfile(sha1)
@@ -649,7 +647,6 @@ def test_data(research_object: ResearchObject) -> None:
     with research_object.write_bag_file("data/file.txt") as fh:
         assert fh.writable()
         fh.write("Hello\n")
-    # TODO: Check Windows does not modify \n to \r\n here
 
     # Because this is under data/ it should add to manifest
     # rather than tagmanifest

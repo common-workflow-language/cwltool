@@ -2,7 +2,6 @@
 
 import collections
 import os
-import platform
 import random
 import shutil
 import stat
@@ -52,8 +51,6 @@ if TYPE_CHECKING:
 __random_outdir = None  # type: Optional[str]
 
 CONTENT_LIMIT = 64 * 1024
-
-windows_default_container_id = "frolvlad/alpine-bash"
 
 DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
@@ -143,83 +140,6 @@ def copytree_with_merge(src: str, dst: str) -> None:
             copytree_with_merge(spath, dpath)
         else:
             shutil.copy2(spath, dpath)
-
-
-def docker_windows_path_adjust(path: str) -> str:
-    r"""
-    Adjust only windows paths for Docker.
-
-    The docker run command treats them as unix paths.
-
-    Example: 'C:\Users\foo to /C/Users/foo (Docker for Windows) or /c/Users/foo
-    (Docker toolbox).
-    """
-    if onWindows():
-        split = path.split(":")
-        if len(split) == 2:
-            if platform.win32_ver()[0] in ("7", "8"):
-                # Docker toolbox uses lowecase windows Drive letters
-                split[0] = split[0].lower()
-            else:
-                split[0] = split[0].capitalize()
-                # Docker for Windows uses uppercase windows Drive letters
-            path = ":".join(split)
-        path = path.replace(":", "").replace("\\", "/")
-        return path if path[0] == "/" else "/" + path
-    return path
-
-
-def docker_windows_reverse_path_adjust(path: str) -> str:
-    r"""
-    Change docker path (only on windows os) appropriately back to Windows path.
-
-    Example:  /C/Users/foo to C:\Users\foo
-    """
-    if path is not None and onWindows():
-        if path[0] == "/":
-            path = path[1:]
-        else:
-            raise ValueError("not a docker path")
-        splitpath = path.split("/")
-        splitpath[0] = splitpath[0] + ":"
-        return "\\".join(splitpath)
-    return path
-
-
-def docker_windows_reverse_fileuri_adjust(fileuri: str) -> str:
-    r"""
-    Convert fileuri to be MS Windows comptabile, if needed.
-
-    On docker in windows fileuri do not contain : in path
-    To convert this file uri to windows compatible add : after drive letter,
-    so file:///E/var becomes file:///E:/var
-    """
-    if fileuri is not None and onWindows():
-        if urllib.parse.urlsplit(fileuri).scheme == "file":
-            filesplit = fileuri.split("/")
-            if filesplit[3][-1] != ":":
-                filesplit[3] = filesplit[3] + ":"
-                return "/".join(filesplit)
-            return fileuri
-        raise ValueError("not a file URI")
-    return fileuri
-
-
-def onWindows() -> bool:
-    """Check if we are on Windows OS."""
-    return os.name == "nt"
-
-
-def convert_pathsep_to_unix(path: str) -> str:
-    """
-    Convert path seperators to unix style.
-
-    On windows os.path.join would use backslash to join path, since we would
-    use these paths in Docker we would convert it to use forward slashes: /
-    """
-    if path is not None and onWindows():
-        return path.replace("\\", "/")
-    return path
 
 
 def cmp_like_py2(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> int:

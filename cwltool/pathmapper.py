@@ -12,7 +12,7 @@ from schema_salad.sourceline import SourceLine
 
 from .loghandler import _logger
 from .stdfsaccess import abspath
-from .utils import CWLObjectType, convert_pathsep_to_unix, dedup, downloadHttpFile
+from .utils import CWLObjectType, dedup, downloadHttpFile
 
 MapperEnt = collections.namedtuple(
     "MapperEnt", ["resolved", "target", "type", "staged"]
@@ -95,11 +95,9 @@ class PathMapper:
         staged: bool = False,
     ) -> None:
         stagedir = cast(Optional[str], obj.get("dirname")) or stagedir
-        tgt = convert_pathsep_to_unix(
-            os.path.join(
-                stagedir,
-                cast(str, obj["basename"]),
-            )
+        tgt = os.path.join(
+            stagedir,
+            cast(str, obj["basename"]),
         )
         if obj["location"] in self._pathmap:
             return

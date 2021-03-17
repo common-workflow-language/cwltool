@@ -20,13 +20,7 @@ from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
-from .utils import (
-    CWLObjectType,
-    create_tmp_dir,
-    docker_windows_path_adjust,
-    ensure_writable,
-    onWindows,
-)
+from .utils import CWLObjectType, create_tmp_dir, ensure_writable
 
 _IMAGES = set()  # type: Set[str]
 _IMAGES_LOCK = threading.Lock()
@@ -61,14 +55,10 @@ def _get_docker_machine_mounts() -> List[str]:
 def _check_docker_machine_path(path: Optional[str]) -> None:
     if path is None:
         return
-    if onWindows():
-        path = path.lower()
     mounts = _get_docker_machine_mounts()
 
     found = False
     for mount in mounts:
-        if onWindows():
-            mount = mount.lower()
         if path.startswith(mount):
             found = True
             break
@@ -268,7 +258,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
     ) -> None:
         """Append volume a file/dir mapping to the runtime option list."""
         if not volume.resolved.startswith("_:"):
-            _check_docker_machine_path(docker_windows_path_adjust(volume.resolved))
+            _check_docker_machine_path(volume.resolved)
             self.append_volume(runtime, volume.resolved, volume.target)
 
     def add_writable_file_volume(
@@ -369,9 +359,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             runtime = [x.replace(":ro", "") for x in runtime]
             runtime = [x.replace(":rw", "") for x in runtime]
 
-        runtime.append(
-            "--workdir=%s" % (docker_windows_path_adjust(self.builder.outdir))
-        )
+        runtime.append("--workdir=%s" % (self.builder.outdir))
         if not user_space_docker_cmd:
 
             if not runtimeContext.no_read_only:
@@ -387,9 +375,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 runtime.append("--log-driver=none")
 
             euid, egid = docker_vm_id()
-            if not onWindows():
-                # MS Windows does not have getuid() or geteuid() functions
-                euid, egid = euid or os.geteuid(), egid or os.getgid()
+            euid, egid = euid or os.geteuid(), egid or os.getgid()
 
             if runtimeContext.no_match_user is False and (
                 euid is not None and egid is not None

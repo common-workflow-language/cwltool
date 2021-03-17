@@ -37,10 +37,8 @@ from .utils import (
     CWLObjectType,
     CWLOutputType,
     aslist,
-    docker_windows_path_adjust,
     get_listing,
     normalizeFilesDirs,
-    onWindows,
     visit_class,
 )
 
@@ -551,14 +549,6 @@ class Builder(HasReqsHints):
                 raise WorkflowException(
                     '{} object missing "path": {}'.format(value["class"], value)
                 )
-
-            # Path adjust for windows file path when passing to docker, docker accepts unix like path only
-            (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
-            if onWindows() and docker_req is not None:
-                # docker_req is none only when there is no dockerRequirement
-                # mentioned in hints and Requirement
-                path = docker_windows_path_adjust(value["path"])
-                return path
             return value["path"]
         else:
             return str(value)

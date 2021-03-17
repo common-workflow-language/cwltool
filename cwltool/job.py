@@ -49,11 +49,9 @@ from .utils import (
     DirectoryType,
     OutputCallbackType,
     bytes2str_in_dicts,
-    copytree_with_merge,
     create_tmp_dir,
     ensure_non_writable,
     ensure_writable,
-    onWindows,
     processes_to_kill,
 )
 
@@ -71,13 +69,10 @@ PYTHON_RUN_SCRIPT = """
 import json
 import os
 import sys
-if os.name == 'posix':
-    try:
-        import subprocess32 as subprocess  # type: ignore
-    except Exception:
-        import subprocess
-else:
-    import subprocess  # type: ignore
+try:
+    import subprocess32 as subprocess  # type: ignore
+except Exception:
+    import subprocess
 
 with open(sys.argv[1], "r") as f:
     popen_description = json.load(f)
@@ -100,15 +95,9 @@ with open(sys.argv[1], "r") as f:
         stderr = open(stderr_path, "wb")
     else:
         stderr = sys.stderr
-    if os.name == 'nt':
-        close_fds = False
-        for key, value in env.items():
-            env[key] = str(value)
-    else:
-        close_fds = True
     sp = subprocess.Popen(commands,
                           shell=False,
-                          close_fds=close_fds,
+                          close_fds=True,
                           stdin=stdin,
                           stdout=stdout,
                           stderr=stderr,
@@ -155,15 +144,7 @@ def relink_initialworkdir(
                     pass
             elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
                 shutil.rmtree(host_outdir_tgt)
-            if onWindows():
-                # If this becomes a big issue for someone then we could
-                # refactor the code to process output from a running container
-                # and avoid all the extra IO below
-                if vol.type in ("File", "WritableFile"):
-                    shutil.copy(vol.resolved, host_outdir_tgt)
-                elif vol.type in ("Directory", "WritableDirectory"):
-                    copytree_with_merge(vol.resolved, host_outdir_tgt)
-            elif not vol.resolved.startswith("_:"):
+            if not vol.resolved.startswith("_:"):
                 try:
                     os.symlink(vol.resolved, host_outdir_tgt)
                 except FileExistsError:
@@ -544,18 +525,11 @@ class CommandLineJob(JobBase):
         if vars_to_preserve:
             for key, value in os.environ.items():
                 if key in vars_to_preserve and key not in env:
-                    # On Windows, subprocess env can't handle unicode.
-                    env[key] = str(value) if onWindows() else value
-        env["HOME"] = str(self.outdir) if onWindows() else self.outdir
-        env["TMPDIR"] = str(self.tmpdir) if onWindows() else self.tmpdir
+                    env[key] = value
+        env["HOME"] = self.outdir
+        env["TMPDIR"] = self.tmpdir
         if "PATH" not in env:
-            env["PATH"] = str(os.environ["PATH"]) if onWindows() else os.environ["PATH"]
-        if "SYSTEMROOT" not in env and "SYSTEMROOT" in os.environ:
-            env["SYSTEMROOT"] = (
-                str(os.environ["SYSTEMROOT"])
-                if onWindows()
-                else os.environ["SYSTEMROOT"]
-            )
+            env["PATH"] = os.environ["PATH"]
 
         stage_files(
             self.pathmapper,
@@ -939,7 +913,7 @@ def _job_popen(
         sproc = subprocess.Popen(
             commands,
             shell=False,  # nosec
-            close_fds=not onWindows(),
+            close_fds=True,
             stdin=stdin,
             stdout=stdout,
             stderr=stderr,

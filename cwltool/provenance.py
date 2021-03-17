@@ -4,6 +4,7 @@ import copy
 import datetime
 import hashlib
 import os
+import pwd
 import re
 import shutil
 import tempfile
@@ -63,19 +64,9 @@ from .utils import (
     CWLOutputType,
     create_tmp_dir,
     local_path,
-    onWindows,
     posix_path,
     versionstring,
 )
-
-# imports needed for retrieving user data
-if onWindows():
-    import ctypes  # pylint: disable=unused-import
-else:
-    try:
-        import pwd  # pylint: disable=unused-import
-    except ImportError:
-        pass
 
 if TYPE_CHECKING:
     from .command_line_tool import (  # pylint: disable=unused-import
@@ -89,16 +80,7 @@ def _whoami() -> Tuple[str, str]:
     """Return the current operating system account as (username, fullname)."""
     username = getuser()
     try:
-        if onWindows():
-            get_user_name = ctypes.windll.secur32.GetUserNameExW  # type: ignore
-            size = ctypes.pointer(ctypes.c_ulong(0))
-            get_user_name(3, None, size)
-
-            name_buffer = ctypes.create_unicode_buffer(size.contents.value)
-            get_user_name(3, name_buffer, size)
-            fullname = str(name_buffer.value)
-        else:
-            fullname = pwd.getpwuid(os.getuid())[4].split(",")[0]
+        fullname = pwd.getpwuid(os.getuid())[4].split(",")[0]
     except (KeyError, IndexError):
         fullname = username
 
@@ -349,7 +331,6 @@ class ResearchObject:
         self.self_check()
         bagit = os.path.join(self.folder, "bagit.txt")
         # encoding: always UTF-8 (although ASCII would suffice here)
-        # newline: ensure LF also on Windows
         with open(bagit, "w", encoding=ENCODING, newline="\n") as bag_it_file:
             # TODO: \n or \r\n ?
             bag_it_file.write("BagIt-Version: 0.97\n")
@@ -424,7 +405,6 @@ class ResearchObject:
         bag_file = WritableBagFile(self, path)
         if encoding is not None:
             # encoding: match Tag-File-Character-Encoding: UTF-8
-            # newline: ensure LF also on Windows
             return TextIOWrapper(
                 cast(BinaryIO, bag_file), encoding=encoding, newline="\n"
             )
@@ -831,7 +811,6 @@ class ResearchObject:
         os.rename(tmp.name, path)
 
         # Relative posix path
-        # (to avoid \ on Windows)
         rel_path = posix_path(os.path.relpath(path, self.folder))
 
         # Register in bagit checksum
@@ -884,7 +863,6 @@ class ResearchObject:
             # existence in bagged_size above
             manifestpath = os.path.join(self.folder, f"{manifest}-{method.lower()}.txt")
             # encoding: match Tag-File-Character-Encoding: UTF-8
-            # newline: ensure LF also on Windows
             with open(
                 manifestpath, "a", encoding=ENCODING, newline="\n"
             ) as checksum_file:
