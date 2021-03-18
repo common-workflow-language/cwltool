@@ -8,7 +8,6 @@ import shutil
 import subprocess  # nosec
 import sys
 import threading
-from shutil import which
 from io import StringIO  # pylint: disable=redefined-builtin
 from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple, cast
 
@@ -235,7 +234,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         force_pull: bool,
         tmp_outdir_prefix: str,
     ) -> Optional[str]:
-        if not which("docker"):
+        if not shutil.which("docker"):
             raise WorkflowException("docker executable is not available")
 
         if self.get_image(
