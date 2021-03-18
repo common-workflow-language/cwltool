@@ -68,8 +68,7 @@ needs_singularity_2_6 = pytest.mark.skipif(
 )
 
 needs_singularity_3_or_newer = pytest.mark.skipif(
-    (not bool(shutil.which("singularity")))
-    or (not is_version_3_or_newer()),
+    (not bool(shutil.which("singularity"))) or (not is_version_3_or_newer()),
     reason="Requires that version 3.x of singularity executable version is on the system path.",
 )
 
