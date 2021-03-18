@@ -5,7 +5,6 @@ import os.path
 import re
 import shutil
 import sys
-from distutils import spawn
 from subprocess import (  # nosec
     DEVNULL,
     PIPE,
@@ -267,7 +266,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         (e.g. hello-world-latest.{img,sif}).
         """
-        if not bool(spawn.find_executable("singularity")):
+        if not bool(shutil.which("singularity")):
             raise WorkflowException("singularity executable is not available")
 
         if not self.get_image(cast(Dict[str, str], r), pull_image, force_pull):

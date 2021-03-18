@@ -1,4 +1,4 @@
-import distutils.spawn
+import shutil
 import os
 import sys
 from pathlib import Path
@@ -70,7 +70,7 @@ def test_singularity_iwdr() -> None:
             "hello",
         ]
     )
-    singularity_installed = bool(distutils.spawn.find_executable("singularity"))
+    singularity_installed = bool(shutil.which("singularity"))
     if singularity_installed:
         assert result_code == 0
     else:
