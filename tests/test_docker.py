@@ -1,3 +1,4 @@
+"""Tests for docker engine."""
 from shutil import which
 from pathlib import Path
 

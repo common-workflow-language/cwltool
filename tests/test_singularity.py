@@ -1,3 +1,4 @@
+"""Tests to find local Singularity image."""
 import shutil
 import os
 import sys
