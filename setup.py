@@ -108,7 +108,7 @@ setup(
         "argcomplete",
     ],
     extras_require={
-        "deps": ["galaxy-tool-util"],
+        "deps": ["galaxy-tool-util >= 21.1.0"],
         "docs": [
             "sphinx >= 2.2",
             "sphinx-rtd-theme",
