@@ -34,6 +34,7 @@ from .util import (
     get_windows_safe_factory,
     needs_docker,
     windows_needs_docker,
+    working_directory,
 )
 
 sys.argv = [""]
@@ -1068,16 +1069,16 @@ def test_no_js_console(factor: str) -> None:
 def test_cid_file_dir(tmp_path: Path, factor: str) -> None:
     """Test --cidfile-dir option works."""
     test_file = "cache_test_workflow.cwl"
-    cwd = Path.cwd()
-    os.chdir(tmp_path)
-    commands = factor.split()
-    commands.extend(["--cidfile-dir", str(tmp_path), get_data("tests/wf/" + test_file)])
-    error_code, stdout, stderr = get_main_output(commands)
-    assert "completed success" in stderr
-    assert error_code == 0
-    cidfiles_count = sum(1 for _ in tmp_path.glob("**/*"))
-    assert cidfiles_count == 2
-    os.chdir(cwd)
+    with working_directory(tmp_path):
+        commands = factor.split()
+        commands.extend(
+            ["--cidfile-dir", str(tmp_path), get_data("tests/wf/" + test_file)]
+        )
+        error_code, stdout, stderr = get_main_output(commands)
+        assert "completed success" in stderr
+        assert error_code == 0
+        cidfiles_count = sum(1 for _ in tmp_path.glob("**/*"))
+        assert cidfiles_count == 2
 
 
 @needs_docker
@@ -1121,22 +1122,20 @@ def test_cid_file_non_existing_dir(tmp_path: Path, factor: str) -> None:
 def test_cid_file_w_prefix(tmp_path: Path, factor: str) -> None:
     """Test that --cidfile-prefix works."""
     test_file = "cache_test_workflow.cwl"
-    cwd = Path.cwd()
-    os.chdir(tmp_path)
-    try:
-        commands = factor.split()
-        commands.extend(
-            [
-                "--record-container-id",
-                "--cidfile-prefix=pytestcid",
-                get_data("tests/wf/" + test_file),
-            ]
-        )
-        error_code, stdout, stderr = get_main_output(commands)
-    finally:
-        listing = tmp_path.iterdir()
-        os.chdir(cwd)
-        cidfiles_count = sum(1 for _ in tmp_path.glob("**/pytestcid*"))
+    with working_directory(tmp_path):
+        try:
+            commands = factor.split()
+            commands.extend(
+                [
+                    "--record-container-id",
+                    "--cidfile-prefix=pytestcid",
+                    get_data("tests/wf/" + test_file),
+                ]
+            )
+            error_code, stdout, stderr = get_main_output(commands)
+        finally:
+            listing = tmp_path.iterdir()
+            cidfiles_count = sum(1 for _ in tmp_path.glob("**/pytestcid*"))
     assert "completed success" in stderr
     assert error_code == 0
     assert cidfiles_count == 2, "{}/n{}".format(list(listing), stderr)
@@ -1397,20 +1396,20 @@ def test_v1_0_arg_empty_prefix_separate_false() -> None:
 def test_scatter_output_filenames(tmp_path: Path) -> None:
     """If a scatter step produces identically named output then confirm that the final output is renamed correctly."""
     cwd = Path.cwd()
-    os.chdir(tmp_path)
-    rtc = RuntimeContext()
-    rtc.outdir = str(cwd)
-    factory = cwltool.factory.Factory(runtime_context=rtc)
-    output_names = ["output.txt", "output.txt_2", "output.txt_3"]
-    scatter_workflow = factory.make(get_data("tests/scatter_numbers.cwl"))
-    result = scatter_workflow(range=3)
-    assert isinstance(result, dict)
-    assert "output" in result
+    with working_directory(tmp_path):
+        rtc = RuntimeContext()
+        rtc.outdir = str(cwd)
+        factory = cwltool.factory.Factory(runtime_context=rtc)
+        output_names = ["output.txt", "output.txt_2", "output.txt_3"]
+        scatter_workflow = factory.make(get_data("tests/scatter_numbers.cwl"))
+        result = scatter_workflow(range=3)
+        assert isinstance(result, dict)
+        assert "output" in result
 
-    locations = sorted([element["location"] for element in result["output"]])
+        locations = sorted([element["location"] for element in result["output"]])
 
-    assert (
-        locations[0].endswith("output.txt")
-        and locations[1].endswith("output.txt_2")
-        and locations[2].endswith("output.txt_3")
-    ), f"Locations {locations} do not end with {output_names}"
+        assert (
+            locations[0].endswith("output.txt")
+            and locations[1].endswith("output.txt_2")
+            and locations[2].endswith("output.txt_3")
+        ), f"Locations {locations} do not end with {output_names}"
