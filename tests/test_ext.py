@@ -2,6 +2,7 @@ import os
 import re
 from io import StringIO
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -31,20 +32,14 @@ def test_listing_deep() -> None:
 
 
 @needs_docker
-def test_cwltool_options() -> None:
-    try:
-        opt = os.environ.get("CWLTOOL_OPTIONS")
-        os.environ["CWLTOOL_OPTIONS"] = "--enable-ext"
-        params = [
-            get_data("tests/wf/listing_deep.cwl"),
-            get_data("tests/listing-job.yml"),
-        ]
-        assert main(params) == 0
-    finally:
-        if opt is not None:
-            os.environ["CWLTOOL_OPTIONS"] = opt
-        else:
-            del os.environ["CWLTOOL_OPTIONS"]
+def test_cwltool_options(monkeypatch: Any) -> None:
+    """Check setting options via environment variable."""
+    monkeypatch.setenv("CWLTOOL_OPTIONS", "--enable-ext")
+    params = [
+        get_data("tests/wf/listing_deep.cwl"),
+        get_data("tests/listing-job.yml"),
+    ]
+    assert main(params) == 0
 
 
 @needs_docker
