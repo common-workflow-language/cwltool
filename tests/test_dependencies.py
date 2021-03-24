@@ -1,5 +1,5 @@
 import os
-from distutils import spawn
+from shutil import which
 
 import pytest
 
@@ -35,9 +35,7 @@ def test_bioconda() -> None:
     assert error_code == 0, stderr
 
 
-@pytest.mark.skipif(
-    not spawn.find_executable("modulecmd"), reason="modulecmd not installed"
-)
+@pytest.mark.skipif(not which("modulecmd"), reason="modulecmd not installed")
 def test_modules() -> None:
     wflow = get_data("tests/random_lines.cwl")
     job = get_data("tests/random_lines_job.json")
