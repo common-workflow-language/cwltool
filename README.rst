@@ -296,6 +296,30 @@ CWL documents can be expressed as RDF triple graphs.
   cwltool --print-rdf --rdf-serializer=turtle mywf.cwl
 
 
+Environment Variables in cwltool
+--------------------------------
+
+This reference implementation supports several ways of setting
+enviroment variables for tools, in addition to the standard
+``EnvVarRequirement``. The sequence of steps applied to create the
+enviroment is:
+
+0. If the ``--preserve-entire-environment`` flag is present, then begin with the current
+   environment, else begin with an empty environment.
+
+1. Add any variables specified by ``--preserve-environment`` option(s).
+
+2. Set ``TMPDIR`` and ``HOME`` per `the CWL v1.0+ CommandLineTool specification <https://www.commonwl.org/v1.0/CommandLineTool.html#Runtime_environment>`_.
+
+3. Apply any ``EnvVarRequirement`` from the ``CommandLineTool`` description.
+
+4. Apply any manipulations required by any ``cwltool:MPIRequirement`` extensions.
+
+5. Substitute any secrets required by ``Secrets`` extension.
+
+6. Modify the environment in response to ``SoftwareRequirement`` (see below).
+
+
 Leveraging SoftwareRequirements (Beta)
 --------------------------------------
 
@@ -318,10 +342,11 @@ plugins to enable to "resolve" ``SoftwareRequirement`` dependencies.
 
 Using these hints will allow cwltool to modify the environment in
 which your tool runs, for example by loading one or more Environment
-Modules. The environment is constructed as normal (i.e. standard CWL
-runtime enviroment, ``EnvVarRequirement``, ``--preserve-environment``
-are applied), then the environment may modified by the selected tool resolver.  This currently means that you
-cannot override any environment variables set by the selected tool resolver.
+Modules. The environment is constructed as above, then the environment
+may modified by the selected tool resolver.  This currently means that
+you cannot override any environment variables set by the selected tool
+resolver. Note that the enviroment given to the configured dependency
+resolver has the variable `_CWLTOOL` set to `1` to allow introspection.
 
 To discuss some of these plugins and how to configure them, first consider the
 following ``hint`` definition for an example CWL tool.
