@@ -995,13 +995,14 @@ class CommandLineTool(Process):
                         "networkAccess must be a boolean, got: %s" % j.networkaccess
                     )
 
-        j.environment = {}
+        # Build a mapping to hold any EnvVarRequirement
+        required_env = {}
         evr, _ = self.get_requirement("EnvVarRequirement")
         if evr is not None:
             for t3 in cast(List[Dict[str, str]], evr["envDef"]):
-                j.environment[t3["envName"]] = cast(
-                    str, builder.do_eval(t3["envValue"])
-                )
+                required_env[t3["envName"]] = cast(str, builder.do_eval(t3["envValue"]))
+        # Construct the env
+        j.prepare_environment(runtimeContext, required_env)
 
         shellcmd, _ = self.get_requirement("ShellCommandRequirement")
         if shellcmd is not None:

@@ -19,6 +19,7 @@ from typing import (
     Callable,
     Iterable,
     List,
+    Mapping,
     Match,
     MutableMapping,
     MutableSequence,
@@ -419,6 +420,42 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             )
             shutil.rmtree(self.tmpdir, True)
 
+    def prepare_environment(
+        self, runtimeContext: RuntimeContext, envVarReq: Mapping[str, str]
+    ) -> None:
+        """Set up environment variables.
+
+        Here we prepare the environment for the job, based on any
+        preserved variables and `EnvVarRequirement`. Later, changes due
+        to `MPIRequirement`, `Secrets`, or `SoftwareRequirement` are
+        applied (in that order).
+        """
+        # Start empty
+        env = {}
+
+        # Preserve any env vars
+        vars_to_preserve = runtimeContext.preserve_environment
+        if runtimeContext.preserve_entire_environment is not False:
+            vars_to_preserve = os.environ
+        if vars_to_preserve:
+            for key, value in os.environ.items():
+                if key in vars_to_preserve and key not in env:
+                    env[key] = value
+
+        # Set required env vars
+        env["HOME"] = self.outdir
+        env["TMPDIR"] = self.tmpdir
+        if "PATH" not in env:
+            env["PATH"] = os.environ["PATH"]
+        if "SYSTEMROOT" not in env and "SYSTEMROOT" in os.environ:
+            env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+
+        # Apply EnvVarRequirement
+        env.update(envVarReq)
+
+        # Set on ourselves
+        self.environment = env
+
     def process_monitor(self, sproc):  # type: (subprocess.Popen[str]) -> None
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
@@ -469,19 +506,6 @@ class CommandLineJob(JobBase):
 
         self._setup(runtimeContext)
 
-        env = self.environment
-        vars_to_preserve = runtimeContext.preserve_environment
-        if runtimeContext.preserve_entire_environment is not False:
-            vars_to_preserve = os.environ
-        if vars_to_preserve:
-            for key, value in os.environ.items():
-                if key in vars_to_preserve and key not in env:
-                    env[key] = value
-        env["HOME"] = self.outdir
-        env["TMPDIR"] = self.tmpdir
-        if "PATH" not in env:
-            env["PATH"] = os.environ["PATH"]
-
         stage_files(
             self.pathmapper,
             ignore_writable=True,
@@ -504,7 +528,7 @@ class CommandLineJob(JobBase):
 
         monitor_function = functools.partial(self.process_monitor)
 
-        self._execute([], env, runtimeContext, monitor_function)
+        self._execute([], self.environment, runtimeContext, monitor_function)
 
 
 CONTROL_CODE_RE = r"\x1b\[[0-9;]*[a-zA-Z]"
@@ -832,7 +856,7 @@ def _job_popen(
     stdin_path: Optional[str],
     stdout_path: Optional[str],
     stderr_path: Optional[str],
-    env: MutableMapping[str, str],
+    env: Mapping[str, str],
     cwd: str,
     make_job_dir: Callable[[], str],
     job_script_contents: Optional[str] = None,
@@ -915,15 +939,10 @@ def _job_popen(
         if job_script_contents is None:
             job_script_contents = SHELL_COMMAND_TEMPLATE
 
-        env_copy = {}
-        key = None  # type: Optional[str]
-        for key in env:
-            env_copy[key] = env[key]
-
         job_description = {
             "commands": commands,
             "cwd": cwd,
-            "env": env_copy,
+            "env": env,
             "stdout_path": stdout_path,
             "stderr_path": stderr_path,
             "stdin_path": stdin_path,

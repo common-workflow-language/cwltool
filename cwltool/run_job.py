@@ -7,18 +7,21 @@ from typing import BinaryIO, Dict, List, Optional, TextIO, Union
 
 
 def handle_software_environment(cwl_env: Dict[str, str], script: str) -> Dict[str, str]:
-    """Update the provided environment variables dictiony by running the script."""
-    res = subprocess.run(["bash", script], shell=False, env=cwl_env)  # nosec
+    """Update the provided environment dict by running the script."""
+    exec_env = cwl_env.copy()
+    exec_env["_CWLTOOL"] = "1"
+    res = subprocess.run(["bash", script], shell=False, env=exec_env)  # nosec
     if res.returncode != 0:
         sys.stderr.write(
             "Error while using SoftwareRequirements to modify environment\n"
         )
         return cwl_env
+
     env = cwl_env.copy()
     with open("output_environment.bash") as env_file:
         for line in env_file:
             key, val = line.split("=", 1)
-            if key in ("_", "PWD", "SHLVL", "TMPDIR", "HOME"):
+            if key in ("_", "PWD", "SHLVL", "TMPDIR", "HOME", "_CWLTOOL"):
                 # Skip some variables that are meaningful to the shell
                 # or set specifically by the CWL runtime environment.
                 continue
