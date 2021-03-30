@@ -12,6 +12,7 @@ import subprocess  # nosec
 import sys
 import time
 import urllib
+import warnings
 from codecs import StreamWriter, getwriter
 from collections.abc import MutableMapping, MutableSequence
 from typing import (
@@ -1323,9 +1324,25 @@ def find_default_container(
     return default_container
 
 
-def run(*args, **kwargs):
-    # type: (*Any, **Any) -> None
+def windows_check() -> None:
+    """See if we are running on MS Windows and warn about the lack of support."""
+    if os.name == "nt":
+        warnings.warn(
+            "The CWL reference runner (cwltool) no longer supports running "
+            "CWL workflows natively on MS Windows as its previous MS Windows "
+            "support was incomplete and untested. Instead, please see "
+            "https://pypi.org/project/cwltool/#ms-windows-users "
+            "for instructions on running cwltool via "
+            "Windows Subsystem for Linux 2 (WSL2). If don't need to execute "
+            "CWL documents, then you can ignore this warning, but please "
+            "consider migrating to https://pypi.org/project/cwl-utils/ "
+            "for your CWL document processing needs."
+        )
+
+
+def run(*args: Any, **kwargs: Any) -> None:
     """Run cwltool."""
+    windows_check()
     signal.signal(signal.SIGTERM, _signal_handler)
     try:
         sys.exit(main(*args, **kwargs))
