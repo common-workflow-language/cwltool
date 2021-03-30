@@ -32,7 +32,12 @@ COMMAND_WITH_DEPENDENCIES_TEMPLATE = string.Template(
     """#!/bin/bash
 cat > modify_environment.bash <<'EOF'
 $handle_dependencies
-env > output_environment.bash
+# First try env -0
+if ! env -0 > "output_environment.dat" 2> /dev/null; then
+    # If that fails, use the python script.
+    # In some circumstances (see PEP 538) this will the add LC_CTYPE env var.
+    python3 "env_to_stdout.py" > "output_environment.dat"
+fi
 EOF
 python3 "run_job.py" "job.json" "modify_environment.bash"
 """

@@ -1,17 +1,21 @@
 """Tests of satisfying SoftwareRequirement via dependencies."""
-from io import StringIO
-import json
 import os
 from pathlib import Path
 from shutil import which
 from types import ModuleType
-from typing import Optional
+from typing import Dict, List, Optional
 
 import pytest
 
 from cwltool.main import main
 
-from .util import get_data, get_main_output, needs_docker, working_directory
+from .util import (
+    get_data,
+    get_main_output,
+    get_tool_env,
+    needs_docker,
+    working_directory,
+)
 
 deps = None  # type: Optional[ModuleType]
 try:
@@ -74,29 +78,15 @@ def test_modules_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv(
         "MODULEPATH", os.path.join(os.getcwd(), "tests/test_deps_env/modulefiles")
     )
+    tool_env = get_tool_env(
+        tmp_path,
+        [
+            "--beta-dependency-resolvers-configuration",
+            get_data("tests/test_deps_env_modules_resolvers_conf.yml"),
+        ],
+        get_data("tests/env_with_software_req.yml"),
+    )
 
-    stdout = StringIO()
-    stderr = StringIO()
-    with working_directory(tmp_path):
-        rc = main(
-            argsl=[
-                "--beta-dependency-resolvers-configuration",
-                get_data("tests/test_deps_env_modules_resolvers_conf.yml"),
-                get_data("tests/env3.cwl"),
-                get_data("tests/env_with_software_req.yml"),
-            ],
-            stdout=stdout,
-            stderr=stderr,
-        )
-        assert rc == 0
-
-        output = json.loads(stdout.getvalue())
-        env_path = output["env"]["path"]
-        tool_env = {}
-        with open(env_path) as _:
-            for line in _:
-                key, val = line.split("=", 1)
-                tool_env[key] = val[:-1]
     assert tool_env["TEST_VAR_MODULE"] == "environment variable ends in space "
     tool_path = tool_env["PATH"].split(":")
     assert get_data("tests/test_deps_env/random-lines/1.0/scripts") in tool_path

@@ -18,14 +18,15 @@ def handle_software_environment(cwl_env: Dict[str, str], script: str) -> Dict[st
         return cwl_env
 
     env = cwl_env.copy()
-    with open("output_environment.bash") as env_file:
-        for line in env_file:
-            key, val = line.split("=", 1)
-            if key in ("_", "PWD", "SHLVL", "TMPDIR", "HOME", "_CWLTOOL"):
-                # Skip some variables that are meaningful to the shell
-                # or set specifically by the CWL runtime environment.
-                continue
-            env[key] = val[:-1]  # remove trailing newline
+    with open("output_environment.dat") as _:
+        data = _.read().strip("\0")
+    for line in data.split("\0"):
+        key, val = line.split("=", 1)
+        if key in ("_", "PWD", "SHLVL", "TMPDIR", "HOME", "_CWLTOOL"):
+            # Skip some variables that are meaningful to the shell or set
+            # specifically by the CWL runtime environment.
+            continue
+        env[key] = val
     return env
 
 

@@ -78,8 +78,6 @@ def _check_docker_machine_path(path: Optional[str]) -> None:
 class DockerCommandLineJob(ContainerCommandLineJob):
     """Runs a CommandLineJob in a sofware container using the Docker engine."""
 
-    CONTAINER_TMPDIR: str = "/tmp"  # nosec
-
     def __init__(
         self,
         builder: Builder,

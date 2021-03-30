@@ -38,7 +38,7 @@ from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
 
-from . import run_job
+from . import env_to_stdout, run_job
 from .builder import Builder, HasReqsHints
 from .context import RuntimeContext
 from .errors import UnsupportedRequirement, WorkflowException
@@ -212,7 +212,18 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         runtimeContext: RuntimeContext,
         monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
     ) -> None:
+        """Execute the tool, either directly or via script.
 
+        Note: we are now at the point where self.environment is
+        ignored. The caller is responsible for correctly splitting that
+        into the runtime and env arguments.
+
+        `runtime` is the list of arguments to put at the start of the
+        command (e.g. docker run).
+
+        `env` is the enviroment to be set for running the resulting
+        command line.
+        """
         scr = self.get_requirement("ShellCommandRequirement")[0]
 
         shouldquote = needs_shell_quoting_re.search
@@ -431,7 +442,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         pass
 
     def _preserve_environment_on_containers_warning(
-        self, varname: Optional[str] = None
+        self, varname: Optional[Iterable[str]] = None
     ) -> None:
         """When running in a container, issue a warning."""
         # By default, don't do anything; ContainerCommandLineJob below
@@ -456,8 +467,10 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             self._preserve_environment_on_containers_warning()
             env.update(os.environ)
         elif runtimeContext.preserve_environment:
+            self._preserve_environment_on_containers_warning(
+                runtimeContext.preserve_environment
+            )
             for key in runtimeContext.preserve_environment:
-                self._preserve_environment_on_containers_warning(key)
                 try:
                     env[key] = os.environ[key]
                 except KeyError:
@@ -564,6 +577,8 @@ CONTROL_CODE_RE = r"\x1b\[[0-9;]*[a-zA-Z]"
 class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     """Commandline job using containers."""
 
+    CONTAINER_TMPDIR: str = "/tmp"  # nosec
+
     @abstractmethod
     def get_from_requirements(
         self,
@@ -616,17 +631,17 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         """Append a writable directory mapping to the runtime option list."""
 
     def _preserve_environment_on_containers_warning(
-        self, varname: Optional[str] = None
+        self, varnames: Optional[Iterable[str]] = None
     ) -> None:
         """When running in a container, issue a warning."""
-        if varname is None:
-            _logger.warning(
-                "You have specified `--preserve-entire-environment` while running a container"
-            )
+        if varnames is None:
+            flags = "--preserve-entire-environment"
         else:
-            _logger.warning(
-                f"You have specified `--preserve-environment={varname}` while running a container"
-            )
+            flags = "--preserve-environment={" + ", ".join(varnames) + "}"
+
+        _logger.warning(
+            f"You have specified `{flags}` while running a container which will override variables set in the container. This may break the container, be non-portable, and/or affect reproducibility."
+        )
 
     def create_file_and_add_volume(
         self,
@@ -713,7 +728,6 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
         self.prov_obj = runtimeContext.prov_obj
         img_id = None
-        env = cast(MutableMapping[str, str], os.environ)
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if docker_req is not None and user_space_docker_cmd:
             # For user-space docker implementations, a local image name or ID
@@ -807,7 +821,11 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     )
 
         self._setup(runtimeContext)
+
+        # Copy as don't want to modify our env
+        env = dict(os.environ)
         (runtime, cidfile) = self.create_runtime(env, runtimeContext)
+
         runtime.append(str(img_id))
         monitor_function = None
         if cidfile:
@@ -997,8 +1015,13 @@ def _job_popen(
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as _:
                 _.write(job_script_contents.encode("utf-8"))
+
             job_run = os.path.join(job_dir, "run_job.py")
             shutil.copyfile(run_job.__file__, job_run)
+
+            env_getter = os.path.join(job_dir, "env_to_stdout.py")
+            shutil.copyfile(env_to_stdout.__file__, env_getter)
+
             sproc = subprocess.Popen(  # nosec
                 ["bash", job_script.encode("utf-8")],
                 shell=False,  # nosec
