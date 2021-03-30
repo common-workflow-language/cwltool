@@ -2,9 +2,23 @@
 """Setup for the reference implementation of the CWL standards."""
 import os
 import sys
+import warnings
 
 import setuptools.command.egg_info as egg_info_cmd
 from setuptools import setup
+
+if os.name == "nt":
+    warnings.warn(
+        "The CWL reference runner (cwltool) no longer supports running "
+        "CWL workflows natively on MS Windows as its previous MS Windows "
+        "support was incomplete and untested. Instead, please see "
+        "https://pypi.org/project/cwltool/#ms-windows-users "
+        "for instructions on running cwltool via "
+        "Windows Subsystem for Linux 2 (WSL2). If don't need to execute "
+        "CWL documents, then you can ignore this warning, but please "
+        "consider migrating to https://pypi.org/project/cwl-utils/ "
+        "for your CWL document processing needs."
+    )
 
 SETUP_DIR = os.path.dirname(__file__)
 README = os.path.join(SETUP_DIR, "README.rst")
