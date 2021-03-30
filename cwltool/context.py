@@ -95,7 +95,7 @@ class RuntimeContext(ContextBase):
         self.no_read_only = False  # type: bool
         self.custom_net = ""  # type: Optional[str]
         self.no_match_user = False  # type: bool
-        self.preserve_environment = ""  # type: Optional[Iterable[str]]
+        self.preserve_environment = None  # type: Optional[Iterable[str]]
         self.preserve_entire_environment = False  # type: bool
         self.use_container = True  # type: bool
         self.force_docker_pull = False  # type: bool

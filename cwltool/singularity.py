@@ -83,6 +83,8 @@ def _normalize_sif_id(string: str) -> str:
 
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
+    CONTAINER_TMPDIR: str = "/tmp"  # nosec
+
     def __init__(
         self,
         builder: Builder,
@@ -370,6 +372,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 self.append_volume(runtime, source, volume.target, writable=True)
                 ensure_writable(source)
 
+    def _required_env(self) -> Dict[str, str]:
+        return {
+            "TMPDIR": self.CONTAINER_TMPDIR,
+            "HOME": self.builder.outdir,
+        }
+
     def create_runtime(
         self, env: MutableMapping[str, str], runtime_context: RuntimeContext
     ) -> Tuple[List[str], Optional[str]]:
@@ -381,6 +389,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             "exec",
             "--contain",
             "--ipc",
+            "--cleanenv",
         ]
         if _singularity_supports_userns():
             runtime.append("--userns")
@@ -403,8 +412,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 )
             )
         runtime.append("--bind")
-        tmpdir = "/tmp"  # nosec
-        runtime.append("{}:{}:rw".format(os.path.realpath(self.tmpdir), tmpdir))
+        runtime.append(
+            "{}:{}:rw".format(
+                os.path.realpath(self.tmpdir),
+                self.CONTAINER_TMPDIR,
+            )
+        )
 
         self.add_volumes(
             self.pathmapper,
@@ -431,9 +444,6 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             )
         elif runtime_context.disable_net:
             runtime.append("--net")
-
-        env["SINGULARITYENV_TMPDIR"] = tmpdir
-        env["SINGULARITYENV_HOME"] = self.builder.outdir
 
         for name, value in self.environment.items():
             env[f"SINGULARITYENV_{name}"] = str(value)
