@@ -83,8 +83,6 @@ def _normalize_sif_id(string: str) -> str:
 
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
-    CONTAINER_TMPDIR: str = "/tmp"  # nosec
-
     def __init__(
         self,
         builder: Builder,
@@ -277,13 +275,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         runtime: List[str], source: str, target: str, writable: bool = False
     ) -> None:
         runtime.append("--bind")
-        runtime.append(
-            "{}:{}:{}".format(
-                source,
-                target,
-                "rw" if writable else "ro",
-            )
-        )
+        # Mounts are writable by default, so 'rw' is optional and not
+        # supported (due to a bug) in some 3.6 series releases.
+        vol = f"{source}:{target}"
+        if not writable:
+            vol += ":ro"
+        runtime.append(vol)
 
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
@@ -395,28 +392,28 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             runtime.append("--userns")
         else:
             runtime.append("--pid")
+
+        container_HOME: Optional[str] = None
         if is_version_3_1_or_newer():
+            # Remove HOME, as passed in a special way (restore it below)
+            container_HOME = self.environment.pop("HOME")
             runtime.append("--home")
             runtime.append(
                 "{}:{}".format(
                     os.path.realpath(self.outdir),
-                    self.builder.outdir,
+                    container_HOME,
                 )
             )
         else:
-            runtime.append("--bind")
-            runtime.append(
-                "{}:{}:rw".format(
-                    os.path.realpath(self.outdir),
-                    self.builder.outdir,
-                )
+            self.append_volume(
+                runtime,
+                os.path.realpath(self.outdir),
+                self.environment["HOME"],
+                writable=True,
             )
-        runtime.append("--bind")
-        runtime.append(
-            "{}:{}:rw".format(
-                os.path.realpath(self.tmpdir),
-                self.CONTAINER_TMPDIR,
-            )
+
+        self.append_volume(
+            runtime, os.path.realpath(self.tmpdir), self.CONTAINER_TMPDIR, writable=True
         )
 
         self.add_volumes(
@@ -447,4 +444,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         for name, value in self.environment.items():
             env[f"SINGULARITYENV_{name}"] = str(value)
+
+        if container_HOME:
+            # Restore HOME if we removed it above.
+            self.environment["HOME"] = container_HOME
         return (runtime, None)

@@ -2,6 +2,7 @@
 import shutil
 import os
 from pathlib import Path
+from typing import Any
 
 from cwltool.main import main
 
@@ -15,14 +16,13 @@ from .util import (
 
 
 @needs_singularity_2_6
-def test_singularity_pullfolder(tmp_path: Path) -> None:
+def test_singularity_pullfolder(tmp_path: Path, monkeypatch: Any) -> None:
+    """Test singularity respects SINGULARITY_PULLFOLDER."""
     workdir = tmp_path / "working_dir_new"
     workdir.mkdir()
     with working_directory(workdir):
         pullfolder = tmp_path / "pullfolder"
         pullfolder.mkdir()
-        env = os.environ.copy()
-        env["SINGULARITY_PULLFOLDER"] = str(pullfolder)
         result_code, stdout, stderr = get_main_output(
             [
                 "--singularity",
@@ -30,7 +30,8 @@ def test_singularity_pullfolder(tmp_path: Path) -> None:
                 "--message",
                 "hello",
             ],
-            env=env,
+            extra_env={"SINGULARITY_PULLFOLDER": str(pullfolder)},
+            monkeypatch=monkeypatch,
         )
         print(stdout)
         print(stderr)
