@@ -3,7 +3,7 @@ import io
 import os
 import shutil
 from pathlib import Path
-from typing import Any, Generator, List, Mapping, Optional, Tuple, Union
+from typing import Generator, List, Mapping, Optional, Tuple, Union
 
 import pytest
 from pkg_resources import Requirement, ResolutionError, resource_filename
@@ -55,7 +55,7 @@ def get_main_output(
     env: Union[
         Mapping[bytes, Union[bytes, str]], Mapping[str, Union[bytes, str]], None
     ] = None,
-    monkeypatch: Any = None,
+    monkeypatch: Optional[pytest.MonkeyPatch] = None,
 ) -> Tuple[Optional[int], str, str]:
     stdout = io.StringIO()
     stderr = io.StringIO()
