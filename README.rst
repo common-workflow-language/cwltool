@@ -95,9 +95,9 @@ Or you can skip the direct ``pip`` commands above and install the latest develop
 .. code:: bash
 
   git clone https://github.com/common-workflow-language/cwltool.git # clone (copy) the cwltool git repository
-  cd cwltool         # Change to source directory that git clone just downloaded
-  pip install .      # Installs ``cwltool`` from source
-  cwltool --version  # Check if the installation works correctly
+  cd cwltool           # Change to source directory that git clone just downloaded
+  pip install .[deps]  # Installs ``cwltool`` from source
+  cwltool --version    # Check if the installation works correctly
 
 Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
@@ -614,19 +614,19 @@ To run the basic tests after installing `cwltool` execute the following:
 .. code:: bash
 
   pip install -rtest-requirements.txt
-  py.test --ignore cwltool/schemas/ --pyarg cwltool
+  pytest
 
 To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/main/tox.ini>`_. To run the test suite in all supported Python environments
 first downloading the complete code repository (see the ``git clone`` instructions above) and then run
 the following in the terminal:
-``pip install tox; tox``
+``pip install tox; tox -p``
 
 List of all environment can be seen using:
 ``tox --listenvs``
 and running a specfic test env using:
 ``tox -e <env name>``
 and additionally run a specific test using this format:
-``tox -e py36-unit -- tests/test_examples.py::TestParamMatching``
+``tox -e py36-unit -- -v tests/test_examples.py::test_scandeps``
 
 -  Running the entire suite of CWL conformance tests:
 

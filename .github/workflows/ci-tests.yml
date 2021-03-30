@@ -81,7 +81,7 @@ jobs:
 
     strategy:
       matrix:
-        step: [lint-readme, shellcheck, pydocstyle]
+        step: [lintreadme, shellcheck, pydocstyle]
 
     env:
       py-semver: 3.9
