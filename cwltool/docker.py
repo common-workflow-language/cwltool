@@ -78,6 +78,8 @@ def _check_docker_machine_path(path: Optional[str]) -> None:
 class DockerCommandLineJob(ContainerCommandLineJob):
     """Runs a CommandLineJob in a sofware container using the Docker engine."""
 
+    CONTAINER_TMPDIR: str = "/tmp"  # nosec
+
     def __init__(
         self,
         builder: Builder,
@@ -318,6 +320,15 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     shutil.copytree(volume.resolved, host_outdir_tgt)
                 ensure_writable(host_outdir_tgt or new_dir)
 
+    def _required_env(self) -> Dict[str, str]:
+        # spec currently says "HOME must be set to the designated output
+        # directory." but spec might change to designated temp directory.
+        # runtime.append("--env=HOME=/tmp")
+        return {
+            "TMPDIR": self.CONTAINER_TMPDIR,
+            "HOME": self.builder.outdir,
+        }
+
     def create_runtime(
         self, env: MutableMapping[str, str], runtimeContext: RuntimeContext
     ) -> Tuple[List[str], Optional[str]]:
@@ -335,9 +346,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         self.append_volume(
             runtime, os.path.realpath(self.outdir), self.builder.outdir, writable=True
         )
-        tmpdir = "/tmp"  # nosec
         self.append_volume(
-            runtime, os.path.realpath(self.tmpdir), tmpdir, writable=True
+            runtime, os.path.realpath(self.tmpdir), self.CONTAINER_TMPDIR, writable=True
         )
         self.add_volumes(
             self.pathmapper,
@@ -384,13 +394,6 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         if runtimeContext.rm_container:
             runtime.append("--rm")
-
-        runtime.append("--env=TMPDIR=/tmp")
-
-        # spec currently says "HOME must be set to the designated output
-        # directory." but spec might change to designated temp directory.
-        # runtime.append("--env=HOME=/tmp")
-        runtime.append("--env=HOME=%s" % self.builder.outdir)
 
         cidfile_path = None  # type: Optional[str]
         # add parameters to docker to write a container ID file

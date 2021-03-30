@@ -15,8 +15,9 @@ from abc import ABCMeta, abstractmethod
 from io import IOBase
 from threading import Timer
 from typing import (
-    IO,
     Callable,
+    Dict,
+    IO,
     Iterable,
     List,
     Mapping,
@@ -420,6 +421,23 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             )
             shutil.rmtree(self.tmpdir, True)
 
+    @abstractmethod
+    def _required_env(self) -> Dict[str, str]:
+        """Variables required by the CWL spec (HOME, TMPDIR, etc).
+
+        Note that with containers, the paths will (likely) be those from
+        inside.
+        """
+        pass
+
+    def _preserve_environment_on_containers_warning(
+        self, varname: Optional[str] = None
+    ) -> None:
+        """When running in a container, issue a warning."""
+        # By default, don't do anything; ContainerCommandLineJob below
+        # will issue a warning.
+        pass
+
     def prepare_environment(
         self, runtimeContext: RuntimeContext, envVarReq: Mapping[str, str]
     ) -> None:
@@ -431,24 +449,24 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         applied (in that order).
         """
         # Start empty
-        env = {}
+        env: Dict[str, str] = {}
 
         # Preserve any env vars
-        vars_to_preserve = runtimeContext.preserve_environment
-        if runtimeContext.preserve_entire_environment is not False:
-            vars_to_preserve = os.environ
-        if vars_to_preserve:
-            for key, value in os.environ.items():
-                if key in vars_to_preserve and key not in env:
-                    env[key] = value
+        if runtimeContext.preserve_entire_environment:
+            self._preserve_environment_on_containers_warning()
+            env.update(os.environ)
+        elif runtimeContext.preserve_environment:
+            for key in runtimeContext.preserve_environment:
+                self._preserve_environment_on_containers_warning(key)
+                try:
+                    env[key] = os.environ[key]
+                except KeyError:
+                    _logger.warning(
+                        f"Attempting to preserve environment variable '{key}' which is not present"
+                    )
 
         # Set required env vars
-        env["HOME"] = self.outdir
-        env["TMPDIR"] = self.tmpdir
-        if "PATH" not in env:
-            env["PATH"] = os.environ["PATH"]
-        if "SYSTEMROOT" not in env and "SYSTEMROOT" in os.environ:
-            env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+        env.update(self._required_env())
 
         # Apply EnvVarRequirement
         env.update(envVarReq)
@@ -530,6 +548,15 @@ class CommandLineJob(JobBase):
 
         self._execute([], self.environment, runtimeContext, monitor_function)
 
+    def _required_env(self) -> Dict[str, str]:
+        env = {}
+        env["HOME"] = self.outdir
+        env["TMPDIR"] = self.tmpdir
+        env["PATH"] = os.environ["PATH"]
+        if "SYSTEMROOT" in os.environ:
+            env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+        return env
+
 
 CONTROL_CODE_RE = r"\x1b\[[0-9;]*[a-zA-Z]"
 
@@ -587,6 +614,19 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         tmpdir_prefix: str,
     ) -> None:
         """Append a writable directory mapping to the runtime option list."""
+
+    def _preserve_environment_on_containers_warning(
+        self, varname: Optional[str] = None
+    ) -> None:
+        """When running in a container, issue a warning."""
+        if varname is None:
+            _logger.warning(
+                "You have specified `--preserve-entire-environment` while running a container"
+            )
+        else:
+            _logger.warning(
+                f"You have specified `--preserve-environment={varname}` while running a container"
+            )
 
     def create_file_and_add_volume(
         self,

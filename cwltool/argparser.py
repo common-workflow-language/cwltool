@@ -49,10 +49,10 @@ def arg_parser() -> argparse.ArgumentParser:
         type=str,
         action="append",
         help="Preserve specific environment variable when running "
-        "CommandLineTools without a software container.  May be provided "
-        "multiple times. The default is to preserve only the PATH.",
+        "CommandLineTools. May be provided multiple times. By default PATH is "
+        "preserved when not running in a container.",
         metavar="ENVVAR",
-        default=["PATH"],
+        default=[],
         dest="preserve_environment",
     )
     envgroup.add_argument(
