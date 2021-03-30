@@ -1,6 +1,7 @@
 import subprocess
 import sys
-from typing import Any
+
+import pytest
 
 from cwltool.main import main
 
@@ -11,7 +12,7 @@ def test_rdf_print() -> None:
     assert main(["--print-rdf", get_data("tests/wf/hello_single_tool.cwl")]) == 0
 
 
-def test_rdf_print_unicode(monkeypatch: Any) -> None:
+def test_rdf_print_unicode(monkeypatch: pytest.MonkeyPatch) -> None:
     """Force ASCII encoding but load UTF file with --print-rdf."""
     monkeypatch.setenv("LC_ALL", "C")
 

@@ -1,13 +1,14 @@
 """ProcessGenerator related tests."""
 
-from typing import Any
+
+import pytest
 
 from cwltool.main import main
 
 from .util import get_data
 
 
-def test_missing_enable_ext(monkeypatch: Any) -> None:
+def test_missing_enable_ext(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test missing enable-ext option fails.
 
     Check that a workflow that needs `--enable-ext` and

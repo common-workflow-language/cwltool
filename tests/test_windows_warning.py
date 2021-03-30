@@ -1,7 +1,6 @@
 """Test user experience running on MS Windows."""
 
 import os
-import warnings
 
 import pytest
 

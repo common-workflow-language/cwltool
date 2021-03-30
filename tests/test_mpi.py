@@ -193,7 +193,7 @@ class TestMpiRun:
                 assert lc == np
 
     def test_environment(
-        self, fake_mpi_conf: str, tmp_path: Path, monkeypatch: Any
+        self, fake_mpi_conf: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         stdout = StringIO()
         stderr = StringIO()
@@ -217,13 +217,14 @@ class TestMpiRun:
             assert e["TEST_MPI_FOO"] == "bar"
 
 
-def test_env_passing(monkeypatch: Any) -> None:
+def test_env_passing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Confirm that MPI extension passes environment variables correctly."""
     config = MpiConfig(
         env_pass=["A", "B", "LONG_NAME"],
         env_pass_regex=["TOOLNAME", "MPI_.*_CONF"],
     )
 
-    env = {}  # type: MutableMapping[str, str]
+    env: MutableMapping[str, str] = {}
 
     with monkeypatch.context() as m:
         m.setattr(os, "environ", {})

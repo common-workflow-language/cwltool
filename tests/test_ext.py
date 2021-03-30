@@ -2,7 +2,6 @@ import os
 import re
 from io import StringIO
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -32,7 +31,7 @@ def test_listing_deep() -> None:
 
 
 @needs_docker
-def test_cwltool_options(monkeypatch: Any) -> None:
+def test_cwltool_options(monkeypatch: pytest.MonkeyPatch) -> None:
     """Check setting options via environment variable."""
     monkeypatch.setenv("CWLTOOL_OPTIONS", "--enable-ext")
     params = [
