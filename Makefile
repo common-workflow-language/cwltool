@@ -143,11 +143,11 @@ diff-cover.html: coverage.xml
 
 ## test        : run the ${MODULE} test suite
 test: $(PYSOURCES)
-	python setup.py test
+	python -m pytest ${PYTEST_EXTRA}
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
 testcov: $(PYSOURCES)
-	python setup.py test --addopts "--cov --cov-config=.coveragerc --cov-report= -n auto --dist=loadfile"
+	python -m pytest --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
 
 sloccount.sc: $(PYSOURCES) Makefile
 	sloccount --duplicates --wide --details $^ > $@
@@ -171,7 +171,8 @@ mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
 	MYPYPATH=$$MYPYPATH:typeshed mypy $^
 
 mypyc: $(PYSOURCES)
-	MYPYPATH=typeshed CWLTOOL_USE_MYPYC=1 pip install --verbose -e . && pytest --ignore cwltool/schemas --basetemp ./tmp
+	MYPYPATH=typeshed CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
+		 && pytest ${PYTEST_EXTRA}
 
 shellcheck: FORCE
 	shellcheck build-cwl-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
