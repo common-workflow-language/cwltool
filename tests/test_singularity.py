@@ -1,7 +1,6 @@
 """Tests to find local Singularity image."""
 import shutil
 import os
-import sys
 from pathlib import Path
 
 from cwltool.main import main
@@ -13,8 +12,6 @@ from .util import (
     needs_singularity_2_6,
     working_directory,
 )
-
-sys.argv = [""]
 
 
 @needs_singularity_2_6
