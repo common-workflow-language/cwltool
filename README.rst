@@ -48,7 +48,7 @@ and similar Linux distribution try
 
 .. code:: bash
 
-  sudo apt-get install cwltool
+   sudo apt-get install cwltool
 
 If you are running MacOS X or other UNIXes and you want to use packages prepared by the conda-forge project, then
 please follow the install instructions for `conda-forge <https://conda-forge.org/#about>`_ (if you haven't already) and then 
@@ -58,12 +58,12 @@ please follow the install instructions for `conda-forge <https://conda-forge.org
    conda install -c conda-forge cwltool
 
 All of the above methods of installing ``cwltool`` use packages which might contain bugs already fixed in newer versions, or be missing features that you desire.
-If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv``::
+If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv``
 
 .. code:: bash
 
-  python3 -m venv env      # Create a virtual environment named 'env' in the current directory
-  source env/bin/activate  # Activate environment before installing `cwltool`
+   python3 -m venv env      # Create a virtual environment named 'env' in the current directory
+   source env/bin/activate  # Activate environment before installing `cwltool`
 
 Then install the latest ``cwlref-runner`` package from PyPi (which will install the latest ``cwltool`` package as
 well)
@@ -151,7 +151,7 @@ One such "user space" friendly docker replacement is ``udocker`` https://github.
 
 udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-udockertools-tarball
 
-Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
+Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests
 
 .. code:: bash
 
@@ -166,7 +166,8 @@ runtime, provide ``--singularity`` command line option to ``cwltool``.
 With Singularity, ``cwltool`` can pass all CWL v1.0 conformance tests, except
 those involving Docker container ENTRYPOINTs.
 
-Example:
+Example
+
 .. code:: bash
 
   cwltool --singularity https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/blob/main/v1.0/v1.0/cat-job.json
