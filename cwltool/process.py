@@ -578,7 +578,15 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         self.names = make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader({}))
         self.tool = toolpath_object
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
-        self.requirements.extend(self.tool.get("requirements", []))
+        tool_requirements = self.tool.get("requirements", [])
+        if tool_requirements is None:
+            raise ValidationException(
+                SourceLine(self.tool, "requirements").makeError(
+                    "If 'requirements' is present then it must be a list "
+                    "or map/dictionary, not empty."
+                )
+            )
+        self.requirements.extend(tool_requirements)
         if "id" not in self.tool:
             self.tool["id"] = "_:" + str(uuid.uuid4())
         self.requirements.extend(
@@ -590,7 +598,15 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             )
         )
         self.hints = copy.deepcopy(getdefault(loadingContext.hints, []))
-        self.hints.extend(self.tool.get("hints", []))
+        tool_hints = self.tool.get("hints", [])
+        if tool_hints is None:
+            raise ValidationException(
+                SourceLine(self.tool, "hints").makeError(
+                    "If 'hints' is present then it must be a list "
+                    "or map/dictionary, not empty."
+                )
+            )
+        self.hints.extend(tool_hints)
         # Versions of requirements and hints which aren't mutated.
         self.original_requirements = copy.deepcopy(self.requirements)
         self.original_hints = copy.deepcopy(self.hints)

@@ -1398,3 +1398,23 @@ def test_scatter_output_filenames(tmp_path: Path) -> None:
             and locations[1].endswith("output.txt_2")
             and locations[2].endswith("output.txt_3")
         ), f"Locations {locations} do not end with {output_names}"
+
+
+def test_malformed_hints() -> None:
+    """Confirm that empty hints section is caught."""
+    factory = cwltool.factory.Factory()
+    with pytest.raises(
+        ValidationException,
+        match=r".*wc-tool-bad-hints\.cwl:6:1: If 'hints' is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
+    ):
+        factory.make(get_data("tests/wc-tool-bad-hints.cwl"))
+
+
+def test_malformed_reqs() -> None:
+    """Confirm that empty reqs section is caught."""
+    factory = cwltool.factory.Factory()
+    with pytest.raises(
+        ValidationException,
+        match=r".*wc-tool-bad-reqs\.cwl:6:1: If 'requirements' is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
+    ):
+        factory.make(get_data("tests/wc-tool-bad-reqs.cwl"))
