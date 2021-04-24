@@ -25,18 +25,19 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=diff_cover black pylint coverage pep257 pydocstyle flake8 mypy\
-	pytest-xdist isort wheel autoflake -rtest-requirements.txt
+DEVPKGS=diff_cover black pylint pep257 pydocstyle flake8 tox tox-pyenv \
+	isort wheel autoflake flake8-bugbear pyupgrade bandit \
+	-rtest-requirements.txt -rmypy_requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
-VERSION=3.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
+
+VERSION=3.1.$(shell TZ=UTC git log --first-parent --max-count=1 \
 	--format=format:%cd --date=format-local:%Y%m%d%H%M%S)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S=$(shell uname -s)
 
 ## all         : default task
-all:
-	pip install -e .
+all: dev
 
 ## help        : print this help message and exit
 help: Makefile
@@ -45,7 +46,7 @@ help: Makefile
 ## install-dep : install most of the development dependencies via pip
 install-dep: install-dependencies
 
-install-dependencies:
+install-dependencies: FORCE
 	pip install --upgrade $(DEVPKGS)
 	pip install -r requirements.txt
 
@@ -81,8 +82,8 @@ clean: FORCE
 
 # Linting and code style related targets
 ## sorting imports using isort: https://github.com/timothycrosley/isort
-sort_imports:
-	isort ${MODULE}/*.py tests/*.py setup.py
+sort_imports: $(PYSOURCES)
+	isort $^
 
 remove_unused_imports: $(PYSOURCES)
 	autoflake --in-place --remove-all-unused-imports $^
@@ -92,7 +93,7 @@ pep257: pydocstyle
 pydocstyle: $(PYSOURCES)
 	pydocstyle --add-ignore=D100,D101,D102,D103 $^ || true
 
-pydocstyle_report.txt: $(filter-out tests/%,${PYSOURCES})
+pydocstyle_report.txt: $(PYSOURCES)
 	pydocstyle setup.py $^ > $@ 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt
@@ -102,12 +103,15 @@ diff_pydocstyle_report: pydocstyle_report.txt
 format:
 	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests
 
+format-check:
+	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests
+
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
                 $^ -j0|| true
 
-pylint_report.txt: ${PYSOURCES}
+pylint_report.txt: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
 		$^ -j0> $@ || true
 
@@ -138,18 +142,18 @@ diff-cover.html: coverage.xml
 	diff-cover $^ --html-report $@
 
 ## test        : run the ${MODULE} test suite
-test: $(pysources)
-	python setup.py test --addopts "-n auto --dist=loadfile"
+test: $(PYSOURCES)
+	python -m pytest ${PYTEST_EXTRA}
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
-testcov: $(pysources)
-	python setup.py test --addopts "--cov cwltool -n auto --dist=loadfile"
+testcov: $(PYSOURCES)
+	python -m pytest --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
 
-sloccount.sc: ${PYSOURCES} Makefile
+sloccount.sc: $(PYSOURCES) Makefile
 	sloccount --duplicates --wide --details $^ > $@
 
 ## sloccount   : count lines of code
-sloccount: ${PYSOURCES} Makefile
+sloccount: $(PYSOURCES) Makefile
 	sloccount $^
 
 list-author-emails:
@@ -157,23 +161,25 @@ list-author-emails:
 	@git log --format='%aN,%aE' | sort -u | grep -v 'root'
 
 mypy3: mypy
-mypy: $(filter-out setup.py gittagger.py,${PYSOURCES})
+mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
 	if ! test -f $(shell python3 -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
 	then \
-		rm -Rf typeshed/2and3/ruamel/yaml ; \
+		rm -Rf typeshed/ruamel/yaml ; \
 		ln -s $(shell python3 -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-			typeshed/2and3/ruamel/ ; \
+			typeshed/ruamel/ ; \
 	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
-	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
-		 --warn-redundant-casts \
-		 $^
+	MYPYPATH=$$MYPYPATH:typeshed mypy $^
 
-mypyc: ${PYSOURCES}
-	MYPYPATH=typeshed/2and3/:typeshed/3 CWLTOOL_USE_MYPYC=1 pip install --verbose -e . && pytest --ignore cwltool/schemas --basetemp ./tmp
+mypyc: $(PYSOURCES)
+	MYPYPATH=typeshed CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
+		 && pytest ${PYTEST_EXTRA}
 
 shellcheck: FORCE
 	shellcheck build-cwl-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
 		cwltool-in-docker.sh
+
+pyupgrade: $(PYSOURCES)
+	pyupgrade --exit-zero-even-if-changed --py36-plus $^
 
 release-test: FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )
@@ -185,6 +191,9 @@ release: release-test
 		pip install twine && \
 		twine upload testenv2/src/${MODULE}/dist/* && \
 		git tag ${VERSION} && git push --tags
+
+flake8: $(PYSOURCES)
+	flake8 $^
 
 FORCE:
 

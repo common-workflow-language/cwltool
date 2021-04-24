@@ -12,12 +12,14 @@ from .utils import CWLObjectType
 class WorkflowStatus(Exception):
     def __init__(self, out: Optional[CWLObjectType], status: str) -> None:
         """Signaling exception for the status of a Workflow."""
-        super(WorkflowStatus, self).__init__("Completed %s" % status)
+        super().__init__("Completed %s" % status)
         self.out = out
         self.status = status
 
 
-class Callable(object):
+class Callable:
+    """Result of Factory.make()."""
+
     def __init__(self, t: Process, factory: "Factory") -> None:
         """Initialize."""
         self.t = t
@@ -34,14 +36,15 @@ class Callable(object):
             return out
 
 
-class Factory(object):
+class Factory:
+    """Easy way to load a CWL document for execution."""
+
     def __init__(
         self,
         executor: Optional[JobExecutor] = None,
         loading_context: Optional[LoadingContext] = None,
         runtime_context: Optional[RuntimeContext] = None,
     ) -> None:
-        """Easy way to load a CWL document for execution."""
         if executor is None:
             executor = SingleJobExecutor()
         self.executor = executor

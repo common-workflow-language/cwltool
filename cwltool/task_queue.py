@@ -10,7 +10,7 @@ from typing import Callable, Optional
 from .loghandler import _logger
 
 
-class TaskQueue(object):
+class TaskQueue:
     """A TaskQueue class.
 
     Uses a first-in, first-out queue of tasks executed on a fixed number of

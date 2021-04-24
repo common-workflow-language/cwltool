@@ -15,7 +15,7 @@ def test_subclass() -> None:
             stagedir: str,
             new: str,
         ):
-            super(SubPathMapper, self).__init__(referenced_files, basedir, stagedir)
+            super().__init__(referenced_files, basedir, stagedir)
             self.new = new
 
     pathmap = SubPathMapper([], "", "", "new")

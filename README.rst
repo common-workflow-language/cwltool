@@ -2,7 +2,7 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-|Linux Status| |Debian Stable package| |Debian Testing package| |Windows Status| |Coverage Status| |Downloads|
+|Linux Status| |Debian Stable package| |Debian Testing package| |Coverage Status| |Downloads|
 
 .. |Linux Status| image:: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml/badge.svg?branch=main
    :target: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml
@@ -12,9 +12,6 @@ Common Workflow Language tool description reference implementation
 
 .. |Debian Testing package| image:: https://badges.debian.net/badges/debian/testing/cwltool/version.svg
    :target: https://packages.debian.org/testing/cwltool
-
-.. |Windows Status| image:: https://img.shields.io/appveyor/ci/mr-c/cwltool/main.svg?label=Windows%20builds
-   :target: https://ci.appveyor.com/project/mr-c/cwltool
 
 .. |Coverage Status| image:: https://img.shields.io/codecov/c/github/common-workflow-language/cwltool.svg
    :target: https://codecov.io/gh/common-workflow-language/cwltool
@@ -51,7 +48,7 @@ and similar Linux distribution try
 
 .. code:: bash
 
-  sudo apt-get install cwltool
+   sudo apt-get install cwltool
 
 If you are running MacOS X or other UNIXes and you want to use packages prepared by the conda-forge project, then
 please follow the install instructions for `conda-forge <https://conda-forge.org/#about>`_ (if you haven't already) and then 
@@ -61,12 +58,12 @@ please follow the install instructions for `conda-forge <https://conda-forge.org
    conda install -c conda-forge cwltool
 
 All of the above methods of installing ``cwltool`` use packages which might contain bugs already fixed in newer versions, or be missing features that you desire.
-If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv``::
+If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv``
 
 .. code:: bash
 
-  python3 -m venv env      # Create a virtual environment named 'env' in the current directory
-  source env/bin/activate  # Activate environment before installing `cwltool`
+   python3 -m venv env      # Create a virtual environment named 'env' in the current directory
+   source env/bin/activate  # Activate environment before installing `cwltool`
 
 Then install the latest ``cwlref-runner`` package from PyPi (which will install the latest ``cwltool`` package as
 well)
@@ -98,9 +95,9 @@ Or you can skip the direct ``pip`` commands above and install the latest develop
 .. code:: bash
 
   git clone https://github.com/common-workflow-language/cwltool.git # clone (copy) the cwltool git repository
-  cd cwltool         # Change to source directory that git clone just downloaded
-  pip install .      # Installs ``cwltool`` from source
-  cwltool --version  # Check if the installation works correctly
+  cd cwltool           # Change to source directory that git clone just downloaded
+  pip install .[deps]  # Installs ``cwltool`` from source
+  cwltool --version    # Check if the installation works correctly
 
 Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
@@ -154,7 +151,7 @@ One such "user space" friendly docker replacement is ``udocker`` https://github.
 
 udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-udockertools-tarball
 
-Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
+Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests
 
 .. code:: bash
 
@@ -169,7 +166,8 @@ runtime, provide ``--singularity`` command line option to ``cwltool``.
 With Singularity, ``cwltool`` can pass all CWL v1.0 conformance tests, except
 those involving Docker container ENTRYPOINTs.
 
-Example:
+Example
+
 .. code:: bash
 
   cwltool --singularity https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/blob/main/v1.0/v1.0/cat-job.json
@@ -617,19 +615,19 @@ To run the basic tests after installing `cwltool` execute the following:
 .. code:: bash
 
   pip install -rtest-requirements.txt
-  py.test --ignore cwltool/schemas/ --pyarg cwltool
+  pytest
 
 To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/main/tox.ini>`_. To run the test suite in all supported Python environments
 first downloading the complete code repository (see the ``git clone`` instructions above) and then run
 the following in the terminal:
-``pip install tox; tox``
+``pip install tox; tox -p``
 
 List of all environment can be seen using:
 ``tox --listenvs``
 and running a specfic test env using:
 ``tox -e <env name>``
 and additionally run a specific test using this format:
-``tox -e py36-unit -- tests/test_examples.py::TestParamMatching``
+``tox -e py36-unit -- -v tests/test_examples.py::test_scandeps``
 
 -  Running the entire suite of CWL conformance tests:
 

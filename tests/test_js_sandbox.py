@@ -3,9 +3,9 @@ from typing import Any
 import pytest
 
 from cwltool import sandboxjs
-from cwltool.utils import onWindows
+from cwltool.factory import Factory
 
-from .util import get_data, get_windows_safe_factory, windows_needs_docker
+from .util import get_data
 
 node_versions = [
     ("v0.8.26\n", False),
@@ -24,18 +24,14 @@ def test_node_version(version: str, supported: bool, mocker: Any) -> None:
     assert sandboxjs.check_js_threshold_version("node") == supported
 
 
-@windows_needs_docker
 def test_value_from_two_concatenated_expressions() -> None:
-    factory = get_windows_safe_factory()
+    factory = Factory()
     echo = factory.make(get_data("tests/wf/vf-concat.cwl"))
     file = {"class": "File", "location": get_data("tests/wf/whale.txt")}
 
     assert echo(file1=file) == {"out": "a string\n"}
 
 
-@pytest.mark.skipif(
-    onWindows(), reason="Caching processes for windows is not supported."
-)
 def test_caches_js_processes(mocker: Any) -> None:
     sandboxjs.exec_js_process("7", context="{}")
 

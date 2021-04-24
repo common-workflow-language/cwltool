@@ -5,7 +5,6 @@ import os.path
 import re
 import shutil
 import sys
-from distutils import spawn
 from subprocess import (  # nosec
     DEVNULL,
     PIPE,
@@ -24,13 +23,7 @@ from .errors import UnsupportedRequirement, WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
-from .utils import (
-    CWLObjectType,
-    create_tmp_dir,
-    docker_windows_path_adjust,
-    ensure_non_writable,
-    ensure_writable,
-)
+from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_writable
 
 _USERNS = None  # type: Optional[bool]
 _SINGULARITY_VERSION = ""
@@ -50,6 +43,7 @@ def _singularity_supports_userns() -> bool:
             _USERNS = (
                 "No valid /bin/sh" in result
                 or "/bin/sh doesn't exist in container" in result
+                or "executable file not found in" in result
             )
         except TimeoutExpired:
             _USERNS = False
@@ -99,9 +93,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         name: str,
     ) -> None:
         """Builder for invoking the Singularty software container engine."""
-        super(SingularityCommandLineJob, self).__init__(
-            builder, joborder, make_path_mapper, requirements, hints, name
-        )
+        super().__init__(builder, joborder, make_path_mapper, requirements, hints, name)
 
     @staticmethod
     def get_image(
@@ -268,7 +260,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         (e.g. hello-world-latest.{img,sif}).
         """
-        if not bool(spawn.find_executable("singularity")):
+        if not bool(shutil.which("singularity")):
             raise WorkflowException("singularity executable is not available")
 
         if not self.get_image(cast(Dict[str, str], r), pull_image, force_pull):
@@ -285,8 +277,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         runtime.append("--bind")
         runtime.append(
             "{}:{}:{}".format(
-                docker_windows_path_adjust(source),
-                docker_windows_path_adjust(target),
+                source,
+                target,
                 "rw" if writable else "ro",
             )
         )
@@ -398,7 +390,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             runtime.append("--home")
             runtime.append(
                 "{}:{}".format(
-                    docker_windows_path_adjust(os.path.realpath(self.outdir)),
+                    os.path.realpath(self.outdir),
                     self.builder.outdir,
                 )
             )
@@ -406,17 +398,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             runtime.append("--bind")
             runtime.append(
                 "{}:{}:rw".format(
-                    docker_windows_path_adjust(os.path.realpath(self.outdir)),
+                    os.path.realpath(self.outdir),
                     self.builder.outdir,
                 )
             )
         runtime.append("--bind")
         tmpdir = "/tmp"  # nosec
-        runtime.append(
-            "{}:{}:rw".format(
-                docker_windows_path_adjust(os.path.realpath(self.tmpdir)), tmpdir
-            )
-        )
+        runtime.append("{}:{}:rw".format(os.path.realpath(self.tmpdir), tmpdir))
 
         self.add_volumes(
             self.pathmapper,
@@ -435,7 +423,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             )
 
         runtime.append("--pwd")
-        runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
+        runtime.append(self.builder.outdir)
 
         if runtime_context.custom_net:
             raise UnsupportedRequirement(
@@ -448,5 +436,5 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         env["SINGULARITYENV_HOME"] = self.builder.outdir
 
         for name, value in self.environment.items():
-            env["SINGULARITYENV_{}".format(name)] = str(value)
+            env[f"SINGULARITYENV_{name}"] = str(value)
         return (runtime, None)

@@ -167,7 +167,7 @@ def _convert_stdstreams_to_files(
                 ):
                     if not isinstance(out, CommentedMap):
                         raise ValidationException(
-                            "Output '{}' is not a valid OutputParameter.".format(out)
+                            f"Output '{out}' is not a valid OutputParameter."
                         )
                     for streamtype in ["stdout", "stderr"]:
                         if out.get("type") == streamtype:

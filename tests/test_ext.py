@@ -8,7 +8,7 @@ import pytest
 import cwltool.process
 from cwltool.main import main
 
-from .util import get_data, needs_docker, windows_needs_docker
+from .util import get_data, needs_docker
 
 
 @needs_docker
@@ -31,20 +31,14 @@ def test_listing_deep() -> None:
 
 
 @needs_docker
-def test_cwltool_options() -> None:
-    try:
-        opt = os.environ.get("CWLTOOL_OPTIONS")
-        os.environ["CWLTOOL_OPTIONS"] = "--enable-ext"
-        params = [
-            get_data("tests/wf/listing_deep.cwl"),
-            get_data("tests/listing-job.yml"),
-        ]
-        assert main(params) == 0
-    finally:
-        if opt is not None:
-            os.environ["CWLTOOL_OPTIONS"] = opt
-        else:
-            del os.environ["CWLTOOL_OPTIONS"]
+def test_cwltool_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Check setting options via environment variable."""
+    monkeypatch.setenv("CWLTOOL_OPTIONS", "--enable-ext")
+    params = [
+        get_data("tests/wf/listing_deep.cwl"),
+        get_data("tests/listing-job.yml"),
+    ]
+    assert main(params) == 0
 
 
 @needs_docker
@@ -113,7 +107,7 @@ def test_double_overwrite(tmp_path: Path) -> None:
         == 0
     )
 
-    with open(tmp_name, "r") as f:
+    with open(tmp_name) as f:
         actual_value = f.read()
 
     assert actual_value == expected_value
@@ -146,9 +140,9 @@ def test_disable_file_overwrite_without_ext(tmp_path: Path) -> None:
         == 0
     )
 
-    with open(tmp_name, "r") as f:
+    with open(tmp_name) as f:
         tmp_value = f.read()
-    with open(out_name, "r") as f:
+    with open(out_name) as f:
         out_value = f.read()
 
     assert tmp_value == before_value
@@ -195,7 +189,7 @@ def test_disable_file_creation_in_outdir_with_ext(tmp_path: Path) -> None:
     ]
     assert main(params) == 0
 
-    with open(tmp_name, "r") as f:
+    with open(tmp_name) as f:
         tmp_value = f.read()
 
     assert tmp_value == expected_value
@@ -236,7 +230,7 @@ def test_write_write_conflict(tmp_path: Path) -> None:
         main(["--enable-ext", get_data("tests/wf/mut.cwl"), "-a", str(tmp_name)]) != 0
     )
 
-    with open(tmp_name, "r") as f:
+    with open(tmp_name) as f:
         tmp_value = f.read()
 
     assert tmp_value == expected_value
@@ -278,7 +272,6 @@ def test_require_prefix_workreuse(tmp_path: Path) -> None:
     assert main(["--enable-ext", get_data("tests/wf/workreuse-fail.cwl")]) != 0
 
 
-@windows_needs_docker
 def test_require_prefix_timelimit() -> None:
     assert main(["--enable-ext", get_data("tests/wf/timelimit.cwl")]) == 0
     assert main([get_data("tests/wf/timelimit.cwl")]) != 0

@@ -21,12 +21,7 @@ from schema_salad.utils import json_dumps
 from .errors import WorkflowException
 from .loghandler import _logger
 from .sandboxjs import JavascriptException, default_timeout, execjs
-from .utils import (
-    CWLObjectType,
-    CWLOutputType,
-    bytes2str_in_dicts,
-    docker_windows_path_adjust,
-)
+from .utils import CWLObjectType, CWLOutputType, bytes2str_in_dicts
 
 
 def jshead(engine_config: List[str], rootvars: CWLObjectType) -> str:
@@ -47,9 +42,9 @@ seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
 seg_index = r"""\[[0-9]+\]"""
-segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
+segments = fr"(\.{seg_symbol}|{seg_single}|{seg_double}|{seg_index})"
 segment_re = re.compile(segments, flags=re.UNICODE)
-param_str = r"\((%s)%s*\)$" % (seg_symbol, segments)
+param_str = fr"\(({seg_symbol}){segments}*\)$"
 param_re = re.compile(param_str, flags=re.UNICODE)
 
 
@@ -163,9 +158,7 @@ def next_seg(
                     % (parsed_string, type(current_value).__name__, key)
                 )
             if key not in current_value:
-                raise WorkflowException(
-                    "%s does not contain key '%s'" % (parsed_string, key)
-                )
+                raise WorkflowException(f"{parsed_string} does not contain key '{key}'")
         else:
             try:
                 key = int(next_segment_str[1:-1])
@@ -189,9 +182,7 @@ def next_seg(
                     cast(CWLOutputType, current_value[cast(str, key)]),
                 )
             except KeyError:
-                raise WorkflowException(
-                    "%s doesn't have property %s" % (parsed_string, key)
-                )
+                raise WorkflowException(f"{parsed_string} doesn't have property {key}")
         elif isinstance(current_value, list) and isinstance(key, int):
             try:
                 return next_seg(
@@ -200,13 +191,9 @@ def next_seg(
                     current_value[key],
                 )
             except KeyError:
-                raise WorkflowException(
-                    "%s doesn't have property %s" % (parsed_string, key)
-                )
+                raise WorkflowException(f"{parsed_string} doesn't have property {key}")
         else:
-            raise WorkflowException(
-                "%s doesn't have property %s" % (parsed_string, key)
-            )
+            raise WorkflowException(f"{parsed_string} doesn't have property {key}")
     else:
         return current_value
 
@@ -358,7 +345,7 @@ def interpolate(
         scan = scan[w[1] :]
         w = scanner(scan)
     if convert_to_expression:
-        parts.append('"{}"'.format(scan))
+        parts.append(f'"{scan}"')
         parts.append(";}")
     else:
         parts.append(scan)
@@ -386,8 +373,8 @@ def do_eval(
 ) -> Optional[CWLOutputType]:
 
     runtime = cast(MutableMapping[str, Union[int, str, None]], copy.deepcopy(resources))
-    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir) if tmpdir else None
-    runtime["outdir"] = docker_windows_path_adjust(outdir) if outdir else None
+    runtime["tmpdir"] = tmpdir if tmpdir else None
+    runtime["outdir"] = outdir if outdir else None
 
     rootvars = cast(
         CWLObjectType,

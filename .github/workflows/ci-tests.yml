@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 env:
   singularity_version: 3.6.4
@@ -28,6 +29,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       - name: Set up Singularity
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
@@ -78,7 +81,7 @@ jobs:
 
     strategy:
       matrix:
-        step: [lint-readme, shellcheck, pydocstyle]
+        step: [lintreadme, shellcheck, pydocstyle]
 
     env:
       py-semver: 3.9

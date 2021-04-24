@@ -12,7 +12,6 @@ import stat
 import textwrap
 import urllib
 import uuid
-from io import open
 from os import scandir
 from typing import (
     Any,
@@ -68,11 +67,9 @@ from .utils import (
     adjustDirObjs,
     aslist,
     cmp_like_py2,
-    copytree_with_merge,
     ensure_writable,
     get_listing,
     normalizeFilesDirs,
-    onWindows,
     random_outdir,
     visit_class,
 )
@@ -86,7 +83,7 @@ class LogAsDebugFilter(logging.Filter):
     def __init__(self, name: str, parent: logging.Logger) -> None:
         """Initialize."""
         name = str(name)
-        super(LogAsDebugFilter, self).__init__(name)
+        super().__init__(name)
         self.parent = parent
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -196,23 +193,23 @@ def get_schema(
         version = ".".join(version.split(".")[:-1])
     for f in cwl_files:
         try:
-            res = resource_stream(__name__, "schemas/%s/%s" % (version, f))
+            res = resource_stream(__name__, f"schemas/{version}/{f}")
             cache["https://w3id.org/cwl/" + f] = res.read().decode("UTF-8")
             res.close()
-        except IOError:
+        except OSError:
             pass
 
     for f in salad_files:
         try:
             res = resource_stream(
                 __name__,
-                "schemas/{}/salad/schema_salad/metaschema/{}".format(version, f),
+                f"schemas/{version}/salad/schema_salad/metaschema/{f}",
             )
             cache[
                 "https://w3id.org/cwl/salad/schema_salad/metaschema/" + f
             ] = res.read().decode("UTF-8")
             res.close()
-        except IOError:
+        except OSError:
             pass
 
     if version in custom_schemas:
@@ -274,10 +271,10 @@ def stage_files(
                 # find first key that does not clash with an existing entry in targets
                 # start with entry.target + '_' + 2 and then keep incrementing the number till there is no clash
                 i = 2
-                tgt = "%s_%s" % (entry.target, i)
+                tgt = f"{entry.target}_{i}"
                 while tgt in targets:
                     i += 1
-                    tgt = "%s_%s" % (entry.target, i)
+                    tgt = f"{entry.target}_{i}"
                 targets[tgt] = pathmapper.update(
                     key, entry.resolved, tgt, entry.type, entry.staged
                 )
@@ -294,15 +291,7 @@ def stage_files(
             os.makedirs(os.path.dirname(entry.target))
         if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
             if symlink:  # Use symlink func if allowed
-                if onWindows():
-                    if entry.type == "File":
-                        shutil.copy(entry.resolved, entry.target)
-                    elif entry.type == "Directory":
-                        if os.path.exists(entry.target) and os.path.isdir(entry.target):
-                            shutil.rmtree(entry.target)
-                        copytree_with_merge(entry.resolved, entry.target)
-                else:
-                    os.symlink(entry.resolved, entry.target)
+                os.symlink(entry.resolved, entry.target)
             elif stage_func is not None:
                 stage_func(entry.resolved, entry.target)
         elif (
@@ -357,12 +346,10 @@ def relocateOutputs(
                 yield obj
             else:
                 for sub_obj in obj.values():
-                    for dir_entry in _collectDirEntries(sub_obj):
-                        yield dir_entry
+                    yield from _collectDirEntries(sub_obj)
         elif isinstance(obj, MutableSequence):
             for sub_obj in obj:
-                for dir_entry in _collectDirEntries(sub_obj):
-                    yield dir_entry
+                yield from _collectDirEntries(sub_obj)
 
     def _relocate(src: str, dst: str) -> None:
         if src == dst:
@@ -568,7 +555,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         self, toolpath_object: CommentedMap, loadingContext: LoadingContext
     ) -> None:
         """Build a Process object from the provided dictionary."""
-        super(Process, self).__init__()
+        super().__init__()
         self.metadata = getdefault(loadingContext.metadata, {})  # type: CWLObjectType
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
         self.parent_wf = None  # type: Optional[ProvenanceProfile]
@@ -591,7 +578,15 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         self.names = make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader({}))
         self.tool = toolpath_object
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
-        self.requirements.extend(self.tool.get("requirements", []))
+        tool_requirements = self.tool.get("requirements", [])
+        if tool_requirements is None:
+            raise ValidationException(
+                SourceLine(self.tool, "requirements").makeError(
+                    "If 'requirements' is present then it must be a list "
+                    "or map/dictionary, not empty."
+                )
+            )
+        self.requirements.extend(tool_requirements)
         if "id" not in self.tool:
             self.tool["id"] = "_:" + str(uuid.uuid4())
         self.requirements.extend(
@@ -603,7 +598,15 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             )
         )
         self.hints = copy.deepcopy(getdefault(loadingContext.hints, []))
-        self.hints.extend(self.tool.get("hints", []))
+        tool_hints = self.tool.get("hints", [])
+        if tool_hints is None:
+            raise ValidationException(
+                SourceLine(self.tool, "hints").makeError(
+                    "If 'hints' is present then it must be a list "
+                    "or map/dictionary, not empty."
+                )
+            )
+        self.hints.extend(tool_hints)
         # Versions of requirements and hints which aren't mutated.
         self.original_requirements = copy.deepcopy(self.requirements)
         self.original_hints = copy.deepcopy(self.hints)
@@ -1019,11 +1022,11 @@ hints:
                     avsc_names.get_name(cast(str, r["class"]), None) is not None
                     and self.doc_loader is not None
                 ):
-                    plain_hint = dict(
-                        (key, r[key])
+                    plain_hint = {
+                        key: r[key]
                         for key in r
                         if key not in self.doc_loader.identifiers
-                    )  # strip identifiers
+                    }  # strip identifiers
                     validate_ex(
                         cast(
                             Schema,
@@ -1061,7 +1064,7 @@ def uniquename(stem: str, names: Optional[Set[str]] = None) -> str:
     u = stem
     while u in names:
         c += 1
-        u = "%s_%s" % (stem, c)
+        u = f"{stem}_{c}"
     names.add(u)
     return u
 
@@ -1153,7 +1156,21 @@ def scandeps(
                 if doc["class"] == "Directory" and "listing" in doc:
                     deps["listing"] = doc["listing"]
                 if doc["class"] == "File" and "secondaryFiles" in doc:
-                    deps["secondaryFiles"] = doc["secondaryFiles"]
+                    deps["secondaryFiles"] = cast(
+                        CWLOutputAtomType,
+                        scandeps(
+                            base,
+                            cast(
+                                Union[CWLObjectType, MutableSequence[CWLObjectType]],
+                                doc["secondaryFiles"],
+                            ),
+                            reffields,
+                            urlfields,
+                            loadref,
+                            urljoin=urljoin,
+                            nestdirs=nestdirs,
+                        ),
+                    )
                 if nestdirs:
                     deps = nestdir(base, deps)
                 r.append(deps)

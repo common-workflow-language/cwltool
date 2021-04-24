@@ -36,7 +36,9 @@ python3 "run_job.py" "job.json"
 )
 
 
-class DependenciesConfiguration(object):
+class DependenciesConfiguration:
+    """Dependency configuration class, for RuntimeContext.job_script_provider."""
+
     def __init__(self, args: argparse.Namespace) -> None:
         """Initialize."""
         conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)

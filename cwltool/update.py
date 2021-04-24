@@ -210,25 +210,25 @@ ORDERED_VERSIONS = [
 ]
 
 UPDATES = {
-    u"v1.0": v1_0to1_1,
-    u"v1.1": v1_1to1_2,
-    u"v1.2": None,
+    "v1.0": v1_0to1_1,
+    "v1.1": v1_1to1_2,
+    "v1.2": None,
 }  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
 
 DEVUPDATES = {
-    u"v1.1.0-dev1": v1_1_0dev1to1_1,
-    u"v1.2.0-dev1": v1_2_0dev1todev2,
-    u"v1.2.0-dev2": v1_2_0dev2todev3,
-    u"v1.2.0-dev3": v1_2_0dev3todev4,
-    u"v1.2.0-dev4": v1_2_0dev4todev5,
-    u"v1.2.0-dev5": v1_2_0dev5to1_2,
+    "v1.1.0-dev1": v1_1_0dev1to1_1,
+    "v1.2.0-dev1": v1_2_0dev1todev2,
+    "v1.2.0-dev2": v1_2_0dev2todev3,
+    "v1.2.0-dev3": v1_2_0dev3todev4,
+    "v1.2.0-dev4": v1_2_0dev4todev5,
+    "v1.2.0-dev5": v1_2_0dev5to1_2,
 }  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
 
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = u"v1.2"
+INTERNAL_VERSION = "v1.2"
 
 ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 
@@ -283,7 +283,7 @@ def checkversion(
                 keys = list(UPDATES.keys())
                 keys.sort()
                 raise ValidationException(
-                    u"Version '%s' is a development or deprecated version.\n "
+                    "Version '%s' is a development or deprecated version.\n "
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
                     "deprecated versions." % (version, ", ".join(keys))
