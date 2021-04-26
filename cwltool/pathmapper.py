@@ -177,6 +177,13 @@ class PathMapper:
                 copy=cast(bool, fob.get("writable", False)),
                 staged=True,
             )
+  
+        targets = {}  # type: Dict[Text, Text]
+        for k,v in self._pathmap.items():
+            if v.target in targets:
+                raise validate.ValidationException("Name conflict: both %s and %s have been assigned to target %s" % (k, targets[v.target], v.target))
+            if v.type != "Directory":
+                targets[v.target] = k
 
     def mapper(self, src: str) -> MapperEnt:
         if "#" in src:
