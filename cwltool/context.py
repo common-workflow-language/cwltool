@@ -93,7 +93,7 @@ class RuntimeContext(ContextBase):
         self.user_space_docker_cmd = ""  # type: Optional[str]
         self.secret_store = None  # type: Optional[SecretStore]
         self.no_read_only = False  # type: bool
-        self.custom_net = ""  # type: Optional[str]
+        self.custom_net = None  # type: Optional[str]
         self.no_match_user = False  # type: bool
         self.preserve_environment = None  # type: Optional[Iterable[str]]
         self.preserve_entire_environment = False  # type: bool
@@ -109,7 +109,6 @@ class RuntimeContext(ContextBase):
         self.move_outputs = "move"  # type: str
 
         self.singularity = False  # type: bool
-        self.disable_net = False  # type: bool
         self.debug = False  # type: bool
         self.compute_checksum = True  # type: bool
         self.name = ""  # type: str

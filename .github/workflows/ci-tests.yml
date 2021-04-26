@@ -123,9 +123,15 @@ jobs:
     strategy:
       matrix:
         cwl-version: [v1.0, v1.1, v1.2]
+        container: [docker, singularity]
 
     steps:
       - uses: actions/checkout@v2
+
+      - name: Set up Singularity
+        uses: eWaterCycle/setup-singularity@v6
+        with:
+          singularity-version: ${{ env.singularity_version }}
 
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -141,6 +147,8 @@ jobs:
       - name: Run CWL conformance tests ${{ matrix.cwl-version }}
         env:
           version: ${{ matrix.cwl-version }}
+          container: ${{ matrix.container }}
+          spec_branch: main
         run: ./conformance-test.sh
 
   release_test:
