@@ -19,7 +19,7 @@ from schema_salad.sourceline import SourceLine
 
 from .builder import Builder
 from .context import RuntimeContext
-from .errors import UnsupportedRequirement, WorkflowException
+from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
@@ -435,12 +435,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         runtime.append("--pwd")
         runtime.append(self.builder.outdir)
 
-        if runtime_context.custom_net:
-            raise UnsupportedRequirement(
-                "Singularity implementation does not support custom networking"
-            )
-        elif runtime_context.disable_net:
-            runtime.append("--net")
+        if self.networkaccess:
+            if runtime_context.custom_net:
+                runtime.extend(["--net", "--network", runtime_context.custom_net])
+        else:
+            runtime.extend(["--net", "--network", "none"])
 
         for name, value in self.environment.items():
             env[f"SINGULARITYENV_{name}"] = str(value)
