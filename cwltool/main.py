@@ -148,7 +148,7 @@ def generate_example_input(
 ) -> Tuple[Any, str]:
     """Convert a single input schema into an example."""
     example = None
-    comment = ""
+    comment = None
     defaults = {
         "null": "null",
         "Any": "null",
