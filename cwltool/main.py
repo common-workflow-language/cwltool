@@ -811,7 +811,7 @@ def choose_step(
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
         if url.fragment:
-            extracted = get_step(tool, tool.tool["id"] + "/" + args.singe_step)
+            extracted = get_step(tool, tool.tool["id"] + "/" + args.single_step)
         else:
             extracted = get_step(
                 tool,
