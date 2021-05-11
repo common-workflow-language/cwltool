@@ -64,3 +64,22 @@ $graph:
         The number of MPI processes to start. If you give a string,
         this will be evaluated as a CWL Expression and it must
         evaluate to an integer.
+
+- name: StepNameHint
+  type: record
+  inVocab: false
+  extends: cwl:ProcessRequirement
+  doc: |
+    Provide a hint for naming the runtime workflow step in logs or user interface.
+  fields:
+    - name: class
+      type: string
+      doc: "Always 'StepNameHint'" 
+      jsonldPredicate:
+        "_id": "@type" 
+        "_type": "@vocab" 
+    - name: stepname:
+      type: [string, Expression]
+      doc: |
+        A string or expression returning a string with the preferred name for the step.  
+        If it is an expression, it is evaluated after the input object has been completely determined.

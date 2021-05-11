@@ -662,12 +662,14 @@ def setup_schema(
         use_custom_schema("v1.2.0-dev1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev3", "http://commonwl.org/cwltool", ext11)
+        use_custom_schema("v1.2", "http://commonwl.org/cwltool", ext11)
     else:
         use_standard_schema("v1.0")
         use_standard_schema("v1.1")
         use_standard_schema("v1.2.0-dev1")
         use_standard_schema("v1.2.0-dev2")
         use_standard_schema("v1.2.0-dev3")
+        use_standard_schema("v1.2")
 
 
 class ProvLogFormatter(logging.Formatter):
