@@ -15,9 +15,9 @@ from abc import ABCMeta, abstractmethod
 from io import IOBase
 from threading import Timer
 from typing import (
+    IO,
     Callable,
     Dict,
-    IO,
     Iterable,
     List,
     Mapping,

@@ -5,8 +5,8 @@ import json
 import os
 import shutil
 import subprocess
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Dict, Generator, List, Mapping, Optional, Tuple, Union
 
 import pytest

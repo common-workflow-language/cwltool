@@ -644,6 +644,16 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Only executes a single step in a workflow. The input object must "
         "match that step's inputs. Can be combined with --print-subgraph.",
     )
+    subgroup.add_argument(
+        "--single-process",
+        type=str,
+        default=None,
+        help="Only executes the underlying Process (CommandLineTool, "
+        "ExpressionTool, or sub-Workflow) for the given step in a workflow. "
+        "This will not include any step-level processing: scatter, when, no "
+        "processing of step-level default, or valueFrom input modifiers. "
+        "The input object must match that Process's inputs.",
+    )
 
     parser.add_argument(
         "--mpi-config-file",

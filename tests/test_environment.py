@@ -1,12 +1,13 @@
 """Test passing of environment variables to tools."""
-from abc import ABC, abstractmethod
 import os
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Mapping, Set, Union, cast
 
 import pytest
 
 from cwltool.singularity import get_version
+
 from .util import env_accepts_null, get_tool_env, needs_docker, needs_singularity
 
 # None => accept anything, just require the key is present

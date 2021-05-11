@@ -81,7 +81,7 @@ from .software_requirements import (
     get_container_from_software_requirements,
 )
 from .stdfsaccess import StdFsAccess
-from .subgraph import get_step, get_subgraph
+from .subgraph import get_process, get_step, get_subgraph
 from .update import ALLUPDATES, UPDATES
 from .utils import (
     DEFAULT_TMP_PREFIX,
@@ -831,6 +831,43 @@ def choose_step(
     return tool
 
 
+def choose_process(
+    args: argparse.Namespace,
+    tool: Process,
+    loadingContext: LoadingContext,
+) -> Optional[Process]:
+    """Walk the given Workflow and extract just args.single_step."""
+    if loadingContext.loader is None:
+        raise Exception("loadingContext.loader cannot be None")
+
+    if isinstance(tool, Workflow):
+        url = urllib.parse.urlparse(tool.tool["id"])
+        if url.fragment:
+            extracted = get_process(
+                tool,
+                tool.tool["id"] + "/" + args.single_process,
+                loadingContext.loader.idx,
+            )
+        else:
+            extracted = get_process(
+                tool,
+                loadingContext.loader.fetcher.urljoin(
+                    tool.tool["id"], "#" + args.single_process
+                ),
+                loadingContext.loader.idx,
+            )
+    else:
+        _logger.error("Can only use --single-process on Workflows")
+        return None
+    if isinstance(loadingContext.loader.idx, MutableMapping):
+        loadingContext.loader.idx[extracted["id"]] = extracted
+        tool = make_tool(extracted["id"], loadingContext)
+    else:
+        raise Exception("Missing loadingContext.loader.idx!")
+
+    return tool
+
+
 def check_working_directories(
     runtimeContext: RuntimeContext,
 ) -> Optional[int]:
@@ -1063,6 +1100,13 @@ def main(
 
             elif args.single_step:
                 ctool = choose_step(args, tool, loadingContext)
+                if ctool is None:
+                    return 1
+                else:
+                    tool = ctool
+
+            elif args.single_process:
+                ctool = choose_process(args, tool, loadingContext)
                 if ctool is None:
                     return 1
                 else:
