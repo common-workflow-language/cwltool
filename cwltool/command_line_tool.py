@@ -1337,6 +1337,15 @@ class CommandLineTool(Process):
                             )
                         try:
                             prefix = fs_access.glob(outdir)
+                            sorted_glob_result = sorted(
+                                fs_access.glob(fs_access.join(outdir, gb)),
+                                key=cmp_to_key(
+                                    cast(
+                                        Callable[[str, str], int],
+                                        locale.strcoll,
+                                    )
+                                )
+                            )
                             r.extend(
                                 [
                                     {
@@ -1344,28 +1353,22 @@ class CommandLineTool(Process):
                                         "path": fs_access.join(
                                             builder.outdir,
                                             urllib.parse.unquote(
-                                                g[len(prefix[0]) + 1 :]
-                                            ),
+                                                g[len(prefix[0]) + 1:]
+                                            )
                                         ),
-                                        "basename": os.path.basename(g),
-                                        "nameroot": os.path.splitext(
-                                            os.path.basename(g)
-                                        )[0],
-                                        "nameext": os.path.splitext(
-                                            os.path.basename(g)
-                                        )[1],
+                                        "basename": decoded_basename,
+                                        "nameroot": os.path.splitext(decoded_basename)[0],
+                                        "nameext": os.path.splitext(decoded_basename)[1],
                                         "class": "File"
                                         if fs_access.isfile(g)
                                         else "Directory",
                                     }
-                                    for g in sorted(
-                                        fs_access.glob(fs_access.join(outdir, gb)),
-                                        key=cmp_to_key(
-                                            cast(
-                                                Callable[[str, str], int],
-                                                locale.strcoll,
-                                            )
-                                        ),
+                                    for g, decoded_basename in zip(
+                                        sorted_glob_result,
+                                        map(lambda x:
+                                            os.path.basename(urllib.parse.unquote(x)),
+                                            sorted_glob_result
+                                        )
                                     )
                                 ]
                             )
