@@ -111,7 +111,9 @@ setup(
         "ruamel.yaml >= 0.12.4, <= 0.16.5",
         "rdflib >= 4.2.2, < 5.1.0",
         "shellescape >= 3.4.1, < 3.5",
-        "schema-salad >= 7.1, < 8",
+        # 7.1.20210518142926 or later required due to
+        # https://github.com/common-workflow-language/schema_salad/issues/385
+        "schema-salad >= 7.1.20210518142926, < 8",
         "mypy-extensions",
         "psutil",
         "prov == 1.5.1",
