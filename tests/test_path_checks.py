@@ -2,15 +2,15 @@ import pytest
 import urllib.parse
 
 from pathlib import Path
-from typing import cast, MutableMapping
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from typing import cast
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
 from cwltool.main import main
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.update import INTERNAL_VERSION
-from cwltool.utils import CWLObjectType, CWLOutputType
+from cwltool.utils import CWLObjectType
 from .util import needs_docker
 
 
@@ -144,7 +144,9 @@ def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
 
     # Mock an "output" file with the above special characters in its name
     special = "".join(reserved)
-    output_schema = {"type": "File", "outputBinding": {"glob": special}}
+    output_schema = cast(
+        CWLObjectType, {"type": "File", "outputBinding": {"glob": special}}
+    )
     mock_output = tmp_path / special
     mock_output.touch()
 
