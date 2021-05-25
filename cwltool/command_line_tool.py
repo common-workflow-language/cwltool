@@ -202,7 +202,9 @@ def revmap_file(
     """
     split = urllib.parse.urlsplit(outdir)
     if not split.scheme:
-        outdir = file_uri(str(outdir))
+        outdir_uri, outdir_path = file_uri(str(outdir)), outdir
+    else:
+        outdir_uri, outdir_path = outdir, uri_file_path(str(outdir))
 
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
@@ -236,21 +238,23 @@ def revmap_file(
         ):
             f["location"] = revmap_f[1]
         elif (
-            uripath == outdir
-            or uripath.startswith(outdir + os.sep)
-            or uripath.startswith(outdir + "/")
+            uripath == outdir_uri
+            or uripath.startswith(outdir_uri + os.sep)
+            or uripath.startswith(outdir_uri + "/")
         ):
-            f["location"] = file_uri(path)
+            f["location"] = uripath
         elif (
             path == builder.outdir
             or path.startswith(builder.outdir + os.sep)
             or path.startswith(builder.outdir + "/")
         ):
-            f["location"] = builder.fs_access.join(
-                outdir, path[len(builder.outdir) + 1 :]
+            joined_path = builder.fs_access.join(
+                outdir_path, path[len(builder.outdir) + 1 :]
             )
+            f["location"] = file_uri(joined_path)
         elif not os.path.isabs(path):
-            f["location"] = builder.fs_access.join(outdir, path)
+            joined_path = builder.fs_access.join(outdir_path, path)
+            f["location"] = file_uri(joined_path)
         else:
             raise WorkflowException(
                 "Output file path %s must be within designated output directory (%s) or an input "
@@ -1344,7 +1348,7 @@ class CommandLineTool(Process):
                                         Callable[[str, str], int],
                                         locale.strcoll,
                                     )
-                                )
+                                ),
                             )
                             r.extend(
                                 [
@@ -1353,22 +1357,28 @@ class CommandLineTool(Process):
                                         "path": fs_access.join(
                                             builder.outdir,
                                             urllib.parse.unquote(
-                                                g[len(prefix[0]) + 1:]
-                                            )
+                                                g[len(prefix[0]) + 1 :]
+                                            ),
                                         ),
                                         "basename": decoded_basename,
-                                        "nameroot": os.path.splitext(decoded_basename)[0],
-                                        "nameext": os.path.splitext(decoded_basename)[1],
+                                        "nameroot": os.path.splitext(decoded_basename)[
+                                            0
+                                        ],
+                                        "nameext": os.path.splitext(decoded_basename)[
+                                            1
+                                        ],
                                         "class": "File"
                                         if fs_access.isfile(g)
                                         else "Directory",
                                     }
                                     for g, decoded_basename in zip(
                                         sorted_glob_result,
-                                        map(lambda x:
-                                            os.path.basename(urllib.parse.unquote(x)),
-                                            sorted_glob_result
-                                        )
+                                        map(
+                                            lambda x: os.path.basename(
+                                                urllib.parse.unquote(x)
+                                            ),
+                                            sorted_glob_result,
+                                        ),
                                     )
                                 ]
                             )
