@@ -1,8 +1,10 @@
 import urllib
 from collections import namedtuple
 from typing import (
+    Any,
     Dict,
     List,
+    Mapping,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -191,3 +193,17 @@ def get_step(tool: Workflow, step_id: str) -> CommentedMap:
             extracted[f] = tool.tool[f]
 
     return extracted
+
+
+def get_process(tool: Workflow, step_id: str, index: Mapping[str, Any]) -> Any:
+    """Return just a single Process from a Workflow step."""
+    step = find_step(tool.steps, step_id)
+    if step is None:
+        raise Exception(f"Step {step_id} was not found")
+
+    run = step["run"]
+
+    if isinstance(run, str):
+        return index[run]
+    else:
+        return run
