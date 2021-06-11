@@ -115,7 +115,7 @@ setup(
         # https://github.com/common-workflow-language/schema_salad/issues/385
         "schema-salad >= 7.1.20210518142926, < 8",
         "mypy-extensions",
-        "psutil",
+        "psutil != 5.6.1",
         "prov == 1.5.1",
         "bagit >= 1.6.4",
         "typing-extensions",
