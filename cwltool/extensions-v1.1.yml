@@ -74,12 +74,12 @@ $graph:
   fields:
     - name: class
       type: string
-      doc: "Always 'StepNameHint'" 
+      doc: "Always 'StepNameHint'"
       jsonldPredicate:
-        "_id": "@type" 
-        "_type": "@vocab" 
-    - name: stepname:
-      type: [string, Expression]
+        "_id": "@type"
+        "_type": "@vocab"
+    - name: stepname
+      type: [string, cwl:Expression]
       doc: |
-        A string or expression returning a string with the preferred name for the step.  
+        A string or expression returning a string with the preferred name for the step.
         If it is an expression, it is evaluated after the input object has been completely determined.
