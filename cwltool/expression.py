@@ -30,10 +30,7 @@ def jshead(engine_config: List[str], rootvars: CWLObjectType) -> str:
 
     return "\n".join(
         engine_config
-        + [
-            "var {} = {};".format(k, json_dumps(v, indent=4))
-            for k, v in rootvars.items()
-        ]
+        + [f"var {k} = {json_dumps(v, indent=4)};" for k, v in rootvars.items()]
     )
 
 
@@ -258,7 +255,7 @@ def evaluator(
 
 
 def _convert_dumper(string: str) -> str:
-    return "{} + ".format(json.dumps(string))
+    return f"{json.dumps(string)} + "
 
 
 def interpolate(
@@ -291,7 +288,7 @@ def interpolate(
     w = scanner(scan)
     while w:
         if convert_to_expression:
-            parts.append('"{}" + '.format(scan[0 : w[0]]))
+            parts.append(f'"{scan[0 : w[0]]}" + ')
         else:
             parts.append(scan[0 : w[0]])
 

@@ -72,7 +72,7 @@ def v1_0to1_1(
                         r["class"] = rewrite[cls]
                 else:
                     raise ValidationException(
-                        "hints entries must be dictionaries: {} {}.".format(type(r), r)
+                        f"hints entries must be dictionaries: {type(r)} {r}."
                     )
         if "steps" in t:
             for s in cast(MutableSequence[CWLObjectType], t["steps"]):
@@ -80,7 +80,7 @@ def v1_0to1_1(
                     rewrite_requirements(s)
                 else:
                     raise ValidationException(
-                        "steps entries must be dictionaries: {} {}.".format(type(s), s)
+                        f"steps entries must be dictionaries: {type(s)} {s}."
                     )
 
     def update_secondaryFiles(t, top=False):
