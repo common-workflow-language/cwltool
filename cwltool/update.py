@@ -26,9 +26,9 @@ def v1_1to1_2(
     """Public updater for v1.1 to v1.2."""
     doc = copy.deepcopy(doc)
 
-    upd = doc
+    upd: Union[CommentedSeq, CommentedMap] = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
-        upd = cast(CommentedMap, upd["$graph"])
+        upd = upd["$graph"]
     for proc in aslist(upd):
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
@@ -119,9 +119,9 @@ def v1_0to1_1(
     visit_class(doc, ("ExpressionTool", "Workflow"), fix_inputBinding)
     visit_field(doc, "secondaryFiles", partial(update_secondaryFiles, top=True))
 
-    upd = doc
+    upd: Union[CommentedMap, CommentedSeq] = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
-        upd = cast(CommentedMap, upd["$graph"])
+        upd = upd["$graph"]
     for proc in aslist(upd):
         proc.setdefault("hints", CommentedSeq())
         proc["hints"].insert(
@@ -167,9 +167,9 @@ def v1_2_0dev2todev3(
                         inp["pickValue"] = "the_only_non_null"
 
     visit_class(doc, "Workflow", update_pickvalue)
-    upd = doc
+    upd: Union[CommentedSeq, CommentedMap] = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
-        upd = cast(CommentedMap, upd["$graph"])
+        upd = upd["$graph"]
     for proc in aslist(upd):
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
