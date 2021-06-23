@@ -117,7 +117,7 @@ def versionstring() -> str:
     """Version of CWLtool used to execute the workflow."""
     pkg = pkg_resources.require("cwltool")
     if pkg:
-        return "{} {}".format(sys.argv[0], pkg[0].version)
+        return f"{sys.argv[0]} {pkg[0].version}"
     return "{} {}".format(sys.argv[0], "unknown version")
 
 

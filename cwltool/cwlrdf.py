@@ -48,7 +48,7 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
     for step, run, _ in qres:
         stdout.write(
             '"%s" [label="%s"]\n'
-            % (lastpart(step), "{} ({})".format(lastpart(step), lastpart(run)))
+            % (lastpart(step), f"{lastpart(step)} ({lastpart(run)})")
         )
 
     qres = g.query(
@@ -149,9 +149,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
             if wf in subworkflows:
                 if wf not in dotname:
                     dotname[wf] = "cluster_" + lastpart(wf)
-                stdout.write(
-                    'subgraph "{}" {{ label="{}"\n'.format(dotname[wf], lastpart(wf))
-                )
+                stdout.write(f'subgraph "{dotname[wf]}" {{ label="{lastpart(wf)}"\n')
                 currentwf = wf
                 clusternode[wf] = step
             else:
@@ -187,7 +185,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
         if sinkrun in clusternode:
             attr += ' lhead="%s"' % dotname[sinkrun]
             sink = clusternode[sinkrun]
-        stdout.write('"{}" -> "{}" [{}]\n'.format(dotname[src], dotname[sink], attr))
+        stdout.write(f'"{dotname[src]}" -> "{dotname[sink]}" [{attr}]\n')
 
 
 def printdot(

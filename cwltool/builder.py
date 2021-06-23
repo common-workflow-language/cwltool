@@ -116,7 +116,7 @@ def check_format(
             continue
         if "format" not in afile:
             raise ValidationException(
-                "File has no 'format' defined: {}".format(json_dumps(afile, indent=4))
+                f"File has no 'format' defined: {json_dumps(afile, indent=4)}"
             )
         for inpf in aslist(input_formats):
             if afile["format"] == inpf or formatSubclassOf(
@@ -124,7 +124,7 @@ def check_format(
             ):
                 return
         raise ValidationException(
-            "File has an incompatible format: {}".format(json_dumps(afile, indent=4))
+            f"File has an incompatible format: {json_dumps(afile, indent=4)}"
         )
 
 

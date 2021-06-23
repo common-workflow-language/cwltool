@@ -314,7 +314,7 @@ def resolve_and_validate_document(
     if not isinstance(cwlVersion, str):
         with SourceLine(workflowobj, "cwlVersion", ValidationException):
             raise ValidationException(
-                "'cwlVersion' must be a string, got {}".format(type(cwlVersion))
+                f"'cwlVersion' must be a string, got {type(cwlVersion)}"
             )
     # strip out version
     cwlVersion = re.sub(r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "", cwlVersion)

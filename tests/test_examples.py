@@ -1008,16 +1008,12 @@ def test_print_dot() -> None:
     assert main(["--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
     computed_edges = sorted(
-        [
-            (urlparse(source).fragment, urlparse(target).fragment)
-            for source, target in computed_dot.obj_dict["edges"]
-        ]
+        (urlparse(source).fragment, urlparse(target).fragment)
+        for source, target in computed_dot.obj_dict["edges"]
     )
     expected_edges = sorted(
-        [
-            (urlparse(source).fragment, urlparse(target).fragment)
-            for source, target in expected_dot.obj_dict["edges"]
-        ]
+        (urlparse(source).fragment, urlparse(target).fragment)
+        for source, target in expected_dot.obj_dict["edges"]
     )
     assert computed_edges == expected_edges
 
@@ -1130,7 +1126,7 @@ def test_cid_file_w_prefix(tmp_path: Path, factor: str) -> None:
             cidfiles_count = sum(1 for _ in tmp_path.glob("**/pytestcid*"))
     assert "completed success" in stderr
     assert error_code == 0
-    assert cidfiles_count == 2, "{}/n{}".format(list(listing), stderr)
+    assert cidfiles_count == 2, f"{list(listing)}/n{stderr}"
 
 
 @needs_docker
@@ -1391,7 +1387,7 @@ def test_scatter_output_filenames(tmp_path: Path) -> None:
         assert isinstance(result, dict)
         assert "output" in result
 
-        locations = sorted([element["location"] for element in result["output"]])
+        locations = sorted(element["location"] for element in result["output"])
 
         assert (
             locations[0].endswith("output.txt")
