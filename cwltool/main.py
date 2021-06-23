@@ -47,7 +47,7 @@ from .argparser import arg_parser, generate_parser, get_default_args
 from .builder import HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
 from .cwlrdf import printdot, printrdf
-from .errors import UnsupportedRequirement, WorkflowException
+from .errors import ArgumentException, UnsupportedRequirement, WorkflowException
 from .executors import JobExecutor, MultithreadedJobExecutor, SingleJobExecutor
 from .load_tool import (
     default_loader,
@@ -73,7 +73,7 @@ from .process import (
     use_standard_schema,
 )
 from .procgenerator import ProcessGenerator
-from .provenance import ResearchObject
+from .provenance import ResearchObject, WritableBagFile
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
 from .software_requirements import (
@@ -691,10 +691,10 @@ def setup_provenance(
     args: argparse.Namespace,
     argsl: List[str],
     runtimeContext: RuntimeContext,
-) -> Optional[int]:
+) -> Union[io.TextIOWrapper, WritableBagFile]:
     if not args.compute_checksum:
         _logger.error("--provenance incompatible with --no-compute-checksum")
-        return 1
+        raise ArgumentException()
     ro = ResearchObject(
         getdefault(runtimeContext.make_fs_access, StdFsAccess)(""),
         temp_prefix_ro=args.tmpdir_prefix,
@@ -703,7 +703,7 @@ def setup_provenance(
     )
     runtimeContext.research_obj = ro
     log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
-    prov_log_handler = logging.StreamHandler(cast(IO[str], log_file_io))
+    prov_log_handler = logging.StreamHandler(log_file_io)
 
     prov_log_handler.setFormatter(ProvLogFormatter())
     _logger.addHandler(prov_log_handler)
@@ -712,7 +712,7 @@ def setup_provenance(
         # Log cwltool command line options to provenance file
         _logger.info("[cwltool] %s %s", sys.argv[0], " ".join(argsl))
     _logger.debug("[cwltool] Arguments: %s", args)
-    return None
+    return log_file_io
 
 
 def setup_loadingContext(
@@ -989,10 +989,13 @@ def main(
 
         setup_schema(args, custom_schema_callback)
 
+        prov_log_stream: Optional[Union[io.TextIOWrapper, WritableBagFile]] = None
         if args.provenance:
             if argsl is None:
                 raise Exception("argsl cannot be None")
-            if setup_provenance(args, argsl, runtimeContext) is not None:
+            try:
+                prov_log_stream = setup_provenance(args, argsl, runtimeContext)
+            except ArgumentException:
                 return 1
 
         loadingContext = setup_loadingContext(loadingContext, runtimeContext, args)
@@ -1347,7 +1350,10 @@ def main(
                 # Ensure last log lines are written out
                 prov_log_handler.flush()
                 # Underlying WritableBagFile will add the tagfile to the manifest
-                prov_log_handler.stream.close()
+                if prov_log_stream:
+                    prov_log_stream.close()
+                # Why not use prov_log_handler.stream ? That is not part of the
+                # public API for logging.StreamHandler
                 prov_log_handler.close()
             research_obj.close(args.provenance)
 

@@ -4,7 +4,6 @@
 
 from typing import Any, Optional
 import collections
-from six.moves.urllib import parse as urlparse, request as urlrequest
 from .inflection import English as English, Inflector as Inflector
 
 grp = ...  # type: Any
