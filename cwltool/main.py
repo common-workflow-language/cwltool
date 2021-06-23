@@ -35,8 +35,9 @@ from typing import (
 import argcomplete
 import coloredlogs
 import pkg_resources  # part of setuptools
-from ruamel import yaml
+import ruamel.yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
@@ -158,10 +159,10 @@ def generate_example_input(
         "float": 0.1,
         "double": 0.1,
         "string": "a_string",
-        "File": yaml.comments.CommentedMap(
+        "File": ruamel.yaml.comments.CommentedMap(
             [("class", "File"), ("path", "a/file/path")]
         ),
-        "Directory": yaml.comments.CommentedMap(
+        "Directory": ruamel.yaml.comments.CommentedMap(
             [("class", "Directory"), ("path", "a/directory/path")]
         ),
     }  # type: CWLObjectType
@@ -215,7 +216,7 @@ def generate_example_input(
                 example = "{}_enum_value".format(inptype.get("name", "valid"))
             comment = 'enum; valid values: "{}"'.format('", "'.join(symbols))
         elif inptype["type"] == "record":
-            example = yaml.comments.CommentedMap()
+            example = ruamel.yaml.comments.CommentedMap()
             if "name" in inptype:
                 comment = '"{}" record type.'.format(inptype["name"])
             for field in cast(List[CWLObjectType], inptype["fields"]):
@@ -303,7 +304,7 @@ def realize_input_schema(
 
 def generate_input_template(tool: Process) -> CWLObjectType:
     """Generate an example input object for the given CWL process."""
-    template = yaml.comments.CommentedMap()
+    template = ruamel.yaml.comments.CommentedMap()
     for inp in realize_input_schema(tool.tool["inputs"], tool.schemaDefs):
         name = shortname(cast(str, inp["id"]))
         value, comment = generate_example_input(inp["type"], inp.get("default", None))
@@ -328,7 +329,8 @@ def load_job_order(
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        job_order_object = yaml.main.round_trip_load(stdin)
+        yaml = YAML()
+        job_order_object = yaml.load(stdin)
         job_order_object, _ = loader.resolve_all(
             job_order_object, file_uri(os.getcwd()) + "/"
         )
@@ -754,13 +756,16 @@ def make_template(
         """Force clean representation of 'null'."""
         return self.represent_scalar("tag:yaml.org,2002:null", "null")
 
-    yaml.representer.RoundTripRepresenter.add_representer(type(None), my_represent_none)
-    yaml.main.round_trip_dump(
+    ruamel.yaml.representer.RoundTripRepresenter.add_representer(
+        type(None), my_represent_none
+    )
+    yaml = YAML()
+    yaml.default_flow_style = False
+    yaml.indent = 4
+    yaml.block_seq_indent = 2
+    yaml.dump(
         generate_input_template(tool),
         sys.stdout,
-        default_flow_style=False,
-        indent=4,
-        block_seq_indent=2,
     )
 
 

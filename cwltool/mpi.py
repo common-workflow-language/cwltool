@@ -4,7 +4,7 @@ import os
 import re
 from typing import List, Mapping, MutableMapping, Optional, Type, TypeVar, Union
 
-from ruamel import yaml
+from ruamel.yaml.main import YAML
 
 MpiConfigT = TypeVar("MpiConfigT", bound="MpiConfig")
 
@@ -53,7 +53,8 @@ class MpiConfig:
         optional).
         """
         with open(config_file_name) as cf:
-            data = yaml.main.round_trip_load(cf)
+            yaml = YAML()
+            data = yaml.load(cf)
         try:
             return cls(**data)
         except TypeError as e:
