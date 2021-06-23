@@ -16,7 +16,7 @@ from typing import (
 )
 
 from pkg_resources import resource_stream
-from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import (
     ArraySchema,
     EnumSchema,
@@ -59,7 +59,7 @@ _logger_validation_warnings.addFilter(SuppressLog("cwltool.validation_warnings")
 
 
 def get_expressions(
-    tool: Union[CommentedMap, str],
+    tool: Union[CommentedMap, str, CommentedSeq],
     schema: Optional[Union[Schema, ArraySchema]],
     source_line: Optional[SourceLine] = None,
 ) -> List[Tuple[str, Optional[SourceLine]]]:
@@ -84,12 +84,18 @@ def get_expressions(
         if not isinstance(tool, MutableSequence):
             return []
 
+        def tmp_expr(
+            x: Tuple[int, Union[CommentedMap, str, CommentedSeq]]
+        ) -> List[Tuple[str, Optional[SourceLine]]]:
+            # using a lambda for this broke mypyc v0.910 and before
+            return get_expressions(
+                x[1], cast(ArraySchema, schema).items, SourceLine(tool, x[0])
+            )
+
         return list(
             itertools.chain(
                 *map(
-                    lambda x: get_expressions(
-                        x[1], schema.items, SourceLine(tool, x[0])
-                    ),
+                    tmp_expr,
                     enumerate(tool),
                 )
             )
