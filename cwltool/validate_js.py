@@ -88,7 +88,7 @@ def get_expressions(
             itertools.chain(
                 *map(
                     lambda x: get_expressions(
-                        x[1], schema.items, SourceLine(tool, x[0])  # type: ignore
+                        x[1], schema.items, SourceLine(tool, x[0])
                     ),
                     enumerate(tool),
                 )
