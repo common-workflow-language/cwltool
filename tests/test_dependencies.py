@@ -7,13 +7,7 @@ from typing import Optional
 
 import pytest
 
-
-from .util import (
-    get_data,
-    get_main_output,
-    get_tool_env,
-    needs_docker,
-)
+from .util import get_data, get_main_output, get_tool_env, needs_docker
 
 deps = None  # type: Optional[ModuleType]
 try:
