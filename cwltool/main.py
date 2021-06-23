@@ -1045,7 +1045,7 @@ def main(
             if loadingContext.loader is None:
                 raise Exception("Impossible code path.")
             processobj, metadata = loadingContext.loader.resolve_ref(uri)
-            processobj = cast(CommentedMap, processobj)
+            processobj = cast(Union[CommentedMap, CommentedSeq], processobj)
             if args.pack:
                 stdout.write(print_pack(loadingContext, uri))
                 return 0
