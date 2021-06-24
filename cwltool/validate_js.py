@@ -39,7 +39,7 @@ def is_expression(tool, schema):
     # type: (Any, Optional[Schema]) -> bool
     return (
         isinstance(schema, EnumSchema)
-        and schema.name == "Expression"
+        and schema.name == "w3id.org.cwl.cwl.Expression"
         and isinstance(tool, str)
     )
 
@@ -76,6 +76,7 @@ def get_expressions(
                 tool,
                 raise_ex=False,
                 logger=_logger_validation_warnings,
+                vocab={}
             ):
                 valid_schema = possible_schema
 

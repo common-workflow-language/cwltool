@@ -45,11 +45,11 @@ from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.schema import load_schema, make_avro_schema, make_valid_avro
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
 from schema_salad.utils import convert_to_dict
-from schema_salad.validate import validate_ex
+from schema_salad.validate import validate_ex, avro_type_name
 from typing_extensions import TYPE_CHECKING
 
 from . import expression
-from .builder import Builder, HasReqsHints
+from .builder import Builder, HasReqsHints, INPUT_OBJ_VOCAB
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
@@ -575,7 +575,8 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#Directory"],
             )
 
-        self.names = make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader({}))
+        self.names = make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader(INPUT_OBJ_VOCAB))
+        self.names.default_namespace = "w3id.org.cwl.cwl"
         self.tool = toolpath_object
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
         tool_requirements = self.tool.get("requirements", [])
@@ -709,9 +710,13 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     )
                     raise
             if self.doc_schema is not None:
+                classname = toolpath_object["class"]
+                avroname = classname
+                if classname in self.doc_loader.vocab:
+                   avroname  = avro_type_name(self.doc_loader.vocab[classname])
                 validate_js_expressions(
                     toolpath_object,
-                    self.doc_schema.names[toolpath_object["class"]],
+                    self.doc_schema.names[avroname],
                     validate_js_options,
                 )
 
@@ -778,7 +783,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 raise WorkflowException(
                     "Missing input record schema: " "{}".format(self.names)
                 )
-            validate_ex(schema, job, strict=False, logger=_logger_validation_warnings)
+            validate_ex(schema, job, strict=False, logger=_logger_validation_warnings, vocab=INPUT_OBJ_VOCAB)
 
             if load_listing and load_listing != "no_listing":
                 get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
@@ -1015,13 +1020,16 @@ hints:
     def validate_hints(
         self, avsc_names: Names, hints: List[CWLObjectType], strict: bool
     ) -> None:
+        if self.doc_loader is None:
+            return
         for i, r in enumerate(hints):
             sl = SourceLine(hints, i, ValidationException)
             with sl:
-                if (
-                    avsc_names.get_name(cast(str, r["class"]), None) is not None
-                    and self.doc_loader is not None
-                ):
+                classname = cast(str, r["class"])
+                avroname = classname
+                if classname in self.doc_loader.vocab:
+                   avroname  = avro_type_name(self.doc_loader.vocab[classname])
+                if avsc_names.get_name(avroname, None) is not None:
                     plain_hint = {
                         key: r[key]
                         for key in r
@@ -1030,10 +1038,11 @@ hints:
                     validate_ex(
                         cast(
                             Schema,
-                            avsc_names.get_name(cast(str, plain_hint["class"]), None),
+                            avsc_names.get_name(avroname, None),
                         ),
                         plain_hint,
                         strict=strict,
+                        vocab=self.doc_loader.vocab
                     )
                 elif r["class"] in ("NetworkAccess", "LoadListingRequirement"):
                     pass
