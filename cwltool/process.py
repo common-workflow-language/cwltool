@@ -464,24 +464,27 @@ def avroize_type(
 ) -> None:
     """Add missing information to a type so that CWL types are valid."""
     if isinstance(field_type, MutableSequence):
-        for field in field_type:
-            avroize_type(field, name_prefix)
+        for i, field in enumerate(field_type):
+            field_type[i] = avroize_type(field, name_prefix)
     elif isinstance(field_type, MutableMapping):
         if field_type["type"] in ("enum", "record"):
             if "name" not in field_type:
                 field_type["name"] = name_prefix + str(uuid.uuid4())
         if field_type["type"] == "record":
-            avroize_type(
+            field_type["fields"] = avroize_type(
                 cast(MutableSequence[CWLOutputType], field_type["fields"]), name_prefix
             )
-        if field_type["type"] == "array":
-            avroize_type(
+        elif field_type["type"] == "array":
+            field_type["items"] = avroize_type(
                 cast(MutableSequence[CWLOutputType], field_type["items"]), name_prefix
             )
-        if isinstance(field_type["type"], MutableSequence):
-            for ctype in field_type["type"]:
-                avroize_type(cast(CWLOutputType, ctype), name_prefix)
-
+        else:
+            field_type["type"] = avroize_type(cast(CWLOutputType, field_type["type"]), name_prefix)
+    elif field_type == "File":
+        return "org.w3id.cwl.cwl.File"
+    elif field_type == "Directory":
+        return "org.w3id.cwl.cwl.Directory"
+    return field_type
 
 def get_overrides(
     overrides: MutableSequence[CWLObjectType], toolid: str
@@ -575,11 +578,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#Directory"],
             )
 
-        self.names = make_avro_schema(
-            [SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
-            Loader(cast(ContextType, INPUT_OBJ_VOCAB)),
-        )
-        self.names.default_namespace = "w3id.org.cwl.cwl"
+        self.names = make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader({}))
         self.tool = toolpath_object
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
         tool_requirements = self.tool.get("requirements", [])
@@ -639,6 +638,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 sdtypes,
                 {cast(str, t["name"]): cast(Dict[str, Any], t) for t in sdtypes},
                 set(),
+                vocab=INPUT_OBJ_VOCAB
             )
             for i in av:
                 self.schemaDefs[i["name"]] = i  # type: ignore
@@ -673,7 +673,8 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     c["type"] = nullable
                 else:
                     c["type"] = c["type"]
-                avroize_type(c["type"], c["name"])
+
+                c["type"] = avroize_type(c["type"], c["name"])
                 if key == "inputs":
                     cast(
                         List[CWLObjectType], self.inputs_record_schema["fields"]

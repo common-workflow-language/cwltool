@@ -39,7 +39,7 @@ def is_expression(tool, schema):
     # type: (Any, Optional[Schema]) -> bool
     return (
         isinstance(schema, EnumSchema)
-        and schema.name == "w3id.org.cwl.cwl.Expression"
+        and schema.name == "org.w3id.cwl.cwl.Expression"
         and isinstance(tool, str)
     )
 

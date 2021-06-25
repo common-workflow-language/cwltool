@@ -28,7 +28,7 @@ def test_get_expressions() -> None:
     test_cwl_yaml = yaml.load(TEST_CWL)
     schema = process.get_schema("v1.0")[1]
     assert isinstance(schema, Names)
-    clt_schema = schema.names["w3id.org.cwl.cwl.CommandLineTool"]
+    clt_schema = schema.names["org.w3id.cwl.cwl.CommandLineTool"]
 
     exprs = validate_js.get_expressions(test_cwl_yaml, clt_schema)
 
@@ -40,7 +40,7 @@ def test_validate_js_expressions(mocker: Any) -> None:
     test_cwl_yaml = yaml.load(TEST_CWL)
     schema = process.get_schema("v1.0")[1]
     assert isinstance(schema, Names)
-    clt_schema = schema.names["w3id.org.cwl.cwl.CommandLineTool"]
+    clt_schema = schema.names["org.w3id.cwl.cwl.CommandLineTool"]
 
     mocker.patch("cwltool.validate_js._logger")
     # mocker.patch("cwltool.validate_js.print_js_hint_messages")

@@ -382,7 +382,7 @@ class Builder(HasReqsHints):
                 self.files.append(f)
                 return f
 
-            if schema["type"] == "File":
+            if schema["type"] == "org.w3id.cwl.cwl.File":
                 datum = cast(CWLObjectType, datum)
                 self.files.append(datum)
 
@@ -522,7 +522,7 @@ class Builder(HasReqsHints):
                     _capture_files,
                 )
 
-            if schema["type"] == "Directory":
+            if schema["type"] == "org.w3id.cwl.cwl.Directory":
                 datum = cast(CWLObjectType, datum)
                 ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
