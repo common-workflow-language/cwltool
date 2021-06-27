@@ -40,7 +40,12 @@ from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
 from typing_extensions import TYPE_CHECKING, Type
 
-from .builder import Builder, content_limit_respected_read_bytes, substitute, INPUT_OBJ_VOCAB
+from .builder import (
+    Builder,
+    content_limit_respected_read_bytes,
+    substitute,
+    INPUT_OBJ_VOCAB,
+)
 from .context import LoadingContext, RuntimeContext, getdefault
 from .docker import DockerCommandLineJob
 from .errors import UnsupportedRequirement, WorkflowException
@@ -1110,7 +1115,11 @@ class CommandLineTool(Process):
                 Schema, self.names.get_name("outputs_record_schema", None)
             )
             validate_ex(
-                expected_schema, ret, strict=False, logger=_logger_validation_warnings, vocab=INPUT_OBJ_VOCAB
+                expected_schema,
+                ret,
+                strict=False,
+                logger=_logger_validation_warnings,
+                vocab=INPUT_OBJ_VOCAB,
             )
             if ret is not None and builder.mutation_manager is not None:
                 adjustFileObjs(ret, builder.mutation_manager.set_generation)

@@ -575,7 +575,9 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 SCHEMA_CACHE["v1.0"][3].idx["https://w3id.org/cwl/cwl#Directory"],
             )
 
-        self.names = make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader(INPUT_OBJ_VOCAB))
+        self.names = make_avro_schema(
+            [SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader(INPUT_OBJ_VOCAB)
+        )
         self.names.default_namespace = "w3id.org.cwl.cwl"
         self.tool = toolpath_object
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
@@ -713,7 +715,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 classname = toolpath_object["class"]
                 avroname = classname
                 if classname in self.doc_loader.vocab:
-                   avroname  = avro_type_name(self.doc_loader.vocab[classname])
+                    avroname = avro_type_name(self.doc_loader.vocab[classname])
                 validate_js_expressions(
                     toolpath_object,
                     self.doc_schema.names[avroname],
@@ -783,7 +785,13 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 raise WorkflowException(
                     "Missing input record schema: " "{}".format(self.names)
                 )
-            validate_ex(schema, job, strict=False, logger=_logger_validation_warnings, vocab=INPUT_OBJ_VOCAB)
+            validate_ex(
+                schema,
+                job,
+                strict=False,
+                logger=_logger_validation_warnings,
+                vocab=INPUT_OBJ_VOCAB,
+            )
 
             if load_listing and load_listing != "no_listing":
                 get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
@@ -1028,7 +1036,7 @@ hints:
                 classname = cast(str, r["class"])
                 avroname = classname
                 if classname in self.doc_loader.vocab:
-                   avroname  = avro_type_name(self.doc_loader.vocab[classname])
+                    avroname = avro_type_name(self.doc_loader.vocab[classname])
                 if avsc_names.get_name(avroname, None) is not None:
                     plain_hint = {
                         key: r[key]
@@ -1042,7 +1050,7 @@ hints:
                         ),
                         plain_hint,
                         strict=strict,
-                        vocab=self.doc_loader.vocab
+                        vocab=self.doc_loader.vocab,
                     )
                 elif r["class"] in ("NetworkAccess", "LoadListingRequirement"):
                     pass

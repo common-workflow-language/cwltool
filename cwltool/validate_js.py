@@ -76,7 +76,7 @@ def get_expressions(
                 tool,
                 raise_ex=False,
                 logger=_logger_validation_warnings,
-                vocab={}
+                vocab={},
             ):
                 valid_schema = possible_schema
 

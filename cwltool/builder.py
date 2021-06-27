@@ -52,6 +52,7 @@ INPUT_OBJ_VOCAB = {
     "Directory": "https://w3id.org/cwl/cwl#Directory",
 }
 
+
 def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
     contents = f.read(CONTENT_LIMIT + 1)
     if len(contents) > CONTENT_LIMIT:
