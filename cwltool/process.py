@@ -44,7 +44,7 @@ from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.schema import load_schema, make_avro_schema, make_valid_avro
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
-from schema_salad.utils import convert_to_dict
+from schema_salad.utils import ContextType, convert_to_dict
 from schema_salad.validate import validate_ex, avro_type_name
 from typing_extensions import TYPE_CHECKING
 
@@ -576,7 +576,8 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             )
 
         self.names = make_avro_schema(
-            [SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader(INPUT_OBJ_VOCAB)
+            [SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY],
+            Loader(cast(ContextType, INPUT_OBJ_VOCAB)),
         )
         self.names.default_namespace = "w3id.org.cwl.cwl"
         self.tool = toolpath_object
@@ -714,7 +715,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             if self.doc_schema is not None:
                 classname = toolpath_object["class"]
                 avroname = classname
-                if classname in self.doc_loader.vocab:
+                if self.doc_loader and classname in self.doc_loader.vocab:
                     avroname = avro_type_name(self.doc_loader.vocab[classname])
                 validate_js_expressions(
                     toolpath_object,
