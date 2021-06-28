@@ -44,6 +44,32 @@ def test_pack() -> None:
     assert packed == expect_packed
 
 
+def test_pack_operation() -> None:
+    loadingContext, workflowobj, uri = fetch_document(
+        get_data("tests/wf/operation/operation-single.cwl")
+    )
+    loadingContext.do_update = False
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext, workflowobj, uri
+    )
+
+    packed = cwltool.pack.pack(loadingContext, uri)
+    adjustFileObjs(
+        packed, partial(make_relative, os.path.abspath(get_data("tests/wf/operation")))
+    )
+    adjustDirObjs(
+        packed, partial(make_relative, os.path.abspath(get_data("tests/wf/operation")))
+    )
+
+    yaml = YAML(typ="safe", pure=True)
+    with open(
+        get_data("tests/wf/operation/expect_operation-single_packed.cwl")
+    ) as packed_file:
+        expect_packed = yaml.load(packed_file)
+
+    assert packed == expect_packed
+
+
 def test_pack_input_named_name() -> None:
     loadingContext, workflowobj, uri = fetch_document(
         get_data("tests/wf/trick_revsort.cwl")

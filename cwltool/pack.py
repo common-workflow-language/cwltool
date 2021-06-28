@@ -251,7 +251,12 @@ def pack(
         if "$schemas" in metadata:
             for s in metadata["$schemas"]:
                 schemas.add(s)
-        if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool", "Operation"):
+        if dcr.get("class") not in (
+            "Workflow",
+            "CommandLineTool",
+            "ExpressionTool",
+            "Operation",
+        ):
             continue
         dc = cast(Dict[str, Any], copy.deepcopy(dcr))
         v = rewrite[r]
