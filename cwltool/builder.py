@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from .pathmapper import PathMapper
     from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
-INPUT_OBJ_VOCAB: MutableMapping[str, str] = {
+INPUT_OBJ_VOCAB: Dict[str, str] = {
     "Any": "https://w3id.org/cwl/salad#Any",
     "File": "https://w3id.org/cwl/cwl#File",
     "Directory": "https://w3id.org/cwl/cwl#Directory",
