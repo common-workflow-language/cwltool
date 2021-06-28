@@ -21,83 +21,41 @@ from cwltool.utils import adjustDirObjs, adjustFileObjs
 from .util import get_data, needs_docker
 
 
-def test_pack() -> None:
-    loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/revsort.cwl"))
-    yaml = YAML(typ="safe", pure=True)
-
-    with open(get_data("tests/wf/expect_packed.cwl")) as packed_file:
-        expect_packed = yaml.load(packed_file)
-
-    packed = cwltool.pack.pack(loadingContext, uri)
-    adjustFileObjs(
-        packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
-    )
-    adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
-
-    assert "$schemas" in packed
-    packed_schemas = packed["$schemas"]
-    assert isinstance(packed_schemas, Sized)
-    assert len(packed_schemas) == len(expect_packed["$schemas"])
-    del packed["$schemas"]
-    del expect_packed["$schemas"]
-
-    assert packed == expect_packed
-
-
-def test_pack_operation() -> None:
-    loadingContext, workflowobj, uri = fetch_document(
-        get_data("tests/wf/operation/operation-single.cwl")
-    )
+@pytest.mark.parametrize(
+    "unpacked,expected",
+    [
+        ("tests/wf/revsort.cwl", "tests/wf/expect_packed.cwl"),
+        (
+            "tests/wf/operation/operation-single.cwl",
+            "tests/wf/operation/expect_operation-single_packed.cwl",
+        ),
+        ("tests/wf/trick_revsort.cwl", "tests/wf/expect_trick_packed.cwl"),
+    ],
+)
+def test_packing(unpacked: str, expected: str) -> None:
+    """Compare expected version reality with various workflows and --pack."""
+    loadingContext, workflowobj, uri = fetch_document(get_data(unpacked))
     loadingContext.do_update = False
     loadingContext, uri = resolve_and_validate_document(
         loadingContext, workflowobj, uri
     )
 
     packed = cwltool.pack.pack(loadingContext, uri)
-    adjustFileObjs(
-        packed, partial(make_relative, os.path.abspath(get_data("tests/wf/operation")))
-    )
-    adjustDirObjs(
-        packed, partial(make_relative, os.path.abspath(get_data("tests/wf/operation")))
-    )
+    context_dir = os.path.abspath(os.path.dirname(get_data(unpacked)))
+    adjustFileObjs(packed, partial(make_relative, context_dir))
+    adjustDirObjs(packed, partial(make_relative, context_dir))
 
     yaml = YAML(typ="safe", pure=True)
-    with open(
-        get_data("tests/wf/operation/expect_operation-single_packed.cwl")
-    ) as packed_file:
+    with open(get_data(expected)) as packed_file:
         expect_packed = yaml.load(packed_file)
 
-    assert packed == expect_packed
-
-
-def test_pack_input_named_name() -> None:
-    loadingContext, workflowobj, uri = fetch_document(
-        get_data("tests/wf/trick_revsort.cwl")
-    )
-    loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
-    loader = loadingContext.loader
-    assert loader
-    loader.resolve_ref(uri)[0]
-
-    yaml = YAML()
-    with open(get_data("tests/wf/expect_trick_packed.cwl")) as packed_file:
-        expect_packed = yaml.load(packed_file)
-
-    packed = cwltool.pack.pack(loadingContext, uri)
-    adjustFileObjs(
-        packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
-    )
-    adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
-
-    assert "$schemas" in packed
-    packed_schemas = packed["$schemas"]
-    assert isinstance(packed_schemas, Sized)
-    assert len(packed_schemas) == len(expect_packed["$schemas"])
-    del packed["$schemas"]
-    del expect_packed["$schemas"]
+    if "$schemas" in expect_packed:
+        assert "$schemas" in packed
+        packed_schemas = packed["$schemas"]
+        assert isinstance(packed_schemas, Sized)
+        assert len(packed_schemas) == len(expect_packed["$schemas"])
+        del packed["$schemas"]
+        del expect_packed["$schemas"]
 
     assert packed == expect_packed
 
