@@ -457,9 +457,7 @@ def fill_in_defaults(
 
 
 def avroize_type(
-    field_type: Union[
-        CWLObjectType, MutableSequence[Any], CWLOutputType, None
-    ],
+    field_type: Union[CWLObjectType, MutableSequence[Any], CWLOutputType, None],
     name_prefix: str = "",
 ) -> Union[CWLObjectType, MutableSequence[Any], CWLOutputType, None]:
     """Add missing information to a type so that CWL types are valid."""
@@ -479,12 +477,15 @@ def avroize_type(
                 cast(MutableSequence[CWLOutputType], field_type["items"]), name_prefix
             )
         else:
-            field_type["type"] = avroize_type(cast(CWLOutputType, field_type["type"]), name_prefix)
+            field_type["type"] = avroize_type(
+                cast(CWLOutputType, field_type["type"]), name_prefix
+            )
     elif field_type == "File":
         return "org.w3id.cwl.cwl.File"
     elif field_type == "Directory":
         return "org.w3id.cwl.cwl.Directory"
     return field_type
+
 
 def get_overrides(
     overrides: MutableSequence[CWLObjectType], toolid: str
@@ -638,7 +639,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 sdtypes,
                 {cast(str, t["name"]): cast(Dict[str, Any], t) for t in sdtypes},
                 set(),
-                vocab=INPUT_OBJ_VOCAB
+                vocab=INPUT_OBJ_VOCAB,
             )
             for i in av:
                 self.schemaDefs[i["name"]] = i  # type: ignore
