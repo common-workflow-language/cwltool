@@ -46,6 +46,12 @@ if TYPE_CHECKING:
     from .pathmapper import PathMapper
     from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
+INPUT_OBJ_VOCAB: Dict[str, str] = {
+    "Any": "https://w3id.org/cwl/salad#Any",
+    "File": "https://w3id.org/cwl/cwl#File",
+    "Directory": "https://w3id.org/cwl/cwl#Directory",
+}
+
 
 def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
     contents = f.read(CONTENT_LIMIT + 1)
@@ -272,7 +278,7 @@ class Builder(HasReqsHints):
                     avsc = self.names.get_name(cast(str, t["name"]), None)
                 if not avsc:
                     avsc = make_avsc_object(convert_to_dict(t), self.names)
-                if validate(avsc, datum):
+                if validate(avsc, datum, vocab=INPUT_OBJ_VOCAB):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
                     if not value_from_expression:
@@ -376,7 +382,7 @@ class Builder(HasReqsHints):
                 self.files.append(f)
                 return f
 
-            if schema["type"] == "File":
+            if schema["type"] == "org.w3id.cwl.cwl.File":
                 datum = cast(CWLObjectType, datum)
                 self.files.append(datum)
 
@@ -516,7 +522,7 @@ class Builder(HasReqsHints):
                     _capture_files,
                 )
 
-            if schema["type"] == "Directory":
+            if schema["type"] == "org.w3id.cwl.cwl.Directory":
                 datum = cast(CWLObjectType, datum)
                 ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
