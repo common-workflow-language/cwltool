@@ -458,10 +458,10 @@ def fill_in_defaults(
 
 def avroize_type(
     field_type: Union[
-        CWLObjectType, MutableSequence[CWLOutputType], CWLOutputType, None
+        CWLObjectType, MutableSequence[Any], CWLOutputType, None
     ],
     name_prefix: str = "",
-) -> None:
+) -> Union[CWLObjectType, MutableSequence[Any], CWLOutputType, None]:
     """Add missing information to a type so that CWL types are valid."""
     if isinstance(field_type, MutableSequence):
         for i, field in enumerate(field_type):
