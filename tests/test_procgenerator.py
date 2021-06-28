@@ -20,6 +20,7 @@ def test_missing_enable_ext(monkeypatch: pytest.MonkeyPatch) -> None:
     assert (
         main(
             [
+                "--debug",
                 "--enable-ext",
                 "--enable-dev",
                 get_data("tests/wf/generator/zing.cwl"),

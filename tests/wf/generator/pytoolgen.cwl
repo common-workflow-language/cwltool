@@ -2,7 +2,7 @@
 cwlVersion: v1.0
 $namespaces:
   cwltool: "http://commonwl.org/cwltool#"
-class: ProcessGenerator
+class: cwltool:ProcessGenerator
 inputs:
   script: string
   dir: Directory
