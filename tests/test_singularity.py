@@ -1,6 +1,5 @@
 """Tests to find local Singularity image."""
 import shutil
-import os
 from pathlib import Path
 from typing import Any
 

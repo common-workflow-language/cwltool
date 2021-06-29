@@ -108,12 +108,14 @@ setup(
         "setuptools",
         "requests >= 2.6.1",  # >= 2.6.1 to workaround
         # https://github.com/ionrock/cachecontrol/issues/137
-        "ruamel.yaml >= 0.12.4, <= 0.16.5",
+        "ruamel.yaml >= 0.15, < 0.17.11",
         "rdflib >= 4.2.2, < 5.1.0",
-        "shellescape >= 3.4.1, < 3.5",
-        "schema-salad >= 7.1, < 8",
+        "shellescape >= 3.4.1, < 3.9",
+        # 7.1.20210518142926 or later required due to
+        # https://github.com/common-workflow-language/schema_salad/issues/385
+        "schema-salad >= 8.1.20210627200047, < 9",
         "mypy-extensions",
-        "psutil",
+        "psutil >= 5.6.6",
         "prov == 1.5.1",
         "bagit >= 1.6.4",
         "typing-extensions",

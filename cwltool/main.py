@@ -35,8 +35,9 @@ from typing import (
 import argcomplete
 import coloredlogs
 import pkg_resources  # part of setuptools
-from ruamel import yaml
+import ruamel.yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
@@ -47,7 +48,7 @@ from .argparser import arg_parser, generate_parser, get_default_args
 from .builder import HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
 from .cwlrdf import printdot, printrdf
-from .errors import UnsupportedRequirement, WorkflowException
+from .errors import ArgumentException, UnsupportedRequirement, WorkflowException
 from .executors import JobExecutor, MultithreadedJobExecutor, SingleJobExecutor
 from .load_tool import (
     default_loader,
@@ -73,7 +74,7 @@ from .process import (
     use_standard_schema,
 )
 from .procgenerator import ProcessGenerator
-from .provenance import ResearchObject
+from .provenance import ResearchObject, WritableBagFile
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
 from .software_requirements import (
@@ -81,7 +82,7 @@ from .software_requirements import (
     get_container_from_software_requirements,
 )
 from .stdfsaccess import StdFsAccess
-from .subgraph import get_step, get_subgraph
+from .subgraph import get_process, get_step, get_subgraph
 from .update import ALLUPDATES, UPDATES
 from .utils import (
     DEFAULT_TMP_PREFIX,
@@ -158,10 +159,10 @@ def generate_example_input(
         "float": 0.1,
         "double": 0.1,
         "string": "a_string",
-        "File": yaml.comments.CommentedMap(
+        "File": ruamel.yaml.comments.CommentedMap(
             [("class", "File"), ("path", "a/file/path")]
         ),
-        "Directory": yaml.comments.CommentedMap(
+        "Directory": ruamel.yaml.comments.CommentedMap(
             [("class", "Directory"), ("path", "a/directory/path")]
         ),
     }  # type: CWLObjectType
@@ -215,7 +216,7 @@ def generate_example_input(
                 example = "{}_enum_value".format(inptype.get("name", "valid"))
             comment = 'enum; valid values: "{}"'.format('", "'.join(symbols))
         elif inptype["type"] == "record":
-            example = yaml.comments.CommentedMap()
+            example = ruamel.yaml.comments.CommentedMap()
             if "name" in inptype:
                 comment = '"{}" record type.'.format(inptype["name"])
             for field in cast(List[CWLObjectType], inptype["fields"]):
@@ -303,7 +304,7 @@ def realize_input_schema(
 
 def generate_input_template(tool: Process) -> CWLObjectType:
     """Generate an example input object for the given CWL process."""
-    template = yaml.comments.CommentedMap()
+    template = ruamel.yaml.comments.CommentedMap()
     for inp in realize_input_schema(tool.tool["inputs"], tool.schemaDefs):
         name = shortname(cast(str, inp["id"]))
         value, comment = generate_example_input(inp["type"], inp.get("default", None))
@@ -328,7 +329,8 @@ def load_job_order(
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        job_order_object = yaml.main.round_trip_load(stdin)
+        yaml = YAML()
+        job_order_object = yaml.load(stdin)
         job_order_object, _ = loader.resolve_all(
             job_order_object, file_uri(os.getcwd()) + "/"
         )
@@ -693,10 +695,10 @@ def setup_provenance(
     args: argparse.Namespace,
     argsl: List[str],
     runtimeContext: RuntimeContext,
-) -> Optional[int]:
+) -> Union[io.TextIOWrapper, WritableBagFile]:
     if not args.compute_checksum:
         _logger.error("--provenance incompatible with --no-compute-checksum")
-        return 1
+        raise ArgumentException()
     ro = ResearchObject(
         getdefault(runtimeContext.make_fs_access, StdFsAccess)(""),
         temp_prefix_ro=args.tmpdir_prefix,
@@ -705,7 +707,7 @@ def setup_provenance(
     )
     runtimeContext.research_obj = ro
     log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
-    prov_log_handler = logging.StreamHandler(cast(IO[str], log_file_io))
+    prov_log_handler = logging.StreamHandler(log_file_io)
 
     prov_log_handler.setFormatter(ProvLogFormatter())
     _logger.addHandler(prov_log_handler)
@@ -714,7 +716,7 @@ def setup_provenance(
         # Log cwltool command line options to provenance file
         _logger.info("[cwltool] %s %s", sys.argv[0], " ".join(argsl))
     _logger.debug("[cwltool] Arguments: %s", args)
-    return None
+    return log_file_io
 
 
 def setup_loadingContext(
@@ -756,13 +758,16 @@ def make_template(
         """Force clean representation of 'null'."""
         return self.represent_scalar("tag:yaml.org,2002:null", "null")
 
-    yaml.representer.RoundTripRepresenter.add_representer(type(None), my_represent_none)
-    yaml.main.round_trip_dump(
+    ruamel.yaml.representer.RoundTripRepresenter.add_representer(
+        type(None), my_represent_none
+    )
+    yaml = YAML()
+    yaml.default_flow_style = False
+    yaml.indent = 4
+    yaml.block_seq_indent = 2
+    yaml.dump(
         generate_input_template(tool),
         sys.stdout,
-        default_flow_style=False,
-        indent=4,
-        block_seq_indent=2,
     )
 
 
@@ -813,7 +818,7 @@ def choose_step(
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
         if url.fragment:
-            extracted = get_step(tool, tool.tool["id"] + "/" + args.singe_step)
+            extracted = get_step(tool, tool.tool["id"] + "/" + args.single_step)
         else:
             extracted = get_step(
                 tool,
@@ -823,6 +828,43 @@ def choose_step(
             )
     else:
         _logger.error("Can only use --single-step on Workflows")
+        return None
+    if isinstance(loadingContext.loader.idx, MutableMapping):
+        loadingContext.loader.idx[extracted["id"]] = extracted
+        tool = make_tool(extracted["id"], loadingContext)
+    else:
+        raise Exception("Missing loadingContext.loader.idx!")
+
+    return tool
+
+
+def choose_process(
+    args: argparse.Namespace,
+    tool: Process,
+    loadingContext: LoadingContext,
+) -> Optional[Process]:
+    """Walk the given Workflow and extract just args.single_step."""
+    if loadingContext.loader is None:
+        raise Exception("loadingContext.loader cannot be None")
+
+    if isinstance(tool, Workflow):
+        url = urllib.parse.urlparse(tool.tool["id"])
+        if url.fragment:
+            extracted = get_process(
+                tool,
+                tool.tool["id"] + "/" + args.single_process,
+                loadingContext.loader.idx,
+            )
+        else:
+            extracted = get_process(
+                tool,
+                loadingContext.loader.fetcher.urljoin(
+                    tool.tool["id"], "#" + args.single_process
+                ),
+                loadingContext.loader.idx,
+            )
+    else:
+        _logger.error("Can only use --single-process on Workflows")
         return None
     if isinstance(loadingContext.loader.idx, MutableMapping):
         loadingContext.loader.idx[extracted["id"]] = extracted
@@ -954,10 +996,13 @@ def main(
 
         setup_schema(args, custom_schema_callback)
 
+        prov_log_stream: Optional[Union[io.TextIOWrapper, WritableBagFile]] = None
         if args.provenance:
             if argsl is None:
                 raise Exception("argsl cannot be None")
-            if setup_provenance(args, argsl, runtimeContext) is not None:
+            try:
+                prov_log_stream = setup_provenance(args, argsl, runtimeContext)
+            except ArgumentException:
                 return 1
 
         loadingContext = setup_loadingContext(loadingContext, runtimeContext, args)
@@ -1007,7 +1052,7 @@ def main(
             if loadingContext.loader is None:
                 raise Exception("Impossible code path.")
             processobj, metadata = loadingContext.loader.resolve_ref(uri)
-            processobj = cast(CommentedMap, processobj)
+            processobj = cast(Union[CommentedMap, CommentedSeq], processobj)
             if args.pack:
                 stdout.write(print_pack(loadingContext, uri))
                 return 0
@@ -1065,6 +1110,13 @@ def main(
 
             elif args.single_step:
                 ctool = choose_step(args, tool, loadingContext)
+                if ctool is None:
+                    return 1
+                else:
+                    tool = ctool
+
+            elif args.single_process:
+                ctool = choose_process(args, tool, loadingContext)
                 if ctool is None:
                     return 1
                 else:
@@ -1305,7 +1357,10 @@ def main(
                 # Ensure last log lines are written out
                 prov_log_handler.flush()
                 # Underlying WritableBagFile will add the tagfile to the manifest
-                prov_log_handler.stream.close()
+                if prov_log_stream:
+                    prov_log_stream.close()
+                # Why not use prov_log_handler.stream ? That is not part of the
+                # public API for logging.StreamHandler
                 prov_log_handler.close()
             research_obj.close(args.provenance)
 

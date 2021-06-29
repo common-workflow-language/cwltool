@@ -15,9 +15,9 @@ from abc import ABCMeta, abstractmethod
 from io import IOBase
 from threading import Timer
 from typing import (
+    IO,
     Callable,
     Dict,
-    IO,
     Iterable,
     List,
     Mapping,
@@ -496,9 +496,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             children = monitor.children()
             rss = monitor.memory_info().rss
             while len(children):
-                rss += sum([process.memory_info().rss for process in children])
+                rss += sum(process.memory_info().rss for process in children)
                 children = list(
-                    itertools.chain(*[process.children() for process in children])
+                    itertools.chain(*(process.children() for process in children))
                 )
             if memory_usage[0] is None or rss > memory_usage[0]:
                 memory_usage[0] = rss
@@ -887,7 +887,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             return
         max_mem_percent = 0  # type: float
         mem_percent = 0  # type: float
-        with open(stats_file_name, mode="r") as stats:
+        with open(stats_file_name) as stats:
             while True:
                 line = stats.readline()
                 if not line:

@@ -211,13 +211,11 @@ def static_checker(
         sink = warning.sink
         linkMerge = warning.linkMerge
         sinksf = sorted(
-            [
-                p["pattern"]
-                for p in sink.get("secondaryFiles", [])
-                if p.get("required", True)
-            ]
+            p["pattern"]
+            for p in sink.get("secondaryFiles", [])
+            if p.get("required", True)
         )
-        srcsf = sorted([p["pattern"] for p in src.get("secondaryFiles", [])])
+        srcsf = sorted(p["pattern"] for p in src.get("secondaryFiles", []))
         # Every secondaryFile required by the sink, should be declared
         # by the source
         missing = missing_subset(srcsf, sinksf)

@@ -692,7 +692,7 @@ class ResearchObject:
         manifest = OrderedDict(
             {
                 "@context": [
-                    {"@base": "{}{}/".format(self.base_uri, posix_path(METADATA))},
+                    {"@base": f"{self.base_uri}{posix_path(METADATA)}/"},
                     "https://w3id.org/bundle/context",
                 ],
                 "id": "/",

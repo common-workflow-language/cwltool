@@ -44,12 +44,12 @@ from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.schema import load_schema, make_avro_schema, make_valid_avro
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
-from schema_salad.utils import convert_to_dict
-from schema_salad.validate import validate_ex
+from schema_salad.utils import ContextType, convert_to_dict
+from schema_salad.validate import validate_ex, avro_type_name
 from typing_extensions import TYPE_CHECKING
 
 from . import expression
-from .builder import Builder, HasReqsHints
+from .builder import Builder, HasReqsHints, INPUT_OBJ_VOCAB
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
@@ -458,30 +458,34 @@ def fill_in_defaults(
 
 
 def avroize_type(
-    field_type: Union[
-        CWLObjectType, MutableSequence[CWLOutputType], CWLOutputType, None
-    ],
+    field_type: Union[CWLObjectType, MutableSequence[Any], CWLOutputType, None],
     name_prefix: str = "",
-) -> None:
+) -> Union[CWLObjectType, MutableSequence[Any], CWLOutputType, None]:
     """Add missing information to a type so that CWL types are valid."""
     if isinstance(field_type, MutableSequence):
-        for field in field_type:
-            avroize_type(field, name_prefix)
+        for i, field in enumerate(field_type):
+            field_type[i] = avroize_type(field, name_prefix)
     elif isinstance(field_type, MutableMapping):
         if field_type["type"] in ("enum", "record"):
             if "name" not in field_type:
                 field_type["name"] = name_prefix + str(uuid.uuid4())
         if field_type["type"] == "record":
-            avroize_type(
+            field_type["fields"] = avroize_type(
                 cast(MutableSequence[CWLOutputType], field_type["fields"]), name_prefix
             )
-        if field_type["type"] == "array":
-            avroize_type(
+        elif field_type["type"] == "array":
+            field_type["items"] = avroize_type(
                 cast(MutableSequence[CWLOutputType], field_type["items"]), name_prefix
             )
-        if isinstance(field_type["type"], MutableSequence):
-            for ctype in field_type["type"]:
-                avroize_type(cast(CWLOutputType, ctype), name_prefix)
+        else:
+            field_type["type"] = avroize_type(
+                cast(CWLOutputType, field_type["type"]), name_prefix
+            )
+    elif field_type == "File":
+        return "org.w3id.cwl.cwl.File"
+    elif field_type == "Directory":
+        return "org.w3id.cwl.cwl.Directory"
+    return field_type
 
 
 def get_overrides(
@@ -636,6 +640,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 sdtypes,
                 {cast(str, t["name"]): cast(Dict[str, Any], t) for t in sdtypes},
                 set(),
+                vocab=INPUT_OBJ_VOCAB,
             )
             for i in av:
                 self.schemaDefs[i["name"]] = i  # type: ignore
@@ -670,7 +675,8 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     c["type"] = nullable
                 else:
                     c["type"] = c["type"]
-                avroize_type(c["type"], c["name"])
+
+                c["type"] = avroize_type(c["type"], c["name"])
                 if key == "inputs":
                     cast(
                         List[CWLObjectType], self.inputs_record_schema["fields"]
@@ -710,9 +716,13 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     )
                     raise
             if self.doc_schema is not None:
+                classname = toolpath_object["class"]
+                avroname = classname
+                if self.doc_loader and classname in self.doc_loader.vocab:
+                    avroname = avro_type_name(self.doc_loader.vocab[classname])
                 validate_js_expressions(
                     toolpath_object,
-                    self.doc_schema.names[toolpath_object["class"]],
+                    self.doc_schema.names[avroname],
                     validate_js_options,
                 )
 
@@ -779,7 +789,13 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 raise WorkflowException(
                     "Missing input record schema: " "{}".format(self.names)
                 )
-            validate_ex(schema, job, strict=False, logger=_logger_validation_warnings)
+            validate_ex(
+                schema,
+                job,
+                strict=False,
+                logger=_logger_validation_warnings,
+                vocab=INPUT_OBJ_VOCAB,
+            )
 
             if load_listing and load_listing != "no_listing":
                 get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
@@ -1016,13 +1032,16 @@ hints:
     def validate_hints(
         self, avsc_names: Names, hints: List[CWLObjectType], strict: bool
     ) -> None:
+        if self.doc_loader is None:
+            return
         for i, r in enumerate(hints):
             sl = SourceLine(hints, i, ValidationException)
             with sl:
-                if (
-                    avsc_names.get_name(cast(str, r["class"]), None) is not None
-                    and self.doc_loader is not None
-                ):
+                classname = cast(str, r["class"])
+                avroname = classname
+                if classname in self.doc_loader.vocab:
+                    avroname = avro_type_name(self.doc_loader.vocab[classname])
+                if avsc_names.get_name(avroname, None) is not None:
                     plain_hint = {
                         key: r[key]
                         for key in r
@@ -1031,10 +1050,11 @@ hints:
                     validate_ex(
                         cast(
                             Schema,
-                            avsc_names.get_name(cast(str, plain_hint["class"]), None),
+                            avsc_names.get_name(avroname, None),
                         ),
                         plain_hint,
                         strict=strict,
+                        vocab=self.doc_loader.vocab,
                     )
                 elif r["class"] in ("NetworkAccess", "LoadListingRequirement"):
                     pass

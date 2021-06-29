@@ -30,10 +30,7 @@ def jshead(engine_config: List[str], rootvars: CWLObjectType) -> str:
 
     return "\n".join(
         engine_config
-        + [
-            "var {} = {};".format(k, json_dumps(v, indent=4))
-            for k, v in rootvars.items()
-        ]
+        + [f"var {k} = {json_dumps(v, indent=4)};" for k, v in rootvars.items()]
     )
 
 
@@ -137,7 +134,7 @@ def next_seg(
         m = segment_re.match(remaining_string)
         if not m:
             return current_value
-        next_segment_str = m.group(0)
+        next_segment_str = m.group(1)
 
         key = None  # type: Optional[Union[str, int]]
         if next_segment_str[0] == ".":
@@ -149,7 +146,7 @@ def next_seg(
             if (
                 isinstance(current_value, MutableSequence)
                 and key == "length"
-                and not remaining_string[m.end(0) :]
+                and not remaining_string[m.end(1) :]
             ):
                 return len(current_value)
             if not isinstance(current_value, MutableMapping):
@@ -178,7 +175,7 @@ def next_seg(
             try:
                 return next_seg(
                     parsed_string + remaining_string,
-                    remaining_string[m.end(0) :],
+                    remaining_string[m.end(1) :],
                     cast(CWLOutputType, current_value[cast(str, key)]),
                 )
             except KeyError:
@@ -187,7 +184,7 @@ def next_seg(
             try:
                 return next_seg(
                     parsed_string + remaining_string,
-                    remaining_string[m.end(0) :],
+                    remaining_string[m.end(1) :],
                     current_value[key],
                 )
             except KeyError:
@@ -258,7 +255,7 @@ def evaluator(
 
 
 def _convert_dumper(string: str) -> str:
-    return "{} + ".format(json.dumps(string))
+    return f"{json.dumps(string)} + "
 
 
 def interpolate(
@@ -291,7 +288,7 @@ def interpolate(
     w = scanner(scan)
     while w:
         if convert_to_expression:
-            parts.append('"{}" + '.format(scan[0 : w[0]]))
+            parts.append(f'"{scan[0 : w[0]]}" + ')
         else:
             parts.append(scan[0 : w[0]])
 

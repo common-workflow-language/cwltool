@@ -1,12 +1,10 @@
 import contextlib
-import functools
 import io
 import json
 import os
 import shutil
 import subprocess
 from pathlib import Path
-import sys
 from typing import Dict, Generator, List, Mapping, Optional, Tuple, Union
 
 import pytest

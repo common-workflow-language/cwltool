@@ -3,19 +3,11 @@ import os
 from pathlib import Path
 from shutil import which
 from types import ModuleType
-from typing import Dict, List, Optional
+from typing import Optional
 
 import pytest
 
-from cwltool.main import main
-
-from .util import (
-    get_data,
-    get_main_output,
-    get_tool_env,
-    needs_docker,
-    working_directory,
-)
+from .util import get_data, get_main_output, get_tool_env, needs_docker
 
 deps = None  # type: Optional[ModuleType]
 try:
