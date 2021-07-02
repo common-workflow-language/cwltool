@@ -176,13 +176,20 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
+        def is_streamable(file):
+            for inp in self.joborder.values():
+                if isinstance(inp, dict) and inp.get('location', None) == file:
+                    return inp.get('streamable', False)
+            return False
+
         for knownfile in self.pathmapper.files():
             p = self.pathmapper.mapper(knownfile)
-            if p.type == "File" and not (os.path.isfile(p[0]) or stat.S_ISFIFO(os.stat(p[0]).st_mode)) and p.staged:
-                raise WorkflowException(
-                    "Input file %s (at %s) not found or is not a regular "
-                    "file." % (knownfile, self.pathmapper.mapper(knownfile)[0])
-                )
+            if p.type == "File" and not os.path.isfile(p[0]) and p.staged:
+                if not (is_streamable(knownfile) and stat.S_ISFIFO(os.stat(p[0]).st_mode)):
+                    raise WorkflowException(
+                        "Input file %s (at %s) not found or is not a regular "
+                        "file." % (knownfile, self.pathmapper.mapper(knownfile)[0])
+                    )
 
         if "listing" in self.generatefiles:
             runtimeContext = runtimeContext.copy()
