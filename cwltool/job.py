@@ -177,6 +177,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             os.makedirs(self.outdir)
 
         def is_streamable(file: str) -> bool:
+            if not runtimeContext.streaming_allowed:
+                return False
             for inp in self.joborder.values():
                 if isinstance(inp, dict) and inp.get("location", None) == file:
                     return inp.get("streamable", False)
