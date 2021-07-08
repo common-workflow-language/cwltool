@@ -53,12 +53,12 @@ def test_regular_file() -> None:
     )
     runtime_context = RuntimeContext()
 
-    joborder = {
+    joborder: CWLObjectType = {
         "inp": {
             "class": "File",
             "location": get_data("tests/wf/whale.txt"),
         }
-    }  # type: CWLObjectType
+    }
 
     job = next(clt.job(joborder, None, runtime_context))
     assert isinstance(job, JobBase)
