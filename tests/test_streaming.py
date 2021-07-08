@@ -90,13 +90,13 @@ def test_input_can_be_named_pipe(
     path = tmp_path / "tmp"
     os.mkfifo(path)
 
-    joborder = {
+    joborder: CWLObjectType = {
         "inp": {
             "class": "File",
             "location": str(path),
             "streamable": streamable,
         }
-    }  # type: CWLObjectType
+    }
 
     job = next(clt.job(joborder, None, runtime_context))
     assert isinstance(job, JobBase)
