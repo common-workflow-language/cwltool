@@ -2,7 +2,13 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-|Linux Status| |Debian Stable package| |Debian Testing package| |Coverage Status| |Downloads|
+|Linux Status| |Coverage Status|
+
+PyPI: |PyPI Version| |PyPI Downloads Month| |Total PyPI Downloads|
+
+Conda: |Conda Version| |Conda Installs|
+
+Debian: |Debian Testing package| |Debian Stable package|
 
 .. |Linux Status| image:: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml/badge.svg?branch=main
    :target: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml
@@ -16,8 +22,20 @@ Common Workflow Language tool description reference implementation
 .. |Coverage Status| image:: https://img.shields.io/codecov/c/github/common-workflow-language/cwltool.svg
    :target: https://codecov.io/gh/common-workflow-language/cwltool
 
-.. |Downloads| image:: https://pepy.tech/badge/cwltool/month
+.. |PyPI Version| image:: https://badge.fury.io/py/cwltool.svg
+    :target: https://badge.fury.io/py/cwltool
+
+.. |PyPI Downloads Month| image:: https://pepy.tech/badge/cwltool/month
    :target: https://pepy.tech/project/cwltool
+
+.. |Total PyPI Downloads| image:: https://static.pepy.tech/personalized-badge/cwltool?period=total&units=international_system&left_color=black&right_color=orange&left_text=Total%20PyPI%20Downloads
+ :target: https://pepy.tech/project/cwltool
+
+.. |Conda Version| image:: https://anaconda.org/conda-forge/cwltool/badges/version.svg 
+   :target: https://anaconda.org/conda-forge/cwltool
+   
+.. |Conda Installs| image:: https://anaconda.org/conda-forge/cwltool/badges/downloads.svg
+   :target: https://anaconda.org/conda-forge/cwltool
 
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
