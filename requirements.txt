@@ -1,6 +1,6 @@
 requests>=2.4.3
 ruamel.yaml>=0.15,<0.17.11
-rdflib>=4.2.2,<5.1
+rdflib>=4.2.2,<6.1
 shellescape>=3.4.1,<3.9
 schema-salad>=8.1.20210627200047,<9
 prov==1.5.1
