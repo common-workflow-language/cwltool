@@ -633,7 +633,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
         if sd is not None:
-            sdtypes = cast(MutableSequence[CWLObjectType], sd["types"])
+            sdtypes = copy.deepcopy(cast(MutableSequence[CWLObjectType], sd["types"]))
             avroize_type(cast(MutableSequence[CWLOutputType], sdtypes))
             av = make_valid_avro(
                 sdtypes,
