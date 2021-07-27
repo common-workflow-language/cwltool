@@ -117,7 +117,7 @@ setup(
         "mypy-extensions",
         "psutil >= 5.6.6",
         "prov == 1.5.1",
-        "networkx < 2.6",
+        "networkx < 2.7",
         "bagit >= 1.6.4",
         "typing-extensions",
         "coloredlogs",
