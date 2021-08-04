@@ -107,6 +107,7 @@ class RuntimeContext(ContextBase):
         self.pull_image = True  # type: bool
         self.rm_container = True  # type: bool
         self.move_outputs = "move"  # type: str
+        self.streaming_allowed: bool = False
 
         self.singularity = False  # type: bool
         self.debug = False  # type: bool
