@@ -19,7 +19,7 @@ steps:
     run: echo_no_output.cwl
     scatter: text
     hints:
-      cwltool:StepNameHint:
+      cwltool:StepName:
         stepname: $("test_" + inputs.text.split('.')[0])
     in:
       text: texts

@@ -65,16 +65,16 @@ $graph:
         this will be evaluated as a CWL Expression and it must
         evaluate to an integer.
 
-- name: StepNameHint
+- name: StepName
   type: record
   inVocab: false
   extends: cwl:ProcessRequirement
   doc: |
-    Provide a hint for naming the runtime workflow step in logs or user interface.
+    Provide a string or expression for naming the runtime workflow step in logs or user interface.
   fields:
     - name: class
       type: string
-      doc: "Always 'StepNameHint'"
+      doc: "Always 'StepName'"
       jsonldPredicate:
         "_id": "@type"
         "_type": "@vocab"
