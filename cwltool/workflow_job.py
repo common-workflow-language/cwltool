@@ -70,14 +70,11 @@ class WorkflowJobStep:
         runtimeContext = runtimeContext.copy()
         runtimeContext.part_of = self.name
 
-        has_custom_name = False
-        for hint in self.step.hints:
-            if hint["class"] == "http://commonwl.org/cwltool#StepNameHint":
-                vfinputs = {shortname(k): v for k, v in joborder.items()}
-                runtimeContext.name = expression.do_eval(hint["stepname"], vfinputs, self.step.requirements, None, None, {})
-                has_custom_name = True
-                break
-        if not has_custom_name:
+        stepnameReq, is_required = self.step.get_requirement("http://commonwl.org/cwltool#StepNameHint")
+        if stepnameReq is not None and is_required is not None:
+            vfinputs = {shortname(k): v for k, v in joborder.items()}
+            runtimeContext.name = expression.do_eval(stepnameReq["stepname"], vfinputs, self.step.requirements, None, None, {})
+        else:
             runtimeContext.name = shortname(self.id)
 
         _logger.info("[%s] start", self.name)
