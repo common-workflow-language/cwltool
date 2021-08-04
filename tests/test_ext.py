@@ -295,3 +295,18 @@ def test_warn_large_inputs() -> None:
         )
     finally:
         cwltool.process.FILE_COUNT_WARNING = was
+
+
+def test_stepname() -> None:
+    stream = StringIO()
+
+    main(
+        ["--enable-ext",
+        get_data("tests/scatter-echo-wf.cwl"), get_data("tests/scatter-echo-wf.yml")],
+        stderr=stream,
+    )
+
+    assert (
+        "test_a" in stream.getvalue() and "test_b" in stream.getvalue()
+        and "test_c" in stream.getvalue()
+    )
