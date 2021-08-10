@@ -305,7 +305,7 @@ def test_jobname() -> None:
         [
             "--enable-ext",
             get_data("tests/scatter-echo-wf.cwl"),
-            get_data("tests/scatter-echo-wf.yml")
+            get_data("tests/scatter-echo-wf.yml"),
         ],
         stderr=stream,
     )
