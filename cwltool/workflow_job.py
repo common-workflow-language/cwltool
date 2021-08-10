@@ -73,7 +73,8 @@ class WorkflowJobStep:
         jobnameReq, is_required = self.step.get_requirement("http://commonwl.org/cwltool#JobName")
         if jobnameReq is not None:
             vfinputs = {shortname(k): v for k, v in joborder.items()}
-            runtimeContext.name = expression.do_eval(jobnameReq["jobname"], vfinputs, self.step.requirements, None, None, {})
+            runtimeContext.name = expression.do_eval(jobnameReq["jobname"],
+                vfinputs, self.step.requirements, None, None, {})
         else:
             runtimeContext.name = shortname(self.id)
 
