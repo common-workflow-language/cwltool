@@ -297,7 +297,8 @@ def test_warn_large_inputs() -> None:
         cwltool.process.FILE_COUNT_WARNING = was
 
 
-def test_stepname() -> None:
+def test_jobname() -> None:
+    """Test JobName requirement."""
     stream = StringIO()
 
     main(

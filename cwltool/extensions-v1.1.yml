@@ -65,7 +65,7 @@ $graph:
         this will be evaluated as a CWL Expression and it must
         evaluate to an integer.
 
-- name: StepName
+- name: JobName
   type: record
   inVocab: false
   extends: cwl:ProcessRequirement
@@ -74,12 +74,12 @@ $graph:
   fields:
     - name: class
       type: string
-      doc: "Always 'StepName'"
+      doc: "Always 'JobName'"
       jsonldPredicate:
         "_id": "@type"
         "_type": "@vocab"
-    - name: stepname
+    - name: jobname
       type: [string, cwl:Expression]
       doc: |
-        A string or expression returning a string with the preferred name for the step.
+        A string or expression returning a string with the preferred name for the job.
         If it is an expression, it is evaluated after the input object has been completely determined.

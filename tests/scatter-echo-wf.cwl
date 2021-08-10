@@ -19,8 +19,8 @@ steps:
     run: echo_no_output.cwl
     scatter: text
     hints:
-      cwltool:StepName:
-        stepname: $("test_" + inputs.text.split('.')[0])
+      cwltool:JobName:
+        jobname: $("test_" + inputs.text.split('.')[0])
     in:
       text: texts
     out: []
