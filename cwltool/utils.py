@@ -374,6 +374,7 @@ def ensure_writable(path, include_root=False):  # type: (str) -> None
     is a file or if 'include_root' is `True`, then 'path' itself is made
     writable.
     """
+    
     def add_writable_flag(p):
         st = os.stat(p)
         mode = stat.S_IMODE(st.st_mode)
