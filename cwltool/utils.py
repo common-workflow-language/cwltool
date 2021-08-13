@@ -367,23 +367,22 @@ def downloadHttpFile(httpurl):
     return str(f.name)
 
 
-def ensure_writable(path):  # type: (str) -> None
+def ensure_writable(path, include_root=False):  # type: (str) -> None
+    def add_writable_flag(p):
+        st = os.stat(p)
+        mode = stat.S_IMODE(st.st_mode)
+        os.chmod(p, mode | stat.S_IWUSR)
+
     if os.path.isdir(path):
+        if include_root:
+            add_writable_flag(path)
         for root, dirs, files in os.walk(path):
             for name in files:
-                j = os.path.join(root, name)
-                st = os.stat(j)
-                mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode | stat.S_IWUSR)
+                add_writable_flag(os.path.join(root, name))
             for name in dirs:
-                j = os.path.join(root, name)
-                st = os.stat(j)
-                mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode | stat.S_IWUSR)
+                add_writable_flag(os.path.join(root, name))
     else:
-        st = os.stat(path)
-        mode = stat.S_IMODE(st.st_mode)
-        os.chmod(path, mode | stat.S_IWUSR)
+        add_writable_flag(path)
 
 
 def ensure_non_writable(path):  # type: (str) -> None
