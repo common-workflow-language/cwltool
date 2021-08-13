@@ -368,6 +368,12 @@ def downloadHttpFile(httpurl):
 
 
 def ensure_writable(path, include_root=False):  # type: (str) -> None
+    """
+    Ensure that 'path' is writable. If 'path' is a directory, then all files
+    and directories under 'path' are made writable, recursively. If 'path'
+    is a file or if 'include_root' is `True`, then 'path' itself is made
+    writable.
+    """
     def add_writable_flag(p):
         st = os.stat(p)
         mode = stat.S_IMODE(st.st_mode)
