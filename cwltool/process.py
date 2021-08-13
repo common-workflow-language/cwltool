@@ -308,7 +308,7 @@ def stage_files(
                 os.makedirs(entry.target)
             else:
                 shutil.copytree(entry.resolved, entry.target)
-                ensure_writable(entry.target)
+                ensure_writable(entry.target, include_root=True)
         elif entry.type == "CreateFile" or entry.type == "CreateWritableFile":
             with open(entry.target, "wb") as new:
                 if secret_store is not None:
