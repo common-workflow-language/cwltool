@@ -120,6 +120,12 @@ def test_iwdr_permutations_readonly(tmp_path_factory: Any) -> None:
         )
         == 0
     )
+    for entry in [first, second, fifth, sixth, fifth_file, fifth_dir]:
+        try:
+            mode = entry.stat().st_mode
+            entry.chmod(mode | S_IWRITE)
+        except PermissionError:
+            pass
 
 
 @needs_docker
