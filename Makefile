@@ -66,7 +66,11 @@ dev: install-dep
 ## dist        : create a module package for distribution
 dist: dist/${MODULE}-$(VERSION).tar.gz
 
-dist/${MODULE}-$(VERSION).tar.gz: $(SOURCES)
+check-python3:
+# Check that the default python version is python 3
+	python --version 2>&1 | grep "Python 3"
+
+dist/${MODULE}-$(VERSION).tar.gz: check-python3 $(SOURCES)
 	python setup.py sdist bdist_wheel
 
 ## docs	       : make the docs
@@ -74,7 +78,7 @@ docs: FORCE
 	cd docs && $(MAKE) html
 
 ## clean       : clean up all temporary / machine-generated files
-clean: FORCE
+clean: check-python3 FORCE
 	rm -f ${MODILE}/*.pyc tests/*.pyc
 	python setup.py clean --all || true
 	rm -Rf .coverage
@@ -142,11 +146,11 @@ diff-cover.html: coverage.xml
 	diff-cover --compare-branch=main $^ --html-report $@
 
 ## test        : run the ${MODULE} test suite
-test: $(PYSOURCES)
+test: check-python3 $(PYSOURCES)
 	python -m pytest ${PYTEST_EXTRA}
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
-testcov: $(PYSOURCES)
+testcov: check-python3 $(PYSOURCES)
 	python -m pytest --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
 
 sloccount.sc: $(PYSOURCES) Makefile
@@ -162,10 +166,10 @@ list-author-emails:
 
 mypy3: mypy
 mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
-	if ! test -f $(shell python3 -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
+	if ! test -f $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
 	then \
 		rm -Rf typeshed/ruamel/yaml ; \
-		ln -s $(shell python3 -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
+		ln -s $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
 			typeshed/ruamel/ ; \
 	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
 	MYPYPATH=$$MYPYPATH:typeshed mypy $^
@@ -181,7 +185,7 @@ shellcheck: FORCE
 pyupgrade: $(PYSOURCES)
 	pyupgrade --exit-zero-even-if-changed --py36-plus $^
 
-release-test: FORCE
+release-test: check-python3 FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )
 	./release-test.sh
 
