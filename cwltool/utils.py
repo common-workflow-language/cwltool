@@ -367,7 +367,7 @@ def downloadHttpFile(httpurl):
     return str(f.name)
 
 
-def ensure_writable(path, include_root=False):  # type: (str) -> None
+def ensure_writable(path: str, include_root: bool = False) -> None:
     """
     Ensure that 'path' is writable.
 
@@ -376,7 +376,7 @@ def ensure_writable(path, include_root=False):  # type: (str) -> None
     `True`, then 'path' itself is made writable.
     """
 
-    def add_writable_flag(p):
+    def add_writable_flag(p: str) -> None:
         st = os.stat(p)
         mode = stat.S_IMODE(st.st_mode)
         os.chmod(p, mode | stat.S_IWUSR)
