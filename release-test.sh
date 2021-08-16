@@ -19,7 +19,7 @@ fi
 test_prefix=""
 run_tests() {
 	local mod_loc
-	mod_loc=$(pip show ${package} | 
+	mod_loc=$(pip show ${package} |
 		grep ^Location | awk '{print $2}')/${module}
 	"${test_prefix}"bin/py.test "--ignore=${mod_loc}/schemas/" \
 		--pyargs -x ${module} -n auto --dist=loadfile
@@ -42,6 +42,7 @@ then
 		&& pip install --force-reinstall -U pip==${pipver} \
 		&& pip install setuptools==${setuptoolsver} wheel
 	pip install -rtest-requirements.txt
+	pip install -e .
 	make test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 	mkdir testenv1/not-${module}

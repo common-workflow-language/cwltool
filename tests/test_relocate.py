@@ -6,28 +6,16 @@ from cwltool.main import main
 
 from .util import get_data, needs_docker
 
-from io import StringIO
+if sys.version_info[0] < 3:
+    from StringIO import StringIO
+else:
+    from io import StringIO
 
 
 @needs_docker
 def test_for_910() -> None:
     assert main([get_data("tests/wf/910.cwl")]) == 0
     assert main([get_data("tests/wf/910.cwl")]) == 0
-
-
-def test_symlinks_with_absolute_paths(tmp_path: Path) -> None:
-    """Confirm that absolute paths in Directory types don't cause problems."""
-    assert (
-        main(
-            [
-                "--debug",
-                f"--outdir={tmp_path}/result",
-                f"--tmpdir-prefix={tmp_path}/tmp",
-                get_data("tests/symlinks.cwl"),
-            ]
-        )
-        == 0
-    )
 
 
 @needs_docker
