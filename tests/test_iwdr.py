@@ -1,4 +1,5 @@
 from pathlib import Path
+from stat import S_IWRITE, S_IWGRP, S_IWOTH
 from typing import Any
 
 from cwltool.factory import Factory
@@ -74,6 +75,43 @@ def test_iwdr_permutations(tmp_path_factory: Any) -> None:
                 seventh,
                 "--eighth",
                 eighth,
+            ]
+        )
+        == 0
+    )
+
+
+def test_iwdr_permutations_readonly(tmp_path_factory: Any) -> None:
+    """Confirm that readonly input files are properly made writable."""
+    misc = tmp_path_factory.mktemp("misc")
+    fifth = tmp_path_factory.mktemp("fifth")
+    sixth = tmp_path_factory.mktemp("sixth")
+    first = misc / "first"
+    first.touch()
+    second = misc / "second"
+    second.touch()
+    outdir = str(tmp_path_factory.mktemp("outdir"))
+    for entry in [first, second, fifth, sixth]:
+        mode = entry.stat().st_mode
+        ro_mask = 0o777 ^ (S_IWRITE | S_IWGRP | S_IWOTH)
+        entry.chmod(mode & ro_mask)
+    assert (
+        main(
+            [
+                "--no-container",
+                "--debug",
+                "--leave-outputs",
+                "--outdir",
+                outdir,
+                get_data("tests/wf/iwdr_permutations_nocontainer.cwl"),
+                "--first",
+                str(first),
+                "--second",
+                str(second),
+                "--fifth",
+                str(fifth),
+                "--sixth",
+                str(sixth),
             ]
         )
         == 0
