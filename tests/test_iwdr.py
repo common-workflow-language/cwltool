@@ -85,13 +85,17 @@ def test_iwdr_permutations_readonly(tmp_path_factory: Any) -> None:
     """Confirm that readonly input files are properly made writable."""
     misc = tmp_path_factory.mktemp("misc")
     fifth = tmp_path_factory.mktemp("fifth")
+    fifth_file = fifth / "bar"
+    fifth_dir = fifth / "foo"
+    fifth_file.touch()
+    fifth_dir.mkdir()
     sixth = tmp_path_factory.mktemp("sixth")
     first = misc / "first"
     first.touch()
     second = misc / "second"
     second.touch()
     outdir = str(tmp_path_factory.mktemp("outdir"))
-    for entry in [first, second, fifth, sixth]:
+    for entry in [first, second, fifth, sixth, fifth_file, fifth_dir]:
         mode = entry.stat().st_mode
         ro_mask = 0o777 ^ (S_IWRITE | S_IWGRP | S_IWOTH)
         entry.chmod(mode & ro_mask)
