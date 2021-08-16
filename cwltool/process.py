@@ -356,28 +356,19 @@ def relocateOutputs(
             return
 
         # If the source is not contained in source_directories we're not allowed to delete it
-        real_src = fs_access.realpath(src)
+        src = fs_access.realpath(src)
         src_can_deleted = any(
-            os.path.commonprefix([p, real_src]) == p for p in source_directories
+            os.path.commonprefix([p, src]) == p for p in source_directories
         )
 
         _action = "move" if action == "move" and src_can_deleted else "copy"
 
         if _action == "move":
             _logger.debug("Moving %s to %s", src, dst)
-            if fs_access.isdir(src):
-                if fs_access.isdir(dst):
-                    if len(fs_access.listdir(dst)) > 0:
-                        # merge directories
-                        for dir_entry in scandir(src):
-                            _relocate(
-                                dir_entry.path, fs_access.join(dst, dir_entry.name)
-                            )
-                    else:
-                        os.rmdir(dst)
-                        shutil.move(src, dst)
-                else:
-                    shutil.move(src, dst)
+            if fs_access.isdir(src) and fs_access.isdir(dst):
+                # merge directories
+                for dir_entry in scandir(src):
+                    _relocate(dir_entry.path, fs_access.join(dst, dir_entry.name))
             else:
                 shutil.move(src, dst)
 
