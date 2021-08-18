@@ -1,0 +1,36 @@
+name: publish-quay
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  workflow_dispatch: {}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Get image tags
+        id: image_tags
+        run: |
+          echo -n ::set-output name=IMAGE_TAGS::$(git describe --tags)
+      - name: Build and publish cwltool_module image to Quay
+        uses: docker/build-push-action@v1
+        with:
+          file: cwltool.Dockerfile
+          registry: ${{ secrets.REGISTRY_SERVER }}
+          repository: ${{ secrets.REGISTRY_NAMESPACE }}/cwltool_module
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+          tags: "${{ steps.image_tags.outputs.IMAGE_TAGS }}"
+          target: module
+      - name: Build and publish cwltool image to Quay
+        uses: docker/build-push-action@v1
+        with:
+          file: cwltool.Dockerfile
+          registry: ${{ secrets.REGISTRY_SERVER }}
+          repository: ${{ secrets.REGISTRY_NAMESPACE }}/cwltool
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+          tags: "${{ steps.image_tags.outputs.IMAGE_TAGS }}"
