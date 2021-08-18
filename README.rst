@@ -40,7 +40,7 @@ Quay.io (Docker): |Quay.io Container|
    :target: https://anaconda.org/conda-forge/cwltool
 
 .. |Quay.io Container| image:: https://quay.io/repository/commonwl/cwltool/status
-   :target https://quay.io/repository/commonwl/cwltool
+   :target: https://quay.io/repository/commonwl/cwltool
 
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
