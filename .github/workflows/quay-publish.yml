@@ -1,8 +1,6 @@
 name: publish-quay
 on:
   push:
-    branches:
-      - main
     tags:
       - '*'
   workflow_dispatch: {}
@@ -14,7 +12,7 @@ jobs:
       - name: Get image tags
         id: image_tags
         run: |
-          echo -n ::set-output name=IMAGE_TAGS::$(git describe --tags)
+          echo -n ::set-output name=IMAGE_TAGS::${GITHUB_REF#refs/*/}
       - name: Login to Quay.io
         uses: docker/login-action@v1
         with:
@@ -27,8 +25,10 @@ jobs:
           file: cwltool.Dockerfile
           tags: "${{ steps.image_tags.outputs.IMAGE_TAGS }}"
           target: module
+          push: true
       - name: Build and publish cwltool image to Quay
         uses: docker/build-push-action@v2
         with:
           file: cwltool.Dockerfile
           tags: "${{ steps.image_tags.outputs.IMAGE_TAGS }}"
+          push: true
