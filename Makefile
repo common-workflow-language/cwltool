@@ -179,7 +179,7 @@ mypyc: $(PYSOURCES)
 		 && pytest ${PYTEST_EXTRA}
 
 shellcheck: FORCE
-	shellcheck build-cwl-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
+	shellcheck build-cwltool-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
 		cwltool-in-docker.sh
 
 pyupgrade: $(PYSOURCES)
