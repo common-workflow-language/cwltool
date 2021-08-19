@@ -23,12 +23,12 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           file: cwltool.Dockerfile
-          tags: "${{ steps.image_tags.outputs.IMAGE_TAGS }}"
+          tags: quay.io/commonwl/cwltool_module:"${{ steps.image_tags.outputs.IMAGE_TAGS }}"
           target: module
           push: true
       - name: Build and publish cwltool image to Quay
         uses: docker/build-push-action@v2
         with:
           file: cwltool.Dockerfile
-          tags: "${{ steps.image_tags.outputs.IMAGE_TAGS }}"
+          tags: quay.io/commonwl/cwltool:"${{ steps.image_tags.outputs.IMAGE_TAGS }}"
           push: true
