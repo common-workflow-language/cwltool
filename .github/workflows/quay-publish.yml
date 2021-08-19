@@ -16,7 +16,7 @@ jobs:
         run: |
           echo -n ::set-output name=IMAGE_TAGS::$(git describe --tags)
       - name: Build and publish cwltool_module image to Quay
-        uses: docker/build-push-action@v1
+        uses: docker/build-push-action@v2
         with:
           file: cwltool.Dockerfile
           registry: ${{ secrets.REGISTRY_SERVER }}
