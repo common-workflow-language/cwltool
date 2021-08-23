@@ -5,7 +5,7 @@ docker build --file=cwltool.Dockerfile --tag=quay.io/commonwl/cwltool .
 
 docker run -v -it /var/run/docker.sock:/var/run/docker.sock \
 	-v /tmp:/tmp \
-	-v $PWD:/tmp/cwltool \
+	-v "$PWD":/tmp/cwltool \
 	quay.io/commonwl/cwltool_module /bin/sh -c \
 	"apk add gcc bash && pip install -r/tmp/cwltool/test-requirements.txt ; pytest -k 'not test_bioconda and not test_double_overwrite and not test_env_filtering' -n auto --dist=loadfile --pyargs cwltool"
 
