@@ -17,7 +17,7 @@ except ImportError:
 
 
 @needs_docker
-@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
+@pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
 def test_biocontainers() -> None:
     wflow = get_data("tests/seqtk_seq.cwl")
     job = get_data("tests/seqtk_seq_job.json")
@@ -26,7 +26,7 @@ def test_biocontainers() -> None:
     assert error_code == 0
 
 
-@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
+@pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
 def test_bioconda() -> None:
     wflow = get_data("tests/seqtk_seq.cwl")
     job = get_data("tests/seqtk_seq_job.json")
@@ -37,7 +37,7 @@ def test_bioconda() -> None:
     assert error_code == 0, stderr
 
 
-@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
+@pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
 @pytest.mark.skipif(not which("modulecmd"), reason="modulecmd not installed")
 def test_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     """Do a basic smoke test using environment modules to satisfy a SoftwareRequirement."""
@@ -59,7 +59,7 @@ def test_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     assert error_code == 0, stderr
 
 
-@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
+@pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
 @pytest.mark.skipif(not which("modulecmd"), reason="modulecmd not installed")
 def test_modules_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """
