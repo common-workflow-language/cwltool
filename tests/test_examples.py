@@ -1414,3 +1414,16 @@ def test_malformed_reqs() -> None:
         match=r".*wc-tool-bad-reqs\.cwl:6:1: If 'requirements' is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
     ):
         factory.make(get_data("tests/wc-tool-bad-reqs.cwl"))
+
+
+def test_arguments_self() -> None:
+    """Confirm that $(self) works in the arguments list."""
+    factory = cwltool.factory.Factory()
+    check = factory.make(get_data("tests/wf/paramref_arguments_self.cwl"))
+    outputs = cast(Dict[str, Any], check())
+    assert "self_review" in outputs
+    assert len(outputs) == 1
+    assert (
+        outputs["self_review"]["checksum"]
+        == "sha1$724ba28f4a9a1b472057ff99511ed393a45552e1"
+    )
