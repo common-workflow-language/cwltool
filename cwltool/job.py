@@ -855,12 +855,6 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     runtime = new_runtime
                     img_id = self.bake_inputs_into_docker_container(str(img_id), copy_these_into_container)
 
-        # if not runtimeContext.singularity:
-        #     copy_these_into_container, new_runtime = self.filter_out_docker_image_file_inputs(runtime, runtimeContext.docker_outdir)
-        #     if copy_these_into_container:
-        #         runtime = new_runtime
-        #         img_id = self.bake_inputs_into_container(str(img_id), copy_these_into_container)
-
         runtime.append(str(img_id))
         monitor_function = None
         if cidfile:
