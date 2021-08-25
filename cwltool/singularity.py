@@ -5,7 +5,6 @@ import os.path
 import re
 import shutil
 import sys
-from distutils import spawn
 from subprocess import (  # nosec
     DEVNULL,
     PIPE,
@@ -20,17 +19,11 @@ from schema_salad.sourceline import SourceLine
 
 from .builder import Builder
 from .context import RuntimeContext
-from .errors import UnsupportedRequirement, WorkflowException
+from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
-from .utils import (
-    CWLObjectType,
-    create_tmp_dir,
-    docker_windows_path_adjust,
-    ensure_non_writable,
-    ensure_writable,
-)
+from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_writable
 
 _USERNS = None  # type: Optional[bool]
 _SINGULARITY_VERSION = ""
@@ -50,6 +43,7 @@ def _singularity_supports_userns() -> bool:
             _USERNS = (
                 "No valid /bin/sh" in result
                 or "/bin/sh doesn't exist in container" in result
+                or "executable file not found in" in result
             )
         except TimeoutExpired:
             _USERNS = False
@@ -99,9 +93,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         name: str,
     ) -> None:
         """Builder for invoking the Singularty software container engine."""
-        super(SingularityCommandLineJob, self).__init__(
-            builder, joborder, make_path_mapper, requirements, hints, name
-        )
+        super().__init__(builder, joborder, make_path_mapper, requirements, hints, name)
 
     @staticmethod
     def get_image(
@@ -268,7 +260,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         (e.g. hello-world-latest.{img,sif}).
         """
-        if not bool(spawn.find_executable("singularity")):
+        if not bool(shutil.which("singularity")):
             raise WorkflowException("singularity executable is not available")
 
         if not self.get_image(cast(Dict[str, str], r), pull_image, force_pull):
@@ -282,19 +274,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     def append_volume(
         runtime: List[str], source: str, target: str, writable: bool = False
     ) -> None:
-        src = docker_windows_path_adjust(source)
-        dst = docker_windows_path_adjust(target)
-        writable_flag = "rw" if writable else "ro"
-        if (
-            os.path.isfile(src)
-            and dst.endswith(os.path.basename(src))
-            and writable_flag == "ro"
-        ):
-            src = os.path.dirname(src)
-            dst = os.path.dirname(dst)
-        bind_arg = f"--bind={src}:{dst}:{writable_flag}"
-        if bind_arg not in runtime:
-            runtime.append(bind_arg)
+        runtime.append("--bind")
+        # Mounts are writable by default, so 'rw' is optional and not
+        # supported (due to a bug) in some 3.6 series releases.
+        vol = f"{source}:{target}"
+        if not writable:
+            vol += ":ro"
+        runtime.append(vol)
 
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
@@ -383,6 +369,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 self.append_volume(runtime, source, volume.target, writable=True)
                 ensure_writable(source)
 
+    def _required_env(self) -> Dict[str, str]:
+        return {
+            "TMPDIR": self.CONTAINER_TMPDIR,
+            "HOME": self.builder.outdir,
+        }
+
     def create_runtime(
         self, env: MutableMapping[str, str], runtime_context: RuntimeContext
     ) -> Tuple[List[str], Optional[str]]:
@@ -394,31 +386,34 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             "exec",
             "--contain",
             "--ipc",
+            "--cleanenv",
         ]
         if _singularity_supports_userns():
             runtime.append("--userns")
         else:
             runtime.append("--pid")
+
+        container_HOME: Optional[str] = None
         if is_version_3_1_or_newer():
+            # Remove HOME, as passed in a special way (restore it below)
+            container_HOME = self.environment.pop("HOME")
             runtime.append("--home")
             runtime.append(
                 "{}:{}".format(
-                    docker_windows_path_adjust(os.path.realpath(self.outdir)),
-                    self.builder.outdir,
+                    os.path.realpath(self.outdir),
+                    container_HOME,
                 )
             )
         else:
-            runtime.append(
-                "--bind={}:{}:rw".format(
-                    docker_windows_path_adjust(os.path.realpath(self.outdir)),
-                    self.builder.outdir,
-                )
+            self.append_volume(
+                runtime,
+                os.path.realpath(self.outdir),
+                self.environment["HOME"],
+                writable=True,
             )
-        tmpdir = "/tmp"  # nosec
-        runtime.append(
-            "--bind={}:{}:rw".format(
-                docker_windows_path_adjust(os.path.realpath(self.tmpdir)), tmpdir
-            )
+
+        self.append_volume(
+            runtime, os.path.realpath(self.tmpdir), self.CONTAINER_TMPDIR, writable=True
         )
 
         self.add_volumes(
@@ -438,18 +433,18 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             )
 
         runtime.append("--pwd")
-        runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
+        runtime.append(self.builder.outdir)
 
-        if runtime_context.custom_net:
-            raise UnsupportedRequirement(
-                "Singularity implementation does not support custom networking"
-            )
-        elif runtime_context.disable_net:
-            runtime.append("--net")
-
-        env["SINGULARITYENV_TMPDIR"] = tmpdir
-        env["SINGULARITYENV_HOME"] = self.builder.outdir
+        if self.networkaccess:
+            if runtime_context.custom_net:
+                runtime.extend(["--net", "--network", runtime_context.custom_net])
+        else:
+            runtime.extend(["--net", "--network", "none"])
 
         for name, value in self.environment.items():
-            env["SINGULARITYENV_{}".format(name)] = str(value)
+            env[f"SINGULARITYENV_{name}"] = str(value)
+
+        if container_HOME:
+            # Restore HOME if we removed it above.
+            self.environment["HOME"] = container_HOME
         return (runtime, None)
