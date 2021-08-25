@@ -3,10 +3,9 @@ from pathlib import Path
 
 from cwltool.main import main
 
-from .util import get_data, windows_needs_docker
+from .util import get_data
 
 
-@windows_needs_docker
 def test_empty_input(tmp_path: Path) -> None:
     """Affirm that an empty input works."""
     empty_json = "{}"

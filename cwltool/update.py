@@ -26,9 +26,9 @@ def v1_1to1_2(
     """Public updater for v1.1 to v1.2."""
     doc = copy.deepcopy(doc)
 
-    upd = doc
+    upd: Union[CommentedSeq, CommentedMap] = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
-        upd = cast(CommentedMap, upd["$graph"])
+        upd = upd["$graph"]
     for proc in aslist(upd):
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
@@ -72,7 +72,7 @@ def v1_0to1_1(
                         r["class"] = rewrite[cls]
                 else:
                     raise ValidationException(
-                        "hints entries must be dictionaries: {} {}.".format(type(r), r)
+                        f"hints entries must be dictionaries: {type(r)} {r}."
                     )
         if "steps" in t:
             for s in cast(MutableSequence[CWLObjectType], t["steps"]):
@@ -80,7 +80,7 @@ def v1_0to1_1(
                     rewrite_requirements(s)
                 else:
                     raise ValidationException(
-                        "steps entries must be dictionaries: {} {}.".format(type(s), s)
+                        f"steps entries must be dictionaries: {type(s)} {s}."
                     )
 
     def update_secondaryFiles(t, top=False):
@@ -119,9 +119,9 @@ def v1_0to1_1(
     visit_class(doc, ("ExpressionTool", "Workflow"), fix_inputBinding)
     visit_field(doc, "secondaryFiles", partial(update_secondaryFiles, top=True))
 
-    upd = doc
+    upd: Union[CommentedMap, CommentedSeq] = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
-        upd = cast(CommentedMap, upd["$graph"])
+        upd = upd["$graph"]
     for proc in aslist(upd):
         proc.setdefault("hints", CommentedSeq())
         proc["hints"].insert(
@@ -167,9 +167,9 @@ def v1_2_0dev2todev3(
                         inp["pickValue"] = "the_only_non_null"
 
     visit_class(doc, "Workflow", update_pickvalue)
-    upd = doc
+    upd: Union[CommentedSeq, CommentedMap] = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
-        upd = cast(CommentedMap, upd["$graph"])
+        upd = upd["$graph"]
     for proc in aslist(upd):
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
@@ -210,25 +210,25 @@ ORDERED_VERSIONS = [
 ]
 
 UPDATES = {
-    u"v1.0": v1_0to1_1,
-    u"v1.1": v1_1to1_2,
-    u"v1.2": None,
+    "v1.0": v1_0to1_1,
+    "v1.1": v1_1to1_2,
+    "v1.2": None,
 }  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
 
 DEVUPDATES = {
-    u"v1.1.0-dev1": v1_1_0dev1to1_1,
-    u"v1.2.0-dev1": v1_2_0dev1todev2,
-    u"v1.2.0-dev2": v1_2_0dev2todev3,
-    u"v1.2.0-dev3": v1_2_0dev3todev4,
-    u"v1.2.0-dev4": v1_2_0dev4todev5,
-    u"v1.2.0-dev5": v1_2_0dev5to1_2,
+    "v1.1.0-dev1": v1_1_0dev1to1_1,
+    "v1.2.0-dev1": v1_2_0dev1todev2,
+    "v1.2.0-dev2": v1_2_0dev2todev3,
+    "v1.2.0-dev3": v1_2_0dev3todev4,
+    "v1.2.0-dev4": v1_2_0dev4todev5,
+    "v1.2.0-dev5": v1_2_0dev5to1_2,
 }  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
 
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = u"v1.2"
+INTERNAL_VERSION = "v1.2"
 
 ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 
@@ -283,7 +283,7 @@ def checkversion(
                 keys = list(UPDATES.keys())
                 keys.sort()
                 raise ValidationException(
-                    u"Version '%s' is a development or deprecated version.\n "
+                    "Version '%s' is a development or deprecated version.\n "
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
                     "deprecated versions." % (version, ", ".join(keys))

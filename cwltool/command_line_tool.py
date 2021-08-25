@@ -10,6 +10,8 @@ import re
 import shutil
 import threading
 import urllib
+import urllib.parse
+from enum import Enum
 from functools import cmp_to_key, partial
 from typing import (
     Any,
@@ -21,6 +23,7 @@ from typing import (
     MutableMapping,
     MutableSequence,
     Optional,
+    Pattern,
     Set,
     TextIO,
     Union,
@@ -37,7 +40,12 @@ from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
 from typing_extensions import TYPE_CHECKING, Type
 
-from .builder import Builder, content_limit_respected_read_bytes, substitute
+from .builder import (
+    Builder,
+    content_limit_respected_read_bytes,
+    substitute,
+    INPUT_OBJ_VOCAB,
+)
 from .context import LoadingContext, RuntimeContext, getdefault
 from .docker import DockerCommandLineJob
 from .errors import UnsupportedRequirement, WorkflowException
@@ -67,41 +75,32 @@ from .utils import (
     adjustDirObjs,
     adjustFileObjs,
     aslist,
-    convert_pathsep_to_unix,
-    docker_windows_path_adjust,
     get_listing,
     normalizeFilesDirs,
-    onWindows,
     random_outdir,
     shared_file_lock,
     trim_listing,
     upgrade_lock,
     visit_class,
-    windows_default_container_id,
 )
 
 if TYPE_CHECKING:
     from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
-ACCEPTLIST_EN_STRICT_RE = re.compile(r"^[a-zA-Z0-9._+-]+$")
-ACCEPTLIST_EN_RELAXED_RE = re.compile(r".*")  # Accept anything
-ACCEPTLIST_RE = ACCEPTLIST_EN_STRICT_RE
-DEFAULT_CONTAINER_MSG = """
-We are on Microsoft Windows and not all components of this CWL description have a
-container specified. This means that these steps will be executed in the default container,
-which is %s.
 
-Note, this could affect portability if this CWL description relies on non-POSIX features
-or commands in this container. For best results add the following to your CWL
-description's hints section:
+class PathCheckingMode(Enum):
+    """What characters are allowed in path names.
 
-hints:
-  DockerRequirement:
-    dockerPull: %s
-"""
+    We have the strict, default mode and the relaxed mode.
+    """
+
+    STRICT = re.compile(
+        r"^[\w.+\-\u2600-\u26FF\U0001f600-\U0001f64f]+$"
+    )  # accept unicode word characters and emojis
+    RELAXED = re.compile(r".*")  # Accept anything
 
 
-class ExpressionJob(object):
+class ExpressionJob:
     """Job for ExpressionTools."""
 
     def __init__(
@@ -211,7 +210,7 @@ def revmap_file(
     if "location" in f and "path" not in f:
         location = cast(str, f["location"])
         if location.startswith("file://"):
-            f["path"] = convert_pathsep_to_unix(uri_file_path(location))
+            f["path"] = uri_file_path(location)
         else:
             return f
 
@@ -264,7 +263,9 @@ def revmap_file(
     )
 
 
-class CallbackJob(object):
+class CallbackJob:
+    """Callback Job class, used by CommandLine.job()."""
+
     def __init__(
         self,
         job: "CommandLineTool",
@@ -296,7 +297,9 @@ class CallbackJob(object):
             )
 
 
-def check_adjust(builder: Builder, file_o: CWLObjectType) -> CWLObjectType:
+def check_adjust(
+    accept_re: Pattern[str], builder: Builder, file_o: CWLObjectType
+) -> CWLObjectType:
     """
     Map files to assigned path inside a container.
 
@@ -307,9 +310,7 @@ def check_adjust(builder: Builder, file_o: CWLObjectType) -> CWLObjectType:
         raise ValueError(
             "Do not call check_adjust using a builder that doesn't have a pathmapper."
         )
-    file_o["path"] = path = docker_windows_path_adjust(
-        builder.pathmapper.mapper(cast(str, file_o["location"]))[1]
-    )
+    file_o["path"] = path = builder.pathmapper.mapper(cast(str, file_o["location"]))[1]
     basename = cast(str, file_o.get("basename"))
     dn, bn = os.path.split(path)
     if file_o.get("dirname") != dn:
@@ -322,7 +323,7 @@ def check_adjust(builder: Builder, file_o: CWLObjectType) -> CWLObjectType:
             file_o["nameroot"] = str(nr)
         if file_o.get("nameext") != ne:
             file_o["nameext"] = str(ne)
-    if not ACCEPTLIST_RE.match(basename):
+    if not accept_re.match(basename):
         raise WorkflowException(
             "Invalid filename: '{}' contains illegal characters".format(
                 file_o["basename"]
@@ -349,7 +350,7 @@ OutputPortsType = Dict[str, Optional[CWLOutputType]]
 class ParameterOutputWorkflowException(WorkflowException):
     def __init__(self, msg: str, port: CWLObjectType, **kwargs: Any) -> None:
         """Exception for when there was an error collecting output for a parameter."""
-        super(ParameterOutputWorkflowException, self).__init__(
+        super().__init__(
             "Error collecting output for parameter '%s':\n%s"
             % (shortname(cast(str, port["id"])), msg),
             kwargs,
@@ -361,8 +362,13 @@ class CommandLineTool(Process):
         self, toolpath_object: CommentedMap, loadingContext: LoadingContext
     ) -> None:
         """Initialize this CommandLineTool."""
-        super(CommandLineTool, self).__init__(toolpath_object, loadingContext)
+        super().__init__(toolpath_object, loadingContext)
         self.prov_obj = loadingContext.prov_obj
+        self.path_check_mode = (
+            PathCheckingMode.RELAXED
+            if loadingContext.relax_path_checks
+            else PathCheckingMode.STRICT
+        )  # type: PathCheckingMode
 
     def make_job_runner(self, runtimeContext: RuntimeContext) -> Type[JobBase]:
         dockerReq, dockerRequired = self.get_requirement("DockerRequirement")
@@ -382,17 +388,6 @@ class CommandLineTool(Process):
                     else:
                         self.requirements.insert(0, dockerReq)
                         dockerRequired = True
-
-                    if (
-                        default_container == windows_default_container_id
-                        and runtimeContext.use_container
-                        and onWindows()
-                    ):
-                        _logger.warning(
-                            DEFAULT_CONTAINER_MSG,
-                            windows_default_container_id,
-                            windows_default_container_id,
-                        )
 
         if dockerReq is not None and runtimeContext.use_container:
             if mpiReq is not None:
@@ -680,7 +675,7 @@ class CommandLineTool(Process):
             visit_class(
                 [builder.files, builder.bindings],
                 ("File", "Directory"),
-                partial(check_adjust, builder),
+                partial(check_adjust, self.path_check_mode.value, builder),
             )
 
     def job(
@@ -708,7 +703,9 @@ class CommandLineTool(Process):
                 cachebuilder.stagedir,
                 separateDirs=False,
             )
-            _check_adjust = partial(check_adjust, cachebuilder)
+            _check_adjust = partial(
+                check_adjust, self.path_check_mode.value, cachebuilder
+            )
             visit_class(
                 [cachebuilder.files, cachebuilder.bindings],
                 ("File", "Directory"),
@@ -789,7 +786,7 @@ class CommandLineTool(Process):
             jobcache = os.path.join(runtimeContext.cachedir, cachekey)
 
             # Create a lockfile to manage cache status.
-            jobcachepending = "{}.status".format(jobcache)
+            jobcachepending = f"{jobcache}.status"
             jobcachelock = None
             jobstatus = None
 
@@ -882,7 +879,7 @@ class CommandLineTool(Process):
         )
         builder.requirements = j.requirements
 
-        _check_adjust = partial(check_adjust, builder)
+        _check_adjust = partial(check_adjust, self.path_check_mode.value, builder)
 
         visit_class(
             [builder.files, builder.bindings], ("File", "Directory"), _check_adjust
@@ -1003,13 +1000,14 @@ class CommandLineTool(Process):
                         "networkAccess must be a boolean, got: %s" % j.networkaccess
                     )
 
-        j.environment = {}
+        # Build a mapping to hold any EnvVarRequirement
+        required_env = {}
         evr, _ = self.get_requirement("EnvVarRequirement")
         if evr is not None:
             for t3 in cast(List[Dict[str, str]], evr["envDef"]):
-                j.environment[t3["envName"]] = cast(
-                    str, builder.do_eval(t3["envValue"])
-                )
+                required_env[t3["envName"]] = cast(str, builder.do_eval(t3["envValue"]))
+        # Construct the env
+        j.prepare_environment(runtimeContext, required_env)
 
         shellcmd, _ = self.get_requirement("ShellCommandRequirement")
         if shellcmd is not None:
@@ -1117,7 +1115,11 @@ class CommandLineTool(Process):
                 Schema, self.names.get_name("outputs_record_schema", None)
             )
             validate_ex(
-                expected_schema, ret, strict=False, logger=_logger_validation_warnings
+                expected_schema,
+                ret,
+                strict=False,
+                logger=_logger_validation_warnings,
+                vocab=INPUT_OBJ_VOCAB,
             )
             if ret is not None and builder.mutation_manager is not None:
                 adjustFileObjs(ret, builder.mutation_manager.set_generation)
@@ -1178,7 +1180,10 @@ class CommandLineTool(Process):
                                     {
                                         "location": g,
                                         "path": fs_access.join(
-                                            builder.outdir, g[len(prefix[0]) + 1 :]
+                                            builder.outdir,
+                                            urllib.parse.unquote(
+                                                g[len(prefix[0]) + 1 :]
+                                            ),
                                         ),
                                         "basename": os.path.basename(g),
                                         "nameroot": os.path.splitext(

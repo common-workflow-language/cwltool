@@ -1,22 +1,16 @@
 from pathlib import Path
+from stat import S_IWRITE, S_IWGRP, S_IWOTH
 from typing import Any
 
+from cwltool.factory import Factory
 from cwltool.main import main
 
-from .util import (
-    get_data,
-    get_main_output,
-    get_windows_safe_factory,
-    needs_docker,
-    needs_singularity,
-    windows_needs_docker,
-)
+from .util import get_data, get_main_output, needs_docker, needs_singularity
 
 
-@windows_needs_docker
 def test_newline_in_entry() -> None:
     """Files in a InitialWorkingDirectory are created with a newline character."""
-    factory = get_windows_safe_factory()
+    factory = Factory()
     echo = factory.make(get_data("tests/wf/iwdr-entry.cwl"))
     assert echo(message="hello") == {"out": "CONFIGVAR=hello\n"}
 
@@ -85,6 +79,53 @@ def test_iwdr_permutations(tmp_path_factory: Any) -> None:
         )
         == 0
     )
+
+
+def test_iwdr_permutations_readonly(tmp_path_factory: Any) -> None:
+    """Confirm that readonly input files are properly made writable."""
+    misc = tmp_path_factory.mktemp("misc")
+    fifth = tmp_path_factory.mktemp("fifth")
+    fifth_file = fifth / "bar"
+    fifth_dir = fifth / "foo"
+    fifth_file.touch()
+    fifth_dir.mkdir()
+    sixth = tmp_path_factory.mktemp("sixth")
+    first = misc / "first"
+    first.touch()
+    second = misc / "second"
+    second.touch()
+    outdir = str(tmp_path_factory.mktemp("outdir"))
+    for entry in [first, second, fifth, sixth, fifth_file, fifth_dir]:
+        mode = entry.stat().st_mode
+        ro_mask = 0o777 ^ (S_IWRITE | S_IWGRP | S_IWOTH)
+        entry.chmod(mode & ro_mask)
+    assert (
+        main(
+            [
+                "--no-container",
+                "--debug",
+                "--leave-outputs",
+                "--outdir",
+                outdir,
+                get_data("tests/wf/iwdr_permutations_nocontainer.cwl"),
+                "--first",
+                str(first),
+                "--second",
+                str(second),
+                "--fifth",
+                str(fifth),
+                "--sixth",
+                str(sixth),
+            ]
+        )
+        == 0
+    )
+    for entry in [first, second, fifth, sixth, fifth_file, fifth_dir]:
+        try:
+            mode = entry.stat().st_mode
+            entry.chmod(mode | S_IWRITE)
+        except PermissionError:
+            pass
 
 
 @needs_docker

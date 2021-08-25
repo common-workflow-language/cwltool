@@ -37,16 +37,20 @@ from .utils import (
     CWLObjectType,
     CWLOutputType,
     aslist,
-    docker_windows_path_adjust,
     get_listing,
     normalizeFilesDirs,
-    onWindows,
     visit_class,
 )
 
 if TYPE_CHECKING:
     from .pathmapper import PathMapper
     from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
+
+INPUT_OBJ_VOCAB: Dict[str, str] = {
+    "Any": "https://w3id.org/cwl/salad#Any",
+    "File": "https://w3id.org/cwl/cwl#File",
+    "Directory": "https://w3id.org/cwl/cwl#Directory",
+}
 
 
 def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
@@ -118,7 +122,7 @@ def check_format(
             continue
         if "format" not in afile:
             raise ValidationException(
-                "File has no 'format' defined: {}".format(json_dumps(afile, indent=4))
+                f"File has no 'format' defined: {json_dumps(afile, indent=4)}"
             )
         for inpf in aslist(input_formats):
             if afile["format"] == inpf or formatSubclassOf(
@@ -126,11 +130,13 @@ def check_format(
             ):
                 return
         raise ValidationException(
-            "File has an incompatible format: {}".format(json_dumps(afile, indent=4))
+            f"File has an incompatible format: {json_dumps(afile, indent=4)}"
         )
 
 
-class HasReqsHints(object):
+class HasReqsHints:
+    """Base class for get_requirement()."""
+
     def __init__(self) -> None:
         """Initialize this reqs decorator."""
         self.requirements = []  # type: List[CWLObjectType]
@@ -272,7 +278,7 @@ class Builder(HasReqsHints):
                     avsc = self.names.get_name(cast(str, t["name"]), None)
                 if not avsc:
                     avsc = make_avsc_object(convert_to_dict(t), self.names)
-                if validate(avsc, datum):
+                if validate(avsc, datum, vocab=INPUT_OBJ_VOCAB):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
                     if not value_from_expression:
@@ -294,7 +300,7 @@ class Builder(HasReqsHints):
                         bound_input = True
             if not bound_input:
                 raise ValidationException(
-                    "'%s' is not a valid union %s" % (datum, schema["type"])
+                    "'{}' is not a valid union {}".format(datum, schema["type"])
                 )
         elif isinstance(schema["type"], MutableMapping):
             st = copy.deepcopy(schema["type"])
@@ -376,7 +382,7 @@ class Builder(HasReqsHints):
                 self.files.append(f)
                 return f
 
-            if schema["type"] == "File":
+            if schema["type"] == "org.w3id.cwl.cwl.File":
                 datum = cast(CWLObjectType, datum)
                 self.files.append(datum)
 
@@ -398,7 +404,9 @@ class Builder(HasReqsHints):
                             ) as f2:
                                 datum["contents"] = content_limit_respected_read(f2)
                         except Exception as e:
-                            raise Exception("Reading %s\n%s" % (datum["location"], e))
+                            raise Exception(
+                                "Reading {}\n{}".format(datum["location"], e)
+                            )
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
@@ -514,7 +522,7 @@ class Builder(HasReqsHints):
                     _capture_files,
                 )
 
-            if schema["type"] == "Directory":
+            if schema["type"] == "org.w3id.cwl.cwl.Directory":
                 datum = cast(CWLObjectType, datum)
                 ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
@@ -545,16 +553,8 @@ class Builder(HasReqsHints):
         ):
             if "path" not in value:
                 raise WorkflowException(
-                    u'%s object missing "path": %s' % (value["class"], value)
+                    '{} object missing "path": {}'.format(value["class"], value)
                 )
-
-            # Path adjust for windows file path when passing to docker, docker accepts unix like path only
-            (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
-            if onWindows() and docker_req is not None:
-                # docker_req is none only when there is no dockerRequirement
-                # mentioned in hints and Requirement
-                path = docker_windows_path_adjust(value["path"])
-                return path
             return value["path"]
         else:
             return str(value)

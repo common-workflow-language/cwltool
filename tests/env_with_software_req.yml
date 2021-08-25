@@ -1,0 +1,7 @@
+cwltool:overrides:
+  env3.cwl:
+    requirements:
+      SoftwareRequirement:
+        packages:
+          - package: 'random-lines'
+            version: '1.0'

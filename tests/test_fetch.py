@@ -12,7 +12,6 @@ from cwltool.context import LoadingContext
 from cwltool.load_tool import load_tool
 from cwltool.main import main
 from cwltool.resolver import resolve_local
-from cwltool.utils import onWindows
 from cwltool.workflow import default_make_tool
 
 from .util import get_data, working_directory
@@ -82,16 +81,10 @@ path_fragments = [
 ]
 
 
-def norm(uri: str) -> str:
-    if onWindows():
-        return uri.lower()
-    return uri
-
-
 @pytest.mark.parametrize("path,expected_path", path_fragments)
 def test_resolve_local(path: str, expected_path: str) -> None:
     with working_directory(root):
-        expected = norm(root.as_uri() + expected_path)
+        expected = root.as_uri() + expected_path
         resolved = resolve_local(None, path)
         assert resolved
-        assert norm(resolved) == expected
+        assert resolved == expected

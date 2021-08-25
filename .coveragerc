@@ -1,6 +1,7 @@
 [run]
 branch = True
 source = cwltool
+omit = cwltool/run_job.py
 
 [report]
 exclude_lines =

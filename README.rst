@@ -2,7 +2,15 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-|Linux Status| |Debian Stable package| |Debian Testing package| |Windows Status| |Coverage Status| |Downloads|
+|Linux Status| |Coverage Status|
+
+PyPI: |PyPI Version| |PyPI Downloads Month| |Total PyPI Downloads|
+
+Conda: |Conda Version| |Conda Installs|
+
+Debian: |Debian Testing package| |Debian Stable package|
+
+Quay.io (Docker): |Quay.io Container|
 
 .. |Linux Status| image:: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml/badge.svg?branch=main
    :target: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml
@@ -13,14 +21,26 @@ Common Workflow Language tool description reference implementation
 .. |Debian Testing package| image:: https://badges.debian.net/badges/debian/testing/cwltool/version.svg
    :target: https://packages.debian.org/testing/cwltool
 
-.. |Windows Status| image:: https://img.shields.io/appveyor/ci/mr-c/cwltool/main.svg?label=Windows%20builds
-   :target: https://ci.appveyor.com/project/mr-c/cwltool
-
 .. |Coverage Status| image:: https://img.shields.io/codecov/c/github/common-workflow-language/cwltool.svg
    :target: https://codecov.io/gh/common-workflow-language/cwltool
 
-.. |Downloads| image:: https://pepy.tech/badge/cwltool/month
+.. |PyPI Version| image:: https://badge.fury.io/py/cwltool.svg
+    :target: https://badge.fury.io/py/cwltool
+
+.. |PyPI Downloads Month| image:: https://pepy.tech/badge/cwltool/month
    :target: https://pepy.tech/project/cwltool
+
+.. |Total PyPI Downloads| image:: https://static.pepy.tech/personalized-badge/cwltool?period=total&units=international_system&left_color=black&right_color=orange&left_text=Total%20PyPI%20Downloads
+ :target: https://pepy.tech/project/cwltool
+
+.. |Conda Version| image:: https://anaconda.org/conda-forge/cwltool/badges/version.svg 
+   :target: https://anaconda.org/conda-forge/cwltool
+   
+.. |Conda Installs| image:: https://anaconda.org/conda-forge/cwltool/badges/downloads.svg
+   :target: https://anaconda.org/conda-forge/cwltool
+
+.. |Quay.io Container| image:: https://quay.io/repository/commonwl/cwltool/status
+   :target: https://quay.io/repository/commonwl/cwltool
 
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
@@ -51,7 +71,7 @@ and similar Linux distribution try
 
 .. code:: bash
 
-  sudo apt-get install cwltool
+   sudo apt-get install cwltool
 
 If you are running MacOS X or other UNIXes and you want to use packages prepared by the conda-forge project, then
 please follow the install instructions for `conda-forge <https://conda-forge.org/#about>`_ (if you haven't already) and then 
@@ -61,12 +81,12 @@ please follow the install instructions for `conda-forge <https://conda-forge.org
    conda install -c conda-forge cwltool
 
 All of the above methods of installing ``cwltool`` use packages which might contain bugs already fixed in newer versions, or be missing features that you desire.
-If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv``::
+If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv``
 
 .. code:: bash
 
-  python3 -m venv env      # Create a virtual environment named 'env' in the current directory
-  source env/bin/activate  # Activate environment before installing `cwltool`
+   python3 -m venv env      # Create a virtual environment named 'env' in the current directory
+   source env/bin/activate  # Activate environment before installing `cwltool`
 
 Then install the latest ``cwlref-runner`` package from PyPi (which will install the latest ``cwltool`` package as
 well)
@@ -98,9 +118,9 @@ Or you can skip the direct ``pip`` commands above and install the latest develop
 .. code:: bash
 
   git clone https://github.com/common-workflow-language/cwltool.git # clone (copy) the cwltool git repository
-  cd cwltool         # Change to source directory that git clone just downloaded
-  pip install .      # Installs ``cwltool`` from source
-  cwltool --version  # Check if the installation works correctly
+  cd cwltool           # Change to source directory that git clone just downloaded
+  pip install .[deps]  # Installs ``cwltool`` from source
+  cwltool --version    # Check if the installation works correctly
 
 Remember, if co-installing multiple CWL implementations then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
@@ -154,7 +174,7 @@ One such "user space" friendly docker replacement is ``udocker`` https://github.
 
 udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-udockertools-tarball
 
-Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
+Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests
 
 .. code:: bash
 
@@ -169,7 +189,8 @@ runtime, provide ``--singularity`` command line option to ``cwltool``.
 With Singularity, ``cwltool`` can pass all CWL v1.0 conformance tests, except
 those involving Docker container ENTRYPOINTs.
 
-Example:
+Example
+
 .. code:: bash
 
   cwltool --singularity https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/blob/main/v1.0/v1.0/cat-job.json
@@ -298,6 +319,30 @@ CWL documents can be expressed as RDF triple graphs.
   cwltool --print-rdf --rdf-serializer=turtle mywf.cwl
 
 
+Environment Variables in cwltool
+--------------------------------
+
+This reference implementation supports several ways of setting
+enviroment variables for tools, in addition to the standard
+``EnvVarRequirement``. The sequence of steps applied to create the
+enviroment is:
+
+0. If the ``--preserve-entire-environment`` flag is present, then begin with the current
+   environment, else begin with an empty environment.
+
+1. Add any variables specified by ``--preserve-environment`` option(s).
+
+2. Set ``TMPDIR`` and ``HOME`` per `the CWL v1.0+ CommandLineTool specification <https://www.commonwl.org/v1.0/CommandLineTool.html#Runtime_environment>`_.
+
+3. Apply any ``EnvVarRequirement`` from the ``CommandLineTool`` description.
+
+4. Apply any manipulations required by any ``cwltool:MPIRequirement`` extensions.
+
+5. Substitute any secrets required by ``Secrets`` extension.
+
+6. Modify the environment in response to ``SoftwareRequirement`` (see below).
+
+
 Leveraging SoftwareRequirements (Beta)
 --------------------------------------
 
@@ -317,6 +362,14 @@ The most general of these options is ``--beta-dependency-resolvers-configuration
 This option allows one to specify a dependency resolver's configuration file.
 This file may be specified as either XML or YAML and very simply describes various
 plugins to enable to "resolve" ``SoftwareRequirement`` dependencies.
+
+Using these hints will allow cwltool to modify the environment in
+which your tool runs, for example by loading one or more Environment
+Modules. The environment is constructed as above, then the environment
+may modified by the selected tool resolver.  This currently means that
+you cannot override any environment variables set by the selected tool
+resolver. Note that the enviroment given to the configured dependency
+resolver has the variable `_CWLTOOL` set to `1` to allow introspection.
 
 To discuss some of these plugins and how to configure them, first consider the
 following ``hint`` definition for an example CWL tool.
@@ -429,7 +482,7 @@ So consider the resolvers configuration file
     base_path: ./tests/test_deps_env
     mapping_files: ./tests/test_deps_mapping.yml
 
-And the corresponding mapping configuraiton file (`tests/test_deps_mapping.yml`):
+And the corresponding mapping configuration file (`tests/test_deps_mapping.yml`):
 
 .. code:: yaml
 
@@ -617,19 +670,19 @@ To run the basic tests after installing `cwltool` execute the following:
 .. code:: bash
 
   pip install -rtest-requirements.txt
-  py.test --ignore cwltool/schemas/ --pyarg cwltool
+  pytest
 
 To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/main/tox.ini>`_. To run the test suite in all supported Python environments
 first downloading the complete code repository (see the ``git clone`` instructions above) and then run
 the following in the terminal:
-``pip install tox; tox``
+``pip install tox; tox -p``
 
 List of all environment can be seen using:
 ``tox --listenvs``
 and running a specfic test env using:
 ``tox -e <env name>``
 and additionally run a specific test using this format:
-``tox -e py36-unit -- tests/test_examples.py::TestParamMatching``
+``tox -e py36-unit -- -v tests/test_examples.py::test_scandeps``
 
 -  Running the entire suite of CWL conformance tests:
 

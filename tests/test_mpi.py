@@ -8,8 +8,8 @@ from typing import Any, Generator, List, MutableMapping, Optional, Tuple
 
 import pkg_resources
 import pytest
-from ruamel import yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.main import YAML
 from schema_salad.avro.schema import Names
 
 import cwltool.load_tool
@@ -20,7 +20,7 @@ from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
 from cwltool.mpi import MpiConfig, MPIRequirementName
 
-from .util import get_data, windows_needs_docker, working_directory
+from .util import get_data, working_directory
 
 
 def test_mpi_conf_defaults() -> None:
@@ -104,7 +104,8 @@ if __name__ == "__main__":
         "env_pass": ["USER"],
     }
     plat_conf_file = mpitmp / "plat_mpi.yml"
-    plat_conf_file.write_text(yaml.main.round_trip_dump(plat_conf))
+    yaml = YAML()
+    yaml.dump(plat_conf, plat_conf_file)
 
     yield str(plat_conf_file)
 
@@ -134,7 +135,6 @@ class TestMpiRun:
         assert conf_obj.default_nproc == 1
         assert conf_obj.extra_flags == ["--no-fail"]
 
-    @windows_needs_docker
     def test_simple_mpi_tool(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         stdout = StringIO()
         stderr = StringIO()
@@ -153,7 +153,6 @@ class TestMpiRun:
                 pids = [int(line) for line in pidfile]
             assert len(pids) == 2
 
-    @windows_needs_docker
     def test_simple_mpi_nproc_expr(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         np = 4
         input_file = make_processes_input(np, tmp_path)
@@ -174,7 +173,6 @@ class TestMpiRun:
                 pids = [int(line) for line in pidfile]
             assert len(pids) == np
 
-    @windows_needs_docker
     def test_mpi_workflow(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         np = 3
         input_file = make_processes_input(np, tmp_path)
@@ -195,9 +193,8 @@ class TestMpiRun:
                 lc = int(lc_file.read())
                 assert lc == np
 
-    @windows_needs_docker
     def test_environment(
-        self, fake_mpi_conf: str, tmp_path: Path, monkeypatch: Any
+        self, fake_mpi_conf: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         stdout = StringIO()
         stderr = StringIO()
@@ -221,13 +218,14 @@ class TestMpiRun:
             assert e["TEST_MPI_FOO"] == "bar"
 
 
-def test_env_passing(monkeypatch: Any) -> None:
+def test_env_passing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Confirm that MPI extension passes environment variables correctly."""
     config = MpiConfig(
         env_pass=["A", "B", "LONG_NAME"],
         env_pass_regex=["TOOLNAME", "MPI_.*_CONF"],
     )
 
-    env = {}  # type: MutableMapping[str, str]
+    env: MutableMapping[str, str] = {}
 
     with monkeypatch.context() as m:
         m.setattr(os, "environ", {})

@@ -21,7 +21,7 @@ from .loghandler import _logger
 from .process import Process, shortname
 from .resolver import ga4gh_tool_registries
 from .software_requirements import SOFTWARE_REQUIREMENTS_ENABLED
-from .utils import DEFAULT_TMP_PREFIX, onWindows
+from .utils import DEFAULT_TMP_PREFIX
 
 
 def arg_parser() -> argparse.ArgumentParser:
@@ -49,10 +49,10 @@ def arg_parser() -> argparse.ArgumentParser:
         type=str,
         action="append",
         help="Preserve specific environment variable when running "
-        "CommandLineTools without a software container.  May be provided "
-        "multiple times. The default is to preserve only the PATH.",
+        "CommandLineTools. May be provided multiple times. By default PATH is "
+        "preserved when not running in a container.",
         metavar="ENVVAR",
-        default=["PATH"],
+        default=[],
         dest="preserve_environment",
     )
     envgroup.add_argument(
@@ -516,14 +516,13 @@ def arg_parser() -> argparse.ArgumentParser:
         "--enable-color",
         action="store_true",
         help="Enable logging color (default enabled)",
-        default=not onWindows(),
+        default=True,
     )
     colorgroup.add_argument(
         "--disable-color",
         action="store_false",
         dest="enable_color",
         help="Disable colored logging (default false)",
-        default=onWindows(),
     )
 
     parser.add_argument(
@@ -645,6 +644,16 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Only executes a single step in a workflow. The input object must "
         "match that step's inputs. Can be combined with --print-subgraph.",
     )
+    subgroup.add_argument(
+        "--single-process",
+        type=str,
+        default=None,
+        help="Only executes the underlying Process (CommandLineTool, "
+        "ExpressionTool, or sub-Workflow) for the given step in a workflow. "
+        "This will not include any step-level processing: scatter, when, no "
+        "processing of step-level default, or valueFrom input modifiers. "
+        "The input object must match that Process's inputs.",
+    )
 
     parser.add_argument(
         "--mpi-config-file",
@@ -694,7 +703,7 @@ class FSAction(argparse.Action):
         """Fail if nargs is used."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
-        super(FSAction, self).__init__(option_strings, dest, **kwargs)
+        super().__init__(option_strings, dest, **kwargs)
 
     def __call__(
         self,
@@ -722,7 +731,7 @@ class FSAppendAction(argparse.Action):
         """Initialize."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
-        super(FSAppendAction, self).__init__(option_strings, dest, **kwargs)
+        super().__init__(option_strings, dest, **kwargs)
 
     def __call__(
         self,

@@ -1,7 +1,7 @@
 """This module handles resolution of SoftwareRequirement hints.
 
-This is accomplished mainly by adapting cwltool internals to galaxy-lib's
-concept of "dependencies". Despite the name, galaxy-lib is a light weight
+This is accomplished mainly by adapting cwltool internals to galaxy-tool-util's
+concept of "dependencies". Despite the name, galaxy-tool-util is a light weight
 library that can be used to map SoftwareRequirements in all sorts of ways -
 Homebrew, Conda, custom scripts, environment modules. We'd be happy to find
 ways to adapt new packages managers and such as well.
@@ -30,13 +30,23 @@ SOFTWARE_REQUIREMENTS_ENABLED = deps is not None
 
 COMMAND_WITH_DEPENDENCIES_TEMPLATE = string.Template(
     """#!/bin/bash
+cat > modify_environment.bash <<'EOF'
 $handle_dependencies
-python3 "run_job.py" "job.json"
+# First try env -0
+if ! env -0 > "output_environment.dat" 2> /dev/null; then
+    # If that fails, use the python script.
+    # In some circumstances (see PEP 538) this will the add LC_CTYPE env var.
+    python3 "env_to_stdout.py" > "output_environment.dat"
+fi
+EOF
+python3 "run_job.py" "job.json" "modify_environment.bash"
 """
 )
 
 
-class DependenciesConfiguration(object):
+class DependenciesConfiguration:
+    """Dependency configuration class, for RuntimeContext.job_script_provider."""
+
     def __init__(self, args: argparse.Namespace) -> None:
         """Initialize."""
         conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)
@@ -149,5 +159,5 @@ def get_container_from_software_requirements(
 def ensure_galaxy_lib_available() -> None:
     if not SOFTWARE_REQUIREMENTS_ENABLED:
         raise Exception(
-            "Optional Python library galaxy-lib not available, it is required for this configuration."
+            "Optional Python library galaxy-tool-util not available, it is required for this configuration."
         )

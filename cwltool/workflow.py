@@ -71,7 +71,7 @@ class Workflow(Process):
         loadingContext: LoadingContext,
     ) -> None:
         """Initialize this Workflow."""
-        super(Workflow, self).__init__(toolpath_object, loadingContext)
+        super().__init__(toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
         if loadingContext.research_obj is not None:
             run_uuid = None  # type: Optional[UUID]
@@ -170,8 +170,7 @@ class Workflow(Process):
         runtimeContext.part_of = "workflow %s" % job.name
         runtimeContext.toplevel = False
 
-        for wjob in job.job(builder.job, output_callbacks, runtimeContext):
-            yield wjob
+        yield from job.job(builder.job, output_callbacks, runtimeContext)
 
     def visit(self, op: Callable[[CommentedMap], None]) -> None:
         op(self.tool)
@@ -326,7 +325,7 @@ class WorkflowStep(Process):
         if validation_errors:
             raise ValidationException("\n".join(validation_errors))
 
-        super(WorkflowStep, self).__init__(toolpath_object, loadingContext)
+        super().__init__(toolpath_object, loadingContext)
 
         if self.embedded_tool.tool["class"] == "Workflow":
             (feature, _) = self.get_requirement("SubworkflowFeatureRequirement")
@@ -431,12 +430,11 @@ class WorkflowStep(Process):
                 step_input[field] = job_order[inp["id"]]
 
         try:
-            for tool in self.embedded_tool.job(
+            yield from self.embedded_tool.job(
                 step_input,
                 functools.partial(self.receive_output, output_callbacks),
                 runtimeContext,
-            ):
-                yield tool
+            )
         except WorkflowException:
             _logger.error("Exception on step '%s'", runtimeContext.name)
             raise

@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import List, cast
 
-from _pytest.monkeypatch import MonkeyPatch
+import pytest
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro import schema
 from schema_salad.sourceline import cmap
@@ -105,7 +105,9 @@ def test_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
 
 
 @needs_docker
-def test_dockerfile_tmpdir_prefix(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def test_dockerfile_tmpdir_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Test that DockerCommandLineJob.get_image respects temp directory directives."""
     monkeypatch.setattr(
         target=subprocess, name="check_call", value=lambda *args, **kwargs: True

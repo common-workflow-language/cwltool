@@ -1,38 +1,18 @@
 import contextlib
-import distutils.spawn  # pylint: disable=no-name-in-module,import-error
-import functools
 import io
+import json
 import os
+import shutil
 import subprocess
-import sys
 from pathlib import Path
-from typing import Any, Generator, List, Mapping, Optional, Tuple, Union
+from typing import Dict, Generator, List, Mapping, Optional, Tuple, Union
 
 import pytest
 from pkg_resources import Requirement, ResolutionError, resource_filename
 
-from cwltool.context import LoadingContext, RuntimeContext
-from cwltool.executors import JobExecutor
-from cwltool.factory import Factory
+from cwltool.env_to_stdout import deserialize_env
 from cwltool.main import main
 from cwltool.singularity import is_version_2_6, is_version_3_or_newer
-from cwltool.utils import onWindows, windows_default_container_id
-
-
-def get_windows_safe_factory(
-    runtime_context: Optional[RuntimeContext] = None,
-    loading_context: Optional[LoadingContext] = None,
-    executor: Optional[JobExecutor] = None,
-) -> Factory:
-    if onWindows():
-        if not runtime_context:
-            runtime_context = RuntimeContext()
-        runtime_context.find_default_container = functools.partial(
-            force_default_container, windows_default_container_id
-        )
-        runtime_context.use_container = True
-        runtime_context.default_container = windows_default_container_id
-    return Factory(executor, loading_context, runtime_context)
 
 
 def force_default_container(default_container_id: str, _: str) -> str:
@@ -53,46 +33,72 @@ def get_data(filename: str) -> str:
 
 
 needs_docker = pytest.mark.skipif(
-    not bool(distutils.spawn.find_executable("docker")),
+    not bool(shutil.which("docker")),
     reason="Requires the docker executable on the system path.",
 )
 
 needs_singularity = pytest.mark.skipif(
-    not bool(distutils.spawn.find_executable("singularity")),
+    not bool(shutil.which("singularity")),
     reason="Requires the singularity executable on the system path.",
 )
 
 needs_singularity_2_6 = pytest.mark.skipif(
-    not bool(distutils.spawn.find_executable("singularity") and is_version_2_6()),
+    not bool(shutil.which("singularity") and is_version_2_6()),
     reason="Requires that version 2.6.x of singularity executable version is on the system path.",
 )
 
 needs_singularity_3_or_newer = pytest.mark.skipif(
-    (not bool(distutils.spawn.find_executable("singularity")))
-    or (not is_version_3_or_newer()),
+    (not bool(shutil.which("singularity"))) or (not is_version_3_or_newer()),
     reason="Requires that version 3.x of singularity executable version is on the system path.",
 )
 
+_env_accepts_null: Optional[bool] = None
 
-windows_needs_docker = pytest.mark.skipif(
-    onWindows() and not bool(distutils.spawn.find_executable("docker")),
-    reason="Running this test on MS Windows requires the docker executable "
-    "on the system path.",
-)
+
+def env_accepts_null() -> bool:
+    """Return True iff the env command on this host accepts `-0`."""
+    global _env_accepts_null
+    if _env_accepts_null is None:
+        result = subprocess.run(
+            ["env", "-0"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            encoding="utf-8",
+        )
+        _env_accepts_null = result.returncode == 0
+
+    return _env_accepts_null
 
 
 def get_main_output(
     args: List[str],
-    env: Union[
-        Mapping[bytes, Union[bytes, str]], Mapping[str, Union[bytes, str]], None
-    ] = None,
-    monkeypatch: Any = None,
+    replacement_env: Optional[Mapping[str, str]] = None,
+    extra_env: Optional[Mapping[str, str]] = None,
+    monkeypatch: Optional[pytest.MonkeyPatch] = None,
 ) -> Tuple[Optional[int], str, str]:
+    """Run cwltool main.
+
+    args: the command line args to call it with
+
+    replacement_env: a total replacement of the environment
+
+    extra_env: add these to the environment used
+
+    monkeypatch: required if changing the environment
+
+    Returns (return code, stdout, stderr)
+    """
     stdout = io.StringIO()
     stderr = io.StringIO()
-    if env is not None:
+    if replacement_env is not None:
         assert monkeypatch is not None
-        monkeypatch.setattr(os, "environ", env)
+        monkeypatch.setattr(os, "environ", replacement_env)
+
+    if extra_env is not None:
+        assert monkeypatch is not None
+        for k, v in extra_env.items():
+            monkeypatch.setenv(k, v)
+
     try:
         rc = main(argsl=args, stdout=stdout, stderr=stderr)
     except SystemExit as e:
@@ -102,6 +108,47 @@ def get_main_output(
         stdout.getvalue(),
         stderr.getvalue(),
     )
+
+
+def get_tool_env(
+    tmp_path: Path,
+    flag_args: List[str],
+    inputs_file: Optional[str] = None,
+    replacement_env: Optional[Mapping[str, str]] = None,
+    extra_env: Optional[Mapping[str, str]] = None,
+    monkeypatch: Optional[pytest.MonkeyPatch] = None,
+    runtime_env_accepts_null: Optional[bool] = None,
+) -> Dict[str, str]:
+    """Get the env vars for a tool's invocation."""
+    # GNU env accepts the -0 option to end each variable's
+    # printing with "\0". No such luck on BSD-ish.
+    #
+    # runtime_env_accepts_null is None => figure it out, otherwise
+    # use wrapped bool (because containers).
+    if runtime_env_accepts_null is None:
+        runtime_env_accepts_null = env_accepts_null()
+
+    args = flag_args.copy()
+    if runtime_env_accepts_null:
+        args.append(get_data("tests/env3.cwl"))
+    else:
+        args.append(get_data("tests/env4.cwl"))
+
+    if inputs_file is not None:
+        args.append(inputs_file)
+
+    with working_directory(tmp_path):
+        rc, stdout, _ = get_main_output(
+            args,
+            replacement_env=replacement_env,
+            extra_env=extra_env,
+            monkeypatch=monkeypatch,
+        )
+        assert rc == 0
+
+        output = json.loads(stdout)
+        with open(output["env"]["path"]) as _:
+            return deserialize_env(_.read())
 
 
 @contextlib.contextmanager
