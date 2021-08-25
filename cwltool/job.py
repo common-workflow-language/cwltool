@@ -845,12 +845,12 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         # TODO: create a cross-platform function to check limit where it's run
         if len(''.join(runtime)) >= 2097152 - 2:
             if runtimeContext.singularity:
-                pass
                 # TODO: write the singularity equivalent
                 # copy_these_into_container, new_runtime = self.filter_out_singularity_image_file_inputs(runtime)
                 # if copy_these_into_container:
                 #     runtime = new_runtime
                 #     img_id = self.bake_inputs_into_docker_container(str(img_id), copy_these_into_container)
+                pass
             else:
                 copy_these_into_container, new_runtime = self.filter_out_docker_image_file_inputs(runtime)
                 if copy_these_into_container:
