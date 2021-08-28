@@ -367,23 +367,30 @@ def downloadHttpFile(httpurl):
     return str(f.name)
 
 
-def ensure_writable(path):  # type: (str) -> None
+def ensure_writable(path: str, include_root: bool = False) -> None:
+    """
+    Ensure that 'path' is writable.
+
+    If 'path' is a directory, then all files and directories under 'path' are
+    made writable, recursively. If 'path' is a file or if 'include_root' is
+    `True`, then 'path' itself is made writable.
+    """
+
+    def add_writable_flag(p: str) -> None:
+        st = os.stat(p)
+        mode = stat.S_IMODE(st.st_mode)
+        os.chmod(p, mode | stat.S_IWUSR)
+
     if os.path.isdir(path):
+        if include_root:
+            add_writable_flag(path)
         for root, dirs, files in os.walk(path):
             for name in files:
-                j = os.path.join(root, name)
-                st = os.stat(j)
-                mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode | stat.S_IWUSR)
+                add_writable_flag(os.path.join(root, name))
             for name in dirs:
-                j = os.path.join(root, name)
-                st = os.stat(j)
-                mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode | stat.S_IWUSR)
+                add_writable_flag(os.path.join(root, name))
     else:
-        st = os.stat(path)
-        mode = stat.S_IMODE(st.st_mode)
-        os.chmod(path, mode | stat.S_IWUSR)
+        add_writable_flag(path)
 
 
 def ensure_non_writable(path):  # type: (str) -> None

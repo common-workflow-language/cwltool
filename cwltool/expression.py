@@ -217,7 +217,7 @@ def evaluator(
         if first_symbol_end + 1 == len(ex) and first_symbol == "null":
             return None
         try:
-            if obj.get(first_symbol) is None:
+            if first_symbol not in obj:
                 raise WorkflowException("%s is not defined" % first_symbol)
 
             return next_seg(

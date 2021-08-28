@@ -175,9 +175,9 @@ popd || exit
 deactivate
 
 # build new docker container
-if [ "$GIT_BRANCH" = "origin/main" ] && [[ "$version" = "v1.0" ]]
-then
-  ./build-cwl-docker.sh || true
-fi
+# if [ "$GIT_BRANCH" = "origin/main" ] && [[ "$version" = "v1.0" ]]
+# then
+#   ./build-cwltool-docker.sh || true
+# fi
 #docker rm -v $(docker ps -a -f status=exited | sed 's/  */ /g' | cut -d' ' -f1)
 exit ${CODE}

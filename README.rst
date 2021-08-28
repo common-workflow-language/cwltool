@@ -10,6 +10,8 @@ Conda: |Conda Version| |Conda Installs|
 
 Debian: |Debian Testing package| |Debian Stable package|
 
+Quay.io (Docker): |Quay.io Container|
+
 .. |Linux Status| image:: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml/badge.svg?branch=main
    :target: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml
 
@@ -36,6 +38,9 @@ Debian: |Debian Testing package| |Debian Stable package|
    
 .. |Conda Installs| image:: https://anaconda.org/conda-forge/cwltool/badges/downloads.svg
    :target: https://anaconda.org/conda-forge/cwltool
+
+.. |Quay.io Container| image:: https://quay.io/repository/commonwl/cwltool/status
+   :target: https://quay.io/repository/commonwl/cwltool
 
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
