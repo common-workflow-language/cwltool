@@ -637,8 +637,8 @@ given in the following table; all are optional.
 |                |                  |          | variables that should be     |
 |                |                  |          | passed from the host         |
 |                |                  |          | environment through to the   |
-|                |                  |          | tool (e.g., giving the        |
-|                |                  |          | node list as set by your      |
+|                |                  |          | tool (e.g., giving the       |
+|                |                  |          | node list as set by your     |
 |                |                  |          | scheduler).                  |
 +----------------+------------------+----------+------------------------------+
 | env_pass_regex | List[str]        | []       | A list of python regular     |
