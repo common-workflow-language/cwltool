@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, cast
 
 import pytest
+from schema_salad.utils import yaml_no_ts
 
 import cwltool.pack
 import cwltool.workflow
@@ -16,8 +17,6 @@ from cwltool.load_tool import fetch_document, resolve_and_validate_document
 from cwltool.main import main, make_relative, print_pack
 from cwltool.resolver import tool_resolver
 from cwltool.utils import adjustDirObjs, adjustFileObjs
-
-from schema_salad.utils import yaml_no_ts
 
 from .util import get_data, needs_docker
 

@@ -198,6 +198,7 @@ class WorkflowStep(Process):
         parentworkflowProv: Optional[ProvenanceProfile] = None,
     ) -> None:
         """Initialize this WorkflowStep."""
+        debug = loadingContext.debug
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
@@ -280,12 +281,18 @@ class WorkflowStep(Process):
                         else:
                             step_entry_name = step_entry
                         validation_errors.append(
-                            SourceLine(self.tool["out"], index).makeError(
+                            SourceLine(
+                                self.tool["out"], index, include_traceback=debug
+                            ).makeError(
                                 "Workflow step output '%s' does not correspond to"
                                 % shortname(step_entry_name)
                             )
                             + "\n"
-                            + SourceLine(self.embedded_tool.tool, "outputs").makeError(
+                            + SourceLine(
+                                self.embedded_tool.tool,
+                                "outputs",
+                                include_traceback=debug,
+                            ).makeError(
                                 "  tool output (expected '%s')"
                                 % (
                                     "', '".join(
@@ -313,7 +320,7 @@ class WorkflowStep(Process):
 
         if missing_values:
             validation_errors.append(
-                SourceLine(self.tool, "in").makeError(
+                SourceLine(self.tool, "in", include_traceback=debug).makeError(
                     "Step is missing required parameter%s '%s'"
                     % (
                         "s" if len(missing_values) > 1 else "",
@@ -356,14 +363,14 @@ class WorkflowStep(Process):
             inp_map = {i["id"]: i for i in inputparms}
             for inp in scatter:
                 if inp not in inp_map:
-                    raise ValidationException(
-                        SourceLine(self.tool, "scatter").makeError(
-                            "Scatter parameter '%s' does not correspond to "
-                            "an input parameter of this step, expecting '%s'"
-                            % (
-                                shortname(inp),
-                                "', '".join(shortname(k) for k in inp_map.keys()),
-                            )
+                    SourceLine(
+                        self.tool, "scatter", ValidationException, debug
+                    ).makeError(
+                        "Scatter parameter '%s' does not correspond to "
+                        "an input parameter of this step, expecting '%s'"
+                        % (
+                            shortname(inp),
+                            "', '".join(shortname(k) for k in inp_map.keys()),
                         )
                     )
 

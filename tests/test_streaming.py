@@ -1,10 +1,9 @@
 """Test that files marked as 'streamable' when 'streaming_allowed' can be named pipes."""
 import os
-
-import pytest
 from pathlib import Path
 from typing import cast
 
+import pytest
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
@@ -12,8 +11,9 @@ from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.job import JobBase
-from cwltool.update import INTERNAL_VERSION
+from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from cwltool.utils import CWLObjectType
+
 from .util import get_data
 
 toolpath_object = cast(
@@ -39,7 +39,7 @@ loading_context = LoadingContext(
     {
         "metadata": {
             "cwlVersion": INTERNAL_VERSION,
-            "http://commonwl.org/cwltool#original_cwlVersion": INTERNAL_VERSION,
+            ORIGINAL_CWLVERSION: INTERNAL_VERSION,
         }
     }
 )

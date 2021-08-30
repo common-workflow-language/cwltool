@@ -1,5 +1,6 @@
 """Support for executing Docker containers using the Singularity 2.x engine."""
 
+import logging
 import os
 import os.path
 import re
@@ -52,12 +53,13 @@ def _singularity_supports_userns() -> bool:
 
 def get_version() -> str:
     global _SINGULARITY_VERSION  # pylint: disable=global-statement
-    if not _SINGULARITY_VERSION:
+    if _SINGULARITY_VERSION == "":
         _SINGULARITY_VERSION = check_output(  # nosec
             ["singularity", "--version"], universal_newlines=True
-        )
+        ).strip()
         if _SINGULARITY_VERSION.startswith("singularity version "):
             _SINGULARITY_VERSION = _SINGULARITY_VERSION[20:]
+        _logger.debug(f"Singularity version: {_SINGULARITY_VERSION}.")
     return _SINGULARITY_VERSION
 
 
@@ -120,6 +122,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         candidates = []
 
         cache_folder = None
+        debug = _logger.isEnabledFor(logging.DEBUG)
+
         if "CWL_SINGULARITY_CACHE" in os.environ:
             cache_folder = os.environ["CWL_SINGULARITY_CACHE"]
         elif is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
@@ -216,11 +220,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     found = True
 
             elif "dockerFile" in dockerRequirement:
-                raise WorkflowException(
-                    SourceLine(dockerRequirement, "dockerFile").makeError(
-                        "dockerFile is not currently supported when using the "
-                        "Singularity runtime for Docker containers."
-                    )
+                raise SourceLine(
+                    dockerRequirement, "dockerFile", WorkflowException, debug
+                ).makeError(
+                    "dockerFile is not currently supported when using the "
+                    "Singularity runtime for Docker containers."
                 )
             elif "dockerLoad" in dockerRequirement:
                 if is_version_3_1_or_newer():
@@ -238,18 +242,18 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     check_call(cmd, stdout=sys.stderr)  # nosec
                     found = True
                     dockerRequirement["dockerImageId"] = name
-                raise WorkflowException(
-                    SourceLine(dockerRequirement, "dockerLoad").makeError(
-                        "dockerLoad is not currently supported when using the "
-                        "Singularity runtime (version less than 3.1) for Docker containers."
-                    )
+                raise SourceLine(
+                    dockerRequirement, "dockerLoad", WorkflowException, debug
+                ).makeError(
+                    "dockerLoad is not currently supported when using the "
+                    "Singularity runtime (version less than 3.1) for Docker containers."
                 )
             elif "dockerImport" in dockerRequirement:
-                raise WorkflowException(
-                    SourceLine(dockerRequirement, "dockerImport").makeError(
-                        "dockerImport is not currently supported when using the "
-                        "Singularity runtime for Docker containers."
-                    )
+                raise SourceLine(
+                    dockerRequirement, "dockerImport", WorkflowException, debug
+                ).makeError(
+                    "dockerImport is not currently supported when using the "
+                    "Singularity runtime for Docker containers."
                 )
 
         return found
@@ -349,36 +353,39 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     ) -> None:
         if volume.resolved.startswith("_:"):
             # Synthetic directory that needs creating first
-            if host_outdir_tgt is not None:
-                new_dir = host_outdir_tgt
-            else:
+            if not host_outdir_tgt:
                 new_dir = os.path.join(
                     create_tmp_dir(tmpdir_prefix),
                     os.path.basename(volume.target),
                 )
                 self.append_volume(runtime, new_dir, volume.target, writable=True)
-            os.makedirs(new_dir)
+                os.makedirs(new_dir)
+                # ^^ Unlike Docker, Singularity won't create directories on demand
+            elif not os.path.exists(host_outdir_tgt):
+                os.makedirs(host_outdir_tgt)
         else:
             if host_outdir_tgt is not None and not is_version_3_4_or_newer():
                 # workaround for lack of overlapping mounts in Singularity < 3.4
                 shutil.copytree(volume.resolved, host_outdir_tgt)
                 ensure_writable(host_outdir_tgt)
             else:
-                if not self.inplace_update:
+                if self.inplace_update:
+                    self.append_volume(
+                        runtime, volume.resolved, volume.target, writable=True
+                    )
+                else:
                     if not host_outdir_tgt:
                         tmpdir = create_tmp_dir(tmpdir_prefix)
                         new_dir = os.path.join(
                             tmpdir, os.path.basename(volume.resolved)
                         )
                         shutil.copytree(volume.resolved, new_dir)
-                        source = tmpdir
+                        self.append_volume(
+                            runtime, new_dir, volume.target, writable=True
+                        )
                     else:
                         shutil.copytree(volume.resolved, host_outdir_tgt)
-                        source = host_outdir_tgt
-                else:
-                    source = volume.resolved
-                self.append_volume(runtime, source, volume.target, writable=True)
-                ensure_writable(source)
+                    ensure_writable(host_outdir_tgt or new_dir)
 
     def _required_env(self) -> Dict[str, str]:
         return {

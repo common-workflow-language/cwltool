@@ -15,7 +15,7 @@ inputs:
       - pattern: ^.fastq
         required: true
       - pattern: .crai
-        required: false
+        required: "${ return 42 }"
       - .bai?
       - pattern: "${ return null }"
 
