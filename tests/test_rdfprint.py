@@ -1,12 +1,27 @@
-from __future__ import absolute_import
-import unittest
+import subprocess
+import sys
 
-from six import StringIO
+import pytest
+
 from cwltool.main import main
 
 from .util import get_data
 
-class RDF_Print(unittest.TestCase):
 
-    def test_rdf_print(self):
-        self.assertEquals(main(['--print-rdf', get_data('tests/wf/hello_single_tool.cwl')]), 0)
+def test_rdf_print() -> None:
+    assert main(["--print-rdf", get_data("tests/wf/hello_single_tool.cwl")]) == 0
+
+
+def test_rdf_print_unicode(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force ASCII encoding but load UTF file with --print-rdf."""
+    monkeypatch.setenv("LC_ALL", "C")
+
+    params = [
+        sys.executable,
+        "-m",
+        "cwltool",
+        "--print-rdf",
+        get_data("tests/utf_doc_example.cwl"),
+    ]
+
+    assert subprocess.check_call(params) == 0

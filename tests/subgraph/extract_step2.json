@@ -1,0 +1,33 @@
+{
+    "class": "Workflow",
+    "cwlVersion": "v1.0",
+    "id": "count-lines1-wf.cwl",
+    "inputs": [
+        {
+            "id": "count-lines1-wf.cwl#step1_output",
+            "type": "File"
+        }
+    ],
+    "outputs": [
+        {
+            "id": "count-lines1-wf.cwl#count_output",
+            "outputSource": "count-lines1-wf.cwl#step2/output",
+            "type": "int"
+        }
+    ],
+    "steps": [
+        {
+            "id": "count-lines1-wf.cwl#step2",
+            "in": [
+                {
+                    "id": "count-lines1-wf.cwl#step2/file1",
+                    "source": "count-lines1-wf.cwl#step1_output"
+                }
+            ],
+            "out": [
+                "count-lines1-wf.cwl#step2/output"
+            ],
+            "run": "parseInt-tool.cwl"
+        }
+    ]
+}

@@ -1,62 +1,64 @@
-from __future__ import absolute_import
 import os
-from typing import Callable as tCallable
-from typing import Any, Dict, Text, Tuple, Union
+from typing import Any, Dict, Optional, Union
 
-from . import load_tool, workflow
-from .argparser import get_default_args
-from .executors import SingleJobExecutor
+from . import load_tool
+from .context import LoadingContext, RuntimeContext
+from .errors import WorkflowException
+from .executors import JobExecutor, SingleJobExecutor
 from .process import Process
+from .utils import CWLObjectType
 
 
 class WorkflowStatus(Exception):
-    def __init__(self, out, status):
-        # type: (Dict[Text,Any], Text) -> None
-        super(WorkflowStatus, self).__init__("Completed %s" % status)
+    def __init__(self, out: Optional[CWLObjectType], status: str) -> None:
+        """Signaling exception for the status of a Workflow."""
+        super().__init__("Completed %s" % status)
         self.out = out
         self.status = status
 
 
-class Callable(object):
-    def __init__(self, t, factory):  # type: (Process, Factory) -> None
+class Callable:
+    """Result of Factory.make()."""
+
+    def __init__(self, t: Process, factory: "Factory") -> None:
+        """Initialize."""
         self.t = t
         self.factory = factory
 
     def __call__(self, **kwargs):
-        # type: (**Any) -> Union[Text, Dict[Text, Text]]
-        execkwargs = self.factory.execkwargs.copy()
-        execkwargs["basedir"] = os.getcwd()
-        out, status = self.factory.executor(self.t, kwargs, **execkwargs)
+        # type: (**Any) -> Union[str, Optional[CWLObjectType]]
+        runtime_context = self.factory.runtime_context.copy()
+        runtime_context.basedir = os.getcwd()
+        out, status = self.factory.executor(self.t, kwargs, runtime_context)
         if status != "success":
             raise WorkflowStatus(out, status)
         else:
             return out
 
 
-class Factory(object):
-    def __init__(self,
-                 makeTool=workflow.defaultMakeTool,  # type: tCallable[[Any], Process]
-                 # should be tCallable[[Dict[Text, Any], Any], Process] ?
-                 executor=None,  # type: tCallable[...,Tuple[Dict[Text,Any], Text]]
-                 **execkwargs  # type: Any
-                 ):
-        # type: (...) -> None
-        self.makeTool = makeTool
+class Factory:
+    """Easy way to load a CWL document for execution."""
+
+    def __init__(
+        self,
+        executor: Optional[JobExecutor] = None,
+        loading_context: Optional[LoadingContext] = None,
+        runtime_context: Optional[RuntimeContext] = None,
+    ) -> None:
         if executor is None:
             executor = SingleJobExecutor()
         self.executor = executor
+        self.loading_context = loading_context
+        if loading_context is None:
+            self.loading_context = LoadingContext()
+        if runtime_context is None:
+            self.runtime_context = RuntimeContext()
+        else:
+            self.runtime_context = runtime_context
 
-        kwargs = get_default_args()
-        kwargs.pop("job_order")
-        kwargs.pop("workflow")
-        kwargs.pop("outdir")
-        kwargs.update(execkwargs)
-        self.execkwargs = kwargs
-
-    def make(self, cwl):
+    def make(self, cwl: Union[str, Dict[str, Any]]) -> Callable:
         """Instantiate a CWL object from a CWl document."""
-        load = load_tool.load_tool(cwl, self.makeTool,
-                                   strict=self.execkwargs.get("strict", True))
+        load = load_tool.load_tool(cwl, self.loading_context)
         if isinstance(load, int):
-            raise Exception("Error loading tool")
+            raise WorkflowException("Error loading tool")
         return Callable(load, self)

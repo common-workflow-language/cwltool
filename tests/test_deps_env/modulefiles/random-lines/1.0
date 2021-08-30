@@ -1,0 +1,16 @@
+#%Module -*- tcl -*-
+
+set name        random-lines
+set version     1.0
+set prefix      [file normalize [file join [file dirname ${ModulesCurrentModulefile}] ../../${name}/${version}]]
+
+module-whatis "Selects N random lines from a file and outputs to another file, maintaining original line order"
+
+if {![file exists $prefix]} {
+    puts stderr "\t[module-info name] Load Error: $prefix does not exist"
+    break
+    exit 1
+}
+
+prepend-path PATH ${prefix}/scripts
+setenv TEST_VAR_MODULE "environment variable ends in space "

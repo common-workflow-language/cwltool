@@ -1,53 +1,62 @@
+"""Minimal in memory storage of secrets."""
 import uuid
-import six
-from typing import (List, Dict, Any, Text, MutableMapping)
+from typing import Dict, List, MutableMapping, MutableSequence, Optional, cast
 
-class SecretStore(object):
-    def __init__(self):
-        # type: () -> None
-        self.secrets = {}  # type: Dict[Text, Text]
+from .utils import CWLObjectType, CWLOutputType
 
-    def add(self, value):
-        # type: (Text) -> Text
-        if not isinstance(value, six.string_types):
+
+class SecretStore:
+    """Minimal implementation of a secret storage."""
+
+    def __init__(self) -> None:
+        """Initialize the secret store."""
+        self.secrets = {}  # type: Dict[str, str]
+
+    def add(self, value: Optional[CWLOutputType]) -> Optional[CWLOutputType]:
+        """
+        Add the given value to the store.
+
+        Returns a placeholder value to use until the real value is needed.
+        """
+        if not isinstance(value, str):
             raise Exception("Secret store only accepts strings")
 
         if value not in self.secrets:
-            placeholder = "(secret-%s)" % Text(uuid.uuid4())
+            placeholder = "(secret-%s)" % str(uuid.uuid4())
             self.secrets[placeholder] = value
             return placeholder
-        else:
-            return value
+        return value
 
-    def store(self, secrets, job):
-        # type: (List[Text], MutableMapping[Text, Any]) -> None
+    def store(self, secrets: List[str], job: CWLObjectType) -> None:
+        """Sanitize the job object of any of the given secrets."""
         for j in job:
             if j in secrets:
                 job[j] = self.add(job[j])
 
-    def has_secret(self, value):
-        # type: (Any) -> bool
-        if isinstance(value, six.string_types):
+    def has_secret(self, value: CWLOutputType) -> bool:
+        """Test if the provided document has any of our secrets."""
+        if isinstance(value, str):
             for k in self.secrets:
                 if k in value:
                     return True
-        elif isinstance(value, dict):
-            for v in value.values():
-                if self.has_secret(v):
+        elif isinstance(value, MutableMapping):
+            for this_value in value.values():
+                if self.has_secret(cast(CWLOutputType, this_value)):
                     return True
-        elif isinstance(value, list):
-            for v in value:
-                if self.has_secret(v):
+        elif isinstance(value, MutableSequence):
+            for this_value in value:
+                if self.has_secret(cast(CWLOutputType, this_value)):
                     return True
         return False
 
-    def retrieve(self, value):
-        # type: (Any) -> Any
-        if isinstance(value, six.string_types):
-            for k,v in self.secrets.items():
-                value = value.replace(k, v)
-        elif isinstance(value, dict):
-            return {k: self.retrieve(v) for k,v in value.items()}
-        elif isinstance(value, list):
-            return [self.retrieve(v) for k,v in enumerate(value)]
+    def retrieve(self, value: CWLOutputType) -> CWLOutputType:
+        """Replace placeholders with their corresponding secrets."""
+        if isinstance(value, str):
+            for key, this_value in self.secrets.items():
+                value = value.replace(key, this_value)
+            return value
+        elif isinstance(value, MutableMapping):
+            return {k: self.retrieve(cast(CWLOutputType, v)) for k, v in value.items()}
+        elif isinstance(value, MutableSequence):
+            return [self.retrieve(cast(CWLOutputType, v)) for v in value]
         return value

@@ -1,33 +1,29 @@
 import json
-import unittest
+from pathlib import Path
 
-import pytest
-
-import cwltool
-import cwltool.factory
+from cwltool.context import RuntimeContext
 from cwltool.executors import MultithreadedJobExecutor
-from cwltool.utils import onWindows
+from cwltool.factory import Factory
+
 from .util import get_data
 
 
-class TestParallel(unittest.TestCase):
-    @pytest.mark.skipif(onWindows(),
-                        reason="Unexplainable behavior: cwltool on AppVeyor does not recognize cwlVersion"
-                               "in count-lines1-wf.cwl")
-    def test_sequential_workflow(self):
-        test_file = "tests/wf/count-lines1-wf.cwl"
-        f = cwltool.factory.Factory(executor=MultithreadedJobExecutor())
-        echo = f.make(get_data(test_file))
-        self.assertEqual(echo(file1= {
-                "class": "File",
-                "location": get_data("tests/wf/whale.txt")
-            }),
-            {"count_output": 16})
+def test_sequential_workflow(tmp_path: Path) -> None:
+    test_file = "tests/wf/count-lines1-wf.cwl"
+    executor = MultithreadedJobExecutor()
+    runtime_context = RuntimeContext()
+    runtime_context.outdir = str(tmp_path)
+    runtime_context.select_resources = executor.select_resources
+    factory = Factory(executor, None, runtime_context)
+    echo = factory.make(get_data(test_file))
+    file_contents = {"class": "File", "location": get_data("tests/wf/whale.txt")}
+    assert echo(file1=file_contents) == {"count_output": 16}
 
-    def test_scattered_workflow(self):
-        test_file = "tests/wf/scatter-wf4.cwl"
-        job_file = "tests/wf/scatter-job2.json"
-        f = cwltool.factory.Factory(executor=MultithreadedJobExecutor())
-        echo = f.make(get_data(test_file))
-        with open(get_data(job_file)) as job:
-            self.assertEqual(echo(**json.load(job)), {'out': ['foo one three', 'foo two four']})
+
+def test_scattered_workflow() -> None:
+    test_file = "tests/wf/scatter-wf4.cwl"
+    job_file = "tests/wf/scatter-job2.json"
+    factory = Factory(MultithreadedJobExecutor())
+    echo = factory.make(get_data(test_file))
+    with open(get_data(job_file)) as job:
+        assert echo(**json.load(job)) == {"out": ["foo one three", "foo two four"]}

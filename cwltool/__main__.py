@@ -1,6 +1,5 @@
-from __future__ import absolute_import
-import sys
+"""Default entrypoint for the cwltool module."""
 
 from . import main
 
-sys.exit(main.main())
+main.run()

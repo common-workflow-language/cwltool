@@ -1,85 +1,90 @@
-from __future__ import absolute_import
-import unittest
-import sys
 import os
+from pathlib import Path
+from typing import Any, List, Optional
+from urllib.parse import urljoin, urlsplit
 
-from six.moves import urllib
+import pytest
+import requests
+from schema_salad.fetcher import Fetcher
+from schema_salad.utils import CacheType
 
-import schema_salad.main
-import schema_salad.ref_resolver
-import schema_salad.schema
+from cwltool.context import LoadingContext
 from cwltool.load_tool import load_tool
 from cwltool.main import main
-from cwltool.workflow import defaultMakeTool
 from cwltool.resolver import resolve_local
+from cwltool.workflow import default_make_tool
 
-if sys.version_info < (3, 4):
-    from pathlib2 import Path
-else:
-    from pathlib import Path
+from .util import get_data, working_directory
 
-from .util import get_data
 
-class FetcherTest(unittest.TestCase):
-    def test_fetcher(self):
-        class TestFetcher(schema_salad.ref_resolver.Fetcher):
-            def __init__(self, a, b):
-                pass
+class CWLTestFetcher(Fetcher):
+    def __init__(
+        self,
+        cache: CacheType,
+        session: Optional[requests.sessions.Session],
+    ) -> None:
+        """Create a Fetcher that provides a fixed result for testing purposes."""
 
-            def fetch_text(self, url):  # type: (unicode) -> unicode
-                if url == "baz:bar/foo.cwl":
-                    return """
+    def fetch_text(self, url: str, content_types: Optional[List[str]] = None) -> str:
+        if url == "baz:bar/foo.cwl":
+            return """
 cwlVersion: v1.0
 class: CommandLineTool
 baseCommand: echo
 inputs: []
 outputs: []
 """
-                else:
-                    raise RuntimeError("Not foo.cwl, was %s" % url)
+        raise RuntimeError("Not foo.cwl, was %s" % url)
 
-            def check_exists(self, url):  # type: (unicode) -> bool
-                if url == "baz:bar/foo.cwl":
-                    return True
-                else:
-                    return False
+    def check_exists(self, url):  # type: (str) -> bool
+        return url == "baz:bar/foo.cwl"
 
-            def urljoin(self, base, url):
-                    urlsp = urllib.parse.urlsplit(url)
-                    if urlsp.scheme:
-                        return url
-                    basesp = urllib.parse.urlsplit(base)
+    def urljoin(self, base: str, url: str) -> str:
+        urlsp = urlsplit(url)
+        if urlsp.scheme:
+            return url
+        basesp = urlsplit(base)
 
-                    if basesp.scheme == "keep":
-                        return base + "/" + url
-                    return urllib.parse.urljoin(base, url)
-
-        def test_resolver(d, a):
-            if a.startswith("baz:bar/"):
-                return a
-            else:
-                return "baz:bar/" + a
+        if basesp.scheme == "keep":
+            return base + "/" + url
+        return urljoin(base, url)
 
 
-        load_tool("foo.cwl", defaultMakeTool, resolver=test_resolver, fetcher_constructor=TestFetcher)
+def test_fetcher() -> None:
+    def test_resolver(d: Any, a: str) -> str:
+        if a.startswith("baz:bar/"):
+            return a
+        return "baz:bar/" + a
 
-        self.assertEquals(0, main(["--print-pre", "--debug", "foo.cwl"], resolver=test_resolver,
-                                  fetcher_constructor=TestFetcher))
+    loadingContext = LoadingContext(
+        {
+            "construct_tool_object": default_make_tool,
+            "resolver": test_resolver,
+            "fetcher_constructor": CWLTestFetcher,
+        }
+    )
+
+    load_tool("foo.cwl", loadingContext)
+
+    assert (
+        main(["--print-pre", "--debug", "foo.cwl"], loadingContext=loadingContext) == 0
+    )
 
 
-class ResolverTest(unittest.TestCase):
-    def test_resolve_local(self):
-        origpath = os.getcwd()
-        os.chdir(os.path.join(get_data("")))
-        try:
-            root = Path.cwd()
-            rooturi = root.as_uri()
-            self.assertEqual(rooturi+"/tests/echo.cwl", resolve_local(None, os.path.join("tests", "echo.cwl")))
-            self.assertEqual(rooturi+"/tests/echo.cwl#main", resolve_local(None, os.path.join("tests", "echo.cwl")+"#main"))
-            self.assertEqual(rooturi+"/tests/echo.cwl", resolve_local(None, str(root / "tests" / "echo.cwl")))
-            # On Windows and Python 2.7, the left side of this test returns
-            # file:///C:/ (uppercase drive letter) and the right side returns
-            # file:///c:/ (lowercase drive letter) so force a lowercase comparison.
-            self.assertEqual((rooturi+"/tests/echo.cwl#main").lower(), resolve_local(None, str(root / "tests" / "echo.cwl")+"#main").lower())
-        finally:
-            os.chdir(origpath)
+root = Path(os.path.join(get_data("")))
+
+path_fragments = [
+    (os.path.join("tests", "echo.cwl"), "/tests/echo.cwl"),
+    (os.path.join("tests", "echo.cwl") + "#main", "/tests/echo.cwl#main"),
+    (str(root / "tests" / "echo.cwl"), "/tests/echo.cwl"),
+    (str(root / "tests" / "echo.cwl") + "#main", "/tests/echo.cwl#main"),
+]
+
+
+@pytest.mark.parametrize("path,expected_path", path_fragments)
+def test_resolve_local(path: str, expected_path: str) -> None:
+    with working_directory(root):
+        expected = root.as_uri() + expected_path
+        resolved = resolve_local(None, path)
+        assert resolved
+        assert resolved == expected

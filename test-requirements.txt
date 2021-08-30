@@ -1,0 +1,8 @@
+pytest >= 6.2, < 6.3
+pytest-xdist
+mock >= 2.0.0
+pytest-mock >= 1.10.0
+pytest-cov
+arcp >= 0.2.0
+rdflib-jsonld >= 0.4.0
+-rrequirements.txt

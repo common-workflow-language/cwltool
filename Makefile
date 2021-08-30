@@ -15,8 +15,7 @@
 #
 # Contact: common-workflow-language@googlegroups.com
 
-# make pycodestyle to check for basic Python code compliance
-# make autopep8 to fix most pep8 errors
+# make format to fix most python formatting errors
 # make pylint to check Python code for enhanced compliance including naming
 #  and documentation
 # make coverage-report to check coverage of the python scripts by the tests
@@ -26,24 +25,30 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=pycodestyle diff_cover autopep8 pylint coverage pydocstyle flake8 pytest isort mock
+DEVPKGS=diff_cover black pylint pep257 pydocstyle flake8 tox tox-pyenv \
+	isort wheel autoflake flake8-bugbear pyupgrade bandit \
+	-rtest-requirements.txt -rmypy_requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
-VERSION=1.0.$(shell date +%Y%m%d%H%M%S --utc --date=`git log --first-parent \
-	--max-count=1 --format=format:%cI`)
+
+VERSION=3.1.$(shell TZ=UTC git log --first-parent --max-count=1 \
+	--format=format:%cd --date=format-local:%Y%m%d%H%M%S)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+UNAME_S=$(shell uname -s)
 
 ## all         : default task
-all:
-	./setup.py develop
+all: dev
 
 ## help        : print this help message and exit
 help: Makefile
 	@sed -n 's/^##//p' $<
 
 ## install-dep : install most of the development dependencies via pip
-install-dep:
+install-dep: install-dependencies
+
+install-dependencies: FORCE
 	pip install --upgrade $(DEVPKGS)
+	pip install -r requirements.txt
 
 ## install-deb-dep: install most of the dev dependencies via apt-get
 install-deb-dep:
@@ -51,70 +56,73 @@ install-deb-dep:
 
 ## install     : install the ${MODULE} module and schema-salad-tool
 install: FORCE
-	pip install .
+	pip install .[deps]
+
+## dev     : install the ${MODULE} module in dev mode
+dev: install-dep
+	pip install -e .[deps]
+
 
 ## dist        : create a module package for distribution
 dist: dist/${MODULE}-$(VERSION).tar.gz
 
-dist/${MODULE}-$(VERSION).tar.gz: $(SOURCES)
-	./setup.py sdist bdist_wheel
+check-python3:
+# Check that the default python version is python 3
+	python --version 2>&1 | grep "Python 3"
+
+dist/${MODULE}-$(VERSION).tar.gz: check-python3 $(SOURCES)
+	python setup.py sdist bdist_wheel
+
+## docs	       : make the docs
+docs: FORCE
+	cd docs && $(MAKE) html
 
 ## clean       : clean up all temporary / machine-generated files
-clean: FORCE
+clean: check-python3 FORCE
 	rm -f ${MODILE}/*.pyc tests/*.pyc
-	./setup.py clean --all || true
+	python setup.py clean --all || true
 	rm -Rf .coverage
 	rm -f diff-cover.html
 
 # Linting and code style related targets
 ## sorting imports using isort: https://github.com/timothycrosley/isort
-sort_imports:
-	isort ${MODULE}/*.py tests/*.py setup.py
+sort_imports: $(PYSOURCES)
+	isort $^
 
-pep8: pycodestyle
-## pycodestyle        : check Python code style
-pycodestyle: $(PYSOURCES)
-	pycodestyle --exclude=_version.py  --show-source --show-pep8 $^ || true
-
-pycodestyle_report.txt: $(PYSOURCES)
-	pycodestyle --exclude=_version.py $^ > $@ || true
-
-diff_pycodestyle_report: pycodestyle_report.txt
-	diff-quality --violations=pycodestyle $^
+remove_unused_imports: $(PYSOURCES)
+	autoflake --in-place --remove-all-unused-imports $^
 
 pep257: pydocstyle
 ## pydocstyle      : check Python code style
 pydocstyle: $(PYSOURCES)
-	pydocstyle --ignore=D100,D101,D102,D103 $^ || true
+	pydocstyle --add-ignore=D100,D101,D102,D103 $^ || true
 
 pydocstyle_report.txt: $(PYSOURCES)
-	pydocstyle setup.py $^ > pydocstyle_report.txt 2>&1 || true
+	pydocstyle setup.py $^ > $@ 2>&1 || true
 
 diff_pydocstyle_report: pydocstyle_report.txt
-	diff-quality --violations=pycodestyle $^
+	diff-quality --compare-branch=main --violations=pydocstyle --fail-under=100 $^
 
-## autopep8    : fix most Python code indentation and formatting
-autopep8: $(PYSOURCES)
-	autopep8 --recursive --in-place --ignore E309 $^
+## format      : check/fix all code indentation and formatting (runs black)
+format:
+	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests
 
-# A command to automatically run astyle and autopep8 on appropriate files
-## format      : check/fix all code indentation and formatting (runs autopep8)
-format: autopep8
-	# Do nothing
+format-check:
+	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests
 
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-                $^ || true
+                $^ -j0|| true
 
-pylint_report.txt: ${PYSOURCES}
+pylint_report.txt: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
-		$^ > pylint_report.txt || true
+		$^ -j0> $@ || true
 
 diff_pylint_report: pylint_report.txt
-	diff-quality --violations=pylint pylint_report.txt
+	diff-quality --compare-branch=main --violations=pylint pylint_report.txt
 
-.coverage: tests
+.coverage: testcov
 
 coverage: .coverage
 	coverage report
@@ -126,59 +134,70 @@ coverage.html: htmlcov/index.html
 
 htmlcov/index.html: .coverage
 	coverage html
+	@echo Test coverage of the Python code is now in htmlcov/index.html
 
-diff-cover: coverage-gcovr.xml coverage.xml
-	diff-cover coverage-gcovr.xml coverage.xml
+coverage-report: .coverage
+	coverage report
 
-diff-cover.html: coverage-gcovr.xml coverage.xml
-	diff-cover coverage-gcovr.xml coverage.xml \
-		--html-report diff-cover.html
+diff-cover: coverage.xml
+	diff-cover --compare-branch=main $^
+
+diff-cover.html: coverage.xml
+	diff-cover --compare-branch=main $^ --html-report $@
 
 ## test        : run the ${MODULE} test suite
-test: $(PYSOURCES)
-	python setup.py test --addopts "--cov cwltool"
+test: check-python3 $(PYSOURCES)
+	python -m pytest ${PYTEST_EXTRA}
 
-sloccount.sc: ${PYSOURCES} Makefile
-	sloccount --duplicates --wide --details $^ > sloccount.sc
+## testcov     : run the ${MODULE} test suite and collect coverage
+testcov: check-python3 $(PYSOURCES)
+	python -m pytest --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
+
+sloccount.sc: $(PYSOURCES) Makefile
+	sloccount --duplicates --wide --details $^ > $@
 
 ## sloccount   : count lines of code
-sloccount: ${PYSOURCES} Makefile
+sloccount: $(PYSOURCES) Makefile
 	sloccount $^
 
 list-author-emails:
 	@echo 'name, E-Mail Address'
 	@git log --format='%aN,%aE' | sort -u | grep -v 'root'
 
+mypy3: mypy
+mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
+	if ! test -f $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
+	then \
+		rm -Rf typeshed/ruamel/yaml ; \
+		ln -s $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
+			typeshed/ruamel/ ; \
+	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
+	MYPYPATH=$$MYPYPATH:typeshed mypy $^
 
-mypy2: ${PYSOURCES}
-	rm -Rf typeshed/2and3/ruamel/yaml
-	ln -s $(shell python -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-		typeshed/2and3/ruamel/yaml
-	rm -Rf typeshed/2and3/schema_salad
-	ln -s $(shell python -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
-		typeshed/2and3/schema_salad
-	MYPYPATH=$$MYPYPATH:typeshed/2.7:typeshed/2and3 mypy --py2 --disallow-untyped-calls \
-		 --warn-redundant-casts \
-		 cwltool
+mypyc: $(PYSOURCES)
+	MYPYPATH=typeshed CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
+		 && pytest ${PYTEST_EXTRA}
 
-mypy3: ${PYSOURCES}
-	rm -Rf typeshed/2and3/ruamel/yaml
-	ln -s $(shell python3 -c 'from __future__ import print_function; import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-		typeshed/2and3/ruamel/yaml
-	rm -Rf typeshed/2and3/schema_salad
-	ln -s $(shell python3 -c 'from __future__ import print_function; import schema_salad; import os.path; print(os.path.dirname(schema_salad.__file__))') \
-		typeshed/2and3/schema_salad
-	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
-		 --warn-redundant-casts \
-		 cwltool
+shellcheck: FORCE
+	shellcheck build-cwltool-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
+		cwltool-in-docker.sh
 
-release: FORCE
+pyupgrade: $(PYSOURCES)
+	pyupgrade --exit-zero-even-if-changed --py36-plus $^
+
+release-test: check-python3 FORCE
+	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )
 	./release-test.sh
+
+release: release-test
 	. testenv2/bin/activate && \
-		testenv2/src/${MODULE}/setup.py sdist bdist_wheel && \
+		python testenv2/src/${MODULE}/setup.py sdist bdist_wheel && \
 		pip install twine && \
 		twine upload testenv2/src/${MODULE}/dist/* && \
 		git tag ${VERSION} && git push --tags
+
+flake8: $(PYSOURCES)
+	flake8 $^
 
 FORCE:
 
