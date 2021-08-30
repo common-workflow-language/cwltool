@@ -229,6 +229,7 @@ class Builder(HasReqsHints):
         lead_pos: Optional[Union[int, List[int]]] = None,
         tail_pos: Optional[Union[str, List[int]]] = None,
     ) -> List[MutableMapping[str, Union[str, List[int]]]]:
+        debug = _logger.isEnabledFor(logging.DEBUG)
 
         if tail_pos is None:
             tail_pos = []
@@ -250,8 +251,17 @@ class Builder(HasReqsHints):
                 position = binding["position"]
                 if isinstance(position, str):  # no need to test the CWL Version
                     # the schema for v1.0 only allow ints
-                    binding["position"] = self.do_eval(position, context=datum)
-                    bp.append(binding["position"])
+                    result = self.do_eval(position, context=datum)
+                    if not isinstance(result, int):
+                        raise SourceLine(
+                            schema["inputBinding"], "position", WorkflowException, debug
+                        ).makeError(
+                            "'position' expressions must evaluate to an int, "
+                            f"not a {type(result)}. Expression {position} "
+                            f"resulted in '{result}'."
+                        )
+                    binding["position"] = result
+                    bp.append(result)
                 else:
                     bp.extend(aslist(binding["position"]))
             else:
@@ -396,7 +406,10 @@ class Builder(HasReqsHints):
 
                 if loadContents_sourceline and loadContents_sourceline["loadContents"]:
                     with SourceLine(
-                        loadContents_sourceline, "loadContents", WorkflowException
+                        loadContents_sourceline,
+                        "loadContents",
+                        WorkflowException,
+                        debug,
                     ):
                         try:
                             with self.fs_access.open(
@@ -411,17 +424,42 @@ class Builder(HasReqsHints):
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
-                    for sf in aslist(schema["secondaryFiles"]):
-                        if "required" in sf:
-                            sf_required = self.do_eval(sf["required"], context=datum)
+                    for num, sf_entry in enumerate(aslist(schema["secondaryFiles"])):
+                        if "required" in sf_entry and sf_entry["required"] is not None:
+                            required_result = self.do_eval(
+                                sf_entry["required"], context=datum
+                            )
+                            if not (
+                                isinstance(required_result, bool)
+                                or required_result is None
+                            ):
+                                if (
+                                    aslist(schema["secondaryFiles"])
+                                    == schema["secondaryFiles"]
+                                ):
+                                    sf_item: Any = cast(
+                                        List[Any], schema["secondaryFiles"]
+                                    )[num]
+                                else:
+                                    sf_item = schema["secondaryFiles"]
+                                raise SourceLine(
+                                    sf_item, "required", WorkflowException, debug
+                                ).makeError(
+                                    "The result of a expression in the field "
+                                    "'required' must "
+                                    f"be a bool or None, not a {type(required_result)}. "
+                                    f"Expression '{sf_entry['required']}' resulted "
+                                    f"in '{required_result}'."
+                                )
+                            sf_required = required_result
                         else:
                             sf_required = True
 
-                        if "$(" in sf["pattern"] or "${" in sf["pattern"]:
-                            sfpath = self.do_eval(sf["pattern"], context=datum)
+                        if "$(" in sf_entry["pattern"] or "${" in sf_entry["pattern"]:
+                            sfpath = self.do_eval(sf_entry["pattern"], context=datum)
                         else:
                             sfpath = substitute(
-                                cast(str, datum["basename"]), sf["pattern"]
+                                cast(str, datum["basename"]), sf_entry["pattern"]
                             )
 
                         for sfname in aslist(sfpath):
@@ -443,9 +481,13 @@ class Builder(HasReqsHints):
                                 sf_location = sfname["location"]
                                 sfbasename = sfname["basename"]
                             else:
-                                raise WorkflowException(
-                                    "Expected secondaryFile expression to return type 'str' or 'MutableMapping', received '%s'"
-                                    % (type(sfname))
+                                raise SourceLine(
+                                    sf_entry, "pattern", WorkflowException, debug
+                                ).makeError(
+                                    "Expected secondaryFile expression to "
+                                    "return type 'str', a 'File' or 'Directory' "
+                                    "dictionary, or a list of the same. Received "
+                                    f"'{type(sfname)} from '{sf_entry['pattern']}'."
                                 )
 
                             for d in cast(
@@ -494,7 +536,12 @@ class Builder(HasReqsHints):
                                         },
                                     )
                                 elif sf_required:
-                                    raise WorkflowException(
+                                    raise SourceLine(
+                                        schema,
+                                        "secondaryFiles",
+                                        WorkflowException,
+                                        debug,
+                                    ).makeError(
                                         "Missing required secondary file '%s' from file object: %s"
                                         % (sfname, json_dumps(datum, indent=4))
                                     )
@@ -504,10 +551,38 @@ class Builder(HasReqsHints):
                     )
 
                 if "format" in schema:
+                    eval_format: Any = self.do_eval(schema["format"])
+                    if isinstance(eval_format, str):
+                        evaluated_format: Union[str, List[str]] = eval_format
+                    elif isinstance(eval_format, MutableSequence):
+                        for entry in eval_format:
+                            if not isinstance(entry, str):
+                                raise SourceLine(
+                                    schema, "format", WorkflowException, debug
+                                ).makeError(
+                                    "An expression in the 'format' field must "
+                                    "evaluate to a string, or list of strings. "
+                                    "However a non-string item was received: "
+                                    f"'{entry}' of type '{type(entry)}'. "
+                                    f"The expression was '{schema['format']}' and "
+                                    f"its fully evaluated result is '{eval_format}'."
+                                )
+                        evaluated_format = cast(List[str], eval_format)
+                    else:
+                        raise SourceLine(
+                            schema, "format", WorkflowException, debug
+                        ).makeError(
+                            "An expression in the 'format' field must "
+                            "evaluate to a string, or list of strings. "
+                            "However the type of the expression result was "
+                            f"{type(eval_format)}. "
+                            f"The expression was '{schema['format']}' and "
+                            f"its fully evaluated result is 'eval_format'."
+                        )
                     try:
                         check_format(
                             datum,
-                            cast(Union[List[str], str], self.do_eval(schema["format"])),
+                            evaluated_format,
                             self.formatgraph,
                         )
                     except ValidationException as ve:
@@ -561,12 +636,13 @@ class Builder(HasReqsHints):
 
     def generate_arg(self, binding: CWLObjectType) -> List[str]:
         value = binding.get("datum")
+        debug = _logger.isEnabledFor(logging.DEBUG)
         if "valueFrom" in binding:
             with SourceLine(
                 binding,
                 "valueFrom",
                 WorkflowException,
-                _logger.isEnabledFor(logging.DEBUG),
+                debug,
             ):
                 value = self.do_eval(cast(str, binding["valueFrom"]), context=value)
 
@@ -577,7 +653,7 @@ class Builder(HasReqsHints):
                 binding,
                 "separate",
                 WorkflowException,
-                _logger.isEnabledFor(logging.DEBUG),
+                debug,
             ):
                 raise WorkflowException(
                     "'separate' option can not be specified without prefix"

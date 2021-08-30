@@ -59,13 +59,9 @@ def copy_job_order(
         return job_order_object
     customised_job = {}  # type: CWLObjectType
     # new job object for RO
+    debug = _logger.isEnabledFor(logging.DEBUG)
     for each, i in enumerate(job.tool["inputs"]):
-        with SourceLine(
-            job.tool["inputs"],
-            each,
-            WorkflowException,
-            _logger.isEnabledFor(logging.DEBUG),
-        ):
+        with SourceLine(job.tool["inputs"], each, WorkflowException, debug):
             iid = shortname(i["id"])
             if iid in job_order_object:
                 customised_job[iid] = copy.deepcopy(job_order_object[iid])

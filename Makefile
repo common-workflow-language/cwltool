@@ -79,7 +79,8 @@ docs: FORCE
 
 ## clean       : clean up all temporary / machine-generated files
 clean: check-python3 FORCE
-	rm -f ${MODILE}/*.pyc tests/*.pyc
+	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so
+	rm -Rf ${MODULE}/__pycache__/
 	python setup.py clean --all || true
 	rm -Rf .coverage
 	rm -f diff-cover.html

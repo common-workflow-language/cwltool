@@ -63,6 +63,7 @@ def get_expressions(
     schema: Optional[Union[Schema, ArraySchema]],
     source_line: Optional[SourceLine] = None,
 ) -> List[Tuple[str, Optional[SourceLine]]]:
+    debug = _logger.isEnabledFor(logging.DEBUG)
     if is_expression(tool, schema):
         return [(cast(str, tool), source_line)]
     elif isinstance(schema, UnionSchema):
@@ -90,7 +91,9 @@ def get_expressions(
         ) -> List[Tuple[str, Optional[SourceLine]]]:
             # using a lambda for this broke mypyc v0.910 and before
             return get_expressions(
-                x[1], cast(ArraySchema, schema).items, SourceLine(tool, x[0])
+                x[1],
+                cast(ArraySchema, schema).items,
+                SourceLine(tool, x[0], include_traceback=debug),
             )
 
         return list(
@@ -114,7 +117,7 @@ def get_expressions(
                     get_expressions(
                         tool[schema_field.name],
                         schema_field.type,
-                        SourceLine(tool, schema_field.name),
+                        SourceLine(tool, schema_field.name, include_traceback=debug),
                     )
                 )
 
@@ -214,7 +217,7 @@ def validate_js_expressions(
 
     if tool.get("requirements") is None:
         return
-
+    debug = _logger.isEnabledFor(logging.DEBUG)
     requirements = tool["requirements"]
 
     default_globals = ["self", "inputs", "runtime", "console"]
@@ -234,7 +237,8 @@ def validate_js_expressions(
         )
         js_globals.extend(expression_lib_line_globals)
         print_js_hint_messages(
-            expression_lib_line_errors, SourceLine(expression_lib, i)
+            expression_lib_line_errors,
+            SourceLine(expression_lib, i, include_traceback=debug),
         )
 
     expressions = get_expressions(tool, schema)

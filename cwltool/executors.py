@@ -32,6 +32,7 @@ from .mutation import MutationManager
 from .process import Process, cleanIntermediate, relocateOutputs
 from .provenance_profile import ProvenanceProfile
 from .task_queue import TaskQueue
+from .update import ORIGINAL_CWLVERSION
 from .utils import CWLObjectType, JobsType
 from .workflow import Workflow
 from .workflow_job import WorkflowJob, WorkflowJobStep
@@ -88,9 +89,9 @@ class JobExecutor(metaclass=ABCMeta):
 
         def check_for_abstract_op(tool: CWLObjectType) -> None:
             if tool["class"] == "Operation":
-                raise SourceLine(tool, "class", WorkflowException).makeError(
-                    "Workflow has unrunnable abstract Operation"
-                )
+                raise SourceLine(
+                    tool, "class", WorkflowException, runtime_context.debug
+                ).makeError("Workflow has unrunnable abstract Operation")
 
         process.visit(check_for_abstract_op)
 
@@ -108,10 +109,7 @@ class JobExecutor(metaclass=ABCMeta):
 
         job_reqs = None  # type: Optional[List[CWLObjectType]]
         if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
-            if (
-                process.metadata.get("http://commonwl.org/cwltool#original_cwlVersion")
-                == "v1.0"
-            ):
+            if process.metadata.get(ORIGINAL_CWLVERSION) == "v1.0":
                 raise WorkflowException(
                     "`cwl:requirements` in the input object is not part of CWL "
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
@@ -126,10 +124,7 @@ class JobExecutor(metaclass=ABCMeta):
             and "https://w3id.org/cwl/cwl#requirements"
             in cast(CWLObjectType, process.metadata["cwl:defaults"])
         ):
-            if (
-                process.metadata.get("http://commonwl.org/cwltool#original_cwlVersion")
-                == "v1.0"
-            ):
+            if process.metadata.get(ORIGINAL_CWLVERSION) == "v1.0":
                 raise WorkflowException(
                     "`cwl:requirements` in the input object is not part of CWL "
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "

@@ -44,12 +44,12 @@ from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.schema import load_schema, make_avro_schema, make_valid_avro
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
-from schema_salad.utils import ContextType, convert_to_dict
-from schema_salad.validate import validate_ex, avro_type_name
+from schema_salad.utils import convert_to_dict
+from schema_salad.validate import avro_type_name, validate_ex
 from typing_extensions import TYPE_CHECKING
 
 from . import expression
-from .builder import Builder, HasReqsHints, INPUT_OBJ_VOCAB
+from .builder import INPUT_OBJ_VOCAB, Builder, HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
@@ -57,7 +57,7 @@ from .mpi import MPIRequirementName
 from .pathmapper import MapperEnt, PathMapper
 from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
-from .update import INTERNAL_VERSION
+from .update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from .utils import (
     CWLObjectType,
     CWLOutputAtomType,
@@ -236,13 +236,14 @@ def checkRequirements(
 ) -> None:
     if isinstance(rec, MutableMapping):
         if "requirements" in rec:
+            debug = _logger.isEnabledFor(logging.DEBUG)
             for i, entry in enumerate(
                 cast(MutableSequence[CWLObjectType], rec["requirements"])
             ):
-                with SourceLine(rec["requirements"], i, UnsupportedRequirement):
+                with SourceLine(rec["requirements"], i, UnsupportedRequirement, debug):
                     if cast(str, entry["class"]) not in supported_process_requirements:
                         raise UnsupportedRequirement(
-                            "Unsupported requirement {}".format(entry["class"])
+                            f"Unsupported requirement {entry['class']}."
                         )
         for key in rec:
             checkRequirements(rec[key], supported_process_requirements)
@@ -438,10 +439,9 @@ def fill_in_defaults(
     job: CWLObjectType,
     fsaccess: StdFsAccess,
 ) -> None:
+    debug = _logger.isEnabledFor(logging.DEBUG)
     for e, inp in enumerate(inputs):
-        with SourceLine(
-            inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)
-        ):
+        with SourceLine(inputs, e, WorkflowException, debug):
             fieldname = shortname(cast(str, inp["id"]))
             if job.get(fieldname) is not None:
                 pass
@@ -581,14 +581,15 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
 
         self.names = make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader({}))
         self.tool = toolpath_object
+        debug = loadingContext.debug
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
         tool_requirements = self.tool.get("requirements", [])
         if tool_requirements is None:
-            raise ValidationException(
-                SourceLine(self.tool, "requirements").makeError(
-                    "If 'requirements' is present then it must be a list "
-                    "or map/dictionary, not empty."
-                )
+            raise SourceLine(
+                self.tool, "requirements", ValidationException, debug
+            ).makeError(
+                "If 'requirements' is present then it must be a list "
+                "or map/dictionary, not empty."
             )
         self.requirements.extend(tool_requirements)
         if "id" not in self.tool:
@@ -604,11 +605,9 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         self.hints = copy.deepcopy(getdefault(loadingContext.hints, []))
         tool_hints = self.tool.get("hints", [])
         if tool_hints is None:
-            raise ValidationException(
-                SourceLine(self.tool, "hints").makeError(
-                    "If 'hints' is present then it must be a list "
-                    "or map/dictionary, not empty."
-                )
+            raise SourceLine(self.tool, "hints", ValidationException, debug).makeError(
+                "If 'hints' is present then it must be a list "
+                "or map/dictionary, not empty."
             )
         self.hints.extend(tool_hints)
         # Versions of requirements and hints which aren't mutated.
@@ -685,13 +684,13 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                         List[CWLObjectType], self.outputs_record_schema["fields"]
                     ).append(c)
 
-        with SourceLine(toolpath_object, "inputs", ValidationException):
+        with SourceLine(toolpath_object, "inputs", ValidationException, debug):
             self.inputs_record_schema = cast(
                 CWLObjectType,
                 make_valid_avro(self.inputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.inputs_record_schema), self.names)
-        with SourceLine(toolpath_object, "outputs", ValidationException):
+        with SourceLine(toolpath_object, "outputs", ValidationException, debug):
             self.outputs_record_schema = cast(
                 CWLObjectType,
                 make_valid_avro(self.outputs_record_schema, {}, set()),
@@ -879,7 +878,7 @@ hints:
 
         cwl_version = cast(
             str,
-            self.metadata.get("http://commonwl.org/cwltool#original_cwlVersion", None),
+            self.metadata.get(ORIGINAL_CWLVERSION, None),
         )
         builder = Builder(
             job,
@@ -971,9 +970,7 @@ hints:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
-        cwl_version = self.metadata.get(
-            "http://commonwl.org/cwltool#original_cwlVersion", None
-        )
+        cwl_version = self.metadata.get(ORIGINAL_CWLVERSION, None)
         if cwl_version == "v1.0":
             ram = 1024
         else:
@@ -1033,8 +1030,9 @@ hints:
     ) -> None:
         if self.doc_loader is None:
             return
+        debug = _logger.isEnabledFor(logging.DEBUG)
         for i, r in enumerate(hints):
-            sl = SourceLine(hints, i, ValidationException)
+            sl = SourceLine(hints, i, ValidationException, debug)
             with sl:
                 classname = cast(str, r["class"])
                 avroname = classname

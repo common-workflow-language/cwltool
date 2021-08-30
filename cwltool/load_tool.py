@@ -312,7 +312,9 @@ def resolve_and_validate_document(
         )
 
     if not isinstance(cwlVersion, str):
-        with SourceLine(workflowobj, "cwlVersion", ValidationException):
+        with SourceLine(
+            workflowobj, "cwlVersion", ValidationException, loadingContext.debug
+        ):
             raise ValidationException(
                 f"'cwlVersion' must be a string, got {type(cwlVersion)}"
             )

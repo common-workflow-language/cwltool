@@ -41,10 +41,10 @@ from schema_salad.validate import validate_ex
 from typing_extensions import TYPE_CHECKING, Type
 
 from .builder import (
+    INPUT_OBJ_VOCAB,
     Builder,
     content_limit_respected_read_bytes,
     substitute,
-    INPUT_OBJ_VOCAB,
 )
 from .context import LoadingContext, RuntimeContext, getdefault
 from .docker import DockerCommandLineJob
@@ -65,7 +65,7 @@ from .process import (
 from .singularity import SingularityCommandLineJob
 from .stdfsaccess import StdFsAccess
 from .udocker import UDockerCommandLineJob
-from .update import ORDERED_VERSIONS
+from .update import ORDERED_VERSIONS, ORIGINAL_CWLVERSION
 from .utils import (
     CWLObjectType,
     CWLOutputType,
@@ -325,9 +325,7 @@ def check_adjust(
             file_o["nameext"] = str(ne)
     if not accept_re.match(basename):
         raise WorkflowException(
-            "Invalid filename: '{}' contains illegal characters".format(
-                file_o["basename"]
-            )
+            f"Invalid filename: '{file_o['basename']}' contains illegal characters"
         )
     return file_o
 
@@ -351,7 +349,7 @@ class ParameterOutputWorkflowException(WorkflowException):
     def __init__(self, msg: str, port: CWLObjectType, **kwargs: Any) -> None:
         """Exception for when there was an error collecting output for a parameter."""
         super().__init__(
-            "Error collecting output for parameter '%s':\n%s"
+            "Error collecting output for parameter '%s': %s"
             % (shortname(cast(str, port["id"])), msg),
             kwargs,
         )
@@ -468,13 +466,87 @@ class CommandLineTool(Process):
         initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
         if initialWorkdir is None:
             return
+        debug = _logger.isEnabledFor(logging.DEBUG)
+        cwl_version = cast(Optional[str], self.metadata.get(ORIGINAL_CWLVERSION, None))
+        classic_dirent = cwl_version and ORDERED_VERSIONS.index(
+            cwl_version
+        ) < ORDERED_VERSIONS.index("v1.2.0-dev2")
+        classic_listing = cwl_version and ORDERED_VERSIONS.index(
+            cwl_version
+        ) < ORDERED_VERSIONS.index("v1.1.0-dev1")
 
         ls = []  # type: List[CWLObjectType]
         if isinstance(initialWorkdir["listing"], str):
             # "listing" is just a string (must be an expression) so
             # just evaluate it and use the result as if it was in
             # listing
-            ls = cast(List[CWLObjectType], builder.do_eval(initialWorkdir["listing"]))
+            ls_evaluated = builder.do_eval(initialWorkdir["listing"])
+            fail: Any = False
+            fail_suffix: str = ""
+            if not isinstance(ls_evaluated, MutableSequence):
+                fail = ls_evaluated
+            else:
+                for entry in ls_evaluated:
+                    if isinstance(entry, MutableSequence):
+                        if classic_listing:
+                            raise SourceLine(
+                                initialWorkdir, "listing", WorkflowException, debug
+                            ).makeError(
+                                "InitialWorkDirRequirement.listing expressions "
+                                "cannot return arrays of Files or Directories "
+                                "before CWL v1.1. Please "
+                                "considering using 'cwl-upgrader' to upgrade "
+                                "your document to CWL v1.1' or later."
+                            )
+                        else:
+                            for entry2 in entry:
+                                if not (
+                                    isinstance(entry2, MutableMapping)
+                                    and (
+                                        "class" in entry2
+                                        and entry2["class"] == "File"
+                                        or "Directory"
+                                    )
+                                ):
+                                    fail = (
+                                        "an array with an item ('{entry2}') that is "
+                                        "not a File nor a Directory object."
+                                    )
+                    elif not (
+                        (
+                            isinstance(entry, MutableMapping)
+                            and (
+                                "class" in entry
+                                and (entry["class"] == "File" or "Directory")
+                                or "entry" in "entry"
+                            )
+                        )
+                    ):
+                        fail = entry
+                    elif entry is None:
+                        if classic_dirent:
+                            fail = entry
+                            fail_suffix = (
+                                " Dirent.entry cannot return 'null' before CWL "
+                                "v1.2. Please consider using 'cwl-upgrader' to "
+                                "upgrade your document to CWL version v1.2."
+                            )
+            if fail is not False:
+                message = (
+                    "Expression in a 'InitialWorkdirRequirement.listing' field "
+                    "must return a list containing zero or more of: File or "
+                    "Directory objects; Dirent objects"
+                )
+                if classic_dirent:
+                    message += ". "
+                else:
+                    message += "; null; or arrays of File or Directory objects. "
+                message += f"Got '{fail}' among the results from "
+                message += f"'{initialWorkdir['listing'].strip()}'." + fail_suffix
+                raise SourceLine(
+                    initialWorkdir, "listing", WorkflowException, debug
+                ).makeError(message)
+            ls = cast(List[CWLObjectType], ls_evaluated)
         else:
             # "listing" is an array of either expressions or Dirent so
             # evaluate each item
@@ -484,16 +556,26 @@ class CommandLineTool(Process):
             ):
                 if isinstance(t, Mapping) and "entry" in t:
                     # Dirent
-                    entry = builder.do_eval(
-                        cast(str, t["entry"]), strip_whitespace=False
-                    )
+                    entry_field = cast(str, t["entry"])
+                    # the schema guarentees that 'entry' is a string, so the cast is safe
+                    entry = builder.do_eval(entry_field, strip_whitespace=False)
                     if entry is None:
                         continue
 
                     if isinstance(entry, MutableSequence):
+                        if classic_listing:
+                            raise SourceLine(
+                                t, "entry", WorkflowException, debug
+                            ).makeError(
+                                "'entry' expressions are not allowed to evaluate "
+                                "to an array of Files or Directories until CWL "
+                                "v1.2. Consider using 'cwl-upgrader' to upgrade "
+                                "your document to CWL version 1.2."
+                            )
                         # Nested list.  If it is a list of File or
                         # Directory objects, add it to the
-                        # file list, otherwise JSON serialize it.
+                        # file list, otherwise JSON serialize it if CWL v1.2.
+
                         filelist = True
                         for e in entry:
                             if not isinstance(e, MutableMapping) or e.get(
@@ -505,7 +587,7 @@ class CommandLineTool(Process):
                         if filelist:
                             if "entryname" in t:
                                 raise SourceLine(
-                                    t, "entryname", WorkflowException
+                                    t, "entryname", WorkflowException, debug
                                 ).makeError(
                                     "'entryname' is invalid when 'entry' returns list of File or Directory"
                                 )
@@ -522,19 +604,39 @@ class CommandLineTool(Process):
                     ):
                         et["entry"] = entry
                     else:
-                        et["entry"] = (
-                            entry
-                            if isinstance(entry, str)
-                            else json_dumps(entry, sort_keys=True)
-                        )
+                        if isinstance(entry, str):
+                            et["entry"] = entry
+                        else:
+                            if classic_dirent:
+                                raise SourceLine(
+                                    t, "entry", WorkflowException, debug
+                                ).makeError(
+                                    "'entry' expression resulted in "
+                                    "something other than number, object or "
+                                    "array besides a single File or Dirent object. "
+                                    "In CWL v1.2+ this would be serialized to a JSON object. "
+                                    "However this is a {cwl_version} document. "
+                                    "If that is the desired result then please "
+                                    "consider using 'cwl-upgrader' to upgrade "
+                                    "your document to CWL version 1.2. "
+                                    f"Result of '{entry_field}' was '{entry}'."
+                                )
+                            et["entry"] = json_dumps(entry, sort_keys=True)
 
                     if "entryname" in t:
-                        en = builder.do_eval(cast(str, t["entryname"]))
-                        if not isinstance(en, str):
-                            raise SourceLine(
-                                t, "entryname", WorkflowException
-                            ).makeError("'entryname' must be a string")
-                        et["entryname"] = en
+                        entryname_field = cast(str, t["entryname"])
+                        if "${" in entryname_field or "$(" in entryname_field:
+                            en = builder.do_eval(cast(str, t["entryname"]))
+                            if not isinstance(en, str):
+                                raise SourceLine(
+                                    t, "entryname", WorkflowException, debug
+                                ).makeError(
+                                    "'entryname' expression must result a string. "
+                                    f"Got '{en}' from '{entryname_field}'"
+                                )
+                            et["entryname"] = en
+                        else:
+                            et["entryname"] = entryname_field
                     else:
                         et["entryname"] = None
                     et["writable"] = t.get("writable", False)
@@ -553,7 +655,7 @@ class CommandLineTool(Process):
         for i, t2 in enumerate(ls):
             if not isinstance(t2, Mapping):
                 raise SourceLine(
-                    initialWorkdir, "listing", WorkflowException
+                    initialWorkdir, "listing", WorkflowException, debug
                 ).makeError(
                     "Entry at index %s of listing is not a record, was %s"
                     % (i, type(t2))
@@ -566,7 +668,7 @@ class CommandLineTool(Process):
             if isinstance(t2["entry"], str):
                 if not t2["entryname"]:
                     raise SourceLine(
-                        initialWorkdir, "listing", WorkflowException
+                        initialWorkdir, "listing", WorkflowException, debug
                     ).makeError("Entry at index %s of listing missing entryname" % (i))
                 ls[i] = {
                     "class": "File",
@@ -578,7 +680,7 @@ class CommandLineTool(Process):
 
             if not isinstance(t2["entry"], Mapping):
                 raise SourceLine(
-                    initialWorkdir, "listing", WorkflowException
+                    initialWorkdir, "listing", WorkflowException, debug
                 ).makeError(
                     "Entry at index %s of listing is not a record, was %s"
                     % (i, type(t2["entry"]))
@@ -586,7 +688,7 @@ class CommandLineTool(Process):
 
             if t2["entry"].get("class") not in ("File", "Directory"):
                 raise SourceLine(
-                    initialWorkdir, "listing", WorkflowException
+                    initialWorkdir, "listing", WorkflowException, debug
                 ).makeError(
                     "Entry at index %s of listing is not a File or Directory object, was %s"
                     % (i, t2)
@@ -605,10 +707,10 @@ class CommandLineTool(Process):
             if t3.get("class") not in ("File", "Directory"):
                 # Check that every item is a File or Directory object now
                 raise SourceLine(
-                    initialWorkdir, "listing", WorkflowException
+                    initialWorkdir, "listing", WorkflowException, debug
                 ).makeError(
-                    "Entry at index %s of listing is not a Dirent, File or Directory object, was %s"
-                    % (i, t2)
+                    f"Entry at index {i} of listing is not a Dirent, File or "
+                    f"Directory object, was {t2}."
                 )
             if "basename" not in t3:
                 continue
@@ -616,36 +718,35 @@ class CommandLineTool(Process):
             t3["basename"] = basename
             if basename.startswith("../"):
                 raise SourceLine(
-                    initialWorkdir, "listing", WorkflowException
+                    initialWorkdir, "listing", WorkflowException, debug
                 ).makeError(
-                    "Name '%s' at index %s of listing is invalid, cannot start with '../'"
-                    % (basename, i)
+                    f"Name '{basename}' at index {i} of listing is invalid, "
+                    "cannot start with '../'"
                 )
             if basename.startswith("/"):
                 # only if DockerRequirement in requirements
-                cwl_version = self.metadata.get(
-                    "http://commonwl.org/cwltool#original_cwlVersion", None
-                )
-                if isinstance(cwl_version, str) and ORDERED_VERSIONS.index(
+                if cwl_version and ORDERED_VERSIONS.index(
                     cwl_version
                 ) < ORDERED_VERSIONS.index("v1.2.0-dev4"):
                     raise SourceLine(
-                        initialWorkdir, "listing", WorkflowException
+                        initialWorkdir, "listing", WorkflowException, debug
                     ).makeError(
-                        "Name '%s' at index %s of listing is invalid, paths starting with '/' only permitted in CWL 1.2 and later"
-                        % (basename, i)
+                        f"Name '{basename}' at index {i} of listing is invalid, "
+                        "paths starting with '/' only permitted in CWL 1.2 "
+                        "and later."
                     )
 
                 req, is_req = self.get_requirement("DockerRequirement")
                 if is_req is not True:
                     raise SourceLine(
-                        initialWorkdir, "listing", WorkflowException
+                        initialWorkdir, "listing", WorkflowException, debug
                     ).makeError(
-                        "Name '%s' at index %s of listing is invalid, name can only start with '/' when DockerRequirement is in 'requirements'"
-                        % (basename, i)
+                        f"Name '{basename}' at index {i} of listing is invalid, "
+                        "name can only start with '/' when DockerRequirement "
+                        "is in 'requirements'."
                     )
 
-        with SourceLine(initialWorkdir, "listing", WorkflowException):
+        with SourceLine(initialWorkdir, "listing", WorkflowException, debug):
             j.generatefiles["listing"] = ls
             for entry in ls:
                 if "basename" in entry:
@@ -902,13 +1003,25 @@ class CommandLineTool(Process):
 
         if self.tool.get("stdin"):
             with SourceLine(self.tool, "stdin", ValidationException, debug):
-                j.stdin = cast(str, builder.do_eval(self.tool["stdin"]))
+                stdin_eval = builder.do_eval(self.tool["stdin"])
+                if not (isinstance(stdin_eval, str) or stdin_eval is None):
+                    raise ValidationException(
+                        f"'stdin' expression must return a string or null. Got '{stdin_eval}' "
+                        f"for '{self.tool['stdin']}'."
+                    )
+                j.stdin = stdin_eval
                 if j.stdin:
                     reffiles.append({"class": "File", "path": j.stdin})
 
         if self.tool.get("stderr"):
             with SourceLine(self.tool, "stderr", ValidationException, debug):
-                j.stderr = cast(str, builder.do_eval(self.tool["stderr"]))
+                stderr_eval = builder.do_eval(self.tool["stderr"])
+                if not isinstance(stderr_eval, str):
+                    raise ValidationException(
+                        f"'stderr' expression must return a string. Got '{stderr_eval}' "
+                        f"for '{self.tool['stderr']}'."
+                    )
+                j.stderr = stderr_eval
                 if j.stderr:
                     if os.path.isabs(j.stderr) or ".." in j.stderr:
                         raise ValidationException(
@@ -917,7 +1030,13 @@ class CommandLineTool(Process):
 
         if self.tool.get("stdout"):
             with SourceLine(self.tool, "stdout", ValidationException, debug):
-                j.stdout = cast(str, builder.do_eval(self.tool["stdout"]))
+                stdout_eval = builder.do_eval(self.tool["stdout"])
+                if not isinstance(stdout_eval, str):
+                    raise ValidationException(
+                        f"'stdout' expression must return a string. Got '{stdout_eval}' "
+                        f"for '{self.tool['stdout']}'."
+                    )
+                j.stdout = stdout_eval
                 if j.stdout:
                     if os.path.isabs(j.stdout) or ".." in j.stdout or not j.stdout:
                         raise ValidationException(
@@ -977,35 +1096,60 @@ class CommandLineTool(Process):
         timelimit, _ = self.get_requirement("ToolTimeLimit")
         if timelimit is not None:
             with SourceLine(timelimit, "timelimit", ValidationException, debug):
-                j.timelimit = cast(
-                    Optional[int],
-                    builder.do_eval(cast(Union[int, str], timelimit["timelimit"])),
-                )
-                if not isinstance(j.timelimit, int) or j.timelimit < 0:
+                limit_field = cast(Dict[str, Union[str, int]], timelimit)["timelimit"]
+                if isinstance(limit_field, str):
+                    timelimit_eval = builder.do_eval(limit_field)
+                    if timelimit_eval and not isinstance(timelimit_eval, int):
+                        raise WorkflowException(
+                            "'timelimit' expression must evaluate to a long/int. Got "
+                            f"'{timelimit_eval}' for expression '{limit_field}'."
+                        )
+                else:
+                    timelimit_eval = limit_field
+                if not isinstance(timelimit_eval, int) or timelimit_eval < 0:
                     raise WorkflowException(
-                        "timelimit must be an integer >= 0, got: %s" % j.timelimit
+                        f"timelimit must be an integer >= 0, got: {timelimit_eval}"
                     )
+                j.timelimit = timelimit_eval
 
         networkaccess, _ = self.get_requirement("NetworkAccess")
         if networkaccess is not None:
             with SourceLine(networkaccess, "networkAccess", ValidationException, debug):
-                j.networkaccess = cast(
-                    bool,
-                    builder.do_eval(
-                        cast(Union[bool, str], networkaccess["networkAccess"])
-                    ),
-                )
-                if not isinstance(j.networkaccess, bool):
+                networkaccess_field = networkaccess["networkAccess"]
+                if isinstance(networkaccess_field, str):
+                    networkaccess_eval = builder.do_eval(networkaccess_field)
+                    if not isinstance(networkaccess_eval, bool):
+                        raise WorkflowException(
+                            "'networkAccess' expression must evaluate to a bool. "
+                            f"Got '{networkaccess_eval}' for expression '{networkaccess_field}'."
+                        )
+                else:
+                    networkaccess_eval = networkaccess_field
+                if not isinstance(networkaccess_eval, bool):
                     raise WorkflowException(
-                        "networkAccess must be a boolean, got: %s" % j.networkaccess
+                        "networkAccess must be a boolean, got: {networkaccess_eval}."
                     )
+                j.networkaccess = networkaccess_eval
 
         # Build a mapping to hold any EnvVarRequirement
         required_env = {}
         evr, _ = self.get_requirement("EnvVarRequirement")
         if evr is not None:
-            for t3 in cast(List[Dict[str, str]], evr["envDef"]):
-                required_env[t3["envName"]] = cast(str, builder.do_eval(t3["envValue"]))
+            for eindex, t3 in enumerate(cast(List[Dict[str, str]], evr["envDef"])):
+                env_value_field = t3["envValue"]
+                if "${" in env_value_field or "$(" in env_value_field:
+                    env_value_eval = builder.do_eval(env_value_field)
+                    if not isinstance(env_value_eval, str):
+                        raise SourceLine(
+                            evr["envDef"], eindex, WorkflowException, debug
+                        ).makeError(
+                            "'envValue expression must evaluate to a str. "
+                            f"Got '{env_value_eval}' for expression '{env_value_field}'."
+                        )
+                    env_value = env_value_eval
+                else:
+                    env_value = env_value_field
+                required_env[t3["envName"]] = env_value
         # Construct the env
         j.prepare_environment(runtimeContext, required_env)
 
@@ -1040,14 +1184,15 @@ class CommandLineTool(Process):
                 mpi.get("processes", runtimeContext.mpi_config.default_nproc),
             )
             if isinstance(np, str):
-                tmp = builder.do_eval(np)
-                if not isinstance(tmp, int):
-                    raise TypeError(
-                        "{} needs 'processes' to evaluate to an int, got {}".format(
-                            MPIRequirementName, type(np)
-                        )
+                np_eval = builder.do_eval(np)
+                if not isinstance(np_eval, int):
+                    raise SourceLine(
+                        mpi, "processes", WorkflowException, debug
+                    ).makeError(
+                        f"{MPIRequirementName} needs 'processes' expression to "
+                        f"evaluate to an int, got '{np_eval}' for expression '{np}'."
                     )
-                np = tmp
+                np = np_eval
             j.mpi_procs = np
         yield j
 
@@ -1063,9 +1208,7 @@ class CommandLineTool(Process):
     ) -> OutputPortsType:
         ret = {}  # type: OutputPortsType
         debug = _logger.isEnabledFor(logging.DEBUG)
-        cwl_version = self.metadata.get(
-            "http://commonwl.org/cwltool#original_cwlVersion", None
-        )
+        cwl_version = self.metadata.get(ORIGINAL_CWLVERSION, None)
         if cwl_version != "v1.0":
             builder.resources["exitCode"] = rcode
         try:
@@ -1162,6 +1305,20 @@ class CommandLineTool(Process):
                     for gb in aslist(binding["glob"]):
                         gb = builder.do_eval(gb)
                         if gb:
+                            gb_eval_fail = False
+                            if not isinstance(gb, str):
+                                if isinstance(gb, list):
+                                    for entry in gb:
+                                        if not isinstance(entry, str):
+                                            gb_eval_fail = True
+                                else:
+                                    gb_eval_fail = True
+                            if gb_eval_fail:
+                                raise WorkflowException(
+                                    "Resolved glob patterns must be strings "
+                                    f"or list of strings, not "
+                                    f"'{gb}' from '{binding['glob']}'"
+                                )
                             globpatterns.extend(aslist(gb))
 
                     for gb in globpatterns:
@@ -1261,22 +1418,20 @@ class CommandLineTool(Process):
                 result = cast(CWLOutputType, r)
 
             if single:
-                if not result and not optional:
-                    with SourceLine(binding, "glob", WorkflowException, debug):
+                with SourceLine(binding, "glob", WorkflowException, debug):
+                    if not result and not optional:
                         raise WorkflowException(
-                            "Did not find output file with glob pattern: '{}'".format(
-                                globpatterns
+                            f"Did not find output file with glob pattern: '{globpatterns}'."
+                        )
+                    elif not result and optional:
+                        pass
+                    elif isinstance(result, MutableSequence):
+                        if len(result) > 1:
+                            raise WorkflowException(
+                                "Multiple matches for output item that is a single file."
                             )
-                        )
-                elif not result and optional:
-                    pass
-                elif isinstance(result, MutableSequence):
-                    if len(result) > 1:
-                        raise WorkflowException(
-                            "Multiple matches for output item that is a single file."
-                        )
-                    else:
-                        result = cast(CWLOutputType, result[0])
+                        else:
+                            result = cast(CWLOutputType, result[0])
 
             if "secondaryFiles" in schema:
                 with SourceLine(schema, "secondaryFiles", WorkflowException, debug):
@@ -1288,9 +1443,27 @@ class CommandLineTool(Process):
                             ]
                             for sf in aslist(schema["secondaryFiles"]):
                                 if "required" in sf:
-                                    sf_required = builder.do_eval(
-                                        sf["required"], context=primary
-                                    )
+                                    with SourceLine(
+                                        schema["secondaryFiles"],
+                                        "required",
+                                        WorkflowException,
+                                        debug,
+                                    ):
+                                        sf_required_eval = builder.do_eval(
+                                            sf["required"], context=primary
+                                        )
+                                        if not (
+                                            isinstance(sf_required_eval, bool)
+                                            or sf_required_eval is None
+                                        ):
+                                            raise WorkflowException(
+                                                "Expressions in the field "
+                                                "'required' must evaluate to a "
+                                                "Boolean (true or false) or None. "
+                                                f"Got '{sf_required_eval}' for "
+                                                f"'{sf['required']}'."
+                                            )
+                                        sf_required: bool = sf_required_eval or False
                                 else:
                                     sf_required = False
 
@@ -1326,11 +1499,24 @@ class CommandLineTool(Process):
                                         primary["secondaryFiles"].append(sfitem)
 
             if "format" in schema:
-                for primary in aslist(result):
-                    primary["format"] = builder.do_eval(
-                        schema["format"], context=primary
-                    )
-
+                format_field = cast(str, schema["format"])
+                if "$(" in format_field or "${" in format_field:
+                    for index, primary in enumerate(aslist(result)):
+                        format_eval = builder.do_eval(format_field, context=primary)
+                        if not isinstance(format_eval, str):
+                            message = (
+                                f"'format' expression must evaluate to a string. "
+                                f"Got '{format_eval}' from '{format_field}'."
+                            )
+                            if isinstance(result, list):
+                                message += f" 'self' had the value of the index {index} result: '{primary}'."
+                            raise SourceLine(
+                                schema, "format", WorkflowException, debug
+                            ).makeError(message)
+                        primary["format"] = format_eval
+                else:
+                    for primary in aslist(result):
+                        primary["format"] = format_field
             # Ensure files point to local references outside of the run environment
             adjustFileObjs(result, revmap)
 

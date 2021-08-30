@@ -319,7 +319,7 @@ def update(
 
     cdoc["cwlVersion"] = version
     metadata["cwlVersion"] = version
-    metadata["http://commonwl.org/cwltool#original_cwlVersion"] = originalversion
-    cdoc["http://commonwl.org/cwltool#original_cwlVersion"] = originalversion
+    metadata[ORIGINAL_CWLVERSION] = originalversion
+    cdoc[ORIGINAL_CWLVERSION] = originalversion
 
     return cdoc

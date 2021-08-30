@@ -800,14 +800,10 @@ class WorkflowJob:
 
         runtimeContext = runtimeContext.copy()
         runtimeContext.outdir = None
+        debug = runtimeContext.debug
 
         for index, inp in enumerate(self.tool["inputs"]):
-            with SourceLine(
-                self.tool["inputs"],
-                index,
-                WorkflowException,
-                _logger.isEnabledFor(logging.DEBUG),
-            ):
+            with SourceLine(self.tool["inputs"], index, WorkflowException, debug):
                 inp_id = shortname(inp["id"])
                 if inp_id in joborder:
                     self.state[inp["id"]] = WorkflowStateItem(
