@@ -62,22 +62,22 @@ def scanner(scan: str) -> Optional[Tuple[int, int]]:
     i = 0
     stack = [DEFAULT]
     start = 0
-    com_check = ''
+    com_check = ""
     while i < len(scan):
         state = stack[-1]
         c = scan[i]
 
         if state == COMMENT:
-            if c == '\n':
+            if c == "\n":
                 stack.pop()
-                com_check = ''
+                com_check = ""
             pass
         com_check += c
-        if com_check == '//':
+        if com_check == "//":
             stack.append(COMMENT)
             pass
-        elif com_check != '/':
-            com_check = ''
+        elif com_check != "/":
+            com_check = ""
 
         if state == DEFAULT:
             if c == "$":
