@@ -1,7 +1,7 @@
 from typing import Any
 
-from ruamel.yaml.main import YAML
 from schema_salad.avro.schema import Names
+from schema_salad.utils import yaml_no_ts
 
 from cwltool import process, validate_js
 from cwltool.sandboxjs import code_fragment_to_js
@@ -24,7 +24,7 @@ outputs: []
 
 
 def test_get_expressions() -> None:
-    yaml = YAML()
+    yaml = yaml_no_ts()
     test_cwl_yaml = yaml.load(TEST_CWL)
     schema = process.get_schema("v1.0")[1]
     assert isinstance(schema, Names)
@@ -36,7 +36,7 @@ def test_get_expressions() -> None:
 
 
 def test_validate_js_expressions(mocker: Any) -> None:
-    yaml = YAML()
+    yaml = yaml_no_ts()
     test_cwl_yaml = yaml.load(TEST_CWL)
     schema = process.get_schema("v1.0")[1]
     assert isinstance(schema, Names)
