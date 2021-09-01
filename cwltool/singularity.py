@@ -74,6 +74,12 @@ def is_version_3_1_or_newer() -> bool:
     return int(version[0]) >= 4 or (int(version[0]) == 3 and int(version[1]) >= 1)
 
 
+def is_version_3_4_or_newer() -> bool:
+    """Detect if Singularity v3.4+ is available."""
+    version = get_version().split(".")
+    return int(version[0]) >= 4 or (int(version[0]) == 3 and int(version[1]) >= 4)
+
+
 def _normalize_image_id(string: str) -> str:
     return string.replace("/", "_") + ".img"
 
@@ -285,18 +291,17 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
     ) -> None:
-        if host_outdir_tgt is not None:
-            # workaround for lack of overlapping mounts in Singularity
-            # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
-            # once https://github.com/sylabs/singularity/issues/1607
-            # is fixed
-            if volume.type == "File":
-                shutil.copy(volume.resolved, host_outdir_tgt)
+        if not volume.resolved.startswith("_:"):
+            if host_outdir_tgt is not None and not is_version_3_4_or_newer():
+                # workaround for lack of overlapping mounts in Singularity <3.4
+                if volume.type == "File":
+                    os.makedirs(os.path.dirname(host_outdir_tgt), exist_ok=True)
+                    shutil.copy(volume.resolved, host_outdir_tgt)
+                else:
+                    shutil.copytree(volume.resolved, host_outdir_tgt)
+                ensure_non_writable(host_outdir_tgt)
             else:
-                shutil.copytree(volume.resolved, host_outdir_tgt)
-            ensure_non_writable(host_outdir_tgt)
-        elif not volume.resolved.startswith("_:"):
-            self.append_volume(runtime, volume.resolved, volume.target)
+                self.append_volume(runtime, volume.resolved, volume.target)
 
     def add_writable_file_volume(
         self,
@@ -305,11 +310,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         host_outdir_tgt: Optional[str],
         tmpdir_prefix: str,
     ) -> None:
-        if host_outdir_tgt is not None:
-            # workaround for lack of overlapping mounts in Singularity
-            # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
-            # once https://github.com/sylabs/singularity/issues/1607
-            # is fixed
+        if host_outdir_tgt is not None and not is_version_3_4_or_newer():
+            # workaround for lack of overlapping mounts in Singularity <3.4
             if self.inplace_update:
                 try:
                     os.link(os.path.realpath(volume.resolved), host_outdir_tgt)
@@ -322,14 +324,21 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             self.append_volume(runtime, volume.resolved, volume.target, writable=True)
             ensure_writable(volume.resolved)
         else:
-            file_copy = os.path.join(
-                create_tmp_dir(tmpdir_prefix),
-                os.path.basename(volume.resolved),
-            )
-            shutil.copy(volume.resolved, file_copy)
-            # volume.resolved = file_copy
-            self.append_volume(runtime, file_copy, volume.target, writable=True)
-            ensure_writable(file_copy)
+            if host_outdir_tgt:
+                # shortcut, just copy to the output directory
+                # which is already going to be mounted
+                if not os.path.exists(os.path.dirname(host_outdir_tgt)):
+                    os.makedirs(os.path.dirname(host_outdir_tgt))
+                shutil.copy(volume.resolved, host_outdir_tgt)
+                ensure_writable(host_outdir_tgt)
+            else:
+                file_copy = os.path.join(
+                    create_tmp_dir(tmpdir_prefix),
+                    os.path.basename(volume.resolved),
+                )
+                shutil.copy(volume.resolved, file_copy)
+                self.append_volume(runtime, file_copy, volume.target, writable=True)
+                ensure_writable(file_copy)
 
     def add_writable_directory_volume(
         self,
@@ -339,31 +348,33 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         tmpdir_prefix: str,
     ) -> None:
         if volume.resolved.startswith("_:"):
+            # Synthetic directory that needs creating first
             if host_outdir_tgt is not None:
                 new_dir = host_outdir_tgt
             else:
                 new_dir = os.path.join(
                     create_tmp_dir(tmpdir_prefix),
-                    os.path.basename(volume.resolved),
+                    os.path.basename(volume.target),
                 )
+                self.append_volume(runtime, new_dir, volume.target, writable=True)
             os.makedirs(new_dir)
         else:
-            if host_outdir_tgt is not None:
-                # workaround for lack of overlapping mounts in Singularity
-                # revert to daa923d5b0be3819b6ed0e6440e7193e65141052
-                # once https://github.com/sylabs/singularity/issues/1607
-                # is fixed
+            if host_outdir_tgt is not None and not is_version_3_4_or_newer():
+                # workaround for lack of overlapping mounts in Singularity < 3.4
                 shutil.copytree(volume.resolved, host_outdir_tgt)
                 ensure_writable(host_outdir_tgt)
             else:
                 if not self.inplace_update:
-                    dir_copy = os.path.join(
-                        create_tmp_dir(tmpdir_prefix),
-                        os.path.basename(volume.resolved),
-                    )
-                    shutil.copytree(volume.resolved, dir_copy)
-                    source = dir_copy
-                    # volume.resolved = dir_copy
+                    if not host_outdir_tgt:
+                        tmpdir = create_tmp_dir(tmpdir_prefix)
+                        new_dir = os.path.join(
+                            tmpdir, os.path.basename(volume.resolved)
+                        )
+                        shutil.copytree(volume.resolved, new_dir)
+                        source = tmpdir
+                    else:
+                        shutil.copytree(volume.resolved, host_outdir_tgt)
+                        source = host_outdir_tgt
                 else:
                     source = volume.resolved
                 self.append_volume(runtime, source, volume.target, writable=True)
