@@ -109,11 +109,6 @@ if [[ "$container" = "singularity" ]]; then
         # See issue #1440
         exclusions+=(stdin_shorcut)
     fi
-
-    if [[ "${version}" = "v1.2" ]]; then
-	# See issue #1441
-	exclusions+=(iwdr_dir_literal_real_file)
-    fi
 fi
 
 if [ -n "$EXTRA" ]
