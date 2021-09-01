@@ -5,7 +5,7 @@ from collections.abc import Sized
 from functools import partial
 from io import StringIO
 from pathlib import Path
-from typing import Any, Dict, List, cast
+from typing import Dict
 
 import pytest
 from schema_salad.utils import yaml_no_ts
@@ -31,6 +31,10 @@ from .util import get_data, needs_docker
         ),
         ("tests/wf/trick_revsort.cwl", "tests/wf/expect_trick_packed.cwl"),
         (
+            "tests/wf/iwd-passthrough1.cwl",
+            "tests/wf/expect_iwd-passthrough1_packed.cwl",
+        ),
+        (
             "tests/wf/revsort_datetime.cwl",
             "tests/wf/expect_revsort_datetime_packed.cwl",
         ),
@@ -45,8 +49,6 @@ def test_packing(unpacked: str, expected: str) -> None:
     )
 
     packed = json.loads(print_pack(loadingContext, uri))
-    if len(cast(List[Any], packed["$graph"])) == 1:
-        packed = cast(List[Any], packed["$graph"])[0]
     context_dir = os.path.abspath(os.path.dirname(get_data(unpacked)))
     adjustFileObjs(packed, partial(make_relative, context_dir))
     adjustDirObjs(packed, partial(make_relative, context_dir))
