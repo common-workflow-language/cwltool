@@ -68,8 +68,10 @@
                 }
             ],
             "id": "#main",
+            "http://schema.org/dateCreated": "2020-10-08",
             "$namespaces": {
-                "iana": "https://www.iana.org/assignments/media-types/"
+                "iana": "https://www.iana.org/assignments/media-types/",
+                "s": "http://schema.org/"
             }
         },
         {
@@ -131,7 +133,8 @@
     ],
     "cwlVersion": "v1.0",
     "$schemas": [
-        "empty.ttl",
-        "empty2.ttl"
+        "empty2.ttl",
+        "https://schema.org/version/latest/schemaorg-current-https.rdf",
+        "empty.ttl"
     ]
 }

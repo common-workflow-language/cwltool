@@ -5,10 +5,9 @@ from collections.abc import Sized
 from functools import partial
 from io import StringIO
 from pathlib import Path
-from typing import Dict
+from typing import Any, Dict, List, cast
 
 import pytest
-from ruamel.yaml.main import YAML
 
 import cwltool.pack
 import cwltool.workflow
@@ -17,6 +16,8 @@ from cwltool.load_tool import fetch_document, resolve_and_validate_document
 from cwltool.main import main, make_relative, print_pack
 from cwltool.resolver import tool_resolver
 from cwltool.utils import adjustDirObjs, adjustFileObjs
+
+from schema_salad.utils import yaml_no_ts
 
 from .util import get_data, needs_docker
 
@@ -30,6 +31,10 @@ from .util import get_data, needs_docker
             "tests/wf/operation/expect_operation-single_packed.cwl",
         ),
         ("tests/wf/trick_revsort.cwl", "tests/wf/expect_trick_packed.cwl"),
+        (
+            "tests/wf/revsort_datetime.cwl",
+            "tests/wf/expect_revsort_datetime_packed.cwl",
+        ),
     ],
 )
 def test_packing(unpacked: str, expected: str) -> None:
@@ -40,14 +45,15 @@ def test_packing(unpacked: str, expected: str) -> None:
         loadingContext, workflowobj, uri
     )
 
-    packed = cwltool.pack.pack(loadingContext, uri)
+    packed = json.loads(print_pack(loadingContext, uri))
+    if len(cast(List[Any], packed["$graph"])) == 1:
+        packed = cast(List[Any], packed["$graph"])[0]
     context_dir = os.path.abspath(os.path.dirname(get_data(unpacked)))
     adjustFileObjs(packed, partial(make_relative, context_dir))
     adjustDirObjs(packed, partial(make_relative, context_dir))
 
-    yaml = YAML(typ="safe", pure=True)
     with open(get_data(expected)) as packed_file:
-        expect_packed = yaml.load(packed_file)
+        expect_packed = json.load(packed_file)
 
     if "$schemas" in expect_packed:
         assert "$schemas" in packed
@@ -77,7 +83,7 @@ def test_pack_single_tool() -> None:
 
 
 def test_pack_fragment() -> None:
-    yaml = YAML(typ="safe", pure=True)
+    yaml = yaml_no_ts()
 
     with open(get_data("tests/wf/scatter2_subwf.cwl")) as packed_file:
         expect_packed = yaml.load(packed_file)

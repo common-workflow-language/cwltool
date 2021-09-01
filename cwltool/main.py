@@ -41,7 +41,7 @@ from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
-from schema_salad.utils import ContextType, FetcherCallableType, json_dumps
+from schema_salad.utils import ContextType, FetcherCallableType, json_dumps, yaml_no_ts
 
 from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
@@ -329,7 +329,7 @@ def load_job_order(
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        yaml = YAML()
+        yaml = yaml_no_ts()
         job_order_object = yaml.load(stdin)
         job_order_object, _ = loader.resolve_all(
             job_order_object, file_uri(os.getcwd()) + "/"
@@ -443,7 +443,7 @@ def init_job_order(
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(
                 "Parsed job order from command line: %s",
-                json_dumps(job_order_object, indent=4),
+                json_dumps(job_order_object, indent=4, default=str),
             )
 
     for inp in process.tool["inputs"]:
@@ -546,7 +546,7 @@ def printdeps(
     elif relative_deps == "cwd":
         base = os.getcwd()
     visit_class(deps, ("File", "Directory"), functools.partial(make_relative, base))
-    stdout.write(json_dumps(deps, indent=4))
+    stdout.write(json_dumps(deps, indent=4, default=str))
 
 
 def prov_deps(
@@ -608,9 +608,9 @@ def print_pack(
     """Return a CWL serialization of the CWL document in JSON."""
     packed = pack(loadingContext, uri)
     if len(cast(Sized, packed["$graph"])) > 1:
-        return json_dumps(packed, indent=4)
+        return json_dumps(packed, indent=4, default=str)
     return json_dumps(
-        cast(MutableSequence[CWLObjectType], packed["$graph"])[0], indent=4
+        cast(MutableSequence[CWLObjectType], packed["$graph"])[0], indent=4, default=str
     )
 
 
@@ -1064,7 +1064,11 @@ def main(
             if args.print_pre:
                 stdout.write(
                     json_dumps(
-                        processobj, indent=4, sort_keys=True, separators=(",", ": ")
+                        processobj,
+                        indent=4,
+                        sort_keys=True,
+                        separators=(",", ": "),
+                        default=str,
                     )
                 )
                 return 0
@@ -1125,7 +1129,11 @@ def main(
                     del tool.tool["name"]
                 stdout.write(
                     json_dumps(
-                        tool.tool, indent=4, sort_keys=True, separators=(",", ": ")
+                        tool.tool,
+                        indent=4,
+                        sort_keys=True,
+                        separators=(",", ": "),
+                        default=str,
                     )
                 )
                 return 0
@@ -1288,7 +1296,9 @@ def main(
                 if isinstance(out, str):
                     stdout.write(out)
                 else:
-                    stdout.write(json_dumps(out, indent=4, ensure_ascii=False))
+                    stdout.write(
+                        json_dumps(out, indent=4, ensure_ascii=False, default=str)
+                    )
                 stdout.write("\n")
                 if hasattr(stdout, "flush"):
                     stdout.flush()
