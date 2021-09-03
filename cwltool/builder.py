@@ -555,11 +555,10 @@ class Builder(HasReqsHints):
                     if isinstance(eval_format, str):
                         evaluated_format: Union[str, List[str]] = eval_format
                     elif isinstance(eval_format, MutableSequence):
-                        for entry in eval_format:
+                        for index, entry in enumerate(eval_format):
+                            message = None
                             if not isinstance(entry, str):
-                                raise SourceLine(
-                                    schema, "format", WorkflowException, debug
-                                ).makeError(
+                                message = (
                                     "An expression in the 'format' field must "
                                     "evaluate to a string, or list of strings. "
                                     "However a non-string item was received: "
@@ -567,6 +566,21 @@ class Builder(HasReqsHints):
                                     f"The expression was '{schema['format']}' and "
                                     f"its fully evaluated result is '{eval_format}'."
                                 )
+                            if expression.needs_parsing(entry):
+                                message = (
+                                    "For inputs, 'format' field can either "
+                                    "contain a single CWL Expression or CWL Parameter "
+                                    "Reference, a single format string, or a list of "
+                                    "format strings. But the list cannot contain CWL "
+                                    "Expressions or CWL Parameter References. List "
+                                    f"entry number {index+1} contains the following "
+                                    "unallowed CWL Parameter Reference or Expression: "
+                                    f"'{entry}'."
+                                )
+                            if message:
+                                raise SourceLine(
+                                    schema["format"], index, WorkflowException, debug
+                                ).makeError(message)
                         evaluated_format = cast(List[str], eval_format)
                     else:
                         raise SourceLine(
