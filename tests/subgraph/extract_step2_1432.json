@@ -1,0 +1,35 @@
+{
+    "class": "Workflow",
+    "cwlVersion": "v1.2",
+    "id": "subgraph/1432.cwl",
+    "inputs": [
+        {
+            "id": "subgraph/1432.cwl#step2_in",
+            "type": "string"
+        }
+    ],
+    "outputs": [
+        {
+            "id": "subgraph/1432.cwl#step2_out",
+            "outputSource": "subgraph/1432.cwl#step2/out",
+            "type": "string"
+        }
+    ],
+    "steps": [
+        {
+            "id": "subgraph/1432.cwl#step2",
+            "in": [
+                {
+                    "id": "subgraph/1432.cwl#step2/inp",
+                    "source": "subgraph/1432.cwl#step2_in"
+                }
+            ],
+            "out": [
+                {
+                    "id": "subgraph/1432.cwl#step2/out"
+                }
+            ],
+            "run": "echo.cwl"
+        }
+    ]
+}
