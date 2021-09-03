@@ -131,8 +131,8 @@ def fetch_document(
             CommentedMap,
             loadingContext.loader.fetch(fileuri, content_types=CWL_CONTENT_TYPES),
         )
-         if 'name' in workflowobj:
-            workflowobj['id'] = workflowobj['name']
+        if "name" in workflowobj:
+            workflowobj["id"] = workflowobj["name"]
         return loadingContext, workflowobj, uri
     if isinstance(argsworkflow, MutableMapping):
         uri = (
