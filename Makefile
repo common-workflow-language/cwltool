@@ -177,7 +177,7 @@ mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
 
 mypyc: $(PYSOURCES)
 	MYPYPATH=typeshed CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
-		 && pytest ${PYTEST_EXTRA}
+		 && pytest -vv ${PYTEST_EXTRA}
 
 shellcheck: FORCE
 	shellcheck build-cwltool-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \

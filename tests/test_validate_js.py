@@ -1,5 +1,3 @@
-from typing import Any
-
 import pytest
 from schema_salad.avro.schema import Names
 from schema_salad.utils import yaml_no_ts
