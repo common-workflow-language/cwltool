@@ -21,7 +21,7 @@ from .loghandler import _logger
 from .process import Process, shortname
 from .resolver import ga4gh_tool_registries
 from .software_requirements import SOFTWARE_REQUIREMENTS_ENABLED
-from .utils import DEFAULT_TMP_PREFIX, onWindows
+from .utils import DEFAULT_TMP_PREFIX
 
 
 def arg_parser() -> argparse.ArgumentParser:
@@ -49,10 +49,10 @@ def arg_parser() -> argparse.ArgumentParser:
         type=str,
         action="append",
         help="Preserve specific environment variable when running "
-        "CommandLineTools without a software container.  May be provided "
-        "multiple times. The default is to preserve only the PATH.",
+        "CommandLineTools. May be provided multiple times. By default PATH is "
+        "preserved when not running in a container.",
         metavar="ENVVAR",
-        default=["PATH"],
+        default=[],
         dest="preserve_environment",
     )
     envgroup.add_argument(
@@ -64,8 +64,8 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="preserve_entire_environment",
     )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument(
+    containergroup = parser.add_mutually_exclusive_group()
+    containergroup.add_argument(
         "--rm-container",
         action="store_true",
         default=True,
@@ -73,7 +73,7 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="rm_container",
     )
 
-    exgroup.add_argument(
+    containergroup.add_argument(
         "--leave-container",
         action="store_false",
         default=True,
@@ -123,8 +123,8 @@ def arg_parser() -> argparse.ArgumentParser:
         default=DEFAULT_TMP_PREFIX,
     )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument(
+    intgroup = parser.add_mutually_exclusive_group()
+    intgroup.add_argument(
         "--tmp-outdir-prefix",
         type=str,
         help="Path prefix for intermediate output directories. Defaults to the "
@@ -132,7 +132,7 @@ def arg_parser() -> argparse.ArgumentParser:
         default="",
     )
 
-    exgroup.add_argument(
+    intgroup.add_argument(
         "--cachedir",
         type=str,
         default="",
@@ -141,8 +141,8 @@ def arg_parser() -> argparse.ArgumentParser:
         "troubleshooting of CWL documents.",
     )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument(
+    tmpgroup = parser.add_mutually_exclusive_group()
+    tmpgroup.add_argument(
         "--rm-tmpdir",
         action="store_true",
         default=True,
@@ -150,7 +150,7 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="rm_tmpdir",
     )
 
-    exgroup.add_argument(
+    tmpgroup.add_argument(
         "--leave-tmpdir",
         action="store_false",
         default=True,
@@ -158,8 +158,8 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="rm_tmpdir",
     )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument(
+    outgroup = parser.add_mutually_exclusive_group()
+    outgroup.add_argument(
         "--move-outputs",
         action="store_const",
         const="move",
@@ -169,7 +169,7 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="move_outputs",
     )
 
-    exgroup.add_argument(
+    outgroup.add_argument(
         "--leave-outputs",
         action="store_const",
         const="leave",
@@ -178,7 +178,7 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="move_outputs",
     )
 
-    exgroup.add_argument(
+    outgroup.add_argument(
         "--copy-outputs",
         action="store_const",
         const="copy",
@@ -188,8 +188,8 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="move_outputs",
     )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument(
+    pullgroup = parser.add_mutually_exclusive_group()
+    pullgroup.add_argument(
         "--enable-pull",
         default=True,
         action="store_true",
@@ -197,7 +197,7 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="pull_image",
     )
 
-    exgroup.add_argument(
+    pullgroup.add_argument(
         "--disable-pull",
         default=True,
         action="store_false",
@@ -280,65 +280,68 @@ def arg_parser() -> argparse.ArgumentParser:
         type=str,
     )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument(
+    printgroup = parser.add_mutually_exclusive_group()
+    printgroup.add_argument(
         "--print-rdf",
         action="store_true",
         help="Print corresponding RDF graph for workflow and exit",
     )
-    exgroup.add_argument(
+    printgroup.add_argument(
         "--print-dot",
         action="store_true",
         help="Print workflow visualization in graphviz format and exit",
     )
-    exgroup.add_argument(
+    printgroup.add_argument(
         "--print-pre",
         action="store_true",
         help="Print CWL document after preprocessing.",
     )
-    exgroup.add_argument(
+    printgroup.add_argument(
         "--print-deps", action="store_true", help="Print CWL document dependencies."
     )
-    exgroup.add_argument(
+    printgroup.add_argument(
         "--print-input-deps",
         action="store_true",
         help="Print input object document dependencies.",
     )
-    exgroup.add_argument(
+    printgroup.add_argument(
         "--pack",
         action="store_true",
         help="Combine components into single document and print.",
     )
-    exgroup.add_argument(
+    printgroup.add_argument(
         "--version", action="store_true", help="Print version and exit"
     )
-    exgroup.add_argument(
+    printgroup.add_argument(
         "--validate", action="store_true", help="Validate CWL document only."
     )
-    exgroup.add_argument(
+    printgroup.add_argument(
         "--print-supported-versions",
         action="store_true",
         help="Print supported CWL specs.",
     )
-    exgroup.add_argument(
+    printgroup.add_argument(
         "--print-subgraph",
         action="store_true",
         help="Print workflow subgraph that will execute. Can combined with "
-        "--target.",
+        "--target or --single-step",
     )
-    exgroup.add_argument(
+    printgroup.add_argument(
         "--print-targets", action="store_true", help="Print targets (output parameters)"
     )
+    printgroup.add_argument(
+        "--make-template", action="store_true", help="Generate a template input object"
+    )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument(
+    strictgroup = parser.add_mutually_exclusive_group()
+    strictgroup.add_argument(
         "--strict",
         action="store_true",
         help="Strict validation (unrecognized or out of place fields are error)",
         default=True,
         dest="strict",
     )
-    exgroup.add_argument(
+    strictgroup.add_argument(
         "--non-strict",
         action="store_false",
         help="Lenient validation (ignore unrecognized fields)",
@@ -354,15 +357,15 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="skip_schemas",
     )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument(
+    doccachegroup = parser.add_mutually_exclusive_group()
+    doccachegroup.add_argument(
         "--no-doc-cache",
         action="store_false",
         help="Disable disk cache for documents loaded over HTTP",
         default=True,
         dest="doc_cache",
     )
-    exgroup.add_argument(
+    doccachegroup.add_argument(
         "--doc-cache",
         action="store_true",
         help="Enable disk cache for documents loaded over HTTP",
@@ -370,12 +373,14 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="doc_cache",
     )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument("--verbose", action="store_true", help="Default logging")
-    exgroup.add_argument(
+    volumegroup = parser.add_mutually_exclusive_group()
+    volumegroup.add_argument("--verbose", action="store_true", help="Default logging")
+    volumegroup.add_argument(
         "--quiet", action="store_true", help="Only print warnings and errors."
     )
-    exgroup.add_argument("--debug", action="store_true", help="Print even more logging")
+    volumegroup.add_argument(
+        "--debug", action="store_true", help="Print even more logging"
+    )
 
     parser.add_argument(
         "--strict-memory-limit",
@@ -506,19 +511,18 @@ def arg_parser() -> argparse.ArgumentParser:
         default=False,
     )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument(
+    colorgroup = parser.add_mutually_exclusive_group()
+    colorgroup.add_argument(
         "--enable-color",
         action="store_true",
         help="Enable logging color (default enabled)",
-        default=not onWindows(),
+        default=True,
     )
-    exgroup.add_argument(
+    colorgroup.add_argument(
         "--disable-color",
         action="store_false",
         dest="enable_color",
         help="Disable colored logging (default false)",
-        default=onWindows(),
     )
 
     parser.add_argument(
@@ -545,15 +549,15 @@ def arg_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,
     )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument(
+    reggroup = parser.add_mutually_exclusive_group()
+    reggroup.add_argument(
         "--enable-ga4gh-tool-registry",
         action="store_true",
         help="Enable tool resolution using GA4GH tool registry API",
         dest="enable_ga4gh_tool_registry",
         default=True,
     )
-    exgroup.add_argument(
+    reggroup.add_argument(
         "--disable-ga4gh-tool-registry",
         action="store_false",
         help="Disable tool resolution using GA4GH tool registry API",
@@ -579,15 +583,15 @@ def arg_parser() -> argparse.ArgumentParser:
         choices=("stop", "continue"),
     )
 
-    exgroup = parser.add_mutually_exclusive_group()
-    exgroup.add_argument(
+    checkgroup = parser.add_mutually_exclusive_group()
+    checkgroup.add_argument(
         "--compute-checksum",
         action="store_true",
         default=True,
         help="Compute checksum of contents while collecting outputs",
         dest="compute_checksum",
     )
-    exgroup.add_argument(
+    checkgroup.add_argument(
         "--no-compute-checksum",
         action="store_false",
         help="Do not compute checksum of contents while collecting outputs",
@@ -601,9 +605,6 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Relax requirements on path names to permit "
         "spaces and hash characters.",
         dest="relax_path_checks",
-    )
-    exgroup.add_argument(
-        "--make-template", action="store_true", help="Generate a template input object"
     )
 
     parser.add_argument(
@@ -628,12 +629,30 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Read process requirement overrides from file.",
     )
 
-    parser.add_argument(
+    subgroup = parser.add_mutually_exclusive_group()
+    subgroup.add_argument(
         "--target",
         "-t",
         action="append",
         help="Only execute steps that contribute to listed targets (can be "
         "provided more than once).",
+    )
+    subgroup.add_argument(
+        "--single-step",
+        type=str,
+        default=None,
+        help="Only executes a single step in a workflow. The input object must "
+        "match that step's inputs. Can be combined with --print-subgraph.",
+    )
+    subgroup.add_argument(
+        "--single-process",
+        type=str,
+        default=None,
+        help="Only executes the underlying Process (CommandLineTool, "
+        "ExpressionTool, or sub-Workflow) for the given step in a workflow. "
+        "This will not include any step-level processing: scatter, when, no "
+        "processing of step-level default, or valueFrom input modifiers. "
+        "The input object must match that Process's inputs.",
     )
 
     parser.add_argument(
@@ -684,7 +703,7 @@ class FSAction(argparse.Action):
         """Fail if nargs is used."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
-        super(FSAction, self).__init__(option_strings, dest, **kwargs)
+        super().__init__(option_strings, dest, **kwargs)
 
     def __call__(
         self,
@@ -712,7 +731,7 @@ class FSAppendAction(argparse.Action):
         """Initialize."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
-        super(FSAppendAction, self).__init__(option_strings, dest, **kwargs)
+        super().__init__(option_strings, dest, **kwargs)
 
     def __call__(
         self,

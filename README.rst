@@ -2,26 +2,52 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-|Linux Status| |Windows Status| |Coverage Status| |Downloads|
+|Linux Status| |Coverage Status|
 
-.. |Linux Status| image:: https://img.shields.io/travis/common-workflow-language/cwltool/main.svg?label=Linux%20builds
-   :target: https://travis-ci.org/common-workflow-language/cwltool
+PyPI: |PyPI Version| |PyPI Downloads Month| |Total PyPI Downloads|
 
-.. |Windows Status| image:: https://img.shields.io/appveyor/ci/mr-c/cwltool/main.svg?label=Windows%20builds
-   :target: https://ci.appveyor.com/project/mr-c/cwltool
+Conda: |Conda Version| |Conda Installs|
+
+Debian: |Debian Testing package| |Debian Stable package|
+
+Quay.io (Docker): |Quay.io Container|
+
+.. |Linux Status| image:: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml/badge.svg?branch=main
+   :target: https://github.com/common-workflow-language/cwltool/actions/workflows/ci-tests.yml
+
+.. |Debian Stable package| image:: https://badges.debian.net/badges/debian/stable/cwltool/version.svg
+   :target: https://packages.debian.org/stable/cwltool
+
+.. |Debian Testing package| image:: https://badges.debian.net/badges/debian/testing/cwltool/version.svg
+   :target: https://packages.debian.org/testing/cwltool
 
 .. |Coverage Status| image:: https://img.shields.io/codecov/c/github/common-workflow-language/cwltool.svg
    :target: https://codecov.io/gh/common-workflow-language/cwltool
 
-.. |Downloads| image:: https://pepy.tech/badge/cwltool/month
+.. |PyPI Version| image:: https://badge.fury.io/py/cwltool.svg
+    :target: https://badge.fury.io/py/cwltool
+
+.. |PyPI Downloads Month| image:: https://pepy.tech/badge/cwltool/month
    :target: https://pepy.tech/project/cwltool
+
+.. |Total PyPI Downloads| image:: https://static.pepy.tech/personalized-badge/cwltool?period=total&units=international_system&left_color=black&right_color=orange&left_text=Total%20PyPI%20Downloads
+ :target: https://pepy.tech/project/cwltool
+
+.. |Conda Version| image:: https://anaconda.org/conda-forge/cwltool/badges/version.svg 
+   :target: https://anaconda.org/conda-forge/cwltool
+   
+.. |Conda Installs| image:: https://anaconda.org/conda-forge/cwltool/badges/downloads.svg
+   :target: https://anaconda.org/conda-forge/cwltool
+
+.. |Quay.io Container| image:: https://quay.io/repository/commonwl/cwltool/status
+   :target: https://quay.io/repository/commonwl/cwltool
 
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
 This is written and tested for
-`Python <https://www.python.org/>`_ ``3.x {x = 6, 7, 8}``
+`Python <https://www.python.org/>`_ ``3.x {x = 6, 7, 8, 9}``
 
 The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
@@ -31,61 +57,81 @@ The ``cwlref-runner`` package is optional and provides an additional entry point
 under the alias ``cwl-runner``, which is the implementation-agnostic name for the
 default CWL interpreter installed on a host.
 
-``cwltool`` is provided by the CWL project, `a member project of Software Freedom Conservancy <https://sfconservancy.org/news/2018/apr/11/cwl-new-member-project/>`_ and our `many contributors <https://github.com/common-workflow-language/cwltool/graphs/contributors>`_.
+``cwltool`` is provided by the CWL project, `a member project of Software Freedom Conservancy <https://sfconservancy.org/news/2018/apr/11/cwl-new-member-project/>`_
+and our `many contributors <https://github.com/common-workflow-language/cwltool/graphs/contributors>`_.
 
 Install
 -------
 
-Your operating system may offer cwltool directly. For `Debian <https://tracker.debian.org/pkg/cwltool>`_  or `Ubuntu <https://launchpad.net/ubuntu/+source/cwltool>`_ try
+``cwltool`` packages
+^^^^^^^^^^^^^^^^^^^^
+
+Your operating system may offer cwltool directly. For `Debian <https://tracker.debian.org/pkg/cwltool>`_, `Ubuntu <https://launchpad.net/ubuntu/+source/cwltool>`_,
+and similar Linux distribution try
 
 .. code:: bash
 
-  apt-get install cwltool
+   sudo apt-get install cwltool
 
-For MacOS X, other UNIXes or Windows packages prepared by the conda-forge project. Please follow instructions of conda-forge (https://conda-forge.org/#about) for its installation, then perform: 
+If you are running macOS X or other UNIXes and you want to use packages prepared by the conda-forge project, then
+please follow the install instructions for `conda-forge <https://conda-forge.org/#about>`_ (if you haven't already) and then 
 
 .. code:: bash
 
    conda install -c conda-forge cwltool
-   
-Under the hood, conda setups virtual environments before installing `cwltool` to
-avoid conflicting versions of the same library. When installing cwltool directly,
-it is recommended to do the same manually:
+
+All of the above methods of installing ``cwltool`` use packages that might contain bugs already fixed in newer versions or be missing desired features.
+If the packaged version of ``cwltool`` available to you is too old, then we recommend installing using ``pip`` and ``venv``
 
 .. code:: bash
 
-  virtualenv -p python3 venv   # Create a virtual environment
-  source venv/bin/activate     # Activate environment before installing `cwltool`
+   python3 -m venv env      # Create a virtual environment named 'env' in the current directory
+   source env/bin/activate  # Activate environment before installing `cwltool`
 
-Installing the official package from PyPi (will install "cwltool" package as
+Then install the latest ``cwlref-runner`` package from PyPi (which will install the latest ``cwltool`` package as
 well)
 
 .. code:: bash
 
   pip install cwlref-runner
 
-If installing alongside another CWL implementation then
+If installing alongside another CWL implementation (like ``toil-cwl-runner`` or ``arvados-cwl-runner``) then instead run
 
 .. code:: bash
 
   pip install cwltool
 
-Or you can install from source:
+MS Windows users
+^^^^^^^^^^^^^^^^
+
+1.  Install `"Windows Subsystem for Linux 2" (WSL2) and Docker Desktop <https://docs.docker.com/docker-for-windows/wsl/#prerequisites>`_
+2.  Install `Debian from the Microsoft Store <https://www.microsoft.com/en-us/p/debian/9msvkqc78pk6>`_
+3.  Set Debian as your default WSL 2 distro: ``wsl --set-default debian``
+4.  Reboot if you have not yet already.
+5.  Launch Debian and follow the Linux instructions above (``apt-get install cwltool`` or use the ``venv`` method)
+
+``cwltool`` development version
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Or you can skip the direct ``pip`` commands above and install the latest development version of ``cwltool``:
 
 .. code:: bash
 
-  git clone https://github.com/common-workflow-language/cwltool.git # clone cwltool repo
-  cd cwltool         # Switch to source directory
-  pip install .      # Install `cwltool` from source
-  cwltool --version  # Check if the installation works correctly
+  git clone https://github.com/common-workflow-language/cwltool.git # clone (copy) the cwltool git repository
+  cd cwltool           # Change to source directory that git clone just downloaded
+  pip install .[deps]  # Installs ``cwltool`` from source
+  cwltool --version    # Check if the installation works correctly
 
-Remember, if co-installing multiple CWL implementations then you need to
+Remember, if co-installing multiple CWL implementations, then you need to
 maintain which implementation ``cwl-runner`` points to via a symbolic file
 system link or `another facility <https://wiki.debian.org/DebianAlternatives>`_.
 
+Recommended Software
+^^^^^^^^^^^^^^^^^^^^
+
 You may also want to have the following installed: 
-node.js
-Docker, udocker, or Singularity (optional)
+- `node.js <https://nodejs.org/en/download/>`_
+- Docker, udocker, or Singularity (optional)
 
 Without these, some examples in the CWL tutorials at http://www.commonwl.org/user_guide/ may not work. 
 
@@ -97,7 +143,7 @@ Simple command::
   cwl-runner [tool-or-workflow-description] [input-job-settings]
 
 Or if you have multiple CWL implementations installed and you want to override
-the default cwl-runner use::
+the default cwl-runner then use::
 
   cwltool [tool-or-workflow-description] [input-job-settings]
 
@@ -106,9 +152,9 @@ these will be inserted at the beginning of the command line::
 
   export CWLTOOL_OPTIONS="--debug"
 
-Use with boot2docker
---------------------
-boot2docker runs Docker inside a virtual machine and it only mounts ``Users``
+Use with boot2docker on macOS
+-----------------------------
+boot2docker runs Docker inside a virtual machine, and it only mounts ``Users``
 on it. The default behavior of CWL is to create temporary directories under e.g.
 ``/Var`` which is not accessible to Docker containers.
 
@@ -117,24 +163,24 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 
     $ cwl-runner --tmp-outdir-prefix=/Users/username/project --tmpdir-prefix=/Users/username/project wc-tool.cwl wc-job.json
 
-Using user-space replacements for Docker
-----------------------------------------
+Using uDocker
+-------------
 
 Some shared computing environments don't support Docker software containers for technical or policy reasons.
-As a work around, the CWL reference runner supports using alternative ``docker`` implementations on Linux
+As a workaround, the CWL reference runner supports using alternative ``docker`` implementations on Linux
 with the ``--user-space-docker-cmd`` option.
 
-One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker
+One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker.
 
 udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-udockertools-tarball
 
-Run `cwltool` just as you normally would, but with the new option, e.g. from the conformance tests:
+Run `cwltool` just as you usually would, but with the new option, e.g., from the conformance tests
 
 .. code:: bash
 
-  cwltool --user-space-docker-cmd=udocker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/blob/main/v1.0/v1.0/empty.json
+  cwltool --user-space-docker-cmd=udocker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/empty.json
 
-``cwltool`` can use `Singularity <http://singularity.lbl.gov/>`_ version 2.6.1
+``cwltool`` can also use `Singularity <https://github.com/hpcng/singularity/releases/>`_ version 2.6.1
 or later as a Docker container runtime.
 ``cwltool`` with Singularity will run software containers specified in
 ``DockerRequirement`` and therefore works with Docker images only, native
@@ -143,6 +189,7 @@ runtime, provide ``--singularity`` command line option to ``cwltool``.
 With Singularity, ``cwltool`` can pass all CWL v1.0 conformance tests, except
 those involving Docker container ENTRYPOINTs.
 
+Example
 
 .. code:: bash
 
@@ -155,8 +202,8 @@ Running a tool or workflow from remote or local locations
 systems via its support for HTTP[S] URLs.
 
 Input job files and Workflow steps (via the `run` directive) can reference CWL
-documents using absolute or relative local filesytem paths. If a relative path
-is referenced and that document isn't found in the current directory then the
+documents using absolute or relative local filesystem paths. If a relative path
+is referenced and that document isn't found in the current directory, then the
 following locations will be searched:
 http://www.commonwl.org/v1.0/CommandLineTool.html#Discovering_CWL_documents_on_a_local_filesystem
 
@@ -185,7 +232,7 @@ workflow step, or command line tool) to the process requirements that should be 
 Overrides can be specified either on the command line, or as part of the job
 input document.  Workflow steps are identified using the name of the workflow
 file followed by the step name as a document fragment identifier "#id".
-Override identifiers are relative to the toplevel workflow document.
+Override identifiers are relative to the top-level workflow document.
 
 .. code:: bash
 
@@ -216,7 +263,7 @@ referenced by a workflow and builds a new CWL document with all
 Process objects (CommandLineTool and Workflow) in a list in the
 ``$graph`` field.  Cross references (such as ``run:`` and ``source:``
 fields) are updated to internal references within the new packed
-document.  The top level workflow is named ``#main``.
+document.  The top-level workflow is named ``#main``.
 
 .. code:: bash
 
@@ -228,7 +275,7 @@ Running only part of a workflow
 
 You can run a partial workflow with the ``--target`` (``-t``) option.  This
 takes the name of an output parameter, workflow step, or input
-parameter in the top level workflow.  You may provide multiple
+parameter in the top-level workflow.  You may provide multiple
 targets.
 
 .. code:: bash
@@ -238,11 +285,11 @@ targets.
 If a target is an output parameter, it will only run only the steps
 that contribute to that output.  If a target is a workflow step, it
 will run the workflow starting from that step.  If a target is an
-input parameter, it will only run only the steps that are connected to
+input parameter, it will only run the steps connected to
 that input.
 
 Use ``--print-targets`` to get a listing of the targets of a workflow.
-To see exactly which steps will run, use ``--print-subgraph`` with
+To see which steps will run, use ``--print-subgraph`` with
 ``--target`` to get a printout of the workflow subgraph for the
 selected targets.
 
@@ -272,6 +319,30 @@ CWL documents can be expressed as RDF triple graphs.
   cwltool --print-rdf --rdf-serializer=turtle mywf.cwl
 
 
+Environment Variables in cwltool
+--------------------------------
+
+This reference implementation supports several ways of setting
+environment variables for tools, in addition to the standard
+``EnvVarRequirement``. The sequence of steps applied to create the
+enviroment is:
+
+0. If the ``--preserve-entire-environment`` flag is present, then begin with the current
+   environment, else begin with an empty environment.
+
+1. Add any variables specified by ``--preserve-environment`` option(s).
+
+2. Set ``TMPDIR`` and ``HOME`` per `the CWL v1.0+ CommandLineTool specification <https://www.commonwl.org/v1.0/CommandLineTool.html#Runtime_environment>`_.
+
+3. Apply any ``EnvVarRequirement`` from the ``CommandLineTool`` description.
+
+4. Apply any manipulations required by any ``cwltool:MPIRequirement`` extensions.
+
+5. Substitute any secrets required by ``Secrets`` extension.
+
+6. Modify the environment in response to ``SoftwareRequirement`` (see below).
+
+
 Leveraging SoftwareRequirements (Beta)
 --------------------------------------
 
@@ -291,6 +362,14 @@ The most general of these options is ``--beta-dependency-resolvers-configuration
 This option allows one to specify a dependency resolver's configuration file.
 This file may be specified as either XML or YAML and very simply describes various
 plugins to enable to "resolve" ``SoftwareRequirement`` dependencies.
+
+Using these hints will allow cwltool to modify the environment in
+which your tool runs, for example by loading one or more Environment
+Modules. The environment is constructed as above, then the environment
+may modified by the selected tool resolver.  This currently means that
+you cannot override any environment variables set by the selected tool
+resolver. Note that the enviroment given to the configured dependency
+resolver has the variable `_CWLTOOL` set to `1` to allow introspection.
 
 To discuss some of these plugins and how to configure them, first consider the
 following ``hint`` definition for an example CWL tool.
@@ -339,7 +418,7 @@ example does require an existing module setup so it is impossible to test this e
 "out of the box" with cwltool. For a more isolated test that demonstrates all
 the same concepts - the resolver plugin type ``galaxy_packages`` can be used.
 
-"Galaxy packages" are a lighter weight alternative to Environment Modules that are
+"Galaxy packages" are a lighter-weight alternative to Environment Modules that are
 really just defined by a way to lay out directories into packages and versions
 to find little scripts that are sourced to modify the environment. They have
 been used for years in Galaxy community to adapt Galaxy tools to cluster
@@ -389,12 +468,12 @@ The resolvers configuration file in the above example was simply:
 
 It is possible that the ``SoftwareRequirement`` s in a given CWL tool will not
 match the module names for a given cluster. Such requirements can be re-mapped
-to specific deployed packages and/or versions using another file specified using
+to specific deployed packages or versions using another file specified using
 the resolver plugin parameter `mapping_files`. We will
-demonstrate this using `galaxy_packages` but the concepts apply equally well
-to Environment Modules or Conda packages (described below) for instance.
+demonstrate this using `galaxy_packages,` but the concepts apply equally well
+to Environment Modules or Conda packages (described below), for instance.
 
-So consider the resolvers configuration file
+So consider the resolvers configuration file.
 (`tests/test_deps_env_resolvers_conf_rewrite.yml`):
 
 .. code:: yaml
@@ -403,7 +482,7 @@ So consider the resolvers configuration file
     base_path: ./tests/test_deps_env
     mapping_files: ./tests/test_deps_mapping.yml
 
-And the corresponding mapping configuraiton file (`tests/test_deps_mapping.yml`):
+And the corresponding mapping configuration file (`tests/test_deps_mapping.yml`):
 
 .. code:: yaml
 
@@ -431,18 +510,17 @@ support for Homebrew/Linuxbrew plugins is available, the most developed such
 plugin is for the `Conda <https://conda.io/docs/#>`__ package manager. Conda has the nice properties
 of allowing multiple versions of a package to be installed simultaneously,
 not requiring evaluated permissions to install Conda itself or packages using
-Conda, and being cross platform. For these reasons, cwltool may run as a normal
+Conda, and being cross-platform. For these reasons, cwltool may run as a normal
 user, install its own Conda environment and manage multiple versions of Conda packages
-on both Linux and Mac OS X.
+on Linux and Mac OS X.
 
 The Conda plugin can be endlessly configured, but a sensible set of defaults
 that has proven a powerful stack for dependency management within the Galaxy tool
 development ecosystem can be enabled by simply passing cwltool the
 ``--beta-conda-dependencies`` flag.
 
-With this we can use the seqtk example above without Docker and without
-any externally managed services - cwltool should install everything it needs
-and create an environment for the tool. Try it out with the follwing command::
+With this, we can use the seqtk example above without Docker or any externally managed services - cwltool should install everything it needs
+and create an environment for the tool. Try it out with the following command::
 
   cwltool --beta-conda-dependencies tests/seqtk_seq.cwl tests/seqtk_seq_job.json
 
@@ -469,7 +547,7 @@ The example can be executed using the command::
 
   cwltool --beta-conda-dependencies tests/seqtk_seq_wrong_name.cwl tests/seqtk_seq_job.json
 
-The plugin framework for managing resolution of these software requirements
+The plugin framework for managing the resolution of these software requirements
 as maintained as part of `galaxy-tool-util <https://github.com/galaxyproject/galaxy/tree/dev/packages/tool_util>`__ - a small,
 portable subset of the Galaxy project. More information on configuration and implementation can be found
 at the following links:
@@ -529,9 +607,9 @@ in an integer). For example::
 
 Interaction with containers: the MPIRequirement currently prepends its
 commands to the front of the command line that is constructed. If you
-wish to run a containerised application in parallel, for simple use
-cases this does work with Singularity, depending upon the platform
-setup. However this combination should be considered "alpha" -- please
+wish to run a containerized application in parallel, for simple use
+cases, this does work with Singularity, depending upon the platform
+setup. However, this combination should be considered "alpha" -- please
 do report any issues you have! This does not work with Docker at the
 moment. (More precisely, you get `n` copies of the same single process
 image run at the same time that cannot communicate with each other.)
@@ -559,8 +637,8 @@ given in the following table; all are optional.
 |                |                  |          | variables that should be     |
 |                |                  |          | passed from the host         |
 |                |                  |          | environment through to the   |
-|                |                  |          | tool (e.g. giving the        |
-|                |                  |          | nodelist as set by your      |
+|                |                  |          | tool (e.g., giving the       |
+|                |                  |          | node list as set by your     |
 |                |                  |          | scheduler).                  |
 +----------------+------------------+----------+------------------------------+
 | env_pass_regex | List[str]        | []       | A list of python regular     |
@@ -591,19 +669,19 @@ To run the basic tests after installing `cwltool` execute the following:
 .. code:: bash
 
   pip install -rtest-requirements.txt
-  py.test --ignore cwltool/schemas/ --pyarg cwltool
+  pytest
 
-To run various tests in all supported Python environments we use `tox <https://github.com/common-workflow-language/cwltool/tree/main/tox.ini>`_. To run the test suite in all supported Python environments
-first downloading the complete code repository (see the ``git clone`` instructions above) and then run
+To run various tests in all supported Python environments, we use `tox <https://github.com/common-workflow-language/cwltool/tree/main/tox.ini>`_. To run the test suite in all supported Python environments
+first clone the complete code repository (see the ``git clone`` instructions above) and then run
 the following in the terminal:
-``pip install tox; tox``
+``pip install tox; tox -p``
 
 List of all environment can be seen using:
 ``tox --listenvs``
 and running a specfic test env using:
 ``tox -e <env name>``
 and additionally run a specific test using this format:
-``tox -e py36-unit -- tests/test_examples.py::TestParamMatching``
+``tox -e py36-unit -- -v tests/test_examples.py::test_scandeps``
 
 -  Running the entire suite of CWL conformance tests:
 
@@ -611,7 +689,7 @@ The GitHub repository for the CWL specifications contains a script that tests a 
 implementation against a wide array of valid CWL files using the `cwltest <https://github.com/common-workflow-language/cwltest>`_
 program
 
-Instructions for running these tests can be found in the Common Workflow Language Specification repository at https://github.com/common-workflow-language/common-workflow-language/blob/main/CONFORMANCE_TESTS.md
+Instructions for running these tests can be found in the Common Workflow Language Specification repository at https://github.com/common-workflow-language/common-workflow-language/blob/main/CONFORMANCE_TESTS.md .
 
 Import as a module
 ------------------
@@ -647,7 +725,7 @@ Technical outline of how cwltool works internally, for maintainers.
    #. Fetches the document from file or URL
    #. Applies preprocessing (syntax/identifier expansion and normalization)
    #. Validates the document based on cwlVersion
-   #. If necessary, updates the document to latest spec
+   #. If necessary, updates the document to the latest spec
    #. Constructs a Process object using ``make_tool()``` callback.  This yields a
       CommandLineTool, Workflow, or ExpressionTool.  For workflows, this
       recursively constructs each workflow step.
@@ -662,7 +740,7 @@ Technical outline of how cwltool works internally, for maintainers.
       there is currently no work ready to run) or end of iteration (indicating
       the process is complete.)
    #. Invoke the runnable item by calling ``run()``.  This runs the tool and gets output.
-   #. Output of a process is reported by an output callback.
+   #. An output callback reports the output of a process.
    #. ``job()`` may be iterated over multiple times.  It will yield all the work
       that is currently ready to run and then yield None.
 
@@ -672,12 +750,11 @@ Technical outline of how cwltool works internally, for maintainers.
       inputs the step are ready.
    #. When a step is ready, it constructs an input object for that step and
       iterates on the ``job()`` method of the workflow job step.
-   #. Each runnable item is yielded back up to top level run loop
+   #. Each runnable item is yielded back up to top-level run loop
    #. When a step job completes and receives an output callback, the
       job outputs are assigned to the output of the workflow step.
    #. When all steps are complete, the intermediate files are moved to a final
-      workflow output, intermediate directories are deleted, and the output
-      callback for the workflow is called.
+      workflow output, intermediate directories are deleted, and the workflow's output callback is called.
 
 #. ``CommandLineTool`` job() objects yield a single runnable object.
 
@@ -710,7 +787,7 @@ executor
     executor(tool, job_order_object, runtimeContext, logger)
       (Process, Dict[Text, Any], RuntimeContext) -> Tuple[Dict[Text, Any], Text]
 
-  An implementation of the toplevel workflow execution loop, should
+  An implementation of the top-level workflow execution loop should
   synchronously run a process object to completion and return the
   output object.
 
@@ -747,7 +824,7 @@ resolver
     resolver(document_loader, document)
       (Loader, Union[Text, dict[Text, Any]]) -> Text
 
-  Resolve a relative document identifier to an absolute one which can be fetched.
+  Resolve a relative document identifier to an absolute one that can be fetched.
 
 The following functions can be set in RuntimeContext to override or
 augment the listed behaviors.

@@ -1,9 +1,7 @@
-import distutils.spawn
-import os
-import sys
+"""Tests to find local Singularity image."""
+import shutil
 from pathlib import Path
-
-import py.path
+from typing import Any
 
 from cwltool.main import main
 
@@ -15,37 +13,35 @@ from .util import (
     working_directory,
 )
 
-sys.argv = [""]
-
 
 @needs_singularity_2_6
-def test_singularity_pullfolder(tmp_path: Path) -> None:
+def test_singularity_pullfolder(tmp_path: Path, monkeypatch: Any) -> None:
+    """Test singularity respects SINGULARITY_PULLFOLDER."""
     workdir = tmp_path / "working_dir_new"
     workdir.mkdir()
-    os.chdir(str(workdir))
-    pullfolder = tmp_path / "pullfolder"
-    pullfolder.mkdir()
-    env = os.environ.copy()
-    env["SINGULARITY_PULLFOLDER"] = str(pullfolder)
-    result_code, stdout, stderr = get_main_output(
-        [
-            "--singularity",
-            get_data("tests/sing_pullfolder_test.cwl"),
-            "--message",
-            "hello",
-        ],
-        env=env,
-    )
-    print(stdout)
-    print(stderr)
-    assert result_code == 0
-    image = pullfolder / "debian.img"
-    assert image.exists()
+    with working_directory(workdir):
+        pullfolder = tmp_path / "pullfolder"
+        pullfolder.mkdir()
+        result_code, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                get_data("tests/sing_pullfolder_test.cwl"),
+                "--message",
+                "hello",
+            ],
+            extra_env={"SINGULARITY_PULLFOLDER": str(pullfolder)},
+            monkeypatch=monkeypatch,
+        )
+        print(stdout)
+        print(stderr)
+        assert result_code == 0
+        image = pullfolder / "debian.img"
+        assert image.exists()
 
 
 @needs_singularity
-def test_singularity_workflow(tmpdir: py.path.local) -> None:
-    with working_directory(str(tmpdir)):
+def test_singularity_workflow(tmp_path: Path) -> None:
+    with working_directory(tmp_path):
         error_code, _, stderr = get_main_output(
             [
                 "--singularity",
@@ -72,7 +68,7 @@ def test_singularity_iwdr() -> None:
             "hello",
         ]
     )
-    singularity_installed = bool(distutils.spawn.find_executable("singularity"))
+    singularity_installed = bool(shutil.which("singularity"))
     if singularity_installed:
         assert result_code == 0
     else:
@@ -98,32 +94,37 @@ def test_singularity_incorrect_image_pull() -> None:
 def test_singularity_local(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
-    os.chdir(str(workdir))
-    result_code, stdout, stderr = get_main_output(
-        [
-            "--singularity",
-            get_data("tests/sing_pullfolder_test.cwl"),
-            "--message",
-            "hello",
-        ]
-    )
-    assert result_code == 0
+    with working_directory(workdir):
+        result_code, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                get_data("tests/sing_pullfolder_test.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
+        assert result_code == 0
 
 
 @needs_singularity_2_6
 def test_singularity_docker_image_id_in_tool(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
-    os.chdir(str(workdir))
-    result_code, stdout, stderr = get_main_output(
-        [
-            "--singularity",
-            get_data("tests/sing_pullfolder_test.cwl"),
-            "--message",
-            "hello",
-        ]
-    )
-    result_code1, stdout, stderr = get_main_output(
-        ["--singularity", get_data("tests/debian_image_id.cwl"), "--message", "hello"]
-    )
-    assert result_code1 == 0
+    with working_directory(workdir):
+        result_code, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                get_data("tests/sing_pullfolder_test.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
+        result_code1, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                get_data("tests/debian_image_id.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
+        assert result_code1 == 0

@@ -16,7 +16,7 @@ from typing import (
 )
 
 from pkg_resources import resource_stream
-from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import (
     ArraySchema,
     EnumSchema,
@@ -39,7 +39,7 @@ def is_expression(tool, schema):
     # type: (Any, Optional[Schema]) -> bool
     return (
         isinstance(schema, EnumSchema)
-        and schema.name == "Expression"
+        and schema.name == "org.w3id.cwl.cwl.Expression"
         and isinstance(tool, str)
     )
 
@@ -48,7 +48,7 @@ class SuppressLog(logging.Filter):
     def __init__(self, name):  # type: (str) -> None
         """Initialize this log suppressor."""
         name = str(name)
-        super(SuppressLog, self).__init__(name)
+        super().__init__(name)
 
     def filter(self, record):  # type: (logging.LogRecord) -> bool
         return False
@@ -59,10 +59,11 @@ _logger_validation_warnings.addFilter(SuppressLog("cwltool.validation_warnings")
 
 
 def get_expressions(
-    tool: Union[CommentedMap, str],
+    tool: Union[CommentedMap, str, CommentedSeq],
     schema: Optional[Union[Schema, ArraySchema]],
     source_line: Optional[SourceLine] = None,
 ) -> List[Tuple[str, Optional[SourceLine]]]:
+    debug = _logger.isEnabledFor(logging.DEBUG)
     if is_expression(tool, schema):
         return [(cast(str, tool), source_line)]
     elif isinstance(schema, UnionSchema):
@@ -76,6 +77,7 @@ def get_expressions(
                 tool,
                 raise_ex=False,
                 logger=_logger_validation_warnings,
+                vocab={},
             ):
                 valid_schema = possible_schema
 
@@ -84,12 +86,20 @@ def get_expressions(
         if not isinstance(tool, MutableSequence):
             return []
 
+        def tmp_expr(
+            x: Tuple[int, Union[CommentedMap, str, CommentedSeq]]
+        ) -> List[Tuple[str, Optional[SourceLine]]]:
+            # using a lambda for this broke mypyc v0.910 and before
+            return get_expressions(
+                x[1],
+                cast(ArraySchema, schema).items,
+                SourceLine(tool, x[0], include_traceback=debug),
+            )
+
         return list(
             itertools.chain(
                 *map(
-                    lambda x: get_expressions(
-                        x[1], schema.items, SourceLine(tool, x[0])  # type: ignore
-                    ),
+                    tmp_expr,
                     enumerate(tool),
                 )
             )
@@ -107,7 +117,7 @@ def get_expressions(
                     get_expressions(
                         tool[schema_field.name],
                         schema_field.type,
-                        SourceLine(tool, schema_field.name),
+                        SourceLine(tool, schema_field.name, include_traceback=debug),
                     )
                 )
 
@@ -116,7 +126,7 @@ def get_expressions(
         return []
 
 
-JSHintJSReturn = namedtuple("jshint_return", ["errors", "globals"])
+JSHintJSReturn = namedtuple("JSHintJSReturn", ["errors", "globals"])
 
 
 def jshint_js(
@@ -182,7 +192,7 @@ def jshint_js(
     for jshint_error_obj in jshint_json.get("errors", []):
         text = "JSHINT: " + js_text_lines[jshint_error_obj["line"] - 1] + "\n"
         text += "JSHINT: " + " " * (jshint_error_obj["character"] - 1) + "^\n"
-        text += "JSHINT: %s: %s" % (
+        text += "JSHINT: {}: {}".format(
             jshint_error_obj["code"],
             jshint_error_obj["reason"],
         )
@@ -207,7 +217,7 @@ def validate_js_expressions(
 
     if tool.get("requirements") is None:
         return
-
+    debug = _logger.isEnabledFor(logging.DEBUG)
     requirements = tool["requirements"]
 
     default_globals = ["self", "inputs", "runtime", "console"]
@@ -227,7 +237,8 @@ def validate_js_expressions(
         )
         js_globals.extend(expression_lib_line_globals)
         print_js_hint_messages(
-            expression_lib_line_errors, SourceLine(expression_lib, i)
+            expression_lib_line_errors,
+            SourceLine(expression_lib, i, include_traceback=debug),
         )
 
     expressions = get_expressions(tool, schema)

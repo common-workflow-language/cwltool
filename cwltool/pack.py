@@ -15,12 +15,13 @@ from typing import (
 )
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad.ref_resolver import Loader, ResolveType, SubLoader
+from schema_salad.ref_resolver import Loader, SubLoader
+from schema_salad.utils import ResolveType
 
 from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
 from .process import shortname, uniquename
-from .update import ORDERED_VERSIONS, update
+from .update import ORDERED_VERSIONS, ORIGINAL_CWLVERSION, update
 from .utils import CWLObjectType, CWLOutputType
 
 LoadRefType = Callable[[Optional[str], str], ResolveType]
@@ -242,15 +243,20 @@ def pack(
             update_to_version,
         )
 
-        if "http://commonwl.org/cwltool#original_cwlVersion" in metadata:
-            del metadata["http://commonwl.org/cwltool#original_cwlVersion"]
-        if "http://commonwl.org/cwltool#original_cwlVersion" in dcr:
-            del dcr["http://commonwl.org/cwltool#original_cwlVersion"]
+        if ORIGINAL_CWLVERSION in metadata:
+            del metadata[ORIGINAL_CWLVERSION]
+        if ORIGINAL_CWLVERSION in dcr:
+            del dcr[ORIGINAL_CWLVERSION]
 
         if "$schemas" in metadata:
             for s in metadata["$schemas"]:
                 schemas.add(s)
-        if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
+        if dcr.get("class") not in (
+            "Workflow",
+            "CommandLineTool",
+            "ExpressionTool",
+            "Operation",
+        ):
             continue
         dc = cast(Dict[str, Any], copy.deepcopy(dcr))
         v = rewrite[r]

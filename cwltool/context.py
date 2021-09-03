@@ -8,7 +8,8 @@ from typing import IO, Any, Callable, Dict, Iterable, List, Optional, TextIO, Un
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names
-from schema_salad.ref_resolver import FetcherCallableType, Loader
+from schema_salad.ref_resolver import Loader
+from schema_salad.utils import FetcherCallableType
 from typing_extensions import TYPE_CHECKING
 
 from .builder import Builder, HasReqsHints
@@ -26,7 +27,9 @@ if TYPE_CHECKING:
     from .provenance_profile import ProvenanceProfile
 
 
-class ContextBase(object):
+class ContextBase:
+    """Shared kwargs based initilizer for {Runtime,Loading}Context."""
+
     def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
         """Initialize."""
         if kwargs:
@@ -71,8 +74,9 @@ class LoadingContext(ContextBase):
         self.do_update = None  # type: Optional[bool]
         self.jobdefaults = None  # type: Optional[CommentedMap]
         self.doc_cache = True  # type: bool
+        self.relax_path_checks = False  # type: bool
 
-        super(LoadingContext, self).__init__(kwargs)
+        super().__init__(kwargs)
 
     def copy(self):
         # type: () -> LoadingContext
@@ -89,9 +93,9 @@ class RuntimeContext(ContextBase):
         self.user_space_docker_cmd = ""  # type: Optional[str]
         self.secret_store = None  # type: Optional[SecretStore]
         self.no_read_only = False  # type: bool
-        self.custom_net = ""  # type: Optional[str]
+        self.custom_net = None  # type: Optional[str]
         self.no_match_user = False  # type: bool
-        self.preserve_environment = ""  # type: Optional[Iterable[str]]
+        self.preserve_environment = None  # type: Optional[Iterable[str]]
         self.preserve_entire_environment = False  # type: bool
         self.use_container = True  # type: bool
         self.force_docker_pull = False  # type: bool
@@ -103,9 +107,9 @@ class RuntimeContext(ContextBase):
         self.pull_image = True  # type: bool
         self.rm_container = True  # type: bool
         self.move_outputs = "move"  # type: str
+        self.streaming_allowed: bool = False
 
         self.singularity = False  # type: bool
-        self.disable_net = False  # type: bool
         self.debug = False  # type: bool
         self.compute_checksum = True  # type: bool
         self.name = ""  # type: str
@@ -148,7 +152,7 @@ class RuntimeContext(ContextBase):
         self.mpi_config = MpiConfig()  # type: MpiConfig
         self.default_stdout = None  # type: Optional[Union[IO[bytes], TextIO]]
         self.default_stderr = None  # type: Optional[Union[IO[bytes], TextIO]]
-        super(RuntimeContext, self).__init__(kwargs)
+        super().__init__(kwargs)
         if self.tmp_outdir_prefix == "":
             self.tmp_outdir_prefix = self.tmpdir_prefix
 

@@ -4,7 +4,7 @@ import os
 import re
 from typing import List, Mapping, MutableMapping, Optional, Type, TypeVar, Union
 
-from ruamel import yaml
+from schema_salad.utils import yaml_no_ts
 
 MpiConfigT = TypeVar("MpiConfigT", bound="MpiConfig")
 
@@ -53,12 +53,13 @@ class MpiConfig:
         optional).
         """
         with open(config_file_name) as cf:
-            data = yaml.round_trip_load(cf)
+            yaml = yaml_no_ts()
+            data = yaml.load(cf)
         try:
             return cls(**data)
         except TypeError as e:
             unknown = set(data.keys()) - set(inspect.signature(cls).parameters)
-            raise ValueError("Unknown key(s) in MPI configuration: {}".format(unknown))
+            raise ValueError(f"Unknown key(s) in MPI configuration: {unknown}")
 
     def pass_through_env_vars(self, env: MutableMapping[str, str]) -> None:
         """Take the configured list of environment variables and pass them to the executed process."""
