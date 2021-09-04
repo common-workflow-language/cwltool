@@ -1205,23 +1205,20 @@ def test_secondary_files_bad_v1_1(factor: str) -> None:
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_secondary_files_v1_0(factor: str) -> None:
+def test_secondary_files_v1_0(tmp_path: Path, factor: str) -> None:
+    """Test plain strings under "secondaryFiles"."""
     test_file = "secondary-files-string-v1.cwl"
     test_job_file = "secondary-files-job.yml"
-    try:
-        old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
-        commands = factor.split()
-        commands.extend(
-            [
-                get_data(os.path.join("tests", test_file)),
-                get_data(os.path.join("tests", test_job_file)),
-            ]
-        )
-        error_code, _, stderr = get_main_output(commands)
-    finally:
-        # 664 in octal, '-rw-rw-r--'
-        assert stat.S_IMODE(os.stat("lsout").st_mode) == 436
-        os.umask(old_umask)  # revert back to original umask
+    commands = factor.split()
+    commands.extend(
+        [
+            "--outdir",
+            str(tmp_path),
+            get_data(os.path.join("tests", test_file)),
+            get_data(os.path.join("tests", test_job_file)),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
     assert "completed success" in stderr
     assert error_code == 0
 
