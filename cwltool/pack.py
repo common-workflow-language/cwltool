@@ -268,6 +268,8 @@ def pack(
 
     if schemas:
         packed["$schemas"] = list(schemas)
+    if namespaces:
+        packed["$namespaces"] = namespaces
 
     for r in list(rewrite.keys()):
         v = rewrite[r]
@@ -276,14 +278,13 @@ def pack(
     import_embed(packed, set())
 
     if len(packed["$graph"]) == 1:
-        # duplicate 'cwlVersion' and $schemas inside $graph when there is only
-        # a single item because we will print the contents inside '$graph'
-        # rather than whole dict
+        # duplicate 'cwlVersion', '$schemas', and '$namespaces' inside '$graph'
+        # when there is only a single item because main.print_pack() will print
+        # the contents inside '$graph' rather than whole dict in this case
         packed["$graph"][0]["cwlVersion"] = packed["cwlVersion"]
         if schemas:
             packed["$graph"][0]["$schemas"] = list(schemas)
-    # always include $namespaces in the #main
-    if namespaces:
-        packed["$graph"][0]["$namespaces"] = namespaces
+        if namespaces:
+            packed["$graph"][0]["$namespaces"] = namespaces
 
     return packed
