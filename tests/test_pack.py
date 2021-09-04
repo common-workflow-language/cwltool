@@ -94,9 +94,10 @@ def test_pack_fragment() -> None:
     )
     adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
 
-    assert json.dumps(packed, sort_keys=True, indent=2) == json.dumps(
-        expect_packed, sort_keys=True, indent=2
-    )
+    packed_result = json.dumps(packed, sort_keys=True, indent=2)
+    expected = json.dumps(expect_packed, sort_keys=True, indent=2)
+
+    assert packed_result == expected
 
 
 def test_pack_rewrites() -> None:

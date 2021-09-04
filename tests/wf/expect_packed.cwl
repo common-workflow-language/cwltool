@@ -67,10 +67,7 @@
                     "id": "#main/sorted"
                 }
             ],
-            "id": "#main",
-            "$namespaces": {
-                "iana": "https://www.iana.org/assignments/media-types/"
-            }
+            "id": "#main"
         },
         {
             "class": "CommandLineTool",
@@ -133,5 +130,8 @@
     "$schemas": [
         "empty.ttl",
         "empty2.ttl"
-    ]
+    ],
+    "$namespaces": {
+        "iana": "https://www.iana.org/assignments/media-types/"
+    }
 }
