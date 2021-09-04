@@ -176,10 +176,14 @@ $graph:
       - **File**: Add `prefix` and the value of
         [`File.path`](#File) to the command line.
 
+      - **Directory**: Add `prefix` and the value of
+        [`Directory.path`](#Directory) to the command line.
+
       - **array**: If `itemSeparator` is specified, add `prefix` and the join
           the array into a single string with `itemSeparator` separating the
           items.  Otherwise first add `prefix`, then recursively process
           individual elements.
+          If the array is empty, it does not add anything to command line.
 
       - **object**: Add `prefix` only, and recursively add object fields for
           which `inputBinding` is specified.
@@ -352,7 +356,10 @@ $graph:
   specialize:
     - specializeFrom: OutputRecordField
       specializeTo: CommandOutputRecordField
-
+  fields:
+    - name: name
+      type: string?
+      jsonldPredicate: "@id"
 
 - name: CommandOutputEnumSchema
   type: record
@@ -646,9 +653,11 @@ $graph:
     the appropriate Docker image and tool command line.
 
     The workflow platform may provide input files and the designated output
-    directory through the use of volume bind mounts.  The platform may rewrite
+    directory through the use of volume bind mounts.  The platform should rewrite
     file paths in the input object to correspond to the Docker bind mounted
-    locations.
+    locations. That is, the platform should rewrite values in the parameter context
+    such as `runtime.outdir`, `runtime.tmpdir` and others to be valid paths
+    within the container.
 
     When running a tool contained in Docker, the workflow platform must not
     assume anything about the contents of the Docker container, such as the

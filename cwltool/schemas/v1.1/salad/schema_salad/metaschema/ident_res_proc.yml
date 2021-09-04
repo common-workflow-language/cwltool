@@ -14,7 +14,12 @@
       },
       {
         "id": "http://example.com/acid#six",
+      },
+      {
+        "subscopeField": {
+          "id": "http://example.com/base#one/thisIsASubscope/seven"
+        }
       }
-    ]
+    ],
   }
 }

@@ -14,7 +14,12 @@
           },
           {
             "id": "acid:six",
+          },
+          {
+            "subscopeField": {
+              "id": "seven"
+            }
           }
-        ]
+        ],
       }
     }

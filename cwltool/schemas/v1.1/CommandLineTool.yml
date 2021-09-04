@@ -312,9 +312,8 @@ $graph:
         path pattern (it does begin with a slash '/') then it must
         refer to a path within the output directory.  It is an error
         if any glob resolves to a path outside the output directory.
-        Specifically this means globs with relative paths containing
-        '..' or absolute paths that refer outside the output directory
-        are illegal.
+        Specifically this means globs that resolve to paths outside the output
+        directory are illegal.
 
         A glob may match a path within the output directory which is
         actually a symlink to another file.  In this case, the
@@ -814,7 +813,10 @@ $graph:
         "_type": "@vocab"
     - name: dockerPull
       type: string?
-      doc: "Specify a Docker image to retrieve using `docker pull`."
+      doc: |
+        Specify a Docker image to retrieve using `docker pull`. Can contain the
+        immutable digest to ensure an exact container is used:
+        `dockerPull: ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2`
     - name: dockerLoad
       type: string?
       doc: "Specify a HTTP URL from which to download a Docker image using `docker load`."

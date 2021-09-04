@@ -20,6 +20,7 @@ $graph:
     - $include: import_include.md
     - $import: map_res.yml
     - $import: typedsl_res.yml
+    - $import: sfdsl_res.yml
 
 - name: "Link_Validation"
   type: documentation
@@ -35,10 +36,40 @@ $graph:
     `noLinkCheck` in the `jsonldPredicate` section of the field schema.
 
 
-- name: "Schema_validation"
+- name: "Schema_Validation"
   type: documentation
-  doc: ""
+  doc: |
+    # Validating a document against a schema
 
+    To validate a document against the schema, first [apply
+    preprocessing](#Document_preprocessing), then, use the following
+    algorithm.
+
+    1. The document root must be an object or a list.  If the document root is an
+       object containing the field `$graph` (which must be a list of
+       objects), then validation applies to each object in the list.
+    2. For each object, attempt to validate as one of the record types
+       flagged with `documentRoot: true`.
+    3. To validate a record, go through `fields` and recursively
+       validate each field of the object.
+    4. For fields with a list of types (type union), go through each
+       type in the list and recursively validate the type.  For the
+       field to be valid, at least one type in the union must be valid.
+    5. Missing fields are considered `null`.  To validate, the allowed types
+       for the field must include `null`
+    6. Primitive types are null, boolean, int, long, float, double,
+       string.  To validate, the value in the document must have one
+       of these type.  For numerics, the value appearing in the
+       document must fit into the specified type.
+    7. To validate an array, the value in the document must be a list,
+       and each item in the list must recursively validate as a type
+       in `items`.
+    8. To validate an enum, the value in the document be a string, and
+       the value must be equal to the short name of one of the values
+       listed in `symbols`.
+    9. As a special case, a field with the `Expression` type validates string values
+      which contain a CWL parameter reference or expression in the form
+      `$(...)` or `${...}`
 
 # - name: "JSON_LD_Context"
 #   type: documentation
@@ -131,6 +162,10 @@ $graph:
       type: boolean?
       doc: |
         Field must be expanded based on the the Schema Salad type DSL.
+    - name: secondaryFilesDSL
+      type: boolean?
+      doc: |
+        Field must be expanded based on the the Schema Salad secondary file DSL.
     - name: subscope
       type: string?
       doc: |
@@ -168,10 +203,18 @@ $graph:
       doc: "The identifier for this type"
     - name: inVocab
       type: boolean?
+      default: true
       doc: |
-        By default or if "true", include the short name of this type in the
-        vocabulary (the keys of the JSON-LD context).  If false, do not include
-        the short name in the vocabulary.
+        If "true" (the default), include the short name of this type
+        in the vocabulary.  The vocabulary are all the symbols (field
+        names and other identifiers, such as classes and enum values)
+        which can be used in the document without a namespace prefix.
+        These are the keys of the JSON-LD context.  If false, do not
+        include the short name in the vocabulary.
+
+        This is useful for specifying schema extensions that will be
+        included in validation without introducing ambiguity by
+        introducing non-standard terms into the vocabulary.
 
 
 - name: DocType

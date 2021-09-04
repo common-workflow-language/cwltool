@@ -1,15 +1,13 @@
-# Common Workflow Language Specifications, v1.2
-
-The CWL specifications are divided up into several documents.
+# Common Workflow Language Standards, v1.2
 
 The [User Guide](http://www.commonwl.org/user_guide/) provides a gentle
-introduction to writing CWL command line tools and workflows. Currently it covers CWL v1.0 only.
+introduction to writing CWL command line tools and workflows. Currently the CWL User Guide targets CWL v1.0 only.
 
-The [Command Line Tool Description Specification](CommandLineTool.html)
+The CWL [Command Line Tool Description Standard](CommandLineTool.html)
 specifies the document schema and execution semantics for wrapping and
 executing command line tools.
 
-The [Workflow Description Specification](Workflow.html) specifies the document
+The CWL [Workflow Description Standard](Workflow.html) specifies the document
 schema and execution semantics for composing workflows from components such as
 command line tools and other workflows.
 
