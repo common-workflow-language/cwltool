@@ -1,10 +1,12 @@
 # Status of this document
 
 This document is the product of the [Common Workflow Language working
-group](https://groups.google.com/forum/#!forum/common-workflow-language).  The
-latest stable version of this document is available in the "v1.0" directory at
+group](https://www.commonwl.org/).  The
+source for the latest stable version of this document is available in the "v1.0" directory at
 
 https://github.com/common-workflow-language/common-workflow-language
+
+The current development version is at https://github.com/common-workflow-language/cwl-v1.1/
 
 The products of the CWL working group (including this document) are made available
 under the terms of the Apache License, version 2.0.

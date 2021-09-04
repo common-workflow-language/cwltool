@@ -5,8 +5,8 @@
 }, {
   "secondaryFiles": {
     "pattern": ".bai?"
-}, {
+}}, {
   "secondaryFiles": {
     "pattern": ".bai?",
     "required": true
-}]
+}}]

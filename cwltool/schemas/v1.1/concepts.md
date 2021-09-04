@@ -17,6 +17,9 @@ https://tools.ietf.org/html/rfc3987
 
 **Resource Description Framework (RDF)**: http://www.w3.org/RDF/
 
+**XDG Base Directory Specification**: https://specifications.freedesktop.org/basedir-spec/basedir-spec-0.6.html
+
+
 ## Scope
 
 This document describes CWL syntax, execution, and object model.  It
@@ -88,8 +91,7 @@ JSON or YAML syntax.  Upon loading, a CWL implementation must apply the
 preprocessing steps described in the
 [Semantic Annotations for Linked Avro Data (SALAD) Specification](SchemaSalad.html).
 An implementation may formally validate the structure of a CWL document using
-SALAD schemas located at
-https://github.com/common-workflow-language/common-workflow-language/tree/master/v1.1
+SALAD schemas located at https://github.com/common-workflow-language/cwl-v1.1/
 
 ### map
 
@@ -242,9 +244,6 @@ inputs:
   workflow_input02:     # we use the longer way
     type: File          # because we want to specify the "format" too
     format: http://edamontology.org/format_2572
-  workflow_input03: {}  # back to the short form as this entry
-                        # uses the default of no "type" just like the prior
-                        # examples
 ```
 
 Mixed option 2 and 3 specific example using [SoftwareRequirement](#SoftwareRequirement).[packages](#SoftwarePackage):
@@ -263,9 +262,9 @@ hints:
       python: {}
 ```
 
-Note: The `map<…>` (compact) versions are optional, the verbose option #1 is
+Note: The `map<…>` (compact) versions are optional for users, the verbose option #1 is
 always allowed, but for presentation reasons option 3 and 2 may be preferred
-by human readers.
+by human readers. Consumers of CWL must support all three options.
 
 The normative explanation for these variations, aimed at implementors, is in the
 [Schema Salad specification](SchemaSalad.html#Identifier_maps).
@@ -293,7 +292,7 @@ Type `<T>` ending with `[]` should be transformed to `{"type": "array", "items":
 
 ## Extensions and metadata
 
-Input metadata (for example, a lab sample identifier) may be represented within
+Input metadata (for example, a sample identifier) may be represented within
 a tool or workflow using input parameters which are explicitly propagated to
 output.  Future versions of this specification may define additional facilities
 for working with input/output metadata.
@@ -304,6 +303,9 @@ itself (for example, authorship for use in citations) may be provided as
 additional fields on any object.  Such extensions fields must use a namespace
 prefix listed in the `$namespaces` section of the document as described in the
 [Schema Salad specification](SchemaSalad.html#Explicit_context).
+
+It is recommended that concepts from schema.org are used whenever possible.
+For the `$schema` field we recommend their RDF encoding: http://schema.org/version/latest/schema.rdf
 
 Implementation extensions which modify execution semantics must be [listed in
 the `requirements` field](#Requirements_and_hints).
@@ -353,8 +355,6 @@ platform include:
 (except as described in [DockerRequirement](CommandLineTool.html#DockerRequirement)).
 * Using remote or distributed file systems to manage input and output files.
 * Transforming file paths.
-* Determining if a process has previously been executed, and if so skipping it
-and reusing previous results.
 * Pausing, resuming or checkpointing processes or workflows.
 
 Conforming CWL processes must not assume anything about the runtime
@@ -499,7 +499,7 @@ must be treated as a string interpolation.  After interpolating the first
 parameter reference, interpolation must be recursively applied to the
 trailing characters to yield the final string value.
 
-## Expressions
+## Expressions (Optional)
 
 An expression is a fragment of [Javascript/ECMAScript
 5.1](http://www.ecma-international.org/ecma-262/5.1/) code evaluated by the
@@ -509,6 +509,12 @@ be evaluated during step 5 (process setup), step 6 (execute process),
 and/or step 7 (capture output).  Expressions are distinct from regular
 processes in that they are intended to modify the behavior of the workflow
 itself rather than perform the primary work of the workflow.
+
+Expressions in CWL are an optional feature and are not required to be
+implemented by all consumers of CWL documents. They should be used sparingly,
+when there is no other way to achieve the desired outcome. Excessive use of
+expressions may be a signal that other refactoring of the tools or workflows
+would benefit the author, runtime, and users of the CWL document in question.
 
 To declare the use of expressions, the document must include the process
 requirement `InlineJavascriptRequirement`.  Expressions may be used in any
@@ -554,8 +560,8 @@ Implementations may apply other limits, such as process isolation, timeouts,
 and operating system containers/jails to minimize the security risks associated
 with running untrusted code embedded in a CWL document.
 
-Exceptions thrown from an exception must result in a `permanentFailure` of the
-process.
+Javascript exceptions thrown from a CWL expression must result in a
+`permanentFailure` of the CWL process.
 
 ## Executing CWL documents as scripts
 
@@ -578,11 +584,16 @@ documented in [cwl-runner.cwl](cwl-runner.cwl).
 
 To discover CWL documents look in the following locations:
 
-`/usr/share/commonwl/`
+For each value in the `XDG_DATA_DIRS` environment variable (which is a `:` colon
+separated list), check the `./commonwl` subdirectory. If `XDG_DATA_DIRS` is
+unset or empty, then check using the default value for `XDG_DATA_DIRS`:
+`/usr/local/share/:/usr/share/` (That is to say, check `/usr/share/commonwl/`
+and `/usr/local/share/commonwl/`)
 
-`/usr/local/share/commonwl/`
+Then check `$XDG_DATA_HOME/commonwl/`.
 
-`$XDG_DATA_HOME/commonwl/` (usually `$HOME/.local/share/commonwl`)
+If the `XDG_DATA_HOME` environment variable is unset, its default value is
+`$HOME/.local/share` (That is to say, check `$HOME/.local/share/commonwl`)
 
-`$XDG_DATA_HOME` is from the [XDG Base Directory
+`$XDG_DATA_HOME` and `$XDG_DATA_DIRS` are from the [XDG Base Directory
 Specification](http://standards.freedesktop.org/basedir-spec/basedir-spec-0.6.html)

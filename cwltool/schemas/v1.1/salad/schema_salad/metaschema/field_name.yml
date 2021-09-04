@@ -9,7 +9,7 @@
   which are not part of the vocabulary are resolved using the following
   rules:
 
-  * If an field name URI begins with a namespace prefix declared in the
+  * If a field name URI begins with a namespace prefix declared in the
   document context (`@context`) followed by a colon `:`, the prefix and
   colon must be replaced by the namespace declared in `@context`.
 

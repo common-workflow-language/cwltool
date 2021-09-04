@@ -9,7 +9,7 @@
       fragment identifier.  It is resolved relative to the base URI by
       setting or replacing the fragment portion of the base URI.
 
-    * If an identifier URI contains `#` in some other position is a
+    * If an identifier URI contains `#` in some other position it is a
       relative URI with fragment identifier.  It is resolved relative
       to the base URI by stripping the last path segment from the base
       URI and adding the identifier followed by the fragment.

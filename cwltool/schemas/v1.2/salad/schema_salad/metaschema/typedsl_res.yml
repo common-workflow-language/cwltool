@@ -5,7 +5,7 @@
   following micro-DSL for schema salad types:
 
   * If the type ends with a question mark `?`, the question mark is stripped off and the type is expanded to a union with `null`
-  * If the type ends with square brackets `[]` it is expanded to an array with items of the preceeding type symbol
+  * If the type ends with square brackets `[]` it is expanded to an array with items of the preceding type symbol
   * The type may end with both `[]?` to indicate it is an optional array.
   * Identifier resolution is applied after type DSL expansion.
 

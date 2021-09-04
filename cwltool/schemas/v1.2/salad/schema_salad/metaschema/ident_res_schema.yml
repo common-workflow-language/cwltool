@@ -5,6 +5,7 @@
   "$graph": [{
     "name": "ExampleType",
     "type": "record",
+    "documentRoot": true,
     "fields": [{
       "name": "id",
       "type": "string",

@@ -247,7 +247,7 @@ rules:
   * If the value of `jsonldPredicate` is `@id`, the field is an identifier
   field.
 
-  * If the value of `jsonldPredicate` is an object, and contains that
+  * If the value of `jsonldPredicate` is an object, and that
   object contains the field `_type` with the value `@id`, the field is a
   link field subject to [link validation](#Link_validation).
 

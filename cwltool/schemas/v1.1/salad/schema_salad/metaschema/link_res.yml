@@ -1,7 +1,7 @@
 - |
   ## Link resolution
 
-  The schema may designate one or more fields as link fields reference other
+  The schema may designate one or more fields as link fields that reference other
   objects.  Processing must resolve links to either absolute URIs using the
   following rules:
 

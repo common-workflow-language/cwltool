@@ -28,7 +28,7 @@ or resource fragment which does not exist or is not accessible.
 
 ### Import example
 
-import.yml:
+import.json:
 ```
 {
   "hello": "world"
@@ -36,12 +36,12 @@ import.yml:
 
 ```
 
-parent.yml:
+parent.json:
 ```
 {
   "form": {
     "bar": {
-      "$import": "import.yml"
+      "$import": "import.json"
       }
   }
 }
@@ -83,7 +83,7 @@ which does not exist or is not accessible.
 
 ### Include example
 
-parent.yml:
+parent.json:
 ```
 {
   "form": {

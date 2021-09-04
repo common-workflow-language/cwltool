@@ -3,7 +3,7 @@
 The CWL specifications are divided up into several documents.
 
 The [User Guide](http://www.commonwl.org/user_guide/) provides a gentle
-introduction to writing CWL command line tools and workflows.
+introduction to writing CWL command line tools and workflows. Currently it is for CWL v1.0 only.
 
 The [Command Line Tool Description Specification](CommandLineTool.html)
 specifies the document schema and execution semantics for wrapping and
@@ -66,9 +66,9 @@ You can run a particular test
 ```
 
 
-If you are running tests for an unreleased CWL version use the `--enable-dev` flag:
+If you are running tests using the CWL reference runner "cwltool" for an unreleased version of the CWL standards use the `--enable-dev` flag:
 ```
-./run_test.sh EXTRA=--enable-dev
+./run_test.sh RUNNER=cwltool EXTRA=--enable-dev
 ```
 
 
@@ -76,5 +76,3 @@ For details of options you can pass to the test script, do:
 ```
 ./run_test.sh --help
 ```
-
-The full test suite takes about 10 minutes to run
