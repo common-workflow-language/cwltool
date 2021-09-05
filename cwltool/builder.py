@@ -37,16 +37,20 @@ from .utils import (
     CWLObjectType,
     CWLOutputType,
     aslist,
-    docker_windows_path_adjust,
     get_listing,
     normalizeFilesDirs,
-    onWindows,
     visit_class,
 )
 
 if TYPE_CHECKING:
     from .pathmapper import PathMapper
     from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
+
+INPUT_OBJ_VOCAB: Dict[str, str] = {
+    "Any": "https://w3id.org/cwl/salad#Any",
+    "File": "https://w3id.org/cwl/cwl#File",
+    "Directory": "https://w3id.org/cwl/cwl#Directory",
+}
 
 
 def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
@@ -118,7 +122,7 @@ def check_format(
             continue
         if "format" not in afile:
             raise ValidationException(
-                "File has no 'format' defined: {}".format(json_dumps(afile, indent=4))
+                f"File has no 'format' defined: {json_dumps(afile, indent=4)}"
             )
         for inpf in aslist(input_formats):
             if afile["format"] == inpf or formatSubclassOf(
@@ -126,11 +130,13 @@ def check_format(
             ):
                 return
         raise ValidationException(
-            "File has an incompatible format: {}".format(json_dumps(afile, indent=4))
+            f"File has an incompatible format: {json_dumps(afile, indent=4)}"
         )
 
 
-class HasReqsHints(object):
+class HasReqsHints:
+    """Base class for get_requirement()."""
+
     def __init__(self) -> None:
         """Initialize this reqs decorator."""
         self.requirements = []  # type: List[CWLObjectType]
@@ -223,6 +229,7 @@ class Builder(HasReqsHints):
         lead_pos: Optional[Union[int, List[int]]] = None,
         tail_pos: Optional[Union[str, List[int]]] = None,
     ) -> List[MutableMapping[str, Union[str, List[int]]]]:
+        debug = _logger.isEnabledFor(logging.DEBUG)
 
         if tail_pos is None:
             tail_pos = []
@@ -244,8 +251,17 @@ class Builder(HasReqsHints):
                 position = binding["position"]
                 if isinstance(position, str):  # no need to test the CWL Version
                     # the schema for v1.0 only allow ints
-                    binding["position"] = self.do_eval(position, context=datum)
-                    bp.append(binding["position"])
+                    result = self.do_eval(position, context=datum)
+                    if not isinstance(result, int):
+                        raise SourceLine(
+                            schema["inputBinding"], "position", WorkflowException, debug
+                        ).makeError(
+                            "'position' expressions must evaluate to an int, "
+                            f"not a {type(result)}. Expression {position} "
+                            f"resulted in '{result}'."
+                        )
+                    binding["position"] = result
+                    bp.append(result)
                 else:
                     bp.extend(aslist(binding["position"]))
             else:
@@ -272,7 +288,7 @@ class Builder(HasReqsHints):
                     avsc = self.names.get_name(cast(str, t["name"]), None)
                 if not avsc:
                     avsc = make_avsc_object(convert_to_dict(t), self.names)
-                if validate(avsc, datum):
+                if validate(avsc, datum, vocab=INPUT_OBJ_VOCAB):
                     schema = copy.deepcopy(schema)
                     schema["type"] = t
                     if not value_from_expression:
@@ -294,7 +310,7 @@ class Builder(HasReqsHints):
                         bound_input = True
             if not bound_input:
                 raise ValidationException(
-                    "'%s' is not a valid union %s" % (datum, schema["type"])
+                    "'{}' is not a valid union {}".format(datum, schema["type"])
                 )
         elif isinstance(schema["type"], MutableMapping):
             st = copy.deepcopy(schema["type"])
@@ -376,7 +392,7 @@ class Builder(HasReqsHints):
                 self.files.append(f)
                 return f
 
-            if schema["type"] == "File":
+            if schema["type"] == "org.w3id.cwl.cwl.File":
                 datum = cast(CWLObjectType, datum)
                 self.files.append(datum)
 
@@ -390,7 +406,10 @@ class Builder(HasReqsHints):
 
                 if loadContents_sourceline and loadContents_sourceline["loadContents"]:
                     with SourceLine(
-                        loadContents_sourceline, "loadContents", WorkflowException
+                        loadContents_sourceline,
+                        "loadContents",
+                        WorkflowException,
+                        debug,
                     ):
                         try:
                             with self.fs_access.open(
@@ -398,22 +417,49 @@ class Builder(HasReqsHints):
                             ) as f2:
                                 datum["contents"] = content_limit_respected_read(f2)
                         except Exception as e:
-                            raise Exception("Reading %s\n%s" % (datum["location"], e))
+                            raise Exception(
+                                "Reading {}\n{}".format(datum["location"], e)
+                            )
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
-                    for sf in aslist(schema["secondaryFiles"]):
-                        if "required" in sf:
-                            sf_required = self.do_eval(sf["required"], context=datum)
+                    for num, sf_entry in enumerate(aslist(schema["secondaryFiles"])):
+                        if "required" in sf_entry and sf_entry["required"] is not None:
+                            required_result = self.do_eval(
+                                sf_entry["required"], context=datum
+                            )
+                            if not (
+                                isinstance(required_result, bool)
+                                or required_result is None
+                            ):
+                                if (
+                                    aslist(schema["secondaryFiles"])
+                                    == schema["secondaryFiles"]
+                                ):
+                                    sf_item: Any = cast(
+                                        List[Any], schema["secondaryFiles"]
+                                    )[num]
+                                else:
+                                    sf_item = schema["secondaryFiles"]
+                                raise SourceLine(
+                                    sf_item, "required", WorkflowException, debug
+                                ).makeError(
+                                    "The result of a expression in the field "
+                                    "'required' must "
+                                    f"be a bool or None, not a {type(required_result)}. "
+                                    f"Expression '{sf_entry['required']}' resulted "
+                                    f"in '{required_result}'."
+                                )
+                            sf_required = required_result
                         else:
                             sf_required = True
 
-                        if "$(" in sf["pattern"] or "${" in sf["pattern"]:
-                            sfpath = self.do_eval(sf["pattern"], context=datum)
+                        if "$(" in sf_entry["pattern"] or "${" in sf_entry["pattern"]:
+                            sfpath = self.do_eval(sf_entry["pattern"], context=datum)
                         else:
                             sfpath = substitute(
-                                cast(str, datum["basename"]), sf["pattern"]
+                                cast(str, datum["basename"]), sf_entry["pattern"]
                             )
 
                         for sfname in aslist(sfpath):
@@ -435,9 +481,13 @@ class Builder(HasReqsHints):
                                 sf_location = sfname["location"]
                                 sfbasename = sfname["basename"]
                             else:
-                                raise WorkflowException(
-                                    "Expected secondaryFile expression to return type 'str' or 'MutableMapping', received '%s'"
-                                    % (type(sfname))
+                                raise SourceLine(
+                                    sf_entry, "pattern", WorkflowException, debug
+                                ).makeError(
+                                    "Expected secondaryFile expression to "
+                                    "return type 'str', a 'File' or 'Directory' "
+                                    "dictionary, or a list of the same. Received "
+                                    f"'{type(sfname)} from '{sf_entry['pattern']}'."
                                 )
 
                             for d in cast(
@@ -486,7 +536,12 @@ class Builder(HasReqsHints):
                                         },
                                     )
                                 elif sf_required:
-                                    raise WorkflowException(
+                                    raise SourceLine(
+                                        schema,
+                                        "secondaryFiles",
+                                        WorkflowException,
+                                        debug,
+                                    ).makeError(
                                         "Missing required secondary file '%s' from file object: %s"
                                         % (sfname, json_dumps(datum, indent=4))
                                     )
@@ -496,10 +551,38 @@ class Builder(HasReqsHints):
                     )
 
                 if "format" in schema:
+                    eval_format: Any = self.do_eval(schema["format"])
+                    if isinstance(eval_format, str):
+                        evaluated_format: Union[str, List[str]] = eval_format
+                    elif isinstance(eval_format, MutableSequence):
+                        for entry in eval_format:
+                            if not isinstance(entry, str):
+                                raise SourceLine(
+                                    schema, "format", WorkflowException, debug
+                                ).makeError(
+                                    "An expression in the 'format' field must "
+                                    "evaluate to a string, or list of strings. "
+                                    "However a non-string item was received: "
+                                    f"'{entry}' of type '{type(entry)}'. "
+                                    f"The expression was '{schema['format']}' and "
+                                    f"its fully evaluated result is '{eval_format}'."
+                                )
+                        evaluated_format = cast(List[str], eval_format)
+                    else:
+                        raise SourceLine(
+                            schema, "format", WorkflowException, debug
+                        ).makeError(
+                            "An expression in the 'format' field must "
+                            "evaluate to a string, or list of strings. "
+                            "However the type of the expression result was "
+                            f"{type(eval_format)}. "
+                            f"The expression was '{schema['format']}' and "
+                            f"its fully evaluated result is 'eval_format'."
+                        )
                     try:
                         check_format(
                             datum,
-                            cast(Union[List[str], str], self.do_eval(schema["format"])),
+                            evaluated_format,
                             self.formatgraph,
                         )
                     except ValidationException as ve:
@@ -514,7 +597,7 @@ class Builder(HasReqsHints):
                     _capture_files,
                 )
 
-            if schema["type"] == "Directory":
+            if schema["type"] == "org.w3id.cwl.cwl.Directory":
                 datum = cast(CWLObjectType, datum)
                 ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
@@ -545,28 +628,21 @@ class Builder(HasReqsHints):
         ):
             if "path" not in value:
                 raise WorkflowException(
-                    u'%s object missing "path": %s' % (value["class"], value)
+                    '{} object missing "path": {}'.format(value["class"], value)
                 )
-
-            # Path adjust for windows file path when passing to docker, docker accepts unix like path only
-            (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
-            if onWindows() and docker_req is not None:
-                # docker_req is none only when there is no dockerRequirement
-                # mentioned in hints and Requirement
-                path = docker_windows_path_adjust(value["path"])
-                return path
             return value["path"]
         else:
             return str(value)
 
     def generate_arg(self, binding: CWLObjectType) -> List[str]:
         value = binding.get("datum")
+        debug = _logger.isEnabledFor(logging.DEBUG)
         if "valueFrom" in binding:
             with SourceLine(
                 binding,
                 "valueFrom",
                 WorkflowException,
-                _logger.isEnabledFor(logging.DEBUG),
+                debug,
             ):
                 value = self.do_eval(cast(str, binding["valueFrom"]), context=value)
 
@@ -577,7 +653,7 @@ class Builder(HasReqsHints):
                 binding,
                 "separate",
                 WorkflowException,
-                _logger.isEnabledFor(logging.DEBUG),
+                debug,
             ):
                 raise WorkflowException(
                     "'separate' option can not be specified without prefix"

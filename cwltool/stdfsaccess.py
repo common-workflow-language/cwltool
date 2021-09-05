@@ -7,8 +7,6 @@ from typing import IO, Any, List
 
 from schema_salad.ref_resolver import file_uri, uri_file_path
 
-from .utils import onWindows
-
 
 def abspath(src: str, basedir: str) -> str:
     if src.startswith("file://"):
@@ -23,7 +21,7 @@ def abspath(src: str, basedir: str) -> str:
     return abpath
 
 
-class StdFsAccess(object):
+class StdFsAccess:
     """Local filesystem implementation."""
 
     def __init__(self, basedir: str) -> None:
@@ -64,11 +62,3 @@ class StdFsAccess(object):
 
     def realpath(self, path: str) -> str:
         return os.path.realpath(path)
-
-    # On windows os.path.realpath appends unecessary Drive, here we would avoid that
-    def docker_compatible_realpath(self, path: str) -> str:
-        if onWindows():
-            if path.startswith("/"):
-                return path
-            return "/" + path
-        return self.realpath(path)

@@ -60,7 +60,7 @@ def check_types(
         return check_types(
             merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None
         )
-    raise WorkflowException("Unrecognized linkMerge enum '{}'".format(linkMerge))
+    raise WorkflowException(f"Unrecognized linkMerge enum '{linkMerge}'")
 
 
 def merge_flatten_type(src: SinkType) -> CWLOutputType:
@@ -211,18 +211,16 @@ def static_checker(
         sink = warning.sink
         linkMerge = warning.linkMerge
         sinksf = sorted(
-            [
-                p["pattern"]
-                for p in sink.get("secondaryFiles", [])
-                if p.get("required", True)
-            ]
+            p["pattern"]
+            for p in sink.get("secondaryFiles", [])
+            if p.get("required", True)
         )
-        srcsf = sorted([p["pattern"] for p in src.get("secondaryFiles", [])])
+        srcsf = sorted(p["pattern"] for p in src.get("secondaryFiles", []))
         # Every secondaryFile required by the sink, should be declared
         # by the source
         missing = missing_subset(srcsf, sinksf)
         if missing:
-            msg1 = "Parameter '%s' requires secondaryFiles %s but" % (
+            msg1 = "Parameter '{}' requires secondaryFiles {} but".format(
                 shortname(sink["id"]),
                 missing,
             )
@@ -241,7 +239,7 @@ def static_checker(
                 % shortname(sink["id"])
             )
             msg = SourceLine(sink).makeError(
-                "%s\n%s" % (msg1, bullets([msg3, msg4, msg5], "  "))
+                "{}\n{}".format(msg1, bullets([msg3, msg4, msg5], "  "))
             )
         elif sink.get("not_connected"):
             if not sink.get("used_by_step"):

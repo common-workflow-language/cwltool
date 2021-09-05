@@ -21,12 +21,7 @@ from schema_salad.utils import json_dumps
 from .errors import WorkflowException
 from .loghandler import _logger
 from .sandboxjs import JavascriptException, default_timeout, execjs
-from .utils import (
-    CWLObjectType,
-    CWLOutputType,
-    bytes2str_in_dicts,
-    docker_windows_path_adjust,
-)
+from .utils import CWLObjectType, CWLOutputType, bytes2str_in_dicts
 
 
 def jshead(engine_config: List[str], rootvars: CWLObjectType) -> str:
@@ -35,10 +30,7 @@ def jshead(engine_config: List[str], rootvars: CWLObjectType) -> str:
 
     return "\n".join(
         engine_config
-        + [
-            "var {} = {};".format(k, json_dumps(v, indent=4))
-            for k, v in rootvars.items()
-        ]
+        + [f"var {k} = {json_dumps(v, indent=4)};" for k, v in rootvars.items()]
     )
 
 
@@ -47,9 +39,9 @@ seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
 seg_index = r"""\[[0-9]+\]"""
-segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
+segments = fr"(\.{seg_symbol}|{seg_single}|{seg_double}|{seg_index})"
 segment_re = re.compile(segments, flags=re.UNICODE)
-param_str = r"\((%s)%s*\)$" % (seg_symbol, segments)
+param_str = fr"\(({seg_symbol}){segments}*\)$"
 param_re = re.compile(param_str, flags=re.UNICODE)
 
 
@@ -142,7 +134,7 @@ def next_seg(
         m = segment_re.match(remaining_string)
         if not m:
             return current_value
-        next_segment_str = m.group(0)
+        next_segment_str = m.group(1)
 
         key = None  # type: Optional[Union[str, int]]
         if next_segment_str[0] == ".":
@@ -154,7 +146,7 @@ def next_seg(
             if (
                 isinstance(current_value, MutableSequence)
                 and key == "length"
-                and not remaining_string[m.end(0) :]
+                and not remaining_string[m.end(1) :]
             ):
                 return len(current_value)
             if not isinstance(current_value, MutableMapping):
@@ -163,9 +155,7 @@ def next_seg(
                     % (parsed_string, type(current_value).__name__, key)
                 )
             if key not in current_value:
-                raise WorkflowException(
-                    "%s does not contain key '%s'" % (parsed_string, key)
-                )
+                raise WorkflowException(f"{parsed_string} does not contain key '{key}'")
         else:
             try:
                 key = int(next_segment_str[1:-1])
@@ -185,28 +175,22 @@ def next_seg(
             try:
                 return next_seg(
                     parsed_string + remaining_string,
-                    remaining_string[m.end(0) :],
+                    remaining_string[m.end(1) :],
                     cast(CWLOutputType, current_value[cast(str, key)]),
                 )
             except KeyError:
-                raise WorkflowException(
-                    "%s doesn't have property %s" % (parsed_string, key)
-                )
+                raise WorkflowException(f"{parsed_string} doesn't have property {key}")
         elif isinstance(current_value, list) and isinstance(key, int):
             try:
                 return next_seg(
                     parsed_string + remaining_string,
-                    remaining_string[m.end(0) :],
+                    remaining_string[m.end(1) :],
                     current_value[key],
                 )
             except KeyError:
-                raise WorkflowException(
-                    "%s doesn't have property %s" % (parsed_string, key)
-                )
+                raise WorkflowException(f"{parsed_string} doesn't have property {key}")
         else:
-            raise WorkflowException(
-                "%s doesn't have property %s" % (parsed_string, key)
-            )
+            raise WorkflowException(f"{parsed_string} doesn't have property {key}")
     else:
         return current_value
 
@@ -233,7 +217,7 @@ def evaluator(
         if first_symbol_end + 1 == len(ex) and first_symbol == "null":
             return None
         try:
-            if obj.get(first_symbol) is None:
+            if first_symbol not in obj:
                 raise WorkflowException("%s is not defined" % first_symbol)
 
             return next_seg(
@@ -271,7 +255,7 @@ def evaluator(
 
 
 def _convert_dumper(string: str) -> str:
-    return "{} + ".format(json.dumps(string))
+    return f"{json.dumps(string)} + "
 
 
 def interpolate(
@@ -304,7 +288,7 @@ def interpolate(
     w = scanner(scan)
     while w:
         if convert_to_expression:
-            parts.append('"{}" + '.format(scan[0 : w[0]]))
+            parts.append(f'"{scan[0 : w[0]]}" + ')
         else:
             parts.append(scan[0 : w[0]])
 
@@ -358,7 +342,7 @@ def interpolate(
         scan = scan[w[1] :]
         w = scanner(scan)
     if convert_to_expression:
-        parts.append('"{}"'.format(scan))
+        parts.append(f'"{scan}"')
         parts.append(";}")
     else:
         parts.append(scan)
@@ -386,8 +370,8 @@ def do_eval(
 ) -> Optional[CWLOutputType]:
 
     runtime = cast(MutableMapping[str, Union[int, str, None]], copy.deepcopy(resources))
-    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir) if tmpdir else None
-    runtime["outdir"] = docker_windows_path_adjust(outdir) if outdir else None
+    runtime["tmpdir"] = tmpdir if tmpdir else None
+    runtime["outdir"] = outdir if outdir else None
 
     rootvars = cast(
         CWLObjectType,

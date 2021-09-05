@@ -1,20 +1,23 @@
+"""Tests of satisfying SoftwareRequirement via dependencies."""
 import os
-from distutils import spawn
+from pathlib import Path
+from shutil import which
+from types import ModuleType
+from typing import Optional
 
 import pytest
 
-from cwltool.utils import onWindows
+from .util import get_data, get_main_output, get_tool_env, needs_docker
 
-from .util import get_data, get_main_output, needs_docker
-
+deps = None  # type: Optional[ModuleType]
 try:
-    from galaxy.tools import deps  # type: ignore
+    from galaxy.tool_util import deps
 except ImportError:
-    deps = None
+    pass
 
 
 @needs_docker
-@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
+@pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
 def test_biocontainers() -> None:
     wflow = get_data("tests/seqtk_seq.cwl")
     job = get_data("tests/seqtk_seq_job.json")
@@ -23,8 +26,7 @@ def test_biocontainers() -> None:
     assert error_code == 0
 
 
-@pytest.mark.skipif(onWindows(), reason="bioconda currently not working on MS Windows")
-@pytest.mark.skipif(not deps, reason="galaxy-lib is not installed")
+@pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
 def test_bioconda() -> None:
     wflow = get_data("tests/seqtk_seq.cwl")
     job = get_data("tests/seqtk_seq_job.json")
@@ -35,14 +37,14 @@ def test_bioconda() -> None:
     assert error_code == 0, stderr
 
 
-@pytest.mark.skipif(
-    not spawn.find_executable("modulecmd"), reason="modulecmd not installed"
-)
-def test_modules() -> None:
+@pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
+@pytest.mark.skipif(not which("modulecmd"), reason="modulecmd not installed")
+def test_modules(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Do a basic smoke test using environment modules to satisfy a SoftwareRequirement."""
     wflow = get_data("tests/random_lines.cwl")
     job = get_data("tests/random_lines_job.json")
-    os.environ["MODULEPATH"] = os.path.join(
-        os.getcwd(), "tests/test_deps_env/modulefiles"
+    monkeypatch.setenv(
+        "MODULEPATH", os.path.join(os.getcwd(), "tests/test_deps_env/modulefiles")
     )
     error_code, _, stderr = get_main_output(
         [
@@ -55,3 +57,28 @@ def test_modules() -> None:
     )
 
     assert error_code == 0, stderr
+
+
+@pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
+@pytest.mark.skipif(not which("modulecmd"), reason="modulecmd not installed")
+def test_modules_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Check that the environment variables set by a module are being propagated correctly.
+
+    Do so by  by running `env` as the tool and parsing its output.
+    """
+    monkeypatch.setenv(
+        "MODULEPATH", os.path.join(os.getcwd(), "tests/test_deps_env/modulefiles")
+    )
+    tool_env = get_tool_env(
+        tmp_path,
+        [
+            "--beta-dependency-resolvers-configuration",
+            get_data("tests/test_deps_env_modules_resolvers_conf.yml"),
+        ],
+        get_data("tests/env_with_software_req.yml"),
+    )
+
+    assert tool_env["TEST_VAR_MODULE"] == "environment variable ends in space "
+    tool_path = tool_env["PATH"].split(":")
+    assert get_data("tests/test_deps_env/random-lines/1.0/scripts") in tool_path

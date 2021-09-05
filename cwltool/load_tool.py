@@ -31,7 +31,7 @@ from schema_salad.utils import (
     json_dumps,
 )
 
-from . import process, update
+from . import CWL_CONTENT_TYPES, process, update
 from .context import LoadingContext
 from .errors import WorkflowException
 from .loghandler import _logger
@@ -127,7 +127,10 @@ def fetch_document(
             resolver=loadingContext.resolver,
             document_loader=loadingContext.loader,
         )
-        workflowobj = cast(CommentedMap, loadingContext.loader.fetch(fileuri))
+        workflowobj = cast(
+            CommentedMap,
+            loadingContext.loader.fetch(fileuri, content_types=CWL_CONTENT_TYPES),
+        )
         return loadingContext, workflowobj, uri
     if isinstance(argsworkflow, MutableMapping):
         uri = (
@@ -164,7 +167,7 @@ def _convert_stdstreams_to_files(
                 ):
                     if not isinstance(out, CommentedMap):
                         raise ValidationException(
-                            "Output '{}' is not a valid OutputParameter.".format(out)
+                            f"Output '{out}' is not a valid OutputParameter."
                         )
                     for streamtype in ["stdout", "stderr"]:
                         if out.get("type") == streamtype:
@@ -309,9 +312,11 @@ def resolve_and_validate_document(
         )
 
     if not isinstance(cwlVersion, str):
-        with SourceLine(workflowobj, "cwlVersion", ValidationException):
+        with SourceLine(
+            workflowobj, "cwlVersion", ValidationException, loadingContext.debug
+        ):
             raise ValidationException(
-                "'cwlVersion' must be a string, got {}".format(type(cwlVersion))
+                f"'cwlVersion' must be a string, got {type(cwlVersion)}"
             )
     # strip out version
     cwlVersion = re.sub(r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "", cwlVersion)

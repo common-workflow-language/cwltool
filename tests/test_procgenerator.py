@@ -1,37 +1,35 @@
-import os
+"""ProcessGenerator related tests."""
+
+
+import pytest
 
 from cwltool.main import main
 
-from .util import get_data, windows_needs_docker
+from .util import get_data
 
 
-@windows_needs_docker
-def test_missing_enable_ext() -> None:
-    # Requires --enable-ext and --enable-dev
-    try:
-        opt = os.environ.get("CWLTOOL_OPTIONS")
+def test_missing_enable_ext(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test missing enable-ext option fails.
 
-        if "CWLTOOL_OPTIONS" in os.environ:
-            del os.environ["CWLTOOL_OPTIONS"]
-        assert main([get_data("tests/wf/generator/zing.cwl"), "--zing", "zipper"]) == 1
+    Check that a workflow that needs `--enable-ext` and
+    `--enable-dev` fails without those options and passes with them.
+    """
+    monkeypatch.delenv("CWLTOOL_OPTIONS", raising=False)
+    assert main([get_data("tests/wf/generator/zing.cwl"), "--zing", "zipper"]) == 1
 
-        assert (
-            main(
-                [
-                    "--enable-ext",
-                    "--enable-dev",
-                    get_data("tests/wf/generator/zing.cwl"),
-                    "--zing",
-                    "zipper",
-                ]
-            )
-            == 0
+    assert (
+        main(
+            [
+                "--debug",
+                "--enable-ext",
+                "--enable-dev",
+                get_data("tests/wf/generator/zing.cwl"),
+                "--zing",
+                "zipper",
+            ]
         )
+        == 0
+    )
 
-        os.environ["CWLTOOL_OPTIONS"] = "--enable-ext --enable-dev"
-        assert main([get_data("tests/wf/generator/zing.cwl"), "--zing", "zipper"]) == 0
-    finally:
-        if opt is not None:
-            os.environ["CWLTOOL_OPTIONS"] = opt
-        elif "CWLTOOL_OPTIONS" in os.environ:
-            del os.environ["CWLTOOL_OPTIONS"]
+    monkeypatch.setenv("CWLTOOL_OPTIONS", "--enable-ext --enable-dev")
+    assert main([get_data("tests/wf/generator/zing.cwl"), "--zing", "zipper"]) == 0

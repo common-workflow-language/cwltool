@@ -12,7 +12,6 @@ import stat
 import textwrap
 import urllib
 import uuid
-from io import open
 from os import scandir
 from typing import (
     Any,
@@ -46,11 +45,11 @@ from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.schema import load_schema, make_avro_schema, make_valid_avro
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
 from schema_salad.utils import convert_to_dict
-from schema_salad.validate import validate_ex
+from schema_salad.validate import avro_type_name, validate_ex
 from typing_extensions import TYPE_CHECKING
 
 from . import expression
-from .builder import Builder, HasReqsHints
+from .builder import INPUT_OBJ_VOCAB, Builder, HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
@@ -58,7 +57,7 @@ from .mpi import MPIRequirementName
 from .pathmapper import MapperEnt, PathMapper
 from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
-from .update import INTERNAL_VERSION
+from .update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from .utils import (
     CWLObjectType,
     CWLOutputAtomType,
@@ -68,11 +67,9 @@ from .utils import (
     adjustDirObjs,
     aslist,
     cmp_like_py2,
-    copytree_with_merge,
     ensure_writable,
     get_listing,
     normalizeFilesDirs,
-    onWindows,
     random_outdir,
     visit_class,
 )
@@ -86,7 +83,7 @@ class LogAsDebugFilter(logging.Filter):
     def __init__(self, name: str, parent: logging.Logger) -> None:
         """Initialize."""
         name = str(name)
-        super(LogAsDebugFilter, self).__init__(name)
+        super().__init__(name)
         self.parent = parent
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -196,23 +193,23 @@ def get_schema(
         version = ".".join(version.split(".")[:-1])
     for f in cwl_files:
         try:
-            res = resource_stream(__name__, "schemas/%s/%s" % (version, f))
+            res = resource_stream(__name__, f"schemas/{version}/{f}")
             cache["https://w3id.org/cwl/" + f] = res.read().decode("UTF-8")
             res.close()
-        except IOError:
+        except OSError:
             pass
 
     for f in salad_files:
         try:
             res = resource_stream(
                 __name__,
-                "schemas/{}/salad/schema_salad/metaschema/{}".format(version, f),
+                f"schemas/{version}/salad/schema_salad/metaschema/{f}",
             )
             cache[
                 "https://w3id.org/cwl/salad/schema_salad/metaschema/" + f
             ] = res.read().decode("UTF-8")
             res.close()
-        except IOError:
+        except OSError:
             pass
 
     if version in custom_schemas:
@@ -239,13 +236,14 @@ def checkRequirements(
 ) -> None:
     if isinstance(rec, MutableMapping):
         if "requirements" in rec:
+            debug = _logger.isEnabledFor(logging.DEBUG)
             for i, entry in enumerate(
                 cast(MutableSequence[CWLObjectType], rec["requirements"])
             ):
-                with SourceLine(rec["requirements"], i, UnsupportedRequirement):
+                with SourceLine(rec["requirements"], i, UnsupportedRequirement, debug):
                     if cast(str, entry["class"]) not in supported_process_requirements:
                         raise UnsupportedRequirement(
-                            "Unsupported requirement {}".format(entry["class"])
+                            f"Unsupported requirement {entry['class']}."
                         )
         for key in rec:
             checkRequirements(rec[key], supported_process_requirements)
@@ -274,10 +272,10 @@ def stage_files(
                 # find first key that does not clash with an existing entry in targets
                 # start with entry.target + '_' + 2 and then keep incrementing the number till there is no clash
                 i = 2
-                tgt = "%s_%s" % (entry.target, i)
+                tgt = f"{entry.target}_{i}"
                 while tgt in targets:
                     i += 1
-                    tgt = "%s_%s" % (entry.target, i)
+                    tgt = f"{entry.target}_{i}"
                 targets[tgt] = pathmapper.update(
                     key, entry.resolved, tgt, entry.type, entry.staged
                 )
@@ -294,15 +292,7 @@ def stage_files(
             os.makedirs(os.path.dirname(entry.target))
         if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
             if symlink:  # Use symlink func if allowed
-                if onWindows():
-                    if entry.type == "File":
-                        shutil.copy(entry.resolved, entry.target)
-                    elif entry.type == "Directory":
-                        if os.path.exists(entry.target) and os.path.isdir(entry.target):
-                            shutil.rmtree(entry.target)
-                        copytree_with_merge(entry.resolved, entry.target)
-                else:
-                    os.symlink(entry.resolved, entry.target)
+                os.symlink(entry.resolved, entry.target)
             elif stage_func is not None:
                 stage_func(entry.resolved, entry.target)
         elif (
@@ -319,7 +309,7 @@ def stage_files(
                 os.makedirs(entry.target)
             else:
                 shutil.copytree(entry.resolved, entry.target)
-                ensure_writable(entry.target)
+                ensure_writable(entry.target, include_root=True)
         elif entry.type == "CreateFile" or entry.type == "CreateWritableFile":
             with open(entry.target, "wb") as new:
                 if secret_store is not None:
@@ -357,12 +347,10 @@ def relocateOutputs(
                 yield obj
             else:
                 for sub_obj in obj.values():
-                    for dir_entry in _collectDirEntries(sub_obj):
-                        yield dir_entry
+                    yield from _collectDirEntries(sub_obj)
         elif isinstance(obj, MutableSequence):
             for sub_obj in obj:
-                for dir_entry in _collectDirEntries(sub_obj):
-                    yield dir_entry
+                yield from _collectDirEntries(sub_obj)
 
     def _relocate(src: str, dst: str) -> None:
         if src == dst:
@@ -451,10 +439,9 @@ def fill_in_defaults(
     job: CWLObjectType,
     fsaccess: StdFsAccess,
 ) -> None:
+    debug = _logger.isEnabledFor(logging.DEBUG)
     for e, inp in enumerate(inputs):
-        with SourceLine(
-            inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)
-        ):
+        with SourceLine(inputs, e, WorkflowException, debug):
             fieldname = shortname(cast(str, inp["id"]))
             if job.get(fieldname) is not None:
                 pass
@@ -470,30 +457,34 @@ def fill_in_defaults(
 
 
 def avroize_type(
-    field_type: Union[
-        CWLObjectType, MutableSequence[CWLOutputType], CWLOutputType, None
-    ],
+    field_type: Union[CWLObjectType, MutableSequence[Any], CWLOutputType, None],
     name_prefix: str = "",
-) -> None:
+) -> Union[CWLObjectType, MutableSequence[Any], CWLOutputType, None]:
     """Add missing information to a type so that CWL types are valid."""
     if isinstance(field_type, MutableSequence):
-        for field in field_type:
-            avroize_type(field, name_prefix)
+        for i, field in enumerate(field_type):
+            field_type[i] = avroize_type(field, name_prefix)
     elif isinstance(field_type, MutableMapping):
         if field_type["type"] in ("enum", "record"):
             if "name" not in field_type:
                 field_type["name"] = name_prefix + str(uuid.uuid4())
         if field_type["type"] == "record":
-            avroize_type(
+            field_type["fields"] = avroize_type(
                 cast(MutableSequence[CWLOutputType], field_type["fields"]), name_prefix
             )
-        if field_type["type"] == "array":
-            avroize_type(
+        elif field_type["type"] == "array":
+            field_type["items"] = avroize_type(
                 cast(MutableSequence[CWLOutputType], field_type["items"]), name_prefix
             )
-        if isinstance(field_type["type"], MutableSequence):
-            for ctype in field_type["type"]:
-                avroize_type(cast(CWLOutputType, ctype), name_prefix)
+        else:
+            field_type["type"] = avroize_type(
+                cast(CWLOutputType, field_type["type"]), name_prefix
+            )
+    elif field_type == "File":
+        return "org.w3id.cwl.cwl.File"
+    elif field_type == "Directory":
+        return "org.w3id.cwl.cwl.Directory"
+    return field_type
 
 
 def get_overrides(
@@ -568,7 +559,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         self, toolpath_object: CommentedMap, loadingContext: LoadingContext
     ) -> None:
         """Build a Process object from the provided dictionary."""
-        super(Process, self).__init__()
+        super().__init__()
         self.metadata = getdefault(loadingContext.metadata, {})  # type: CWLObjectType
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
         self.parent_wf = None  # type: Optional[ProvenanceProfile]
@@ -590,8 +581,17 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
 
         self.names = make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader({}))
         self.tool = toolpath_object
+        debug = loadingContext.debug
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
-        self.requirements.extend(self.tool.get("requirements", []))
+        tool_requirements = self.tool.get("requirements", [])
+        if tool_requirements is None:
+            raise SourceLine(
+                self.tool, "requirements", ValidationException, debug
+            ).makeError(
+                "If 'requirements' is present then it must be a list "
+                "or map/dictionary, not empty."
+            )
+        self.requirements.extend(tool_requirements)
         if "id" not in self.tool:
             self.tool["id"] = "_:" + str(uuid.uuid4())
         self.requirements.extend(
@@ -603,7 +603,13 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             )
         )
         self.hints = copy.deepcopy(getdefault(loadingContext.hints, []))
-        self.hints.extend(self.tool.get("hints", []))
+        tool_hints = self.tool.get("hints", [])
+        if tool_hints is None:
+            raise SourceLine(self.tool, "hints", ValidationException, debug).makeError(
+                "If 'hints' is present then it must be a list "
+                "or map/dictionary, not empty."
+            )
+        self.hints.extend(tool_hints)
         # Versions of requirements and hints which aren't mutated.
         self.original_requirements = copy.deepcopy(self.requirements)
         self.original_hints = copy.deepcopy(self.hints)
@@ -626,12 +632,13 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
         if sd is not None:
-            sdtypes = cast(MutableSequence[CWLObjectType], sd["types"])
+            sdtypes = copy.deepcopy(cast(MutableSequence[CWLObjectType], sd["types"]))
             avroize_type(cast(MutableSequence[CWLOutputType], sdtypes))
             av = make_valid_avro(
                 sdtypes,
                 {cast(str, t["name"]): cast(Dict[str, Any], t) for t in sdtypes},
                 set(),
+                vocab=INPUT_OBJ_VOCAB,
             )
             for i in av:
                 self.schemaDefs[i["name"]] = i  # type: ignore
@@ -666,7 +673,8 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     c["type"] = nullable
                 else:
                     c["type"] = c["type"]
-                avroize_type(c["type"], c["name"])
+
+                c["type"] = avroize_type(c["type"], c["name"])
                 if key == "inputs":
                     cast(
                         List[CWLObjectType], self.inputs_record_schema["fields"]
@@ -676,13 +684,13 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                         List[CWLObjectType], self.outputs_record_schema["fields"]
                     ).append(c)
 
-        with SourceLine(toolpath_object, "inputs", ValidationException):
+        with SourceLine(toolpath_object, "inputs", ValidationException, debug):
             self.inputs_record_schema = cast(
                 CWLObjectType,
                 make_valid_avro(self.inputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.inputs_record_schema), self.names)
-        with SourceLine(toolpath_object, "outputs", ValidationException):
+        with SourceLine(toolpath_object, "outputs", ValidationException, debug):
             self.outputs_record_schema = cast(
                 CWLObjectType,
                 make_valid_avro(self.outputs_record_schema, {}, set()),
@@ -706,9 +714,13 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     )
                     raise
             if self.doc_schema is not None:
+                classname = toolpath_object["class"]
+                avroname = classname
+                if self.doc_loader and classname in self.doc_loader.vocab:
+                    avroname = avro_type_name(self.doc_loader.vocab[classname])
                 validate_js_expressions(
                     toolpath_object,
-                    self.doc_schema.names[toolpath_object["class"]],
+                    self.doc_schema.names[avroname],
                     validate_js_options,
                 )
 
@@ -775,7 +787,13 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 raise WorkflowException(
                     "Missing input record schema: " "{}".format(self.names)
                 )
-            validate_ex(schema, job, strict=False, logger=_logger_validation_warnings)
+            validate_ex(
+                schema,
+                job,
+                strict=False,
+                logger=_logger_validation_warnings,
+                vocab=INPUT_OBJ_VOCAB,
+            )
 
             if load_listing and load_listing != "no_listing":
                 get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
@@ -860,7 +878,7 @@ hints:
 
         cwl_version = cast(
             str,
-            self.metadata.get("http://commonwl.org/cwltool#original_cwlVersion", None),
+            self.metadata.get(ORIGINAL_CWLVERSION, None),
         )
         builder = Builder(
             job,
@@ -952,9 +970,7 @@ hints:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
-        cwl_version = self.metadata.get(
-            "http://commonwl.org/cwltool#original_cwlVersion", None
-        )
+        cwl_version = self.metadata.get(ORIGINAL_CWLVERSION, None)
         if cwl_version == "v1.0":
             ram = 1024
         else:
@@ -1012,25 +1028,30 @@ hints:
     def validate_hints(
         self, avsc_names: Names, hints: List[CWLObjectType], strict: bool
     ) -> None:
+        if self.doc_loader is None:
+            return
+        debug = _logger.isEnabledFor(logging.DEBUG)
         for i, r in enumerate(hints):
-            sl = SourceLine(hints, i, ValidationException)
+            sl = SourceLine(hints, i, ValidationException, debug)
             with sl:
-                if (
-                    avsc_names.get_name(cast(str, r["class"]), None) is not None
-                    and self.doc_loader is not None
-                ):
-                    plain_hint = dict(
-                        (key, r[key])
+                classname = cast(str, r["class"])
+                avroname = classname
+                if classname in self.doc_loader.vocab:
+                    avroname = avro_type_name(self.doc_loader.vocab[classname])
+                if avsc_names.get_name(avroname, None) is not None:
+                    plain_hint = {
+                        key: r[key]
                         for key in r
                         if key not in self.doc_loader.identifiers
-                    )  # strip identifiers
+                    }  # strip identifiers
                     validate_ex(
                         cast(
                             Schema,
-                            avsc_names.get_name(cast(str, plain_hint["class"]), None),
+                            avsc_names.get_name(avroname, None),
                         ),
                         plain_hint,
                         strict=strict,
+                        vocab=self.doc_loader.vocab,
                     )
                 elif r["class"] in ("NetworkAccess", "LoadListingRequirement"):
                     pass
@@ -1061,7 +1082,7 @@ def uniquename(stem: str, names: Optional[Set[str]] = None) -> str:
     u = stem
     while u in names:
         c += 1
-        u = "%s_%s" % (stem, c)
+        u = f"{stem}_{c}"
     names.add(u)
     return u
 
@@ -1153,7 +1174,21 @@ def scandeps(
                 if doc["class"] == "Directory" and "listing" in doc:
                     deps["listing"] = doc["listing"]
                 if doc["class"] == "File" and "secondaryFiles" in doc:
-                    deps["secondaryFiles"] = doc["secondaryFiles"]
+                    deps["secondaryFiles"] = cast(
+                        CWLOutputAtomType,
+                        scandeps(
+                            base,
+                            cast(
+                                Union[CWLObjectType, MutableSequence[CWLObjectType]],
+                                doc["secondaryFiles"],
+                            ),
+                            reffields,
+                            urlfields,
+                            loadref,
+                            urljoin=urljoin,
+                            nestdirs=nestdirs,
+                        ),
+                    )
                 if nestdirs:
                     deps = nestdir(base, deps)
                 r.append(deps)

@@ -4,12 +4,12 @@ from typing import Dict, cast
 from .errors import WorkflowException
 from .utils import CWLObjectType
 
-MutationState = namedtuple("MutationTracker", ["generation", "readers", "stepname"])
+MutationState = namedtuple("MutationState", ["generation", "readers", "stepname"])
 
 _generation = "http://commonwl.org/cwltool#generation"
 
 
-class MutationManager(object):
+class MutationManager:
     """Lock manager for checking correctness of in-place update of files.
 
     Used to validate that in-place file updates happen sequentially, and that a

@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 cwlVersion: v1.1
 $graph:
   - class: CommandLineTool
