@@ -59,13 +59,9 @@ def copy_job_order(
         return job_order_object
     customised_job = {}  # type: CWLObjectType
     # new job object for RO
+    debug = _logger.isEnabledFor(logging.DEBUG)
     for each, i in enumerate(job.tool["inputs"]):
-        with SourceLine(
-            job.tool["inputs"],
-            each,
-            WorkflowException,
-            _logger.isEnabledFor(logging.DEBUG),
-        ):
+        with SourceLine(job.tool["inputs"], each, WorkflowException, debug):
             iid = shortname(i["id"])
             if iid in job_order_object:
                 customised_job[iid] = copy.deepcopy(job_order_object[iid])
@@ -116,7 +112,7 @@ class ProvenanceProfile:
 
     def __str__(self) -> str:
         """Represent this Provenvance profile as a string."""
-        return "ProvenanceProfile <%s> in <%s>" % (
+        return "ProvenanceProfile <{}> in <{}>".format(
             self.workflow_run_uri,
             self.research_object,
         )
@@ -321,7 +317,7 @@ class ProvenanceProfile:
                     "data:" + checksum, {PROV_TYPE: WFPROV["Artifact"]}
                 )
                 if "checksum" not in value:
-                    value["checksum"] = "%s$%s" % (SHA1, checksum)
+                    value["checksum"] = f"{SHA1}${checksum}"
 
         if not entity and "contents" in value:
             # Anonymous file, add content as string
@@ -362,7 +358,7 @@ class ProvenanceProfile:
             elif sec["class"] == "Directory":
                 sec_entity = self.declare_directory(sec)
             else:
-                raise ValueError("Got unexpected secondaryFiles value: {}".format(sec))
+                raise ValueError(f"Got unexpected secondaryFiles value: {sec}")
             # We don't know how/when/where the secondary file was generated,
             # but CWL convention is a kind of summary/index derived
             # from the original file. As its generally in a different format
@@ -626,7 +622,7 @@ class ProvenanceProfile:
             if name is not None:
                 base += "/" + name
             for key, value in job_order.items():
-                prov_role = self.wf_ns["%s/%s" % (base, key)]
+                prov_role = self.wf_ns[f"{base}/{key}"]
                 try:
                     entity = self.declare_artefact(value)
                     self.document.used(
@@ -661,7 +657,7 @@ class ProvenanceProfile:
                 if name is not None:
                     name = urllib.parse.quote(str(name), safe=":/,#")
                     # FIXME: Probably not "main" in nested workflows
-                    role = self.wf_ns["main/%s/%s" % (name, output)]
+                    role = self.wf_ns[f"main/{name}/{output}"]
                 else:
                     role = self.wf_ns["main/%s" % output]
 
@@ -737,7 +733,7 @@ class ProvenanceProfile:
             # workflows, but that's OK as we'll also include run uuid
             # which also covers thhe case of this step being run in
             # multiple places or iterations
-            filename = "%s.%s.cwlprov" % (wf_name, self.workflow_run_uuid)
+            filename = f"{wf_name}.{self.workflow_run_uuid}.cwlprov"
 
         basename = str(PurePosixPath(PROVENANCE) / filename)
 

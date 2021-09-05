@@ -1,5 +1,6 @@
-from distutils import spawn
+"""Tests for docker engine."""
 from pathlib import Path
+from shutil import which
 
 from cwltool.main import main
 
@@ -35,7 +36,7 @@ def test_docker_iwdr() -> None:
             "hello",
         ]
     )
-    docker_installed = bool(spawn.find_executable("docker"))
+    docker_installed = bool(which("docker"))
     if docker_installed:
         assert result_code == 0
     else:

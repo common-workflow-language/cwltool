@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import List, cast
 
-from _pytest.monkeypatch import MonkeyPatch
+import pytest
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro import schema
 from schema_salad.sourceline import cmap
@@ -16,7 +16,7 @@ from cwltool.docker import DockerCommandLineJob
 from cwltool.job import JobBase
 from cwltool.pathmapper import MapperEnt, PathMapper
 from cwltool.stdfsaccess import StdFsAccess
-from cwltool.update import INTERNAL_VERSION
+from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from cwltool.utils import create_tmp_dir
 
 from .util import get_data, needs_docker
@@ -28,7 +28,7 @@ def test_docker_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
         {
             "metadata": {
                 "cwlVersion": INTERNAL_VERSION,
-                "http://commonwl.org/cwltool#original_cwlVersion": INTERNAL_VERSION,
+                ORIGINAL_CWLVERSION: INTERNAL_VERSION,
             }
         }
     )
@@ -70,7 +70,7 @@ def test_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
         {
             "metadata": {
                 "cwlVersion": INTERNAL_VERSION,
-                "http://commonwl.org/cwltool#original_cwlVersion": INTERNAL_VERSION,
+                ORIGINAL_CWLVERSION: INTERNAL_VERSION,
             }
         }
     )
@@ -105,7 +105,9 @@ def test_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
 
 
 @needs_docker
-def test_dockerfile_tmpdir_prefix(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+def test_dockerfile_tmpdir_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Test that DockerCommandLineJob.get_image respects temp directory directives."""
     monkeypatch.setattr(
         target=subprocess, name="check_call", value=lambda *args, **kwargs: True

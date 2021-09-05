@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Single and multi-threaded executors."""
 import datetime
 import functools
@@ -33,6 +32,7 @@ from .mutation import MutationManager
 from .process import Process, cleanIntermediate, relocateOutputs
 from .provenance_profile import ProvenanceProfile
 from .task_queue import TaskQueue
+from .update import ORIGINAL_CWLVERSION
 from .utils import CWLObjectType, JobsType
 from .workflow import Workflow
 from .workflow_job import WorkflowJob, WorkflowJobStep
@@ -40,7 +40,7 @@ from .workflow_job import WorkflowJob, WorkflowJobStep
 TMPDIR_LOCK = Lock()
 
 
-class JobExecutor(object, metaclass=ABCMeta):
+class JobExecutor(metaclass=ABCMeta):
     """Abstract base job executor."""
 
     def __init__(self) -> None:
@@ -89,9 +89,9 @@ class JobExecutor(object, metaclass=ABCMeta):
 
         def check_for_abstract_op(tool: CWLObjectType) -> None:
             if tool["class"] == "Operation":
-                raise SourceLine(tool, "class", WorkflowException).makeError(
-                    "Workflow has unrunnable abstract Operation"
-                )
+                raise SourceLine(
+                    tool, "class", WorkflowException, runtime_context.debug
+                ).makeError("Workflow has unrunnable abstract Operation")
 
         process.visit(check_for_abstract_op)
 
@@ -109,10 +109,7 @@ class JobExecutor(object, metaclass=ABCMeta):
 
         job_reqs = None  # type: Optional[List[CWLObjectType]]
         if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
-            if (
-                process.metadata.get("http://commonwl.org/cwltool#original_cwlVersion")
-                == "v1.0"
-            ):
+            if process.metadata.get(ORIGINAL_CWLVERSION) == "v1.0":
                 raise WorkflowException(
                     "`cwl:requirements` in the input object is not part of CWL "
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
@@ -127,10 +124,7 @@ class JobExecutor(object, metaclass=ABCMeta):
             and "https://w3id.org/cwl/cwl#requirements"
             in cast(CWLObjectType, process.metadata["cwl:defaults"])
         ):
-            if (
-                process.metadata.get("http://commonwl.org/cwltool#original_cwlVersion")
-                == "v1.0"
-            ):
+            if process.metadata.get(ORIGINAL_CWLVERSION) == "v1.0":
                 raise WorkflowException(
                     "`cwl:requirements` in the input object is not part of CWL "
                     "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
@@ -278,7 +272,7 @@ class MultithreadedJobExecutor(JobExecutor):
 
     def __init__(self) -> None:
         """Initialize."""
-        super(MultithreadedJobExecutor, self).__init__()
+        super().__init__()
         self.exceptions = []  # type: List[WorkflowException]
         self.pending_jobs = []  # type: List[JobsType]
         self.pending_jobs_lock = threading.Lock()
@@ -332,10 +326,10 @@ class MultithreadedJobExecutor(JobExecutor):
             )
             job.run(runtime_context, TMPDIR_LOCK)
         except WorkflowException as err:
-            _logger.exception("Got workflow error: {}".format(err))
+            _logger.exception(f"Got workflow error: {err}")
             self.exceptions.append(err)
         except Exception as err:  # pylint: disable=broad-except
-            _logger.exception("Got workflow error: {}".format(err))
+            _logger.exception(f"Got workflow error: {err}")
             self.exceptions.append(WorkflowException(str(err)))
         finally:
             if runtime_context.workflow_eval_lock:

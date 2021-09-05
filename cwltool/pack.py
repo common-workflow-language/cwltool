@@ -21,7 +21,7 @@ from schema_salad.utils import ResolveType
 from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
 from .process import shortname, uniquename
-from .update import ORDERED_VERSIONS, update
+from .update import ORDERED_VERSIONS, ORIGINAL_CWLVERSION, update
 from .utils import CWLObjectType, CWLOutputType
 
 LoadRefType = Callable[[Optional[str], str], ResolveType]
@@ -243,15 +243,20 @@ def pack(
             update_to_version,
         )
 
-        if "http://commonwl.org/cwltool#original_cwlVersion" in metadata:
-            del metadata["http://commonwl.org/cwltool#original_cwlVersion"]
-        if "http://commonwl.org/cwltool#original_cwlVersion" in dcr:
-            del dcr["http://commonwl.org/cwltool#original_cwlVersion"]
+        if ORIGINAL_CWLVERSION in metadata:
+            del metadata[ORIGINAL_CWLVERSION]
+        if ORIGINAL_CWLVERSION in dcr:
+            del dcr[ORIGINAL_CWLVERSION]
 
         if "$schemas" in metadata:
             for s in metadata["$schemas"]:
                 schemas.add(s)
-        if dcr.get("class") not in ("Workflow", "CommandLineTool", "ExpressionTool"):
+        if dcr.get("class") not in (
+            "Workflow",
+            "CommandLineTool",
+            "ExpressionTool",
+            "Operation",
+        ):
             continue
         dc = cast(Dict[str, Any], copy.deepcopy(dcr))
         v = rewrite[r]
@@ -263,6 +268,8 @@ def pack(
 
     if schemas:
         packed["$schemas"] = list(schemas)
+    if namespaces:
+        packed["$namespaces"] = namespaces
 
     for r in list(rewrite.keys()):
         v = rewrite[r]
@@ -271,14 +278,13 @@ def pack(
     import_embed(packed, set())
 
     if len(packed["$graph"]) == 1:
-        # duplicate 'cwlVersion' and $schemas inside $graph when there is only
-        # a single item because we will print the contents inside '$graph'
-        # rather than whole dict
+        # duplicate 'cwlVersion', '$schemas', and '$namespaces' inside '$graph'
+        # when there is only a single item because main.print_pack() will print
+        # the contents inside '$graph' rather than whole dict in this case
         packed["$graph"][0]["cwlVersion"] = packed["cwlVersion"]
         if schemas:
             packed["$graph"][0]["$schemas"] = list(schemas)
-    # always include $namespaces in the #main
-    if namespaces:
-        packed["$graph"][0]["$namespaces"] = namespaces
+        if namespaces:
+            packed["$graph"][0]["$namespaces"] = namespaces
 
     return packed

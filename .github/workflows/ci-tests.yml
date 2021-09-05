@@ -5,6 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 env:
   singularity_version: 3.6.4
@@ -28,6 +29,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
       - name: Set up Singularity
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
@@ -67,7 +70,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: ${{ matrix.step == 'unit' }}
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v2.0.3
         with:
           fail_ci_if_error: true
 
@@ -78,7 +81,7 @@ jobs:
 
     strategy:
       matrix:
-        step: [lint-readme, shellcheck, pydocstyle]
+        step: [lintreadme, shellcheck, pydocstyle]
 
     env:
       py-semver: 3.9
@@ -120,9 +123,15 @@ jobs:
     strategy:
       matrix:
         cwl-version: [v1.0, v1.1, v1.2]
+        container: [docker, singularity]
 
     steps:
       - uses: actions/checkout@v2
+
+      - name: Set up Singularity
+        uses: eWaterCycle/setup-singularity@v6
+        with:
+          singularity-version: ${{ env.singularity_version }}
 
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -138,6 +147,8 @@ jobs:
       - name: Run CWL conformance tests ${{ matrix.cwl-version }}
         env:
           version: ${{ matrix.cwl-version }}
+          container: ${{ matrix.container }}
+          spec_branch: main
         run: ./conformance-test.sh
 
   release_test:
