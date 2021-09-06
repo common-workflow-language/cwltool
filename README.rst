@@ -669,7 +669,7 @@ To run the basic tests after installing `cwltool` execute the following:
 .. code:: bash
 
   pip install -rtest-requirements.txt
-  pytest
+  pytest   ## N.B. This requires node.js or docker to be available
 
 To run various tests in all supported Python environments, we use `tox <https://github.com/common-workflow-language/cwltool/tree/main/tox.ini>`_. To run the test suite in all supported Python environments
 first clone the complete code repository (see the ``git clone`` instructions above) and then run
