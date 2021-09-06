@@ -1568,3 +1568,11 @@ def test_bad_networkaccess_expr() -> None:
         "Got '42' for expression '${return 42;}" in stderr
     )
     assert err_code == 1
+
+
+def test_staging_files_in_any() -> None:
+    """Confirm that inputs of type File are staged, even if the schema is Any."""
+    err_code, _, stderr = get_main_output(
+        [get_data("tests/wf/816_wf.cwl"), "--file", get_data("tests/echo-job.yaml")]
+    )
+    assert err_code == 0
