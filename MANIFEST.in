@@ -1,8 +1,9 @@
-include README.rst
+include README.rst CODE_OF_CONDUCT.md CONTRIBUTING.md
 include MANIFEST.in
 include LICENSE.txt
-include *requirements.txt
+include *requirements.txt mypy.ini tox.ini
 include gittaggers.py Makefile cwltool.py
+recursive-include typeshed *.pyi
 include tests/*
 include tests/tmp1/tmp2/tmp3/.gitkeep
 include tests/tmp4/alpha/*
