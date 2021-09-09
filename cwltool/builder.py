@@ -164,7 +164,7 @@ class Builder(HasReqsHints):
         names: Names,
         requirements: List[CWLObjectType],
         hints: List[CWLObjectType],
-        resources: Dict[str, Union[int, float, str]],
+        resources: Dict[str, Union[int, float]],
         mutation_manager: Optional[MutationManager],
         formatgraph: Optional[Graph],
         make_fs_access: Type[StdFsAccess],
