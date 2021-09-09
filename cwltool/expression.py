@@ -359,7 +359,7 @@ def do_eval(
     requirements: List[CWLObjectType],
     outdir: Optional[str],
     tmpdir: Optional[str],
-    resources: Dict[str, Union[float, int, str]],
+    resources: Dict[str, Union[float, int]],
     context: Optional[CWLOutputType] = None,
     timeout: float = default_timeout,
     force_docker_pull: bool = False,
