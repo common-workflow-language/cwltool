@@ -173,4 +173,5 @@ $graph:
         _id: "sld:items"
         _type: "@vocab"
         refScope: 2
+        typeDSL: true
       doc: "Defines the type of the array elements."
