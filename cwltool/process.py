@@ -966,7 +966,7 @@ hints:
 
     def evalResources(
         self, builder: Builder, runtimeContext: RuntimeContext
-    ) -> Dict[str, Union[int, float, str]]:
+    ) -> Dict[str, Union[int, float]]:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -1010,19 +1010,14 @@ hints:
                 request[a + "Min"] = mn
                 request[a + "Max"] = cast(Union[int, float], mx)
 
+        request_evaluated = cast(Dict[str, Union[int, float]], request)
         if runtimeContext.select_resources is not None:
-            return runtimeContext.select_resources(request, runtimeContext)
+            return runtimeContext.select_resources(request_evaluated, runtimeContext)
         return {
-            "cores": request["coresMin"],
-            "ram": math.ceil(request["ramMin"])
-            if not isinstance(request["ramMin"], str)
-            else request["ramMin"],
-            "tmpdirSize": math.ceil(request["tmpdirMin"])
-            if not isinstance(request["tmpdirMin"], str)
-            else request["tmpdirMin"],
-            "outdirSize": math.ceil(request["outdirMin"])
-            if not isinstance(request["outdirMin"], str)
-            else request["outdirMin"],
+            "cores": request_evaluated["coresMin"],
+            "ram": math.ceil(request_evaluated["ramMin"]),
+            "tmpdirSize": math.ceil(request_evaluated["tmpdirMin"]),
+            "outdirSize": math.ceil(request_evaluated["outdirMin"]),
         }
 
     def validate_hints(

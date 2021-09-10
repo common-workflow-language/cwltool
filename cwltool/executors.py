@@ -283,35 +283,26 @@ class MultithreadedJobExecutor(JobExecutor):
         self.allocated_cores = float(0)
 
     def select_resources(
-        self, request, runtime_context
-    ):  # pylint: disable=unused-argument
-        # type: (Dict[str, Union[int, float, str]], RuntimeContext) -> Dict[str, Union[int, float, str]]
+        self, request: Dict[str, Union[int, float]], runtime_context: RuntimeContext
+    ) -> Dict[str, Union[int, float]]:  # pylint: disable=unused-argument
         """Naïve check for available cpu cores and memory."""
-        result = {}  # type: Dict[str, Union[int, float, str]]
+        result: Dict[str, Union[int, float]] = {}
         maxrsc = {"cores": self.max_cores, "ram": self.max_ram}
         for rsc in ("cores", "ram"):
             rsc_min = request[rsc + "Min"]
-            if not isinstance(rsc_min, str) and rsc_min > maxrsc[rsc]:
+            if rsc_min > maxrsc[rsc]:
                 raise WorkflowException(
-                    "Requested at least %d %s but only %d available"
-                    % (rsc_min, rsc, maxrsc[rsc])
+                    f"Requested at least {rsc_min} {rsc} but only "
+                    f"{maxrsc[rsc]} available"
                 )
             rsc_max = request[rsc + "Max"]
-            if not isinstance(rsc_max, str) and rsc_max < maxrsc[rsc]:
+            if rsc_max < maxrsc[rsc]:
                 result[rsc] = math.ceil(rsc_max)
             else:
                 result[rsc] = maxrsc[rsc]
 
-        result["tmpdirSize"] = (
-            math.ceil(request["tmpdirMin"])
-            if not isinstance(request["tmpdirMin"], str)
-            else request["tmpdirMin"]
-        )
-        result["outdirSize"] = (
-            math.ceil(request["outdirMin"])
-            if not isinstance(request["outdirMin"], str)
-            else request["outdirMin"]
-        )
+        result["tmpdirSize"] = math.ceil(request["tmpdirMin"])
+        result["outdirSize"] = math.ceil(request["outdirMin"])
 
         return result
 
