@@ -87,8 +87,8 @@ class RuntimeContext(ContextBase):
     def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
         """Initialize the RuntimeContext from the kwargs."""
         select_resources_callable = Callable[  # pylint: disable=unused-variable
-            [Dict[str, Union[int, float, str]], RuntimeContext],
-            Dict[str, Union[int, float, str]],
+            [Dict[str, Union[int, float]], RuntimeContext],
+            Dict[str, Union[int, float]],
         ]
         self.user_space_docker_cmd = ""  # type: Optional[str]
         self.secret_store = None  # type: Optional[SecretStore]
