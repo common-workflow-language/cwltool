@@ -110,6 +110,7 @@ class RuntimeContext(ContextBase):
         self.streaming_allowed: bool = False
 
         self.singularity = False  # type: bool
+        self.podman = False  # type: bool
         self.debug = False  # type: bool
         self.compute_checksum = True  # type: bool
         self.name = ""  # type: str
