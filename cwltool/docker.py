@@ -1,4 +1,4 @@
-"""Enables Docker software containers via the {u,}docker runtimes."""
+"""Enables Docker software containers via the {u,}docker or podman runtimes."""
 
 import csv
 import datetime
@@ -339,6 +339,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 # without this
             else:
                 runtime = [user_space_docker_cmd, "run"]
+        elif runtimeContext.podman:
+            runtime = ["podman", "run", "-i", "--userns=keep-id"]
         else:
             runtime = ["docker", "run", "-i"]
         self.append_volume(
