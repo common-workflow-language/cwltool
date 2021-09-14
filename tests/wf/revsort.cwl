@@ -11,7 +11,7 @@ cwlVersion: v1.0
 # in which the command line tools will execute.
 hints:
   - class: DockerRequirement
-    dockerPull: debian:8
+    dockerPull: docker.io/debian:8
 
 
 # The inputs array defines the structure of the input object that describes

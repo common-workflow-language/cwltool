@@ -42,7 +42,10 @@ def test_docker_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
                     "inputs": [],
                     "outputs": [],
                     "requirements": [
-                        {"class": "DockerRequirement", "dockerPull": "debian:stable"}
+                        {
+                            "class": "DockerRequirement",
+                            "dockerPull": "docker.io/debian:stable",
+                        }
                     ],
                 }
             ),
