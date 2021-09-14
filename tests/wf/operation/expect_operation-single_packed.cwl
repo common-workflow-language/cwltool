@@ -4,7 +4,7 @@
             "class": "Operation",
             "requirements": [
                 {
-                    "dockerPull": "tsenit/cosifer:b4d5af45d2fc54b6bff2a9153a8e9054e560302e",
+                    "dockerPull": "docker.io/tsenit/cosifer:b4d5af45d2fc54b6bff2a9153a8e9054e560302e",
                     "class": "DockerRequirement"
                 }
             ],

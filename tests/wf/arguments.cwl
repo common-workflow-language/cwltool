@@ -5,7 +5,7 @@ class: CommandLineTool
 label: Example trivial wrapper for Java 9 compiler
 hints:
   DockerRequirement:
-    dockerPull: openjdk:9.0.1-11-slim
+    dockerPull: docker.io/openjdk:9.0.1-11-slim
 baseCommand: javac
 arguments: ["-d", $(runtime.outdir)]
 inputs:

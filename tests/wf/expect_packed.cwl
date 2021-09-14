@@ -6,7 +6,7 @@
             "hints": [
                 {
                     "class": "DockerRequirement",
-                    "dockerPull": "debian:8"
+                    "dockerPull": "docker.io/debian:8"
                 }
             ],
             "inputs": [
