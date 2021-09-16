@@ -732,8 +732,10 @@ class CommandLineTool(Process):
                         initialWorkdir, "listing", WorkflowException, debug
                     ).makeError(
                         f"Name '{basename}' at index {i} of listing is invalid, "
-                        "paths starting with '/' only permitted in CWL 1.2 "
-                        "and later."
+                        "paths starting with '/' are only permitted in CWL 1.2 "
+                        "and later. Consider changing the absolute path to a relative "
+                        "path, or upgrade the CWL description to CWL v1.2 using "
+                        "https://pypi.org/project/cwl-upgrader/"
                     )
 
                 req, is_req = self.get_requirement("DockerRequirement")
