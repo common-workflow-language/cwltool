@@ -34,6 +34,7 @@ extensions = [
         "autoapi.extension",
         "sphinx_autodoc_typehints",
         "sphinx_rtd_theme",
+        "sphinxcontrib.autoprogram"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
