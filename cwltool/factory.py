@@ -1,12 +1,13 @@
 import os
 from typing import Any, Dict, Optional, Union
 
-from . import load_tool
+from . import context, load_tool
 from .context import LoadingContext, RuntimeContext
 from .errors import WorkflowException
 from .executors import JobExecutor, SingleJobExecutor
 from .process import Process
 from .utils import CWLObjectType
+from .workflow import default_make_tool
 
 
 class WorkflowStatus(Exception):
@@ -45,6 +46,8 @@ class Factory:
         loading_context: Optional[LoadingContext] = None,
         runtime_context: Optional[RuntimeContext] = None,
     ) -> None:
+        if context.default_make_tool == context.make_tool_notimpl:
+            context.default_make_tool = default_make_tool
         if executor is None:
             executor = SingleJobExecutor()
         self.executor = executor
