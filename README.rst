@@ -2,7 +2,7 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-|Linux Status| |Coverage Status|
+|Linux Status| |Coverage Status| |Docs Status|
 
 PyPI: |PyPI Version| |PyPI Downloads Month| |Total PyPI Downloads|
 
@@ -25,13 +25,13 @@ Quay.io (Docker): |Quay.io Container|
    :target: https://codecov.io/gh/common-workflow-language/cwltool
 
 .. |PyPI Version| image:: https://badge.fury.io/py/cwltool.svg
-    :target: https://badge.fury.io/py/cwltool
+   :target: https://badge.fury.io/py/cwltool
 
 .. |PyPI Downloads Month| image:: https://pepy.tech/badge/cwltool/month
    :target: https://pepy.tech/project/cwltool
 
 .. |Total PyPI Downloads| image:: https://static.pepy.tech/personalized-badge/cwltool?period=total&units=international_system&left_color=black&right_color=orange&left_text=Total%20PyPI%20Downloads
- :target: https://pepy.tech/project/cwltool
+   :target: https://pepy.tech/project/cwltool
 
 .. |Conda Version| image:: https://anaconda.org/conda-forge/cwltool/badges/version.svg 
    :target: https://anaconda.org/conda-forge/cwltool
@@ -41,6 +41,10 @@ Quay.io (Docker): |Quay.io Container|
 
 .. |Quay.io Container| image:: https://quay.io/repository/commonwl/cwltool/status
    :target: https://quay.io/repository/commonwl/cwltool
+
+.. |Docs Status| image:: https://readthedocs.org/projects/cwltool/badge/?version=latest
+   :target: https://cwltool.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
 
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
