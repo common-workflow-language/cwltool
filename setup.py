@@ -125,13 +125,6 @@ setup(
     ],
     extras_require={
         "deps": ["galaxy-tool-util >= 21.1.0"],
-        "docs": [
-            "sphinx >= 2.2",
-            "sphinx-rtd-theme",
-            "sphinx-autoapi",
-            "sphinx-autodoc-typehints",
-            "typed_ast;python_version<'3.8'",
-        ],
     },
     python_requires=">=3.6, <4",
     setup_requires=PYTEST_RUNNER,
