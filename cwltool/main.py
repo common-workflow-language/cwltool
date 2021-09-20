@@ -60,7 +60,7 @@ from .load_tool import (
     resolve_overrides,
     resolve_tool_uri,
 )
-from .loghandler import _logger, defaultStreamHandler
+from .loghandler import _logger, configure_logging, defaultStreamHandler
 from .mpi import MpiConfig
 from .mutation import MutationManager
 from .pack import pack
@@ -624,31 +624,6 @@ def supported_cwl_versions(enable_dev: bool) -> List[str]:
     return versions
 
 
-def configure_logging(
-    args: argparse.Namespace,
-    stderr_handler: logging.Handler,
-    runtimeContext: RuntimeContext,
-) -> None:
-    rdflib_logger = logging.getLogger("rdflib.term")
-    rdflib_logger.addHandler(stderr_handler)
-    rdflib_logger.setLevel(logging.ERROR)
-    if args.quiet:
-        # Silence STDERR, not an eventual provenance log file
-        stderr_handler.setLevel(logging.WARN)
-    if runtimeContext.debug:
-        # Increase to debug for both stderr and provenance log file
-        _logger.setLevel(logging.DEBUG)
-        stderr_handler.setLevel(logging.DEBUG)
-        rdflib_logger.setLevel(logging.DEBUG)
-    fmtclass = coloredlogs.ColoredFormatter if args.enable_color else logging.Formatter
-    formatter = fmtclass("%(levelname)s %(message)s")
-    if args.timestamps:
-        formatter = fmtclass(
-            "[%(asctime)s] %(levelname)s %(message)s", "%Y-%m-%d %H:%M:%S"
-        )
-    stderr_handler.setFormatter(formatter)
-
-
 def setup_schema(
     args: argparse.Namespace, custom_schema_callback: Optional[Callable[[], None]]
 ) -> None:
@@ -724,6 +699,8 @@ def setup_loadingContext(
 ) -> LoadingContext:
     if loadingContext is None:
         loadingContext = LoadingContext(vars(args))
+        loadingContext.singularity = runtimeContext.singularity
+        loadingContext.podman = runtimeContext.podman
     else:
         loadingContext = loadingContext.copy()
     loadingContext.loader = default_loader(
@@ -966,7 +943,13 @@ def main(
             if not hasattr(args, key):
                 setattr(args, key, val)
 
-        configure_logging(args, stderr_handler, runtimeContext)
+        configure_logging(
+            stderr_handler,
+            args.quiet,
+            runtimeContext.debug,
+            args.enable_color,
+            args.timestamps,
+        )
 
         if args.version:
             print(versionfunc())

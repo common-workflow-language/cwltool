@@ -697,6 +697,12 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             )
             make_avsc_object(convert_to_dict(self.outputs_record_schema), self.names)
 
+        self.container_engine = "docker"
+        if loadingContext.podman:
+            self.container_engine = "podman"
+        elif loadingContext.singularity:
+            self.container_engine = "singularity"
+
         if toolpath_object.get("class") is not None and not getdefault(
             loadingContext.disable_js_validation, False
         ):
@@ -722,6 +728,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     toolpath_object,
                     self.doc_schema.names[avroname],
                     validate_js_options,
+                    self.container_engine,
                 )
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
@@ -903,6 +910,7 @@ hints:
             tmpdir,
             stagedir,
             cwl_version,
+            self.container_engine,
         )
 
         bindings.extend(
