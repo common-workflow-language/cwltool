@@ -52,6 +52,11 @@ needs_singularity_3_or_newer = pytest.mark.skipif(
     reason="Requires that version 3.x of singularity executable version is on the system path.",
 )
 
+needs_podman = pytest.mark.skipif(
+    not bool(shutil.which("podman")),
+    reason="Requires the podman executable on the system path.",
+)
+
 _env_accepts_null: Optional[bool] = None
 
 

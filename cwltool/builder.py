@@ -179,6 +179,7 @@ class Builder(HasReqsHints):
         tmpdir: str,
         stagedir: str,
         cwlVersion: str,
+        container_engine: str,
     ) -> None:
         """Initialize this Builder."""
         self.job = job
@@ -215,6 +216,7 @@ class Builder(HasReqsHints):
         self.pathmapper = None  # type: Optional[PathMapper]
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
         self.find_default_container = None  # type: Optional[Callable[[], str]]
+        self.container_engine = container_engine
 
     def build_job_script(self, commands: List[str]) -> Optional[str]:
         if self.job_script_provider is not None:
@@ -746,4 +748,5 @@ class Builder(HasReqsHints):
             force_docker_pull=self.force_docker_pull,
             strip_whitespace=strip_whitespace,
             cwlVersion=self.cwlVersion,
+            container_engine=self.container_engine,
         )

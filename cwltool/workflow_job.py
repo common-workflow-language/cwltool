@@ -602,7 +602,11 @@ class WorkflowJob:
         final_output_callback: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
-
+        container_engine = "docker"
+        if runtimeContext.podman:
+            container_engine = "podman"
+        elif runtimeContext.singularity:
+            container_engine = "singularity"
         if step.submitted:
             return
 
@@ -664,6 +668,7 @@ class WorkflowJob:
                         adjustDirObjs(
                             v, functools.partial(get_listing, fs_access, recursive=True)
                         )
+
                         return expression.do_eval(
                             valueFrom[k],
                             shortio,
@@ -675,6 +680,7 @@ class WorkflowJob:
                             debug=runtimeContext.debug,
                             js_console=runtimeContext.js_console,
                             timeout=runtimeContext.eval_timeout,
+                            container_engine=container_engine,
                         )
                     return v
 
@@ -692,6 +698,7 @@ class WorkflowJob:
                         debug=runtimeContext.debug,
                         js_console=runtimeContext.js_console,
                         timeout=runtimeContext.eval_timeout,
+                        container_engine=container_engine,
                     )
                     if whenval is True:
                         pass

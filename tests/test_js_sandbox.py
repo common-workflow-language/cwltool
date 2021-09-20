@@ -1,11 +1,18 @@
-from typing import Any
+"""Test sandboxjs.py and related code."""
+import logging
+import os
+import shutil
+import threading
+from pathlib import Path
+from typing import Any, List
 
 import pytest
 
 from cwltool import sandboxjs
 from cwltool.factory import Factory
+from cwltool.loghandler import _logger, configure_logging
 
-from .util import get_data
+from .util import get_data, needs_podman, needs_singularity
 
 node_versions = [
     ("v0.8.26\n", False),
@@ -14,6 +21,9 @@ node_versions = [
     ("v4.4.2\n", True),
     ("v7.7.3\n", True),
 ]
+
+configure_logging(_logger.handlers[-1], False, True, True, True)
+_logger.setLevel(logging.DEBUG)
 
 
 @pytest.mark.parametrize("version,supported", node_versions)
@@ -25,11 +35,72 @@ def test_node_version(version: str, supported: bool, mocker: Any) -> None:
 
 
 def test_value_from_two_concatenated_expressions() -> None:
+    sandboxjs.have_node_slim = False
+    sandboxjs.localdata = threading.local()
     factory = Factory()
     echo = factory.make(get_data("tests/wf/vf-concat.cwl"))
     file = {"class": "File", "location": get_data("tests/wf/whale.txt")}
 
     assert echo(file1=file) == {"out": "a string\n"}
+
+
+def hide_nodejs(temp_dir: Path) -> str:
+    """Generate a new PATH that hides node{js,}."""
+    paths: List[str] = os.environ.get("PATH", "").split(":")
+    names: List[str] = []
+    for name in ("nodejs", "node"):
+        path = shutil.which(name)
+        if path:
+            names.append(path)
+    for name in names:
+        dirname = os.path.dirname(name)
+        if dirname in paths:
+            paths.remove(dirname)
+            new_dir = temp_dir / os.path.basename(dirname)
+            new_dir.mkdir()
+            for entry in os.listdir(dirname):
+                if entry not in ("nodejs", "node"):
+                    os.symlink(os.path.join(dirname, entry), new_dir / entry)
+            paths.append(str(new_dir))
+    return ":".join(paths)
+
+
+@needs_podman
+def test_value_from_two_concatenated_expressions_podman(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Javascript test using podman."""
+    sandboxjs.have_node_slim = False
+    sandboxjs.localdata = threading.local()
+    new_paths = hide_nodejs(tmp_path)
+    factory = Factory()
+    factory.loading_context.podman = True
+    factory.loading_context.debug = True
+    factory.runtime_context.debug = True
+    with monkeypatch.context() as m:
+        m.setenv("PATH", new_paths)
+        echo = factory.make(get_data("tests/wf/vf-concat.cwl"))
+        file = {"class": "File", "location": get_data("tests/wf/whale.txt")}
+        assert echo(file1=file) == {"out": "a string\n"}
+
+
+@needs_singularity
+def test_value_from_two_concatenated_expressions_singularity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Javascript test using Singularity."""
+    sandboxjs.have_node_slim = False
+    sandboxjs.localdata = threading.local()
+    new_paths = hide_nodejs(tmp_path)
+    factory = Factory()
+    factory.loading_context.singularity = True
+    factory.loading_context.debug = True
+    factory.runtime_context.debug = True
+    with monkeypatch.context() as m:
+        m.setenv("PATH", new_paths)
+        echo = factory.make(get_data("tests/wf/vf-concat.cwl"))
+        file = {"class": "File", "location": get_data("tests/wf/whale.txt")}
+        assert echo(file1=file) == {"out": "a string\n"}
 
 
 def test_caches_js_processes(mocker: Any) -> None:
