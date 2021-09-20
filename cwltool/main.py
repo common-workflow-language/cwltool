@@ -43,7 +43,7 @@ from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import strip_dup_lineno
 from schema_salad.utils import ContextType, FetcherCallableType, json_dumps, yaml_no_ts
 
-from . import CWL_CONTENT_TYPES, workflow
+from . import CWL_CONTENT_TYPES, context, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
 from .builder import HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -96,7 +96,7 @@ from .utils import (
     versionstring,
     visit_class,
 )
-from .workflow import Workflow
+from .workflow import Workflow, default_make_tool
 
 
 def _terminate_processes() -> None:
@@ -917,6 +917,7 @@ def main(
     runtimeContext: Optional[RuntimeContext] = None,
     input_required: bool = True,
 ) -> int:
+    context.default_make_tool = default_make_tool
     if not stdout:  # force UTF-8 even if the console is configured differently
         if hasattr(sys.stdout, "encoding") and sys.stdout.encoding.upper() not in (
             "UTF-8",
