@@ -182,6 +182,7 @@ class Builder(HasReqsHints):
         container_engine: str,
     ) -> None:
         """Initialize this Builder."""
+        super().__init__()
         self.job = job
         self.files = files
         self.bindings = bindings
@@ -730,9 +731,8 @@ class Builder(HasReqsHints):
         resources = self.resources
         if self.resources and "cores" in self.resources:
             cores = resources["cores"]
-            if not isinstance(cores, str):
-                resources = copy.copy(resources)
-                resources["cores"] = int(math.ceil(cores))
+            resources = copy.copy(resources)
+            resources["cores"] = int(math.ceil(cores))
 
         return expression.do_eval(
             ex,

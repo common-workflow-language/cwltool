@@ -58,7 +58,7 @@ class LoadingContext(ContextBase):
         self.loader = None  # type: Optional[Loader]
         self.avsc_names = None  # type: Optional[Names]
         self.disable_js_validation = False  # type: bool
-        self.js_hint_options_file = None
+        self.js_hint_options_file: Optional[str] = None
         self.do_validate = True  # type: bool
         self.enable_dev = False  # type: bool
         self.strict = True  # type: bool

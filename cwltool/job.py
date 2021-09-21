@@ -992,7 +992,7 @@ def _job_popen(
         if tm is not None:
             tm.cancel()
 
-        if isinstance(stdin, IOBase) and hasattr(stdin, "close"):
+        if isinstance(stdin, IO) and hasattr(stdin, "close"):
             stdin.close()
 
         if stdout is not sys.stderr and hasattr(stdout, "close"):

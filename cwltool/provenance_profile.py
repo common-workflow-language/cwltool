@@ -6,7 +6,16 @@ import uuid
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from socket import getfqdn
-from typing import List, MutableMapping, MutableSequence, Optional, Tuple, Union, cast
+from typing import (
+    Any,
+    List,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 from prov.identifier import Identifier
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
@@ -486,7 +495,7 @@ class ProvenanceProfile:
         )  # type: ProvEntity
         return entity, checksum
 
-    def declare_artefact(self, value: Optional[CWLOutputType]) -> ProvEntity:
+    def declare_artefact(self, value: Any) -> ProvEntity:
         """Create data artefact entities for all file objects."""
         if value is None:
             # FIXME: If this can happen in CWL, we'll

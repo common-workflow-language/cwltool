@@ -209,7 +209,6 @@ def evaluator(
     match = param_re.match(ex)
 
     expression_parse_exception = None
-    expression_parse_succeeded = False
 
     if match is not None:
         first_symbol = match.group(1)
@@ -228,10 +227,8 @@ def evaluator(
             )
         except WorkflowException as werr:
             expression_parse_exception = werr
-        else:
-            expression_parse_succeeded = True
 
-    if fullJS and not expression_parse_succeeded:
+    if fullJS:
         return execjs(
             ex,
             jslib,

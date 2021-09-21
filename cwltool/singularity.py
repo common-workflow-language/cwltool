@@ -6,14 +6,7 @@ import os.path
 import re
 import shutil
 import sys
-from subprocess import (  # nosec
-    DEVNULL,
-    PIPE,
-    Popen,
-    TimeoutExpired,
-    check_call,
-    check_output,
-)
+from subprocess import check_call, check_output  # nosec
 from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, cast
 
 from schema_salad.sourceline import SourceLine
@@ -221,12 +214,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     check_call(cmd, stdout=sys.stderr)  # nosec
                     found = True
                     dockerRequirement["dockerImageId"] = name
-                raise SourceLine(
-                    dockerRequirement, "dockerLoad", WorkflowException, debug
-                ).makeError(
-                    "dockerLoad is not currently supported when using the "
-                    "Singularity runtime (version less than 3.1) for Docker containers."
-                )
+                else:
+                    raise SourceLine(
+                        dockerRequirement, "dockerLoad", WorkflowException, debug
+                    ).makeError(
+                        "dockerLoad is not currently supported when using the "
+                        "Singularity runtime (version less than 3.1) for Docker containers."
+                    )
             elif "dockerImport" in dockerRequirement:
                 raise SourceLine(
                     dockerRequirement, "dockerImport", WorkflowException, debug
