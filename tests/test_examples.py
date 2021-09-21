@@ -412,7 +412,9 @@ def test_scandeps() -> None:
         ],
     }
 
-    def loadref(base: str, p: str) -> Union[CommentedMap, CommentedSeq, str, None]:
+    def loadref(
+        base: str, p: Union[CommentedMap, CommentedSeq, str, None]
+    ) -> Union[CommentedMap, CommentedSeq, str, None]:
         if isinstance(p, dict):
             return p
         raise Exception("test case can't load things")

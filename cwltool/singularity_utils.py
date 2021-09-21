@@ -2,14 +2,7 @@
 
 import os
 import os.path
-from subprocess import (  # nosec
-    DEVNULL,
-    PIPE,
-    Popen,
-    TimeoutExpired,
-    check_call,
-    check_output,
-)
+from subprocess import DEVNULL, PIPE, Popen, TimeoutExpired  # nosec
 from typing import Optional
 
 _USERNS = None  # type: Optional[bool]

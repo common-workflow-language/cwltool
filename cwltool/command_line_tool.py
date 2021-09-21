@@ -468,9 +468,9 @@ class CommandLineTool(Process):
             return
         debug = _logger.isEnabledFor(logging.DEBUG)
         cwl_version = cast(Optional[str], self.metadata.get(ORIGINAL_CWLVERSION, None))
-        classic_dirent = cwl_version and ORDERED_VERSIONS.index(
-            cwl_version
-        ) < ORDERED_VERSIONS.index("v1.2.0-dev2")
+        classic_dirent: bool = cwl_version is not None and (
+            ORDERED_VERSIONS.index(cwl_version) < ORDERED_VERSIONS.index("v1.2.0-dev2")
+        )
         classic_listing = cwl_version and ORDERED_VERSIONS.index(
             cwl_version
         ) < ORDERED_VERSIONS.index("v1.1.0-dev1")
@@ -486,8 +486,19 @@ class CommandLineTool(Process):
             if not isinstance(ls_evaluated, MutableSequence):
                 fail = ls_evaluated
             else:
-                for entry in ls_evaluated:
-                    if isinstance(entry, MutableSequence):
+                ls_evaluated2 = cast(
+                    MutableSequence[Union[None, CWLOutputType]], ls_evaluated
+                )
+                for entry in ls_evaluated2:
+                    if entry == None:  # noqa
+                        if classic_dirent:
+                            fail = entry
+                            fail_suffix = (
+                                " Dirent.entry cannot return 'null' before CWL "
+                                "v1.2. Please consider using 'cwl-upgrader' to "
+                                "upgrade your document to CWL version v1.2."
+                            )
+                    elif isinstance(entry, MutableSequence):
                         if classic_listing:
                             raise SourceLine(
                                 initialWorkdir, "listing", WorkflowException, debug
@@ -518,19 +529,11 @@ class CommandLineTool(Process):
                             and (
                                 "class" in entry
                                 and (entry["class"] == "File" or "Directory")
-                                or "entry" in "entry"
+                                or "entry" in entry
                             )
                         )
                     ):
                         fail = entry
-                    elif entry is None:
-                        if classic_dirent:
-                            fail = entry
-                            fail_suffix = (
-                                " Dirent.entry cannot return 'null' before CWL "
-                                "v1.2. Please consider using 'cwl-upgrader' to "
-                                "upgrade your document to CWL version v1.2."
-                            )
             if fail is not False:
                 message = (
                     "Expression in a 'InitialWorkdirRequirement.listing' field "
@@ -602,7 +605,7 @@ class CommandLineTool(Process):
                         "File",
                         "Directory",
                     ):
-                        et["entry"] = entry
+                        et["entry"] = cast(CWLOutputType, entry)
                     else:
                         if isinstance(entry, str):
                             et["entry"] = entry
