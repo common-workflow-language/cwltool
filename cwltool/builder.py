@@ -443,7 +443,13 @@ class Builder(HasReqsHints):
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
                         datum["secondaryFiles"] = []
-                    for num, sf_entry in enumerate(aslist(schema["secondaryFiles"])):
+                        sf_schema = aslist(schema["secondaryFiles"])
+                    elif not discover_secondaryFiles:
+                        sf_schema = []  # trust the inputs
+                    else:
+                        sf_schema = aslist(schema["secondaryFiles"])
+
+                    for num, sf_entry in enumerate(sf_schema):
                         if "required" in sf_entry and sf_entry["required"] is not None:
                             required_result = self.do_eval(
                                 sf_entry["required"], context=datum
@@ -452,15 +458,10 @@ class Builder(HasReqsHints):
                                 isinstance(required_result, bool)
                                 or required_result is None
                             ):
-                                if (
-                                    aslist(schema["secondaryFiles"])
-                                    == schema["secondaryFiles"]
-                                ):
-                                    sf_item: Any = cast(
-                                        List[Any], schema["secondaryFiles"]
-                                    )[num]
+                                if sf_schema == schema["secondaryFiles"]:
+                                    sf_item: Any = sf_schema[num]
                                 else:
-                                    sf_item = schema["secondaryFiles"]
+                                    sf_item = sf_schema
                                 raise SourceLine(
                                     sf_item, "required", WorkflowException, debug
                                 ).makeError(
