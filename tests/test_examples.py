@@ -5,6 +5,7 @@ import re
 import stat
 import subprocess
 import sys
+import shutil
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Union, cast
@@ -1532,6 +1533,19 @@ def test_malformed_reqs() -> None:
 def test_arguments_self() -> None:
     """Confirm that $(self) works in the arguments list."""
     factory = cwltool.factory.Factory()
+    if not shutil.which("docker"):
+        if shutil.which("podman"):
+            factory.runtime_context.podman = True
+            factory.loading_context.podman = True
+        elif shutil.which("singularity"):
+            factory.runtime_context.singularity = True
+            factory.loading_context.singularity = True
+        elif not shutil.which("jq"):
+            pytest.skip(
+                "Need a container engine (docker, podman, or signularity) or jq to run this test."
+            )
+        else:
+            factory.runtime_context.use_container = False
     check = factory.make(get_data("tests/wf/paramref_arguments_self.cwl"))
     outputs = cast(Dict[str, Any], check())
     assert "self_review" in outputs
