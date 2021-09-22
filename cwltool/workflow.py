@@ -19,7 +19,7 @@ from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
 
-from . import command_line_tool, procgenerator
+from . import command_line_tool, context, procgenerator
 from .checker import static_checker
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import WorkflowException
@@ -59,6 +59,9 @@ def default_make_tool(
         "%s, expecting one of: CommandLineTool, ExpressionTool, Workflow"
         % toolpath_object["id"]
     )
+
+
+context.default_make_tool = default_make_tool
 
 
 class Workflow(Process):
