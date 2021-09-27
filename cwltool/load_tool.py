@@ -307,8 +307,10 @@ def resolve_and_validate_document(
             "No cwlVersion found. "
             "Use the following syntax in your CWL document to declare "
             "the version: cwlVersion: <version>.\n"
-            "Note: if this is a CWL draft-2 (pre v1.0) document then it "
-            "will need to be upgraded first."
+            "Note: if this is a CWL draft-3 (pre v1.0) document then it "
+            "will need to be upgraded first using https://pypi.org/project/cwl-upgrader/ . "
+            "'sbg:draft-2' documents can be upgraded using "
+            "https://pypi.org/project/sevenbridges-cwl-draft2-upgrader/ ."
         )
 
     if not isinstance(cwlVersion, str):

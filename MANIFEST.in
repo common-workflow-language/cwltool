@@ -62,9 +62,6 @@ prune cwltool/schemas/v1.0/salad/schema_salad/tests
 prune cwltool/schemas/v1.1.0-dev1/salad/typeshed
 prune cwltool/schemas/v1.1.0-dev1/salad/schema_salad/tests
 prune cwltool/schemas/presentations
-prune cwltool/schemas/draft-2
-prune cwltool/schemas/draft-1
-prune cwltool/schemas/draft-3
 prune cwltool/schemas/site
 prune cwltool/schemas/v1.0/examples
 prune cwltool/schemas/v1.0/v1.0
