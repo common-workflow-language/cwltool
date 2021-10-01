@@ -106,6 +106,7 @@ def test_unicode_in_output_files(tmp_path: Path, filename: str) -> None:
 
 
 def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
+    """Confirm that special characters in filenames do not cause problems."""
     loading_context = LoadingContext(
         {
             "metadata": {
