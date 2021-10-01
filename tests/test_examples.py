@@ -1525,7 +1525,7 @@ def test_malformed_reqs() -> None:
     factory = cwltool.factory.Factory()
     with pytest.raises(
         ValidationException,
-        match=r".*wc-tool-bad-reqs\.cwl:6:1: If 'requirements' is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
+        match=r".*wc-tool-bad-reqs\.cwl:6:1:\s*If\s*'requirements'\s*is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
     ):
         factory.make(get_data("tests/wc-tool-bad-reqs.cwl"))
 
