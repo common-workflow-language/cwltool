@@ -200,9 +200,7 @@ def revmap_file(
     outside the container. Recognizes files in the pathmapper or remaps
     internal output directories to the external directory.
     """
-    split = urllib.parse.urlsplit(outdir)
-    if not split.scheme:
-        outdir = file_uri(str(outdir))
+    outdir_uri, outdir_path = file_uri(str(outdir)), outdir
 
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
@@ -236,21 +234,20 @@ def revmap_file(
         ):
             f["location"] = revmap_f[1]
         elif (
-            uripath == outdir
-            or uripath.startswith(outdir + os.sep)
-            or uripath.startswith(outdir + "/")
+            uripath == outdir_uri
+            or uripath.startswith(outdir_uri + os.sep)
+            or uripath.startswith(outdir_uri + "/")
         ):
-            f["location"] = file_uri(path)
+            f["location"] = uripath
         elif (
             path == builder.outdir
             or path.startswith(builder.outdir + os.sep)
             or path.startswith(builder.outdir + "/")
         ):
-            f["location"] = builder.fs_access.join(
-                outdir, path[len(builder.outdir) + 1 :]
+            joined_path = builder.fs_access.join(
+                outdir_path, path[len(builder.outdir) + 1 :]
             )
-        elif not os.path.isabs(path):
-            f["location"] = builder.fs_access.join(outdir, path)
+            f["location"] = file_uri(joined_path)
         else:
             raise WorkflowException(
                 "Output file path %s must be within designated output directory (%s) or an input "
@@ -1337,6 +1334,15 @@ class CommandLineTool(Process):
                             )
                         try:
                             prefix = fs_access.glob(outdir)
+                            sorted_glob_result = sorted(
+                                fs_access.glob(fs_access.join(outdir, gb)),
+                                key=cmp_to_key(
+                                    cast(
+                                        Callable[[str, str], int],
+                                        locale.strcoll,
+                                    )
+                                ),
+                            )
                             r.extend(
                                 [
                                     {
@@ -1347,24 +1353,24 @@ class CommandLineTool(Process):
                                                 g[len(prefix[0]) + 1 :]
                                             ),
                                         ),
-                                        "basename": os.path.basename(g),
-                                        "nameroot": os.path.splitext(
-                                            os.path.basename(g)
-                                        )[0],
-                                        "nameext": os.path.splitext(
-                                            os.path.basename(g)
-                                        )[1],
+                                        "basename": decoded_basename,
+                                        "nameroot": os.path.splitext(decoded_basename)[
+                                            0
+                                        ],
+                                        "nameext": os.path.splitext(decoded_basename)[
+                                            1
+                                        ],
                                         "class": "File"
                                         if fs_access.isfile(g)
                                         else "Directory",
                                     }
-                                    for g in sorted(
-                                        fs_access.glob(fs_access.join(outdir, gb)),
-                                        key=cmp_to_key(
-                                            cast(
-                                                Callable[[str, str], int],
-                                                locale.strcoll,
-                                            )
+                                    for g, decoded_basename in zip(
+                                        sorted_glob_result,
+                                        map(
+                                            lambda x: os.path.basename(
+                                                urllib.parse.unquote(x)
+                                            ),
+                                            sorted_glob_result,
                                         ),
                                     )
                                 ]
