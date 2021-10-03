@@ -158,7 +158,7 @@ class JobExecutor(metaclass=ABCMeta):
             )
 
         if runtime_context.rm_tmpdir:
-            if runtime_context.cachedir is None:
+            if not runtime_context.cachedir:
                 output_dirs = self.output_dirs  # type: Iterable[str]
             else:
                 output_dirs = filter(
