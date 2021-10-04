@@ -20,7 +20,7 @@ from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
 
 from . import command_line_tool, context, procgenerator
-from .checker import static_checker
+from .checker import static_checker, circular_dependency_checker
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import WorkflowException
 from .load_tool import load_tool
@@ -139,6 +139,7 @@ class Workflow(Process):
                 step_outputs,
                 param_to_step,
             )
+            circular_dependency_checker(step_inputs)
 
     def make_workflow_step(
         self,

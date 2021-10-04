@@ -437,6 +437,67 @@ def check_all_types(
     return validation
 
 
+def circular_dependency_checker(step_inputs: List[CWLObjectType]) -> None:
+    """Check if a workflow has circular dependency."""
+    adjacency = get_dependency_tree(step_inputs)
+    vertices = adjacency.keys()
+    processed = []
+    cycles = []
+    for vertex in vertices:
+        if vertex not in processed:
+            traversal_path = [vertex]
+            processDFS(adjacency, traversal_path, processed, cycles)
+    if cycles:
+        exception_msg = "The following steps have circular dependency:\n"
+        cyclestrs = [str(cycle) for cycle in cycles]
+        exception_msg += "\n".join(cyclestrs)
+        for cycle in cycles:
+            raise ValidationException(exception_msg)
+
+
+def get_dependency_tree(step_inputs: List[CWLObjectType]) -> Dict[str, List[str]]:
+    """Get the dependency tree in the form of adjacency list."""
+    adjacency = {} # adjacency list of the dependency tree
+    for step_input in step_inputs:
+        vertex_in = get_step_id(step_input["source"])
+        vertex_out = get_step_id(step_input["id"])
+        if vertex_in not in adjacency:
+            adjacency[vertex_in] = [vertex_out]
+        elif vertex_out not in adjacency[vertex_in]:
+            adjacency[vertex_in].append(vertex_out)
+        if vertex_out not in adjacency:
+            adjacency[vertex_out] = []
+    return adjacency
+
+
+def processDFS(
+    adjacency: Dict[str, List[str]],
+    traversal_path: List[str],
+    processed: List[str],
+    cycles: List[List[str]],
+) -> None:
+    """Perform depth first search."""
+    tip = traversal_path[-1]
+    for vertex in adjacency[tip]:
+        if vertex in traversal_path:
+            i = traversal_path.index(vertex)
+            cycles.append(traversal_path[i:])
+        elif vertex not in processed:
+            traversal_path.append(vertex)
+            processDFS(adjacency, traversal_path, processed, cycles)
+    processed.append(tip)
+    traversal_path.pop()
+
+
+def get_step_id(field_id: str) -> str:
+    """Extract step id from either input or output fields."""
+    if "/" in field_id.split("#")[1]:
+        step_id = "/".join(field_id.split("/")[:-1])
+    else:
+        step_id = field_id.split("#")[0]
+    return step_id
+
+
 def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -> bool:
     source_step = param_to_step.get(parm_id)
     if source_step is not None:
