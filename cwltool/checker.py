@@ -451,8 +451,7 @@ def circular_dependency_checker(step_inputs: List[CWLObjectType]) -> None:
         exception_msg = "The following steps have circular dependency:\n"
         cyclestrs = [str(cycle) for cycle in cycles]
         exception_msg += "\n".join(cyclestrs)
-        for cycle in cycles:
-            raise ValidationException(exception_msg)
+        raise ValidationException(exception_msg)
 
 
 def get_dependency_tree(step_inputs: List[CWLObjectType]) -> Dict[str, List[str]]:
