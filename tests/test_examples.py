@@ -902,6 +902,18 @@ def test_static_checker() -> None:
         factory.make(get_data("tests/checker_wf/broken-wf3.cwl"))
 
 
+def test_circular_dependency_checker() -> None:
+    # check that the circular dependency checker raises exception when there is
+    # circular dependency in the workflow.
+    factory = cwltool.factory.Factory()
+
+    with pytest.raises(ValidationException):
+        factory.make(get_data("tests/checker_wf/cir-dep-wf.cwl"))
+
+    with pytest.raises(ValidationException):
+        factory.make(get_data("tests/checker_wf/cir-dep-wf2.cwl"))
+
+
 def test_var_spool_cwl_checker1() -> None:
     """Confirm that references to /var/spool/cwl are caught."""
     stream = StringIO()
