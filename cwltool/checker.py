@@ -456,7 +456,7 @@ def circular_dependency_checker(step_inputs: List[CWLObjectType]) -> None:
 
 def get_dependency_tree(step_inputs: List[CWLObjectType]) -> Dict[str, List[str]]:
     """Get the dependency tree in the form of adjacency list."""
-    adjacency = {} # adjacency list of the dependency tree
+    adjacency = {}  # adjacency list of the dependency tree
     for step_input in step_inputs:
         vertex_in = get_step_id(step_input["source"])
         vertex_out = get_step_id(step_input["id"])
