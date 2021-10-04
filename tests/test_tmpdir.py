@@ -14,6 +14,7 @@ from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.docker import DockerCommandLineJob
 from cwltool.job import JobBase
+from cwltool.main import main
 from cwltool.pathmapper import MapperEnt, PathMapper
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
@@ -230,3 +231,20 @@ def test_runtimeContext_respects_tmp_outdir_prefix(tmp_path: Path) -> None:
     runtime_context = RuntimeContext({"tmp_outdir_prefix": tmpdir_prefix})
     assert runtime_context.get_outdir().startswith(tmpdir_prefix)
     assert runtime_context.create_outdir().startswith(tmpdir_prefix)
+
+
+def test_remove_tmpdirs(tmp_path: Path) -> None:
+    """Test that the tmpdirs are removed after the job execution."""
+    assert (
+        main(
+            [
+                "--tmpdir-prefix",
+                str(f"{tmp_path}/"),
+                get_data("tests/wf/hello_single_tool.cwl"),
+                "--message",
+                "Hello",
+            ]
+        )
+        == 0
+    )
+    assert len(list(tmp_path.iterdir())) == 0
