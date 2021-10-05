@@ -441,8 +441,8 @@ def circular_dependency_checker(step_inputs: List[CWLObjectType]) -> None:
     """Check if a workflow has circular dependency."""
     adjacency = get_dependency_tree(step_inputs)
     vertices = adjacency.keys()
-    processed = []
-    cycles = []
+    processed: List[str] = []
+    cycles: List[List[str]] = []
     for vertex in vertices:
         if vertex not in processed:
             traversal_path = [vertex]
@@ -458,8 +458,8 @@ def get_dependency_tree(step_inputs: List[CWLObjectType]) -> Dict[str, List[str]
     """Get the dependency tree in the form of adjacency list."""
     adjacency = {}  # adjacency list of the dependency tree
     for step_input in step_inputs:
-        vertex_in = get_step_id(step_input["source"])
-        vertex_out = get_step_id(step_input["id"])
+        vertex_in = get_step_id(cast(str, step_input["source"]))
+        vertex_out = get_step_id(cast(str, step_input["id"]))
         if vertex_in not in adjacency:
             adjacency[vertex_in] = [vertex_out]
         elif vertex_out not in adjacency[vertex_in]:
