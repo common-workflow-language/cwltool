@@ -44,7 +44,11 @@ if [ ! -d "${repo}-${spec_branch}" ]; then
 fi
 
 if [ "${container}" == "docker" ]; then
-    docker pull node:slim
+    docker pull docker.io/node:slim
+fi
+
+if [ "${container}" == "podman" ]; then
+    podman pull docker.io/node:slim
 fi
 
 venv cwltool-venv3
@@ -109,11 +113,8 @@ if [[ "$container" = "singularity" ]]; then
         # See issue #1440
         exclusions+=(stdin_shorcut)
     fi
-
-    if [[ "${version}" = "v1.2" ]]; then
-	# See issue #1441
-	exclusions+=(iwdr_dir_literal_real_file)
-    fi
+elif [[ "$container" = "podman" ]]; then
+    EXTRA+=" --podman"
 fi
 
 if [ -n "$EXTRA" ]
@@ -175,9 +176,9 @@ popd || exit
 deactivate
 
 # build new docker container
-if [ "$GIT_BRANCH" = "origin/main" ] && [[ "$version" = "v1.0" ]]
-then
-  ./build-cwl-docker.sh || true
-fi
+# if [ "$GIT_BRANCH" = "origin/main" ] && [[ "$version" = "v1.0" ]]
+# then
+#   ./build-cwltool-docker.sh || true
+# fi
 #docker rm -v $(docker ps -a -f status=exited | sed 's/  */ /g' | cut -d' ' -f1)
 exit ${CODE}

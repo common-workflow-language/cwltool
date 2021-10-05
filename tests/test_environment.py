@@ -41,6 +41,7 @@ def assert_env_matches(
     """
     e = dict(env)
     for k, check in checks.items():
+        assert k in e
         v = e.pop(k)
         assert_envvar_matches(check, k, env)
 
@@ -127,7 +128,6 @@ class Singularity(CheckHolder):
             "LANG": "C",
             "LD_LIBRARY_PATH": None,
             "PATH": None,
-            "PROMPT_COMMAND": None,
             "PS1": None,
             "PWD": PWD,
             "TMPDIR": "/tmp",
@@ -140,12 +140,16 @@ class Singularity(CheckHolder):
         vminor = int(version[1])
         sing_vars: EnvChecks = {
             "SINGULARITY_CONTAINER": None,
-            "SINGULARITY_ENVIRONMENT": None,
             "SINGULARITY_NAME": None,
         }
-        if vminor < 6:
+        if vminor < 5:
+            sing_vars["SINGULARITY_APPNAME"] = None
+        if vminor >= 5:
+            sing_vars["PROMPT_COMMAND"] = None
+            sing_vars["SINGULARITY_ENVIRONMENT"] = None
+        if vminor == 5:
             sing_vars["SINGULARITY_INIT"] = "1"
-        else:
+        elif vminor > 5:
             sing_vars["SINGULARITY_COMMAND"] = "exec"
             if vminor >= 7:
 

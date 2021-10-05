@@ -1,9 +1,11 @@
 import json
 import logging
 import os
+import re
 import stat
 import subprocess
 import sys
+import shutil
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Union, cast
@@ -411,7 +413,9 @@ def test_scandeps() -> None:
         ],
     }
 
-    def loadref(base: str, p: str) -> Union[CommentedMap, CommentedSeq, str, None]:
+    def loadref(
+        base: str, p: Union[CommentedMap, CommentedSeq, str, None]
+    ) -> Union[CommentedMap, CommentedSeq, str, None]:
         if isinstance(p, dict):
             return p
         raise Exception("test case can't load things")
@@ -887,6 +891,33 @@ def test_separate_without_prefix() -> None:
         factory.make(get_data("tests/wf/separate_without_prefix.cwl"))()
 
 
+def test_glob_expr_error(tmp_path: Path) -> None:
+    """Better glob expression error."""
+    error_code, _, stderr = get_main_output(
+        [get_data("tests/wf/1496.cwl"), "--index", str(tmp_path)]
+    )
+    assert error_code != 0
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Resolved glob patterns must be strings" in stderr
+
+
+def test_format_expr_error() -> None:
+    """Better format expression error."""
+    error_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/bad_formattest.cwl"),
+            get_data("tests/wf/formattest-job.json"),
+        ]
+    )
+    assert error_code != 0
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "An expression in the 'format' field must evaluate to a string, or list "
+        "of strings. However a non-string item was received: '42' of "
+        "type '<class 'int'>'." in stderr
+    )
+
+
 def test_static_checker() -> None:
     # check that the static checker raises exception when a source type
     # mismatches its sink type.
@@ -1151,7 +1182,7 @@ def test_secondary_files_v1_1(factor: str) -> None:
         commands = factor.split()
         commands.extend(
             [
-                "--enable-dev",
+                "--debug",
                 get_data(os.path.join("tests", test_file)),
                 get_data(os.path.join("tests", test_job_file)),
             ]
@@ -1167,23 +1198,42 @@ def test_secondary_files_v1_1(factor: str) -> None:
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_secondary_files_v1_0(factor: str) -> None:
+def test_secondary_files_bad_v1_1(factor: str) -> None:
+    """Affirm the correct error message for a bad secondaryFiles expression."""
+    test_file = "secondary-files-bad.cwl"
+    test_job_file = "secondary-files-job.yml"
+    commands = factor.split()
+    commands.extend(
+        [
+            get_data(os.path.join("tests", test_file)),
+            get_data(os.path.join("tests", test_job_file)),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "The result of a expression in the field 'required' must be a bool "
+        "or None, not a <class 'int'>." in stderr
+    ), stderr
+    assert error_code == 1
+
+
+@needs_docker
+@pytest.mark.parametrize("factor", test_factors)
+def test_secondary_files_v1_0(tmp_path: Path, factor: str) -> None:
+    """Test plain strings under "secondaryFiles"."""
     test_file = "secondary-files-string-v1.cwl"
     test_job_file = "secondary-files-job.yml"
-    try:
-        old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
-        commands = factor.split()
-        commands.extend(
-            [
-                get_data(os.path.join("tests", test_file)),
-                get_data(os.path.join("tests", test_job_file)),
-            ]
-        )
-        error_code, _, stderr = get_main_output(commands)
-    finally:
-        # 664 in octal, '-rw-rw-r--'
-        assert stat.S_IMODE(os.stat("lsout").st_mode) == 436
-        os.umask(old_umask)  # revert back to original umask
+    commands = factor.split()
+    commands.extend(
+        [
+            "--outdir",
+            str(tmp_path),
+            get_data(os.path.join("tests", test_file)),
+            get_data(os.path.join("tests", test_job_file)),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
     assert "completed success" in stderr
     assert error_code == 0
 
@@ -1248,6 +1298,57 @@ def test_compute_checksum() -> None:
     result = output["output"]
     assert isinstance(result, dict)
     assert result["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
+
+
+def test_bad_stdin_expr_error() -> None:
+    """Confirm that a bad stdin expression gives a useful error."""
+    error_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/bad-stdin-expr.cwl"),
+            "--file1",
+            get_data("tests/wf/whale.txt"),
+        ]
+    )
+    assert error_code == 1
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "'stdin' expression must return a string or null. Got '1111' for '$(inputs.file1.size)'."
+        in stderr
+    )
+
+
+def test_bad_stderr_expr_error() -> None:
+    """Confirm that a bad stderr expression gives a useful error."""
+    error_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/bad-stderr-expr.cwl"),
+            "--file1",
+            get_data("tests/wf/whale.txt"),
+        ]
+    )
+    assert error_code == 1
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "'stderr' expression must return a string. Got '1111' for '$(inputs.file1.size)'."
+        in stderr
+    )
+
+
+def test_bad_stdout_expr_error() -> None:
+    """Confirm that a bad stdout expression gives a useful error."""
+    error_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/bad-stdout-expr.cwl"),
+            "--file1",
+            get_data("tests/wf/whale.txt"),
+        ]
+    )
+    assert error_code == 1
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "'stdout' expression must return a string. Got '1111' for '$(inputs.file1.size)'."
+        in stderr
+    )
 
 
 @needs_docker
@@ -1318,6 +1419,19 @@ def test_v1_0_position_expression(factor: str) -> None:
     commands.extend(["--debug", get_data(test_file), get_data(test_job)])
     error_code, stdout, stderr = get_main_output(commands)
     assert "is not int" in stderr, stderr
+    assert error_code == 1
+
+
+@pytest.mark.parametrize("factor", test_factors)
+def test_v1_1_position_badexpression(factor: str) -> None:
+    """Test for the correct error for a bad position expression."""
+    test_file = "tests/echo-badposition-expr.cwl"
+    test_job = "tests/echo-position-expr-job.yml"
+    commands = factor.split()
+    commands.extend(["--debug", get_data(test_file), get_data(test_job)])
+    error_code, _, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "expressions must evaluate to an int" in stderr, stderr
     assert error_code == 1
 
 
@@ -1423,6 +1537,81 @@ def test_malformed_reqs() -> None:
     factory = cwltool.factory.Factory()
     with pytest.raises(
         ValidationException,
-        match=r".*wc-tool-bad-reqs\.cwl:6:1: If 'requirements' is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
+        match=r".*wc-tool-bad-reqs\.cwl:6:1:\s*If\s*'requirements'\s*is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
     ):
         factory.make(get_data("tests/wc-tool-bad-reqs.cwl"))
+
+
+def test_arguments_self() -> None:
+    """Confirm that $(self) works in the arguments list."""
+    factory = cwltool.factory.Factory()
+    if not shutil.which("docker"):
+        if shutil.which("podman"):
+            factory.runtime_context.podman = True
+            factory.loading_context.podman = True
+        elif shutil.which("singularity"):
+            factory.runtime_context.singularity = True
+            factory.loading_context.singularity = True
+        elif not shutil.which("jq"):
+            pytest.skip(
+                "Need a container engine (docker, podman, or signularity) or jq to run this test."
+            )
+        else:
+            factory.runtime_context.use_container = False
+    check = factory.make(get_data("tests/wf/paramref_arguments_self.cwl"))
+    outputs = cast(Dict[str, Any], check())
+    assert "self_review" in outputs
+    assert len(outputs) == 1
+    assert (
+        outputs["self_review"]["checksum"]
+        == "sha1$724ba28f4a9a1b472057ff99511ed393a45552e1"
+    )
+
+
+def test_bad_timelimit_expr() -> None:
+    """Confirm error message for bad timelimit expression."""
+    err_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/bad_timelimit.cwl"),
+        ]
+    )
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "'timelimit' expression must evaluate to a long/int. "
+        "Got '42' for expression '${return \"42\";}" in stderr
+    )
+    assert err_code == 1
+
+
+def test_bad_networkaccess_expr() -> None:
+    """Confirm error message for bad networkaccess expression."""
+    err_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/bad_networkaccess.cwl"),
+        ]
+    )
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "'networkAccess' expression must evaluate to a bool. "
+        "Got '42' for expression '${return 42;}" in stderr
+    )
+    assert err_code == 1
+
+
+def test_staging_files_in_any() -> None:
+    """Confirm that inputs of type File are staged, even if the schema is Any."""
+    err_code, _, stderr = get_main_output(
+        [get_data("tests/wf/816_wf.cwl"), "--file", get_data("tests/echo-job.yaml")]
+    )
+    assert err_code == 0
+
+
+def test_custom_type_in_step_process() -> None:
+    """Test that any needed custom types are available when processing a WorkflowStep."""
+    err_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/811.cwl"),
+            get_data("tests/wf/811_inputs.yml"),
+        ]
+    )
+    assert err_code == 0

@@ -1,4 +1,4 @@
-"""Enables Docker software containers via the {u,}docker runtimes."""
+"""Enables Docker software containers via the {u,}docker or podman runtimes."""
 
 import csv
 import datetime
@@ -339,6 +339,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 # without this
             else:
                 runtime = [user_space_docker_cmd, "run"]
+        elif runtimeContext.podman:
+            runtime = ["podman", "run", "-i", "--userns=keep-id"]
         else:
             runtime = ["docker", "run", "-i"]
         self.append_volume(
@@ -425,8 +427,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
             ram = self.builder.resources["ram"]
-            if not isinstance(ram, str):
-                runtime.append("--memory=%dm" % ram)
+            runtime.append("--memory=%dm" % ram)
         elif not user_space_docker_cmd:
             res_req, _ = self.builder.get_requirement("ResourceRequirement")
             if res_req and ("ramMin" in res_req or "ramMax" in res_req):

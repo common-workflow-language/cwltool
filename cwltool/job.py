@@ -3,9 +3,9 @@ import functools
 import itertools
 import logging
 import os
-import stat
 import re
 import shutil
+import stat
 import subprocess  # nosec
 import sys
 import tempfile
@@ -729,6 +729,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         runtimeContext: RuntimeContext,
         tmpdir_lock: Optional[threading.Lock] = None,
     ) -> None:
+        debug = runtimeContext.debug
         if tmpdir_lock:
             with tmpdir_lock:
                 if not os.path.exists(self.tmpdir):
@@ -753,22 +754,18 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 try:
                     subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 except OSError:
-                    raise WorkflowException(
-                        SourceLine(docker_req).makeError(
-                            "Either Docker container {} is not available with "
-                            "user space docker implementation {} or {} is missing "
-                            "or broken.".format(
-                                img_id, user_space_docker_cmd, user_space_docker_cmd
-                            )
-                        )
+                    raise SourceLine(
+                        docker_req, None, WorkflowException, debug
+                    ).makeError(
+                        f"Either Docker container {img_id} is not available with "
+                        f"user space docker implementation {user_space_docker_cmd} "
+                        f" or {user_space_docker_cmd} is missing or broken."
                     )
             else:
-                raise WorkflowException(
-                    SourceLine(docker_req).makeError(
-                        "Docker image must be specified as 'dockerImageId' or "
-                        "'dockerPull' when using user space implementations of "
-                        "Docker"
-                    )
+                raise SourceLine(docker_req, None, WorkflowException, debug).makeError(
+                    "Docker image must be specified as 'dockerImageId' or "
+                    "'dockerPull' when using user space implementations of "
+                    "Docker"
                 )
         else:
             try:
@@ -995,7 +992,7 @@ def _job_popen(
         if tm is not None:
             tm.cancel()
 
-        if isinstance(stdin, IOBase) and hasattr(stdin, "close"):
+        if isinstance(stdin, IO) and hasattr(stdin, "close"):
             stdin.close()
 
         if stdout is not sys.stderr and hasattr(stdout, "close"):

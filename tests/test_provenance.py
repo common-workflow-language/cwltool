@@ -41,7 +41,7 @@ def cwltool(tmp_path: Path, *args: Any) -> Path:
     tmp_dir.mkdir()
     with working_directory(tmp_dir):
         status = main(new_args)
-        assert status == 0, "Failed: cwltool.main(%r)" % (args)
+        assert status == 0, f"Failed: cwltool.main({args})"
     return prov_folder
 
 

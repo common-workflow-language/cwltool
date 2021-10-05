@@ -1,9 +1,12 @@
 #!/usr/bin/env cwl-runner
 class: CommandLineTool
-cwlVersion: v1.2.0-dev4
+cwlVersion: v1.2
 requirements:
+  EnvVarRequirement:
+    envDef:
+      LC_ALL: C
   DockerRequirement:
-    dockerPull: debian
+    dockerPull: docker.io/debian
   InitialWorkDirRequirement:
     listing:
       - entry: $(inputs.first)
@@ -36,6 +39,7 @@ requirements:
       - entry: $(inputs.tenth)
         entryname: /my_path/tenth_writable_directory_literal
         writable: true
+      - entry: $(inputs.eleventh)  # array of Files
       - entry: baz
         entryname: /my_path/my_file_literal
 inputs:
@@ -59,18 +63,24 @@ inputs:
       class: Directory
       basename: bar
       listing: []
+  eleventh: File[]
 outputs:
   out:
     type: Directory
     outputBinding:
       glob: .
+  log: stdout
+stdout: log.txt
 baseCommand: [bash, -c]
 arguments:
   - |
-    find .
-    find /my_path
-    find /my_other_path
+    find . | sort
+    find /my_path | sort
+    find /my_other_path | sort
     echo "a" > first_writable_file
     echo "b" > /my_path/third_writable_file
     touch fifth_writable_directory/c
     touch /my_path/seventh_writable_directory/d
+    find . | sort
+    find /my_path | sort
+    find /my_other_path | sort

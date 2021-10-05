@@ -108,12 +108,12 @@ setup(
         "setuptools",
         "requests >= 2.6.1",  # >= 2.6.1 to workaround
         # https://github.com/ionrock/cachecontrol/issues/137
-        "ruamel.yaml >= 0.15, < 0.17.11",
+        "ruamel.yaml >= 0.15, < 0.17.17",
         "rdflib >= 4.2.2, < 6.1.0",
         "shellescape >= 3.4.1, < 3.9",
         # 7.1.20210518142926 or later required due to
         # https://github.com/common-workflow-language/schema_salad/issues/385
-        "schema-salad >= 8.1.20210627200047, < 9",
+        "schema-salad >= 8.2.20210914115719, < 9",
         "mypy-extensions",
         "psutil >= 5.6.6",
         "prov == 1.5.1",
@@ -125,13 +125,6 @@ setup(
     ],
     extras_require={
         "deps": ["galaxy-tool-util >= 21.1.0"],
-        "docs": [
-            "sphinx >= 2.2",
-            "sphinx-rtd-theme",
-            "sphinx-autoapi",
-            "sphinx-autodoc-typehints",
-            "typed_ast;python_version<'3.8'",
-        ],
     },
     python_requires=">=3.6, <4",
     setup_requires=PYTEST_RUNNER,

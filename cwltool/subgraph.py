@@ -92,6 +92,8 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
                 declare_node(nodes, src, None)
                 nodes[src].down.append(st["id"])
         for out in st["out"]:
+            if isinstance(out, Mapping) and "id" in out:
+                out = out["id"]
             # output is downstream from step
             step.down.append(out)
             # step is upstream from output

@@ -58,7 +58,7 @@ class LoadingContext(ContextBase):
         self.loader = None  # type: Optional[Loader]
         self.avsc_names = None  # type: Optional[Names]
         self.disable_js_validation = False  # type: bool
-        self.js_hint_options_file = None
+        self.js_hint_options_file: Optional[str] = None
         self.do_validate = True  # type: bool
         self.enable_dev = False  # type: bool
         self.strict = True  # type: bool
@@ -75,6 +75,8 @@ class LoadingContext(ContextBase):
         self.jobdefaults = None  # type: Optional[CommentedMap]
         self.doc_cache = True  # type: bool
         self.relax_path_checks = False  # type: bool
+        self.singularity = False  # type: bool
+        self.podman = False  # type: bool
 
         super().__init__(kwargs)
 
@@ -87,8 +89,8 @@ class RuntimeContext(ContextBase):
     def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
         """Initialize the RuntimeContext from the kwargs."""
         select_resources_callable = Callable[  # pylint: disable=unused-variable
-            [Dict[str, Union[int, float, str]], RuntimeContext],
-            Dict[str, Union[int, float, str]],
+            [Dict[str, Union[int, float]], RuntimeContext],
+            Dict[str, Union[int, float]],
         ]
         self.user_space_docker_cmd = ""  # type: Optional[str]
         self.secret_store = None  # type: Optional[SecretStore]
@@ -110,6 +112,7 @@ class RuntimeContext(ContextBase):
         self.streaming_allowed: bool = False
 
         self.singularity = False  # type: bool
+        self.podman = False  # type: bool
         self.debug = False  # type: bool
         self.compute_checksum = True  # type: bool
         self.name = ""  # type: str

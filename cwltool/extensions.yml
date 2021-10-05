@@ -169,7 +169,7 @@ $graph:
         "_id": "@type"
         "_type": "@vocab"
     - name: processes
-      type: [int, string]
+      type: [int, cwl:Expression]
       doc: |
         The number of MPI processes to start. If you give a string,
         this will be evaluated as a CWL Expression and it must
