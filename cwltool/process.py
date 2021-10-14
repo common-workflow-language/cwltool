@@ -373,7 +373,7 @@ def relocateOutputs(
             else:
                 try:
                     shutil.move(src, dst)
-                except (PermissionError, shutil.Error):
+                except (PermissionError, OSError, shutil.Error):
                     # handle filesystems that don't support mode/attr changes
                     shutil.move(src, dst, copy_function=shutil.copyfile)
 
@@ -388,7 +388,7 @@ def relocateOutputs(
             else:
                 try:
                     shutil.copy2(src, dst)
-                except (PermissionError, shutil.Error):
+                except (PermissionError, OSError, shutil.Error):
                     # handle filesystems that don't support mode/attr changes
                     if os.path.isdir(dst):
                         shutil.copyfile(src, os.path.join(dst, os.path.basename(src)))
