@@ -680,10 +680,17 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             file_literal.write(contents.encode("utf-8"))
         if not host_outdir_tgt:
             self.append_volume(runtime, new_file, volume.target, writable=writable)
-        if writable:
-            ensure_writable(host_outdir_tgt or new_file)
-        else:
-            ensure_non_writable(host_outdir_tgt or new_file)
+        try:
+            if writable:
+                ensure_writable(host_outdir_tgt or new_file)
+            else:
+                ensure_non_writable(host_outdir_tgt or new_file)
+        except PermissionError as err:
+            _logger.warning(
+                "Encountered permission error trying to modify "
+                f"{host_outdir_tgt or new_file}:\n{err}"
+                "\nProceeding with caution."
+            )
         return host_outdir_tgt or new_file
 
     def add_volumes(
