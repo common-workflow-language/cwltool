@@ -1,18 +1,18 @@
-import pytest
 import urllib.parse
-
 from pathlib import Path
 from typing import cast
+
+import pytest
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
-from cwltool.main import main
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
+from cwltool.main import main
 from cwltool.update import INTERNAL_VERSION
 from cwltool.utils import CWLObjectType
-from .util import needs_docker
 
+from .util import needs_docker
 
 script = """
 #!/usr/bin/env cwl-runner
