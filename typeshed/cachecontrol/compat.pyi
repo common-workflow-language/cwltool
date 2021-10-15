@@ -4,4 +4,4 @@
 
 from typing import Any
 
-text_type = ...  # type: Any
+str = ...  # type: Any

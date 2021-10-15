@@ -1,0 +1,50 @@
+from rdflib.namespace import DefinedNamespace as DefinedNamespace
+from rdflib.namespace import Namespace as Namespace
+from rdflib.term import URIRef as URIRef
+
+class ORG(DefinedNamespace):
+    basedAt: URIRef
+    changedBy: URIRef
+    classification: URIRef
+    hasMember: URIRef
+    hasMembership: URIRef
+    hasPost: URIRef
+    hasPrimarySite: URIRef
+    hasRegisteredSite: URIRef
+    hasSite: URIRef
+    hasSubOrganization: URIRef
+    hasUnit: URIRef
+    headOf: URIRef
+    heldBy: URIRef
+    holds: URIRef
+    identifier: URIRef
+    linkedTo: URIRef
+    location: URIRef
+    member: URIRef
+    memberDuring: URIRef
+    memberOf: URIRef
+    organization: URIRef
+    originalOrganization: URIRef
+    postIn: URIRef
+    purpose: URIRef
+    remuneration: URIRef
+    reportsTo: URIRef
+    resultedFrom: URIRef
+    resultingOrganization: URIRef
+    role: URIRef
+    roleProperty: URIRef
+    siteAddress: URIRef
+    siteOf: URIRef
+    subOrganizationOf: URIRef
+    transitiveSubOrganizationOf: URIRef
+    unitOf: URIRef
+    ChangeEvent: URIRef
+    FormalOrganization: URIRef
+    Membership: URIRef
+    Organization: URIRef
+    OrganizationalCollaboration: URIRef
+    OrganizationalUnit: URIRef
+    Post: URIRef
+    Role: URIRef
+    Site: URIRef
+    Head: URIRef
