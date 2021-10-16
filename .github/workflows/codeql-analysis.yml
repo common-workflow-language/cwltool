@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: '0 10 * * 2'
 
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   CodeQL-Build:
 
