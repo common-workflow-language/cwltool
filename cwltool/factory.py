@@ -12,12 +12,14 @@ from .utils import CWLObjectType
 class WorkflowStatus(Exception):
     def __init__(self, out: Optional[CWLObjectType], status: str) -> None:
         """Signaling exception for the status of a Workflow."""
-        super(WorkflowStatus, self).__init__("Completed %s" % status)
+        super().__init__("Completed %s" % status)
         self.out = out
         self.status = status
 
 
-class Callable(object):
+class Callable:
+    """Result of Factory.make()."""
+
     def __init__(self, t: Process, factory: "Factory") -> None:
         """Initialize."""
         self.t = t
@@ -34,24 +36,31 @@ class Callable(object):
             return out
 
 
-class Factory(object):
+class Factory:
+    """Easy way to load a CWL document for execution."""
+
+    loading_context: LoadingContext
+    runtime_context: RuntimeContext
+
     def __init__(
         self,
         executor: Optional[JobExecutor] = None,
         loading_context: Optional[LoadingContext] = None,
         runtime_context: Optional[RuntimeContext] = None,
     ) -> None:
-        """Easy way to load a CWL document for execution."""
         if executor is None:
             executor = SingleJobExecutor()
         self.executor = executor
-        self.loading_context = loading_context
-        if loading_context is None:
-            self.loading_context = LoadingContext()
         if runtime_context is None:
             self.runtime_context = RuntimeContext()
         else:
             self.runtime_context = runtime_context
+        if loading_context is None:
+            self.loading_context = LoadingContext()
+            self.loading_context.singularity = self.runtime_context.singularity
+            self.loading_context.podman = self.runtime_context.podman
+        else:
+            self.loading_context = loading_context
 
     def make(self, cwl: Union[str, Dict[str, Any]]) -> Callable:
         """Instantiate a CWL object from a CWl document."""

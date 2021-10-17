@@ -1,6 +1,7 @@
 """Parse CWL expressions."""
 
 import copy
+import json
 import re
 from typing import (
     Any,
@@ -15,18 +16,12 @@ from typing import (
     cast,
 )
 
-import json
 from schema_salad.utils import json_dumps
 
 from .errors import WorkflowException
 from .loghandler import _logger
 from .sandboxjs import JavascriptException, default_timeout, execjs
-from .utils import (
-    CWLObjectType,
-    CWLOutputType,
-    bytes2str_in_dicts,
-    docker_windows_path_adjust,
-)
+from .utils import CWLObjectType, CWLOutputType, bytes2str_in_dicts
 
 
 def jshead(engine_config: List[str], rootvars: CWLObjectType) -> str:
@@ -35,10 +30,7 @@ def jshead(engine_config: List[str], rootvars: CWLObjectType) -> str:
 
     return "\n".join(
         engine_config
-        + [
-            "var {} = {};".format(k, json_dumps(v, indent=4))
-            for k, v in rootvars.items()
-        ]
+        + [f"var {k} = {json_dumps(v, indent=4)};" for k, v in rootvars.items()]
     )
 
 
@@ -47,9 +39,9 @@ seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
 seg_index = r"""\[[0-9]+\]"""
-segments = r"(\.%s|%s|%s|%s)" % (seg_symbol, seg_single, seg_double, seg_index)
+segments = fr"(\.{seg_symbol}|{seg_single}|{seg_double}|{seg_index})"
 segment_re = re.compile(segments, flags=re.UNICODE)
-param_str = r"\((%s)%s*\)$" % (seg_symbol, segments)
+param_str = fr"\(({seg_symbol}){segments}*\)$"
 param_re = re.compile(param_str, flags=re.UNICODE)
 
 
@@ -142,7 +134,7 @@ def next_seg(
         m = segment_re.match(remaining_string)
         if not m:
             return current_value
-        next_segment_str = m.group(0)
+        next_segment_str = m.group(1)
 
         key = None  # type: Optional[Union[str, int]]
         if next_segment_str[0] == ".":
@@ -154,7 +146,7 @@ def next_seg(
             if (
                 isinstance(current_value, MutableSequence)
                 and key == "length"
-                and not remaining_string[m.end(0) :]
+                and not remaining_string[m.end(1) :]
             ):
                 return len(current_value)
             if not isinstance(current_value, MutableMapping):
@@ -163,9 +155,7 @@ def next_seg(
                     % (parsed_string, type(current_value).__name__, key)
                 )
             if key not in current_value:
-                raise WorkflowException(
-                    "%s does not contain key '%s'" % (parsed_string, key)
-                )
+                raise WorkflowException(f"{parsed_string} does not contain key '{key}'")
         else:
             try:
                 key = int(next_segment_str[1:-1])
@@ -185,28 +175,22 @@ def next_seg(
             try:
                 return next_seg(
                     parsed_string + remaining_string,
-                    remaining_string[m.end(0) :],
+                    remaining_string[m.end(1) :],
                     cast(CWLOutputType, current_value[cast(str, key)]),
                 )
             except KeyError:
-                raise WorkflowException(
-                    "%s doesn't have property %s" % (parsed_string, key)
-                )
+                raise WorkflowException(f"{parsed_string} doesn't have property {key}")
         elif isinstance(current_value, list) and isinstance(key, int):
             try:
                 return next_seg(
                     parsed_string + remaining_string,
-                    remaining_string[m.end(0) :],
+                    remaining_string[m.end(1) :],
                     current_value[key],
                 )
             except KeyError:
-                raise WorkflowException(
-                    "%s doesn't have property %s" % (parsed_string, key)
-                )
+                raise WorkflowException(f"{parsed_string} doesn't have property {key}")
         else:
-            raise WorkflowException(
-                "%s doesn't have property %s" % (parsed_string, key)
-            )
+            raise WorkflowException(f"{parsed_string} doesn't have property {key}")
     else:
         return current_value
 
@@ -220,11 +204,11 @@ def evaluator(
     force_docker_pull: bool = False,
     debug: bool = False,
     js_console: bool = False,
+    container_engine: str = "docker",
 ) -> Optional[CWLOutputType]:
     match = param_re.match(ex)
 
     expression_parse_exception = None
-    expression_parse_succeeded = False
 
     if match is not None:
         first_symbol = match.group(1)
@@ -233,7 +217,7 @@ def evaluator(
         if first_symbol_end + 1 == len(ex) and first_symbol == "null":
             return None
         try:
-            if obj.get(first_symbol) is None:
+            if first_symbol not in obj:
                 raise WorkflowException("%s is not defined" % first_symbol)
 
             return next_seg(
@@ -243,10 +227,8 @@ def evaluator(
             )
         except WorkflowException as werr:
             expression_parse_exception = werr
-        else:
-            expression_parse_succeeded = True
 
-    if fullJS and not expression_parse_succeeded:
+    if fullJS:
         return execjs(
             ex,
             jslib,
@@ -254,6 +236,7 @@ def evaluator(
             force_docker_pull=force_docker_pull,
             debug=debug,
             js_console=js_console,
+            container_engine=container_engine,
         )
     else:
         if expression_parse_exception is not None:
@@ -270,6 +253,10 @@ def evaluator(
             )
 
 
+def _convert_dumper(string: str) -> str:
+    return f"{json.dumps(string)} + "
+
+
 def interpolate(
     scan: str,
     rootvars: CWLObjectType,
@@ -281,57 +268,85 @@ def interpolate(
     js_console: bool = False,
     strip_whitespace: bool = True,
     escaping_behavior: int = 2,
+    convert_to_expression: bool = False,
+    container_engine: str = "docker",
 ) -> Optional[CWLOutputType]:
+    """
+    Interpolate and evaluate.
+
+    Note: only call with convert_to_expression=True on CWL Expressions in $()
+    form that need interpolation.
+    """
     if strip_whitespace:
         scan = scan.strip()
     parts = []
+    if convert_to_expression:
+        dump = _convert_dumper
+        parts.append("${return ")
+    else:
+        dump = lambda x: x
     w = scanner(scan)
     while w:
-        parts.append(scan[0 : w[0]])
+        if convert_to_expression:
+            parts.append(f'"{scan[0 : w[0]]}" + ')
+        else:
+            parts.append(scan[0 : w[0]])
 
         if scan[w[0]] == "$":
-            e = evaluator(
-                scan[w[0] + 1 : w[1]],
-                jslib,
-                rootvars,
-                timeout,
-                fullJS=fullJS,
-                force_docker_pull=force_docker_pull,
-                debug=debug,
-                js_console=js_console,
-            )
-            if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
-                return e
-            leaf = json_dumps(e, sort_keys=True)
-            if leaf[0] == '"':
-                leaf = json.loads(leaf)
-            parts.append(leaf)
+            if not convert_to_expression:
+                e = evaluator(
+                    scan[w[0] + 1 : w[1]],
+                    jslib,
+                    rootvars,
+                    timeout,
+                    fullJS=fullJS,
+                    force_docker_pull=force_docker_pull,
+                    debug=debug,
+                    js_console=js_console,
+                    container_engine=container_engine,
+                )
+                if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
+                    return e
+
+                leaf = json_dumps(e, sort_keys=True)
+                if leaf[0] == '"':
+                    leaf = json.loads(leaf)
+                parts.append(leaf)
+            else:
+                parts.append(
+                    "function(){var item ="
+                    + scan[w[0] : w[1]][2:-1]
+                    + '; if (typeof(item) === "string"){ return item; } else { return JSON.stringify(item); }}() + '
+                )
         elif scan[w[0]] == "\\":
             if escaping_behavior == 1:
                 # Old behavior.  Just skip the next character.
                 e = scan[w[1] - 1]
-                parts.append(e)
+                parts.append(dump(e))
             elif escaping_behavior == 2:
                 # Backslash quoting requires a three character lookahead.
                 e = scan[w[0] : w[1] + 1]
                 if e in ("\\$(", "\\${"):
                     # Suppress start of a parameter reference, drop the
                     # backslash.
-                    parts.append(e[1:])
+                    parts.append(dump(e[1:]))
                     w = (w[0], w[1] + 1)
                 elif e[1] == "\\":
                     # Double backslash, becomes a single backslash
-                    parts.append("\\")
+                    parts.append(dump("\\"))
                 else:
                     # Some other text, add it as-is (including the
                     # backslash) and resume scanning.
-                    parts.append(e[:2])
+                    parts.append(dump(e[:2]))
             else:
                 raise Exception("Unknown escaping behavior %s" % escaping_behavior)
-
         scan = scan[w[1] :]
         w = scanner(scan)
-    parts.append(scan)
+    if convert_to_expression:
+        parts.append(f'"{scan}"')
+        parts.append(";}")
+    else:
+        parts.append(scan)
     return "".join(parts)
 
 
@@ -353,11 +368,12 @@ def do_eval(
     js_console: bool = False,
     strip_whitespace: bool = True,
     cwlVersion: str = "",
+    container_engine: str = "docker",
 ) -> Optional[CWLOutputType]:
 
     runtime = cast(MutableMapping[str, Union[int, str, None]], copy.deepcopy(resources))
-    runtime["tmpdir"] = docker_windows_path_adjust(tmpdir) if tmpdir else None
-    runtime["outdir"] = docker_windows_path_adjust(outdir) if outdir else None
+    runtime["tmpdir"] = tmpdir if tmpdir else None
+    runtime["outdir"] = outdir if outdir else None
 
     rootvars = cast(
         CWLObjectType,
@@ -395,6 +411,7 @@ def do_eval(
                     "v1.2.0-dev3",
                 )
                 else 2,
+                container_engine=container_engine,
             )
 
         except Exception as e:

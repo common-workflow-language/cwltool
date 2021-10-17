@@ -6,15 +6,24 @@ import uuid
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from socket import getfqdn
-from typing import List, MutableMapping, MutableSequence, Optional, Tuple, Union, cast
-
-from schema_salad.sourceline import SourceLine
-from typing_extensions import TYPE_CHECKING
+from typing import (
+    Any,
+    List,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 from prov.identifier import Identifier
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
+from schema_salad.sourceline import SourceLine
+from typing_extensions import TYPE_CHECKING
 
 from .errors import WorkflowException
+from .job import CommandLineJob, JobBase
 from .loghandler import _logger
 from .process import Process, shortname
 from .provenance_constants import (
@@ -45,7 +54,6 @@ from .utils import (
     versionstring,
 )
 from .workflow_job import WorkflowJob
-from .job import CommandLineJob, JobBase
 
 if TYPE_CHECKING:
     from .provenance import ResearchObject
@@ -60,13 +68,9 @@ def copy_job_order(
         return job_order_object
     customised_job = {}  # type: CWLObjectType
     # new job object for RO
+    debug = _logger.isEnabledFor(logging.DEBUG)
     for each, i in enumerate(job.tool["inputs"]):
-        with SourceLine(
-            job.tool["inputs"],
-            each,
-            WorkflowException,
-            _logger.isEnabledFor(logging.DEBUG),
-        ):
+        with SourceLine(job.tool["inputs"], each, WorkflowException, debug):
             iid = shortname(i["id"])
             if iid in job_order_object:
                 customised_job[iid] = copy.deepcopy(job_order_object[iid])
@@ -117,7 +121,7 @@ class ProvenanceProfile:
 
     def __str__(self) -> str:
         """Represent this Provenvance profile as a string."""
-        return "ProvenanceProfile <%s> in <%s>" % (
+        return "ProvenanceProfile <{}> in <{}>".format(
             self.workflow_run_uri,
             self.research_object,
         )
@@ -322,7 +326,7 @@ class ProvenanceProfile:
                     "data:" + checksum, {PROV_TYPE: WFPROV["Artifact"]}
                 )
                 if "checksum" not in value:
-                    value["checksum"] = "%s$%s" % (SHA1, checksum)
+                    value["checksum"] = f"{SHA1}${checksum}"
 
         if not entity and "contents" in value:
             # Anonymous file, add content as string
@@ -341,7 +345,8 @@ class ProvenanceProfile:
         file_id = value.setdefault("@id", uuid.uuid4().urn)
         # A specialized entity that has just these names
         file_entity = self.document.entity(
-            file_id, [(PROV_TYPE, WFPROV["Artifact"]), (PROV_TYPE, WF4EVER["File"])],
+            file_id,
+            [(PROV_TYPE, WFPROV["Artifact"]), (PROV_TYPE, WF4EVER["File"])],
         )  # type: ProvEntity
 
         if "basename" in value:
@@ -362,7 +367,7 @@ class ProvenanceProfile:
             elif sec["class"] == "Directory":
                 sec_entity = self.declare_directory(sec)
             else:
-                raise ValueError("Got unexpected secondaryFiles value: {}".format(sec))
+                raise ValueError(f"Got unexpected secondaryFiles value: {sec}")
             # We don't know how/when/where the secondary file was generated,
             # but CWL convention is a kind of summary/index derived
             # from the original file. As its generally in a different format
@@ -399,7 +404,8 @@ class ProvenanceProfile:
         )
         # ORE description of ro:Folder, saved separately
         coll_b = dir_bundle.entity(
-            dir_id, [(PROV_TYPE, RO["Folder"]), (PROV_TYPE, ORE["Aggregation"])],
+            dir_id,
+            [(PROV_TYPE, RO["Folder"]), (PROV_TYPE, ORE["Aggregation"])],
         )
         self.document.mentionOf(dir_id + "#ore", dir_id, dir_bundle.identifier)
 
@@ -433,7 +439,10 @@ class ProvenanceProfile:
             m_entity.add_asserted_type(PROV["KeyEntityPair"])
 
             m_entity.add_attributes(
-                {PROV["pairKey"]: entry["basename"], PROV["pairEntity"]: entity,}
+                {
+                    PROV["pairKey"]: entry["basename"],
+                    PROV["pairEntity"]: entity,
+                }
             )
 
             # As well as a being a
@@ -486,7 +495,7 @@ class ProvenanceProfile:
         )  # type: ProvEntity
         return entity, checksum
 
-    def declare_artefact(self, value: Optional[CWLOutputType]) -> ProvEntity:
+    def declare_artefact(self, value: Any) -> ProvEntity:
         """Create data artefact entities for all file objects."""
         if value is None:
             # FIXME: If this can happen in CWL, we'll
@@ -514,7 +523,8 @@ class ProvenanceProfile:
             # FIXME: Don't naively assume add_data_file uses hash in filename!
             data_id = "data:%s" % PurePosixPath(data_file).stem
             return self.document.entity(
-                data_id, {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)},
+                data_id,
+                {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)},
             )
 
         if isinstance(value, MutableMapping):
@@ -582,7 +592,10 @@ class ProvenanceProfile:
             # If we reached this, then we were allowed to iterate
             coll = self.document.entity(
                 uuid.uuid4().urn,
-                [(PROV_TYPE, WFPROV["Artifact"]), (PROV_TYPE, PROV["Collection"]),],
+                [
+                    (PROV_TYPE, WFPROV["Artifact"]),
+                    (PROV_TYPE, PROV["Collection"]),
+                ],
             )
             if not members:
                 coll.add_asserted_type(PROV["EmptyCollection"])
@@ -618,7 +631,7 @@ class ProvenanceProfile:
             if name is not None:
                 base += "/" + name
             for key, value in job_order.items():
-                prov_role = self.wf_ns["%s/%s" % (base, key)]
+                prov_role = self.wf_ns[f"{base}/{key}"]
                 try:
                     entity = self.declare_artefact(value)
                     self.document.used(
@@ -653,7 +666,7 @@ class ProvenanceProfile:
                 if name is not None:
                     name = urllib.parse.quote(str(name), safe=":/,#")
                     # FIXME: Probably not "main" in nested workflows
-                    role = self.wf_ns["main/%s/%s" % (name, output)]
+                    role = self.wf_ns[f"main/{name}/{output}"]
                 else:
                     role = self.wf_ns["main/%s" % output]
 
@@ -691,7 +704,8 @@ class ProvenanceProfile:
             stepnametemp = "wf:main/" + str(step.name)[5:]
             stepname = urllib.parse.quote(stepnametemp, safe=":/,#")
             provstep = self.document.entity(
-                stepname, {PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]},
+                stepname,
+                {PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]},
             )
             self.document.entity(
                 "wf:main",
@@ -728,7 +742,7 @@ class ProvenanceProfile:
             # workflows, but that's OK as we'll also include run uuid
             # which also covers thhe case of this step being run in
             # multiple places or iterations
-            filename = "%s.%s.cwlprov" % (wf_name, self.workflow_run_uuid)
+            filename = f"{wf_name}.{self.workflow_run_uuid}.cwlprov"
 
         basename = str(PurePosixPath(PROVENANCE) / filename)
 

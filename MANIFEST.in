@@ -1,17 +1,20 @@
-include README.rst
+include README.rst CODE_OF_CONDUCT.md CONTRIBUTING.md
 include MANIFEST.in
 include LICENSE.txt
-include *requirements.txt
+include *requirements.txt mypy.ini tox.ini
 include gittaggers.py Makefile cwltool.py
+recursive-include typeshed *.pyi
 include tests/*
 include tests/tmp1/tmp2/tmp3/.gitkeep
 include tests/tmp4/alpha/*
 include tests/wf/*
+include tests/wf/operation/*
 include tests/override/*
 include tests/checker_wf/*
 include tests/subgraph/*
 include tests/trs/*
 include tests/wf/generator/*
+include cwltool/py.typed
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.yml
 include cwltool/schemas/v1.0/*.md
@@ -37,6 +40,14 @@ include cwltool/schemas/v1.2.0-dev4/*.yml
 include cwltool/schemas/v1.2.0-dev4/*.md
 include cwltool/schemas/v1.2.0-dev4/salad/schema_salad/metaschema/*.yml
 include cwltool/schemas/v1.2.0-dev4/salad/schema_salad/metaschema/*.md
+include cwltool/schemas/v1.2.0-dev5/*.yml
+include cwltool/schemas/v1.2.0-dev5/*.md
+include cwltool/schemas/v1.2.0-dev5/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/v1.2.0-dev5/salad/schema_salad/metaschema/*.md
+include cwltool/schemas/v1.2/*.yml
+include cwltool/schemas/v1.2/*.md
+include cwltool/schemas/v1.2/salad/schema_salad/metaschema/*.yml
+include cwltool/schemas/v1.2/salad/schema_salad/metaschema/*.md
 include cwltool/cwlNodeEngine.js
 include cwltool/cwlNodeEngineJSConsole.js
 include cwltool/cwlNodeEngineWithContext.js
@@ -45,14 +56,12 @@ include cwltool/extensions-v1.1.yml
 include cwltool/jshint/jshint_wrapper.js
 include cwltool/jshint/jshint.js
 include cwltool/hello.simg
+include cwltool/rdfqueries/*.sparql
 prune cwltool/schemas/v1.0/salad/typeshed
 prune cwltool/schemas/v1.0/salad/schema_salad/tests
 prune cwltool/schemas/v1.1.0-dev1/salad/typeshed
 prune cwltool/schemas/v1.1.0-dev1/salad/schema_salad/tests
 prune cwltool/schemas/presentations
-prune cwltool/schemas/draft-2
-prune cwltool/schemas/draft-1
-prune cwltool/schemas/draft-3
 prune cwltool/schemas/site
 prune cwltool/schemas/v1.0/examples
 prune cwltool/schemas/v1.0/v1.0

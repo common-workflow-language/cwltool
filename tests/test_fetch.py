@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 from urllib.parse import urljoin, urlsplit
 
-import pytest  # type: ignore
+import pytest
 import requests
 from schema_salad.fetcher import Fetcher
 from schema_salad.utils import CacheType
@@ -12,7 +12,6 @@ from cwltool.context import LoadingContext
 from cwltool.load_tool import load_tool
 from cwltool.main import main
 from cwltool.resolver import resolve_local
-from cwltool.utils import onWindows
 from cwltool.workflow import default_make_tool
 
 from .util import get_data, working_directory
@@ -20,12 +19,13 @@ from .util import get_data, working_directory
 
 class CWLTestFetcher(Fetcher):
     def __init__(
-        self, cache: CacheType, session: Optional[requests.sessions.Session],
+        self,
+        cache: CacheType,
+        session: Optional[requests.sessions.Session],
     ) -> None:
         """Create a Fetcher that provides a fixed result for testing purposes."""
-        pass
 
-    def fetch_text(self, url):  # type: (str) -> str
+    def fetch_text(self, url: str, content_types: Optional[List[str]] = None) -> str:
         if url == "baz:bar/foo.cwl":
             return """
 cwlVersion: v1.0
@@ -81,16 +81,10 @@ path_fragments = [
 ]
 
 
-def norm(uri: str) -> str:
-    if onWindows():
-        return uri.lower()
-    return uri
-
-
-@pytest.mark.parametrize("path,expected_path", path_fragments)  # type: ignore
+@pytest.mark.parametrize("path,expected_path", path_fragments)
 def test_resolve_local(path: str, expected_path: str) -> None:
     with working_directory(root):
-        expected = norm(root.as_uri() + expected_path)
+        expected = root.as_uri() + expected_path
         resolved = resolve_local(None, path)
         assert resolved
-        assert norm(resolved) == expected
+        assert resolved == expected

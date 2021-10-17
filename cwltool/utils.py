@@ -2,7 +2,6 @@
 
 import collections
 import os
-import platform
 import random
 import shutil
 import stat
@@ -44,16 +43,14 @@ from schema_salad.ref_resolver import Loader
 from typing_extensions import TYPE_CHECKING, Deque
 
 if TYPE_CHECKING:
+    from .command_line_tool import CallbackJob, ExpressionJob
     from .job import CommandLineJob, JobBase
-    from .workflow_job import WorkflowJob
-    from .command_line_tool import ExpressionJob, CallbackJob
     from .stdfsaccess import StdFsAccess
+    from .workflow_job import WorkflowJob
 
 __random_outdir = None  # type: Optional[str]
 
 CONTENT_LIMIT = 64 * 1024
-
-windows_default_container_id = "frolvlad/alpine-bash"
 
 DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
@@ -120,8 +117,8 @@ def versionstring() -> str:
     """Version of CWLtool used to execute the workflow."""
     pkg = pkg_resources.require("cwltool")
     if pkg:
-        return "%s %s" % (sys.argv[0], pkg[0].version)
-    return "%s %s" % (sys.argv[0], "unknown version")
+        return f"{sys.argv[0]} {pkg[0].version}"
+    return "{} {}".format(sys.argv[0], "unknown version")
 
 
 def aslist(thing: Any) -> MutableSequence[Any]:
@@ -143,83 +140,6 @@ def copytree_with_merge(src: str, dst: str) -> None:
             copytree_with_merge(spath, dpath)
         else:
             shutil.copy2(spath, dpath)
-
-
-def docker_windows_path_adjust(path: str) -> str:
-    r"""
-    Adjust only windows paths for Docker.
-
-    The docker run command treats them as unix paths.
-
-    Example: 'C:\Users\foo to /C/Users/foo (Docker for Windows) or /c/Users/foo
-    (Docker toolbox).
-    """
-    if onWindows():
-        split = path.split(":")
-        if len(split) == 2:
-            if platform.win32_ver()[0] in ("7", "8"):
-                # Docker toolbox uses lowecase windows Drive letters
-                split[0] = split[0].lower()
-            else:
-                split[0] = split[0].capitalize()
-                # Docker for Windows uses uppercase windows Drive letters
-            path = ":".join(split)
-        path = path.replace(":", "").replace("\\", "/")
-        return path if path[0] == "/" else "/" + path
-    return path
-
-
-def docker_windows_reverse_path_adjust(path: str) -> str:
-    r"""
-    Change docker path (only on windows os) appropriately back to Windows path.
-
-    Example:  /C/Users/foo to C:\Users\foo
-    """
-    if path is not None and onWindows():
-        if path[0] == "/":
-            path = path[1:]
-        else:
-            raise ValueError("not a docker path")
-        splitpath = path.split("/")
-        splitpath[0] = splitpath[0] + ":"
-        return "\\".join(splitpath)
-    return path
-
-
-def docker_windows_reverse_fileuri_adjust(fileuri: str) -> str:
-    r"""
-    Convert fileuri to be MS Windows comptabile, if needed.
-
-    On docker in windows fileuri do not contain : in path
-    To convert this file uri to windows compatible add : after drive letter,
-    so file:///E/var becomes file:///E:/var
-    """
-    if fileuri is not None and onWindows():
-        if urllib.parse.urlsplit(fileuri).scheme == "file":
-            filesplit = fileuri.split("/")
-            if filesplit[3][-1] != ":":
-                filesplit[3] = filesplit[3] + ":"
-                return "/".join(filesplit)
-            return fileuri
-        raise ValueError("not a file URI")
-    return fileuri
-
-
-def onWindows() -> bool:
-    """Check if we are on Windows OS."""
-    return os.name == "nt"
-
-
-def convert_pathsep_to_unix(path: str) -> str:
-    """
-    Convert path seperators to unix style.
-
-    On windows os.path.join would use backslash to join path, since we would
-    use these paths in Docker we would convert it to use forward slashes: /
-    """
-    if path is not None and onWindows():
-        return path.replace("\\", "/")
-    return path
 
 
 def cmp_like_py2(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> int:
@@ -447,23 +367,30 @@ def downloadHttpFile(httpurl):
     return str(f.name)
 
 
-def ensure_writable(path):  # type: (str) -> None
+def ensure_writable(path: str, include_root: bool = False) -> None:
+    """
+    Ensure that 'path' is writable.
+
+    If 'path' is a directory, then all files and directories under 'path' are
+    made writable, recursively. If 'path' is a file or if 'include_root' is
+    `True`, then 'path' itself is made writable.
+    """
+
+    def add_writable_flag(p: str) -> None:
+        st = os.stat(p)
+        mode = stat.S_IMODE(st.st_mode)
+        os.chmod(p, mode | stat.S_IWUSR)
+
     if os.path.isdir(path):
+        if include_root:
+            add_writable_flag(path)
         for root, dirs, files in os.walk(path):
             for name in files:
-                j = os.path.join(root, name)
-                st = os.stat(j)
-                mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode | stat.S_IWUSR)
+                add_writable_flag(os.path.join(root, name))
             for name in dirs:
-                j = os.path.join(root, name)
-                st = os.stat(j)
-                mode = stat.S_IMODE(st.st_mode)
-                os.chmod(j, mode | stat.S_IWUSR)
+                add_writable_flag(os.path.join(root, name))
     else:
-        st = os.stat(path)
-        mode = stat.S_IMODE(st.st_mode)
-        os.chmod(path, mode | stat.S_IWUSR)
+        add_writable_flag(path)
 
 
 def ensure_non_writable(path):  # type: (str) -> None
@@ -552,3 +479,9 @@ def posix_path(local_path: str) -> str:
 
 def local_path(posix_path: str) -> str:
     return str(Path(posix_path))
+
+
+def create_tmp_dir(tmpdir_prefix: str) -> str:
+    """Create a temporary directory that respects the given tmpdir_prefix."""
+    tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
+    return tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)

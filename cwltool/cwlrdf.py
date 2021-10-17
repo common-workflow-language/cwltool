@@ -5,8 +5,9 @@ from typing import Any, Dict, Optional, TextIO, Union, cast
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.jsonld_context import makerdf
-from schema_salad.ref_resolver import ContextType
+from schema_salad.utils import ContextType
 
+from .cwlviewer import CWLViewer
 from .process import Process
 
 
@@ -46,8 +47,8 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
 
     for step, run, _ in qres:
         stdout.write(
-            u'"%s" [label="%s"]\n'
-            % (lastpart(step), "%s (%s)" % (lastpart(step), lastpart(run)))
+            '"%s" [label="%s"]\n'
+            % (lastpart(step), f"{lastpart(step)} ({lastpart(run)})")
         )
 
     qres = g.query(
@@ -60,12 +61,12 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
     )
 
     for step, inp, source in qres:
-        stdout.write(u'"%s" [shape=box]\n' % (lastpart(inp)))
+        stdout.write('"%s" [shape=box]\n' % (lastpart(inp)))
         stdout.write(
-            u'"%s" -> "%s" [label="%s"]\n' % (lastpart(source), lastpart(inp), "")
+            '"{}" -> "{}" [label="{}"]\n'.format(lastpart(source), lastpart(inp), "")
         )
         stdout.write(
-            u'"%s" -> "%s" [label="%s"]\n' % (lastpart(inp), lastpart(step), "")
+            '"{}" -> "{}" [label="{}"]\n'.format(lastpart(inp), lastpart(step), "")
         )
 
     qres = g.query(
@@ -77,9 +78,9 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
     )
 
     for step, out in qres:
-        stdout.write(u'"%s" [shape=box]\n' % (lastpart(out)))
+        stdout.write('"%s" [shape=box]\n' % (lastpart(out)))
         stdout.write(
-            u'"%s" -> "%s" [label="%s"]\n' % (lastpart(step), lastpart(out), "")
+            '"{}" -> "{}" [label="{}"]\n'.format(lastpart(step), lastpart(out), "")
         )
 
     qres = g.query(
@@ -91,9 +92,9 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
     )
 
     for out, source in qres:
-        stdout.write(u'"%s" [shape=octagon]\n' % (lastpart(out)))
+        stdout.write('"%s" [shape=octagon]\n' % (lastpart(out)))
         stdout.write(
-            u'"%s" -> "%s" [label="%s"]\n' % (lastpart(source), lastpart(out), "")
+            '"{}" -> "{}" [label="{}"]\n'.format(lastpart(source), lastpart(out), "")
         )
 
     qres = g.query(
@@ -105,7 +106,7 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
     )
 
     for (inp,) in qres:
-        stdout.write(u'"%s" [shape=octagon]\n' % (lastpart(inp)))
+        stdout.write('"%s" [shape=octagon]\n' % (lastpart(inp)))
 
 
 def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
@@ -148,9 +149,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
             if wf in subworkflows:
                 if wf not in dotname:
                     dotname[wf] = "cluster_" + lastpart(wf)
-                stdout.write(
-                    u'subgraph "%s" { label="%s"\n' % (dotname[wf], lastpart(wf))
-                )
+                stdout.write(f'subgraph "{dotname[wf]}" {{ label="{lastpart(wf)}"\n')
                 currentwf = wf
                 clusternode[wf] = step
             else:
@@ -158,7 +157,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
 
         if str(runtype) != "https://w3id.org/cwl/cwl#Workflow":
             stdout.write(
-                u'"%s" [label="%s"]\n'
+                '"%s" [label="%s"]\n'
                 % (dotname[step], urllib.parse.urldefrag(str(step))[1])
             )
 
@@ -181,29 +180,18 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
     for src, sink, srcrun, sinkrun in qres:
         attr = ""
         if srcrun in clusternode:
-            attr += u'ltail="%s"' % dotname[srcrun]
+            attr += 'ltail="%s"' % dotname[srcrun]
             src = clusternode[srcrun]
         if sinkrun in clusternode:
-            attr += u' lhead="%s"' % dotname[sinkrun]
+            attr += ' lhead="%s"' % dotname[sinkrun]
             sink = clusternode[sinkrun]
-        stdout.write(u'"%s" -> "%s" [%s]\n' % (dotname[src], dotname[sink], attr))
+        stdout.write(f'"{dotname[src]}" -> "{dotname[sink]}" [{attr}]\n')
 
 
 def printdot(
     wf: Process,
     ctx: ContextType,
     stdout: Union[TextIO, StreamWriter],
-    include_parameters: bool = False,
 ) -> None:
-    g = gather(wf, ctx)
-
-    stdout.write("digraph {")
-
-    # g.namespace_manager.qname(predicate)
-
-    if include_parameters:
-        dot_with_parameters(g, stdout)
-    else:
-        dot_without_parameters(g, stdout)
-
-    stdout.write("}")
+    cwl_viewer = CWLViewer(printrdf(wf, ctx, "n3"))  # type: CWLViewer
+    stdout.write(cwl_viewer.dot())

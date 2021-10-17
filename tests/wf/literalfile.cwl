@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 cwlVersion: v1.0
 class: CommandLineTool
 inputs:
@@ -5,5 +6,5 @@ inputs:
 outputs: []
 requirements:
   DockerRequirement:
-    dockerPull: debian:9
+    dockerPull: docker.io/debian:9
 arguments: [cat, $(inputs.a1)]

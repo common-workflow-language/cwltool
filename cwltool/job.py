@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import shutil
+import stat
 import subprocess  # nosec
 import sys
 import tempfile
@@ -20,6 +21,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Mapping,
     Match,
     MutableMapping,
     MutableSequence,
@@ -32,30 +34,28 @@ from typing import (
 
 import psutil
 import shellescape
+from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
 
-from prov.model import PROV
-
+from . import env_to_stdout, run_job
 from .builder import Builder, HasReqsHints
-from .context import RuntimeContext, getdefault
+from .context import RuntimeContext
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .process import stage_files
 from .secrets import SecretStore
 from .utils import (
-    DEFAULT_TMP_PREFIX,
     CWLObjectType,
     CWLOutputType,
     DirectoryType,
     OutputCallbackType,
     bytes2str_in_dicts,
-    copytree_with_merge,
+    create_tmp_dir,
     ensure_non_writable,
     ensure_writable,
-    onWindows,
     processes_to_kill,
 )
 
@@ -66,66 +66,7 @@ needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
 
 SHELL_COMMAND_TEMPLATE = """#!/bin/bash
-python "run_job.py" "job.json"
-"""
-
-PYTHON_RUN_SCRIPT = """
-import json
-import os
-import sys
-if os.name == 'posix':
-    try:
-        import subprocess32 as subprocess  # type: ignore
-    except Exception:
-        import subprocess
-else:
-    import subprocess  # type: ignore
-
-with open(sys.argv[1], "r") as f:
-    popen_description = json.load(f)
-    commands = popen_description["commands"]
-    cwd = popen_description["cwd"]
-    env = popen_description["env"]
-    env["PATH"] = os.environ.get("PATH")
-    stdin_path = popen_description["stdin_path"]
-    stdout_path = popen_description["stdout_path"]
-    stderr_path = popen_description["stderr_path"]
-    if stdin_path is not None:
-        stdin = open(stdin_path, "rb")
-    else:
-        stdin = subprocess.PIPE
-    if stdout_path is not None:
-        stdout = open(stdout_path, "wb")
-    else:
-        stdout = sys.stderr
-    if stderr_path is not None:
-        stderr = open(stderr_path, "wb")
-    else:
-        stderr = sys.stderr
-    if os.name == 'nt':
-        close_fds = False
-        for key, value in env.items():
-            env[key] = str(value)
-    else:
-        close_fds = True
-    sp = subprocess.Popen(commands,
-                          shell=False,
-                          close_fds=close_fds,
-                          stdin=stdin,
-                          stdout=stdout,
-                          stderr=stderr,
-                          env=env,
-                          cwd=cwd)
-    if sp.stdin:
-        sp.stdin.close()
-    rcode = sp.wait()
-    if stdin is not subprocess.PIPE:
-        stdin.close()
-    if stdout is not sys.stderr:
-        stdout.close()
-    if stderr is not sys.stderr:
-        stderr.close()
-    sys.exit(rcode)
+python3 "run_job.py" "job.json"
 """
 
 
@@ -157,15 +98,7 @@ def relink_initialworkdir(
                     pass
             elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
                 shutil.rmtree(host_outdir_tgt)
-            if onWindows():
-                # If this becomes a big issue for someone then we could
-                # refactor the code to process output from a running container
-                # and avoid all the extra IO below
-                if vol.type in ("File", "WritableFile"):
-                    shutil.copy(vol.resolved, host_outdir_tgt)
-                elif vol.type in ("Directory", "WritableDirectory"):
-                    copytree_with_merge(vol.resolved, host_outdir_tgt)
-            elif not vol.resolved.startswith("_:"):
+            if not vol.resolved.startswith("_:"):
                 try:
                     os.symlink(vol.resolved, host_outdir_tgt)
                 except FileExistsError:
@@ -190,7 +123,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         name: str,
     ) -> None:
         """Initialize the job object."""
-        super(JobBase, self).__init__()
+        super().__init__()
         self.builder = builder
         self.joborder = joborder
         self.stdin = None  # type: Optional[str]
@@ -243,13 +176,24 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
+        def is_streamable(file: str) -> bool:
+            if not runtimeContext.streaming_allowed:
+                return False
+            for inp in self.joborder.values():
+                if isinstance(inp, dict) and inp.get("location", None) == file:
+                    return inp.get("streamable", False)
+            return False
+
         for knownfile in self.pathmapper.files():
             p = self.pathmapper.mapper(knownfile)
             if p.type == "File" and not os.path.isfile(p[0]) and p.staged:
-                raise WorkflowException(
-                    "Input file %s (at %s) not found or is not a regular "
-                    "file." % (knownfile, self.pathmapper.mapper(knownfile)[0])
-                )
+                if not (
+                    is_streamable(knownfile) and stat.S_ISFIFO(os.stat(p[0]).st_mode)
+                ):
+                    raise WorkflowException(
+                        "Input file %s (at %s) not found or is not a regular "
+                        "file." % (knownfile, self.pathmapper.mapper(knownfile)[0])
+                    )
 
         if "listing" in self.generatefiles:
             runtimeContext = runtimeContext.copy()
@@ -280,7 +224,18 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         runtimeContext: RuntimeContext,
         monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
     ) -> None:
+        """Execute the tool, either directly or via script.
 
+        Note: we are now at the point where self.environment is
+        ignored. The caller is responsible for correctly splitting that
+        into the runtime and env arguments.
+
+        `runtime` is the list of arguments to put at the start of the
+        command (e.g. docker run).
+
+        `env` is the enviroment to be set for running the resulting
+        command line.
+        """
         scr = self.get_requirement("ShellCommandRequirement")[0]
 
         shouldquote = needs_shell_quoting_re.search
@@ -337,9 +292,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             if self.stdin is not None:
                 rmap = self.pathmapper.reversemap(self.stdin)
                 if rmap is None:
-                    raise WorkflowException(
-                        "{} missing from pathmapper".format(self.stdin)
-                    )
+                    raise WorkflowException(f"{self.stdin} missing from pathmapper")
                 else:
                     stdin_path = rmap[1]
 
@@ -381,11 +334,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 stderr_path=stderr_path,
                 env=env,
                 cwd=self.outdir,
-                job_dir=tempfile.mkdtemp(
-                    prefix=getdefault(
-                        runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX
-                    )
-                ),
+                make_job_dir=lambda: runtimeContext.create_outdir(),
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
                 name=self.name,
@@ -415,7 +364,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     )
                 else:
                     raise ValueError(
-                        "'lsiting' in self.generatefiles but no "
+                        "'listing' in self.generatefiles but no "
                         "generatemapper was setup."
                     )
 
@@ -495,6 +444,61 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             )
             shutil.rmtree(self.tmpdir, True)
 
+    @abstractmethod
+    def _required_env(self) -> Dict[str, str]:
+        """Variables required by the CWL spec (HOME, TMPDIR, etc).
+
+        Note that with containers, the paths will (likely) be those from
+        inside.
+        """
+        pass
+
+    def _preserve_environment_on_containers_warning(
+        self, varname: Optional[Iterable[str]] = None
+    ) -> None:
+        """When running in a container, issue a warning."""
+        # By default, don't do anything; ContainerCommandLineJob below
+        # will issue a warning.
+        pass
+
+    def prepare_environment(
+        self, runtimeContext: RuntimeContext, envVarReq: Mapping[str, str]
+    ) -> None:
+        """Set up environment variables.
+
+        Here we prepare the environment for the job, based on any
+        preserved variables and `EnvVarRequirement`. Later, changes due
+        to `MPIRequirement`, `Secrets`, or `SoftwareRequirement` are
+        applied (in that order).
+        """
+        # Start empty
+        env: Dict[str, str] = {}
+
+        # Preserve any env vars
+        if runtimeContext.preserve_entire_environment:
+            self._preserve_environment_on_containers_warning()
+            env.update(os.environ)
+        elif runtimeContext.preserve_environment:
+            self._preserve_environment_on_containers_warning(
+                runtimeContext.preserve_environment
+            )
+            for key in runtimeContext.preserve_environment:
+                try:
+                    env[key] = os.environ[key]
+                except KeyError:
+                    _logger.warning(
+                        f"Attempting to preserve environment variable '{key}' which is not present"
+                    )
+
+        # Set required env vars
+        env.update(self._required_env())
+
+        # Apply EnvVarRequirement
+        env.update(envVarReq)
+
+        # Set on ourselves
+        self.environment = env
+
     def process_monitor(self, sproc):  # type: (subprocess.Popen[str]) -> None
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
@@ -504,9 +508,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             children = monitor.children()
             rss = monitor.memory_info().rss
             while len(children):
-                rss += sum([process.memory_info().rss for process in children])
+                rss += sum(process.memory_info().rss for process in children)
                 children = list(
-                    itertools.chain(*[process.children() for process in children])
+                    itertools.chain(*(process.children() for process in children))
                 )
             if memory_usage[0] is None or rss > memory_usage[0]:
                 memory_usage[0] = rss
@@ -545,26 +549,6 @@ class CommandLineJob(JobBase):
 
         self._setup(runtimeContext)
 
-        env = self.environment
-        vars_to_preserve = runtimeContext.preserve_environment
-        if runtimeContext.preserve_entire_environment is not False:
-            vars_to_preserve = os.environ
-        if vars_to_preserve:
-            for key, value in os.environ.items():
-                if key in vars_to_preserve and key not in env:
-                    # On Windows, subprocess env can't handle unicode.
-                    env[key] = str(value) if onWindows() else value
-        env["HOME"] = str(self.outdir) if onWindows() else self.outdir
-        env["TMPDIR"] = str(self.tmpdir) if onWindows() else self.tmpdir
-        if "PATH" not in env:
-            env["PATH"] = str(os.environ["PATH"]) if onWindows() else os.environ["PATH"]
-        if "SYSTEMROOT" not in env and "SYSTEMROOT" in os.environ:
-            env["SYSTEMROOT"] = (
-                str(os.environ["SYSTEMROOT"])
-                if onWindows()
-                else os.environ["SYSTEMROOT"]
-            )
-
         stage_files(
             self.pathmapper,
             ignore_writable=True,
@@ -587,7 +571,16 @@ class CommandLineJob(JobBase):
 
         monitor_function = functools.partial(self.process_monitor)
 
-        self._execute([], env, runtimeContext, monitor_function)
+        self._execute([], self.environment, runtimeContext, monitor_function)
+
+    def _required_env(self) -> Dict[str, str]:
+        env = {}
+        env["HOME"] = self.outdir
+        env["TMPDIR"] = self.tmpdir
+        env["PATH"] = os.environ["PATH"]
+        if "SYSTEMROOT" in os.environ:
+            env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+        return env
 
 
 CONTROL_CODE_RE = r"\x1b\[[0-9;]*[a-zA-Z]"
@@ -596,19 +589,23 @@ CONTROL_CODE_RE = r"\x1b\[[0-9;]*[a-zA-Z]"
 class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     """Commandline job using containers."""
 
+    CONTAINER_TMPDIR: str = "/tmp"  # nosec
+
     @abstractmethod
     def get_from_requirements(
         self,
         r: CWLObjectType,
         pull_image: bool,
-        force_pull: bool = False,
-        tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,
+        force_pull: bool,
+        tmp_outdir_prefix: str,
     ) -> Optional[str]:
         pass
 
     @abstractmethod
     def create_runtime(
-        self, env: MutableMapping[str, str], runtime_context: RuntimeContext,
+        self,
+        env: MutableMapping[str, str],
+        runtime_context: RuntimeContext,
     ) -> Tuple[List[str], Optional[str]]:
         """Return the list of commands to run the selected container engine."""
 
@@ -645,6 +642,19 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     ) -> None:
         """Append a writable directory mapping to the runtime option list."""
 
+    def _preserve_environment_on_containers_warning(
+        self, varnames: Optional[Iterable[str]] = None
+    ) -> None:
+        """When running in a container, issue a warning."""
+        if varnames is None:
+            flags = "--preserve-entire-environment"
+        else:
+            flags = "--preserve-environment={" + ", ".join(varnames) + "}"
+
+        _logger.warning(
+            f"You have specified `{flags}` while running a container which will override variables set in the container. This may break the container, be non-portable, and/or affect reproducibility."
+        )
+
     def create_file_and_add_volume(
         self,
         runtime: List[str],
@@ -655,9 +665,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     ) -> str:
         """Create the file and add a mapping."""
         if not host_outdir_tgt:
-            tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
             new_file = os.path.join(
-                tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
+                create_tmp_dir(tmpdir_prefix),
                 os.path.basename(volume.target),
             )
         writable = True if volume.type == "CreateWritableFile" else False
@@ -720,6 +729,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         runtimeContext: RuntimeContext,
         tmpdir_lock: Optional[threading.Lock] = None,
     ) -> None:
+        debug = runtimeContext.debug
         if tmpdir_lock:
             with tmpdir_lock:
                 if not os.path.exists(self.tmpdir):
@@ -731,7 +741,6 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
         self.prov_obj = runtimeContext.prov_obj
         img_id = None
-        env = cast(MutableMapping[str, str], os.environ)
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if docker_req is not None and user_space_docker_cmd:
             # For user-space docker implementations, a local image name or ID
@@ -745,22 +754,18 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 try:
                     subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 except OSError:
-                    raise WorkflowException(
-                        SourceLine(docker_req).makeError(
-                            "Either Docker container {} is not available with "
-                            "user space docker implementation {} or {} is missing "
-                            "or broken.".format(
-                                img_id, user_space_docker_cmd, user_space_docker_cmd
-                            )
-                        )
+                    raise SourceLine(
+                        docker_req, None, WorkflowException, debug
+                    ).makeError(
+                        f"Either Docker container {img_id} is not available with "
+                        f"user space docker implementation {user_space_docker_cmd} "
+                        f" or {user_space_docker_cmd} is missing or broken."
                     )
             else:
-                raise WorkflowException(
-                    SourceLine(docker_req).makeError(
-                        "Docker image must be specified as 'dockerImageId' or "
-                        "'dockerPull' when using user space implementations of "
-                        "Docker"
-                    )
+                raise SourceLine(docker_req, None, WorkflowException, debug).makeError(
+                    "Docker image must be specified as 'dockerImageId' or "
+                    "'dockerPull' when using user space implementations of "
+                    "Docker"
                 )
         else:
             try:
@@ -769,10 +774,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                         self.get_from_requirements(
                             docker_req,
                             runtimeContext.pull_image,
-                            getdefault(runtimeContext.force_docker_pull, False),
-                            getdefault(
-                                runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX
-                            ),
+                            runtimeContext.force_docker_pull,
+                            runtimeContext.tmp_outdir_prefix,
                         )
                     )
                 if img_id is None:
@@ -814,7 +817,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 _logger.debug("%s error", container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
-                        "%s is required to run this tool: %s" % (container, str(err))
+                        "{} is required to run this tool: {}".format(
+                            container, str(err)
+                        )
                     ) from err
                 else:
                     raise WorkflowException(
@@ -825,7 +830,11 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     )
 
         self._setup(runtimeContext)
+
+        # Copy as don't want to modify our env
+        env = dict(os.environ)
         (runtime, cidfile) = self.create_runtime(env, runtimeContext)
+
         runtime.append(str(img_id))
         monitor_function = None
         if cidfile:
@@ -887,7 +896,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             return
         max_mem_percent = 0  # type: float
         mem_percent = 0  # type: float
-        with open(stats_file_name, mode="r") as stats:
+        with open(stats_file_name) as stats:
             while True:
                 line = stats.readline()
                 if not line:
@@ -914,9 +923,9 @@ def _job_popen(
     stdin_path: Optional[str],
     stdout_path: Optional[str],
     stderr_path: Optional[str],
-    env: MutableMapping[str, str],
+    env: Mapping[str, str],
     cwd: str,
-    job_dir: str,
+    make_job_dir: Callable[[], str],
     job_script_contents: Optional[str] = None,
     timelimit: Optional[int] = None,
     name: Optional[str] = None,
@@ -946,7 +955,7 @@ def _job_popen(
         sproc = subprocess.Popen(
             commands,
             shell=False,  # nosec
-            close_fds=not onWindows(),
+            close_fds=True,
             stdin=stdin,
             stdout=stdout,
             stderr=stderr,
@@ -965,8 +974,7 @@ def _job_popen(
             def terminate():  # type: () -> None
                 try:
                     _logger.warning(
-                        "[job %s] exceeded time limit of %d seconds and will"
-                        "be terminated",
+                        "[job %s] exceeded time limit of %d seconds and will be terminated",
                         name,
                         timelimit,
                     )
@@ -984,7 +992,7 @@ def _job_popen(
         if tm is not None:
             tm.cancel()
 
-        if isinstance(stdin, IOBase) and hasattr(stdin, "close"):
+        if isinstance(stdin, IO) and hasattr(stdin, "close"):
             stdin.close()
 
         if stdout is not sys.stderr and hasattr(stdout, "close"):
@@ -998,31 +1006,31 @@ def _job_popen(
         if job_script_contents is None:
             job_script_contents = SHELL_COMMAND_TEMPLATE
 
-        env_copy = {}
-        key = None  # type: Optional[str]
-        for key in env:
-            env_copy[key] = env[key]
-
         job_description = {
             "commands": commands,
             "cwd": cwd,
-            "env": env_copy,
+            "env": env,
             "stdout_path": stdout_path,
             "stderr_path": stderr_path,
             "stdin_path": stdin_path,
         }
 
-        with open(
-            os.path.join(job_dir, "job.json"), mode="w", encoding="utf-8"
-        ) as job_file:
-            json_dump(job_description, job_file, ensure_ascii=False)
+        job_dir = make_job_dir()
         try:
+            with open(
+                os.path.join(job_dir, "job.json"), mode="w", encoding="utf-8"
+            ) as job_file:
+                json_dump(job_description, job_file, ensure_ascii=False)
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "wb") as _:
                 _.write(job_script_contents.encode("utf-8"))
+
             job_run = os.path.join(job_dir, "run_job.py")
-            with open(job_run, "wb") as _:
-                _.write(PYTHON_RUN_SCRIPT.encode("utf-8"))
+            shutil.copyfile(run_job.__file__, job_run)
+
+            env_getter = os.path.join(job_dir, "env_to_stdout.py")
+            shutil.copyfile(env_to_stdout.__file__, env_getter)
+
             sproc = subprocess.Popen(  # nosec
                 ["bash", job_script.encode("utf-8")],
                 shell=False,  # nosec

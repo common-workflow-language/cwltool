@@ -25,18 +25,19 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=diff_cover black pylint coverage pep257 pydocstyle flake8 mypy\
-	pytest-xdist isort wheel -rtest-requirements.txt
+DEVPKGS=diff_cover black pylint pep257 pydocstyle flake8 tox tox-pyenv \
+	isort wheel autoflake flake8-bugbear pyupgrade bandit \
+	-rtest-requirements.txt -rmypy_requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
-VERSION=3.0.$(shell TZ=UTC git log --first-parent --max-count=1 \
+
+VERSION=3.1.$(shell TZ=UTC git log --first-parent --max-count=1 \
 	--format=format:%cd --date=format-local:%Y%m%d%H%M%S)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S=$(shell uname -s)
 
 ## all         : default task
-all:
-	pip install -e .
+all: dev
 
 ## help        : print this help message and exit
 help: Makefile
@@ -45,7 +46,7 @@ help: Makefile
 ## install-dep : install most of the development dependencies via pip
 install-dep: install-dependencies
 
-install-dependencies:
+install-dependencies: FORCE
 	pip install --upgrade $(DEVPKGS)
 	pip install -r requirements.txt
 
@@ -65,20 +66,32 @@ dev: install-dep
 ## dist        : create a module package for distribution
 dist: dist/${MODULE}-$(VERSION).tar.gz
 
-dist/${MODULE}-$(VERSION).tar.gz: $(SOURCES)
-	./setup.py sdist bdist_wheel
+check-python3:
+# Check that the default python version is python 3
+	python --version 2>&1 | grep "Python 3"
+
+dist/${MODULE}-$(VERSION).tar.gz: check-python3 $(SOURCES)
+	python setup.py sdist bdist_wheel
+
+## docs	       : make the docs
+docs: FORCE
+	cd docs && $(MAKE) html
 
 ## clean       : clean up all temporary / machine-generated files
-clean: FORCE
-	rm -f ${MODILE}/*.pyc tests/*.pyc
-	./setup.py clean --all || true
+clean: check-python3 FORCE
+	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so
+	rm -Rf ${MODULE}/__pycache__/
+	python setup.py clean --all || true
 	rm -Rf .coverage
 	rm -f diff-cover.html
 
 # Linting and code style related targets
 ## sorting imports using isort: https://github.com/timothycrosley/isort
-sort_imports:
-	isort ${MODULE}/*.py tests/*.py setup.py
+sort_imports: $(PYSOURCES)
+	isort $^
+
+remove_unused_imports: $(PYSOURCES)
+	autoflake --in-place --remove-all-unused-imports $^
 
 pep257: pydocstyle
 ## pydocstyle      : check Python code style
@@ -95,17 +108,20 @@ diff_pydocstyle_report: pydocstyle_report.txt
 format:
 	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests
 
+format-check:
+	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests
+
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
                 $^ -j0|| true
 
-pylint_report.txt: ${PYSOURCES}
+pylint_report.txt: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
 		$^ -j0> $@ || true
 
 diff_pylint_report: pylint_report.txt
-	diff-quality --violations=pylint pylint_report.txt
+	diff-quality --compare-branch=main --violations=pylint pylint_report.txt
 
 .coverage: testcov
 
@@ -125,24 +141,24 @@ coverage-report: .coverage
 	coverage report
 
 diff-cover: coverage.xml
-	diff-cover $^
+	diff-cover --compare-branch=main $^
 
 diff-cover.html: coverage.xml
-	diff-cover $^ --html-report $@
+	diff-cover --compare-branch=main $^ --html-report $@
 
 ## test        : run the ${MODULE} test suite
-test: $(pysources)
-	python setup.py test --addopts "-n auto --dist=loadfile"
+test: check-python3 $(PYSOURCES)
+	python -m pytest -rs ${PYTEST_EXTRA}
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
-testcov: $(pysources)
-	python setup.py test --addopts "--cov cwltool -n auto --dist=loadfile"
+testcov: check-python3 $(PYSOURCES)
+	python -m pytest -rs --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
 
-sloccount.sc: ${PYSOURCES} Makefile
+sloccount.sc: $(PYSOURCES) Makefile
 	sloccount --duplicates --wide --details $^ > $@
 
 ## sloccount   : count lines of code
-sloccount: ${PYSOURCES} Makefile
+sloccount: $(PYSOURCES) Makefile
 	sloccount $^
 
 list-author-emails:
@@ -150,30 +166,39 @@ list-author-emails:
 	@git log --format='%aN,%aE' | sort -u | grep -v 'root'
 
 mypy3: mypy
-mypy: ${PYSOURCES}
-	if ! test -f $(shell python3 -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
+mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
+	if ! test -f $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
 	then \
-		rm -Rf typeshed/2and3/ruamel/yaml ; \
-		ln -s $(shell python3 -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-			typeshed/2and3/ruamel/ ; \
+		rm -Rf typeshed/ruamel/yaml ; \
+		ln -s $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
+			typeshed/ruamel/ ; \
 	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
-	MYPYPATH=$$MYPYPATH:typeshed/3:typeshed/2and3 mypy --disallow-untyped-calls \
-		 --warn-redundant-casts \
-		 cwltool
+	MYPYPATH=$$MYPYPATH:typeshed mypy $^
 
-mypyc: ${PYSOURCES}
-	MYPYPATH=typeshed/2and3/:typeshed/3 CWLTOOL_USE_MYPYC=1 pip install --verbose -e . && pytest --ignore cwltool/schemas --basetemp ./tmp
+mypyc: $(PYSOURCES)
+	MYPYPATH=typeshed CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
+		 && pytest -rs -vv ${PYTEST_EXTRA}
 
-release-test: FORCE
+shellcheck: FORCE
+	shellcheck build-cwltool-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
+		cwltool-in-docker.sh
+
+pyupgrade: $(PYSOURCES)
+	pyupgrade --exit-zero-even-if-changed --py36-plus $^
+
+release-test: check-python3 FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )
 	./release-test.sh
 
 release: release-test
 	. testenv2/bin/activate && \
-		testenv2/src/${MODULE}/setup.py sdist bdist_wheel && \
+		python testenv2/src/${MODULE}/setup.py sdist bdist_wheel && \
 		pip install twine && \
 		twine upload testenv2/src/${MODULE}/dist/* && \
 		git tag ${VERSION} && git push --tags
+
+flake8: $(PYSOURCES)
+	flake8 $^
 
 FORCE:
 

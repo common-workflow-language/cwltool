@@ -1,27 +1,28 @@
-from distutils import spawn
-
-import py.path
+"""Tests for docker engine."""
+from pathlib import Path
+from shutil import which
 
 from cwltool.main import main
 
 from .util import get_data, get_main_output, needs_docker
 
 
-@needs_docker  # type: ignore
-def test_docker_workflow(tmpdir: py.path.local) -> None:
+@needs_docker
+def test_docker_workflow(tmp_path: Path) -> None:
+    """Basic test for docker with a CWL Workflow."""
     result_code, _, stderr = get_main_output(
         [
             "--default-container",
             "debian",
             "--outdir",
-            str(tmpdir),
+            str(tmp_path),
             get_data("tests/wf/hello-workflow.cwl"),
             "--usermessage",
             "hello",
         ]
     )
     assert "completed success" in stderr
-    assert (tmpdir / "response.txt").read_text("utf-8") == "hello"
+    assert (tmp_path / "response.txt").read_text("utf-8") == "hello"
     assert result_code == 0
 
 
@@ -35,14 +36,14 @@ def test_docker_iwdr() -> None:
             "hello",
         ]
     )
-    docker_installed = bool(spawn.find_executable("docker"))
+    docker_installed = bool(which("docker"))
     if docker_installed:
         assert result_code == 0
     else:
         assert result_code != 0
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_docker_incorrect_image_pull() -> None:
     result_code = main(
         [
@@ -56,7 +57,7 @@ def test_docker_incorrect_image_pull() -> None:
     assert result_code != 0
 
 
-@needs_docker  # type: ignore
+@needs_docker
 def test_docker_file_mount() -> None:
     # test for bug in
     # ContainerCommandLineJob.create_file_and_add_volume()

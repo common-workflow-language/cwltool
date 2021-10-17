@@ -2,11 +2,9 @@ import copy
 import datetime
 import functools
 import logging
-import tempfile
 import threading
 from typing import (
     Dict,
-    Generator,
     List,
     MutableMapping,
     MutableSequence,
@@ -29,10 +27,8 @@ from .loghandler import _logger
 from .process import shortname, uniquename
 from .stdfsaccess import StdFsAccess
 from .utils import (
-    DEFAULT_TMP_PREFIX,
     CWLObjectType,
     CWLOutputType,
-    DestinationsType,
     JobsGeneratorType,
     OutputCallbackType,
     ParametersType,
@@ -50,7 +46,9 @@ if TYPE_CHECKING:
     from .workflow import Workflow, WorkflowStep
 
 
-class WorkflowJobStep(object):
+class WorkflowJobStep:
+    """Generated for each step in Workflow.steps()."""
+
     def __init__(self, step: "WorkflowStep") -> None:
         """Initialize this WorkflowJobStep."""
         self.step = step
@@ -75,11 +73,12 @@ class WorkflowJobStep(object):
 
         _logger.info("[%s] start", self.name)
 
-        for j in self.step.job(joborder, output_callback, runtimeContext):
-            yield j
+        yield from self.step.job(joborder, output_callback, runtimeContext)
 
 
-class ReceiveScatterOutput(object):
+class ReceiveScatterOutput:
+    """Produced by the scatter generators."""
+
     def __init__(
         self,
         output_callback: ScatterOutputCallbackType,
@@ -114,7 +113,16 @@ class ReceiveScatterOutput(object):
         if self.completed == self.total:
             self.output_callback(self.dest, self.processStatus)
 
-    def setTotal(self, total: int, steps: List[Optional[JobsGeneratorType]],) -> None:
+    def setTotal(
+        self,
+        total: int,
+        steps: List[Optional[JobsGeneratorType]],
+    ) -> None:
+        """
+        Set the total number of expected outputs along with the steps.
+
+        This is necessary to finish the setup.
+        """
         self.total = total
         self.steps = steps
         if self.completed == self.total:
@@ -241,9 +249,7 @@ def _flat_crossproduct_scatter(
     callback: ReceiveScatterOutput,
     startindex: int,
     runtimeContext: RuntimeContext,
-) -> Tuple[
-    List[Optional[JobsGeneratorType]], int,
-]:
+) -> Tuple[List[Optional[JobsGeneratorType]], int,]:
     """Inner loop."""
     scatter_key = scatter_keys[0]
     jobl = len(cast(Sized, joborder[scatter_key]))
@@ -435,7 +441,7 @@ def object_from_state(
                         break
                 if not found:
                     raise WorkflowException(
-                        u"All sources for '%s' are null" % (shortname(original_id))
+                        "All sources for '%s' are null" % (shortname(original_id))
                     )
             elif inp["pickValue"] == "the_only_non_null":
                 found = False
@@ -443,14 +449,14 @@ def object_from_state(
                     if v is not None:
                         if found:
                             raise WorkflowException(
-                                u"Expected only one source for '%s' to be non-null, got %s"
+                                "Expected only one source for '%s' to be non-null, got %s"
                                 % (shortname(original_id), seq)
                             )
                         found = True
                         inputobj[iid] = v
                 if not found:
                     raise WorkflowException(
-                        u"All sources for '%s' are null" % (shortname(original_id))
+                        "All sources for '%s' are null" % (shortname(original_id))
                     )
             elif inp["pickValue"] == "all_non_null":
                 inputobj[iid] = [v for v in seq if v is not None]
@@ -466,7 +472,9 @@ def object_from_state(
     return inputobj
 
 
-class WorkflowJob(object):
+class WorkflowJob:
+    """Generates steps from the Workflow."""
+
     def __init__(self, workflow: "Workflow", runtimeContext: RuntimeContext) -> None:
         """Initialize this WorkflowJob."""
         self.workflow = workflow
@@ -481,13 +489,7 @@ class WorkflowJob(object):
         self.processStatus = ""
         self.did_callback = False
         self.made_progress = None  # type: Optional[bool]
-
-        if runtimeContext.outdir is not None:
-            self.outdir = runtimeContext.outdir
-        else:
-            self.outdir = tempfile.mkdtemp(
-                prefix=getdefault(runtimeContext.tmp_outdir_prefix, DEFAULT_TMP_PREFIX)
-            )
+        self.outdir = runtimeContext.get_outdir()
 
         self.name = uniquename(
             "workflow {}".format(
@@ -600,7 +602,11 @@ class WorkflowJob(object):
         final_output_callback: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
-
+        container_engine = "docker"
+        if runtimeContext.podman:
+            container_engine = "podman"
+        elif runtimeContext.singularity:
+            container_engine = "singularity"
         if step.submitted:
             return
 
@@ -631,9 +637,9 @@ class WorkflowJob(object):
                 i["id"]: i["valueFrom"] for i in step.tool["inputs"] if "valueFrom" in i
             }
 
-            loadContents = set(
+            loadContents = {
                 i["id"] for i in step.tool["inputs"] if i.get("loadContents")
-            )
+            }
 
             if len(valueFrom) > 0 and not bool(
                 self.workflow.get_requirement("StepInputExpressionRequirement")[0]
@@ -662,6 +668,7 @@ class WorkflowJob(object):
                         adjustDirObjs(
                             v, functools.partial(get_listing, fs_access, recursive=True)
                         )
+
                         return expression.do_eval(
                             valueFrom[k],
                             shortio,
@@ -673,6 +680,7 @@ class WorkflowJob(object):
                             debug=runtimeContext.debug,
                             js_console=runtimeContext.js_console,
                             timeout=runtimeContext.eval_timeout,
+                            container_engine=container_engine,
                         )
                     return v
 
@@ -690,6 +698,7 @@ class WorkflowJob(object):
                         debug=runtimeContext.debug,
                         js_console=runtimeContext.js_console,
                         timeout=runtimeContext.eval_timeout,
+                        container_engine=container_engine,
                     )
                     if whenval is True:
                         pass
@@ -748,28 +757,27 @@ class WorkflowJob(object):
             else:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.debug(
-                        u"[%s] job input %s", step.name, json_dumps(inputobj, indent=4)
+                        "[%s] job input %s", step.name, json_dumps(inputobj, indent=4)
                     )
 
                 inputobj = postScatterEval(inputobj)
                 if inputobj is not None:
                     if _logger.isEnabledFor(logging.DEBUG):
                         _logger.debug(
-                            u"[%s] evaluated job input to %s",
+                            "[%s] evaluated job input to %s",
                             step.name,
                             json_dumps(inputobj, indent=4),
                         )
                     jobs = step.job(inputobj, callback, runtimeContext)
                 else:
-                    _logger.info(u"[%s] will be skipped", step.name)
+                    _logger.info("[%s] will be skipped", step.name)
                     callback({k["id"]: None for k in outputparms}, "skipped")
                     step.completed = True
                     jobs = (_ for _ in ())
 
             step.submitted = True
 
-            for j in jobs:
-                yield j
+            yield from jobs
         except WorkflowException:
             raise
         except Exception:
@@ -799,14 +807,10 @@ class WorkflowJob(object):
 
         runtimeContext = runtimeContext.copy()
         runtimeContext.outdir = None
+        debug = runtimeContext.debug
 
         for index, inp in enumerate(self.tool["inputs"]):
-            with SourceLine(
-                self.tool["inputs"],
-                index,
-                WorkflowException,
-                _logger.isEnabledFor(logging.DEBUG),
-            ):
+            with SourceLine(self.tool["inputs"], index, WorkflowException, debug):
                 inp_id = shortname(inp["id"])
                 if inp_id in joborder:
                     self.state[inp["id"]] = WorkflowStateItem(

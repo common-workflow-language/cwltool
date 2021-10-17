@@ -1,4 +1,4 @@
-"""Enables Docker software containers via the {dx-,u,}docker runtimes."""
+"""Enables Docker software containers via the {u,}docker or podman runtimes."""
 
 import csv
 import datetime
@@ -7,10 +7,8 @@ import re
 import shutil
 import subprocess  # nosec
 import sys
-import tempfile
 import threading
-from distutils import spawn
-from io import StringIO, open  # pylint: disable=redefined-builtin
+from io import StringIO  # pylint: disable=redefined-builtin
 from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple, cast
 
 import requests
@@ -22,14 +20,7 @@ from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
-from .utils import (
-    DEFAULT_TMP_PREFIX,
-    CWLObjectType,
-    docker_windows_path_adjust,
-    ensure_non_writable,
-    ensure_writable,
-    onWindows,
-)
+from .utils import CWLObjectType, create_tmp_dir, ensure_writable
 
 _IMAGES = set()  # type: Set[str]
 _IMAGES_LOCK = threading.Lock()
@@ -64,14 +55,10 @@ def _get_docker_machine_mounts() -> List[str]:
 def _check_docker_machine_path(path: Optional[str]) -> None:
     if path is None:
         return
-    if onWindows():
-        path = path.lower()
     mounts = _get_docker_machine_mounts()
 
     found = False
     for mount in mounts:
-        if onWindows():
-            mount = mount.lower()
         if path.startswith(mount):
             found = True
             break
@@ -101,16 +88,14 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         name: str,
     ) -> None:
         """Initialize a command line builder using the Docker software container engine."""
-        super(DockerCommandLineJob, self).__init__(
-            builder, joborder, make_path_mapper, requirements, hints, name
-        )
+        super().__init__(builder, joborder, make_path_mapper, requirements, hints, name)
 
     @staticmethod
     def get_image(
         docker_requirement: Dict[str, str],
         pull_image: bool,
-        force_pull: bool = False,
-        tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,
+        force_pull: bool,
+        tmp_outdir_prefix: str,
     ) -> bool:
         """
         Retrieve the relevant Docker container image.
@@ -170,7 +155,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
             elif "dockerFile" in docker_requirement:
-                dockerfile_dir = str(tempfile.mkdtemp(prefix=tmp_outdir_prefix))
+                dockerfile_dir = create_tmp_dir(tmp_outdir_prefix)
                 with open(os.path.join(dockerfile_dir, "Dockerfile"), "wb") as dfile:
                     dfile.write(docker_requirement["dockerFile"].encode("utf-8"))
                 cmd = [
@@ -236,10 +221,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         self,
         r: CWLObjectType,
         pull_image: bool,
-        force_pull: bool = False,
-        tmp_outdir_prefix: str = DEFAULT_TMP_PREFIX,
+        force_pull: bool,
+        tmp_outdir_prefix: str,
     ) -> Optional[str]:
-        if not spawn.find_executable("docker"):
+        if not shutil.which("docker"):
             raise WorkflowException("docker executable is not available")
 
         if self.get_image(
@@ -263,7 +248,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         output = StringIO()
         csv.writer(output).writerow(options)
         mount_arg = output.getvalue().strip()
-        runtime.append("--mount={}".format(mount_arg))
+        runtime.append(f"--mount={mount_arg}")
         # Unlike "--volume", "--mount" will fail if the volume doesn't already exist.
         if not os.path.exists(source):
             os.makedirs(source)
@@ -273,7 +258,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
     ) -> None:
         """Append volume a file/dir mapping to the runtime option list."""
         if not volume.resolved.startswith("_:"):
-            _check_docker_machine_path(docker_windows_path_adjust(volume.resolved))
+            _check_docker_machine_path(volume.resolved)
             self.append_volume(runtime, volume.resolved, volume.target)
 
     def add_writable_file_volume(
@@ -294,8 +279,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     os.makedirs(os.path.dirname(host_outdir_tgt))
                 shutil.copy(volume.resolved, host_outdir_tgt)
             else:
-                tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
-                tmpdir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
+                tmpdir = create_tmp_dir(tmpdir_prefix)
                 file_copy = os.path.join(tmpdir, os.path.basename(volume.resolved))
                 shutil.copy(volume.resolved, file_copy)
                 self.append_volume(runtime, file_copy, volume.target, writable=True)
@@ -312,9 +296,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if volume.resolved.startswith("_:"):
             # Synthetic directory that needs creating first
             if not host_outdir_tgt:
-                tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
                 new_dir = os.path.join(
-                    tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir),
+                    create_tmp_dir(tmpdir_prefix),
                     os.path.basename(volume.target),
                 )
                 self.append_volume(runtime, new_dir, volume.target, writable=True)
@@ -327,14 +310,22 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 )
             else:
                 if not host_outdir_tgt:
-                    tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
-                    tmpdir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
+                    tmpdir = create_tmp_dir(tmpdir_prefix)
                     new_dir = os.path.join(tmpdir, os.path.basename(volume.resolved))
                     shutil.copytree(volume.resolved, new_dir)
                     self.append_volume(runtime, new_dir, volume.target, writable=True)
                 else:
                     shutil.copytree(volume.resolved, host_outdir_tgt)
                 ensure_writable(host_outdir_tgt or new_dir)
+
+    def _required_env(self) -> Dict[str, str]:
+        # spec currently says "HOME must be set to the designated output
+        # directory." but spec might change to designated temp directory.
+        # runtime.append("--env=HOME=/tmp")
+        return {
+            "TMPDIR": self.CONTAINER_TMPDIR,
+            "HOME": self.builder.outdir,
+        }
 
     def create_runtime(
         self, env: MutableMapping[str, str], runtimeContext: RuntimeContext
@@ -348,14 +339,15 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 # without this
             else:
                 runtime = [user_space_docker_cmd, "run"]
+        elif runtimeContext.podman:
+            runtime = ["podman", "run", "-i", "--userns=keep-id"]
         else:
             runtime = ["docker", "run", "-i"]
         self.append_volume(
             runtime, os.path.realpath(self.outdir), self.builder.outdir, writable=True
         )
-        tmpdir = "/tmp"  # nosec
         self.append_volume(
-            runtime, os.path.realpath(self.tmpdir), tmpdir, writable=True
+            runtime, os.path.realpath(self.tmpdir), self.CONTAINER_TMPDIR, writable=True
         )
         self.add_volumes(
             self.pathmapper,
@@ -377,9 +369,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             runtime = [x.replace(":ro", "") for x in runtime]
             runtime = [x.replace(":rw", "") for x in runtime]
 
-        runtime.append(
-            "--workdir=%s" % (docker_windows_path_adjust(self.builder.outdir))
-        )
+        runtime.append("--workdir=%s" % (self.builder.outdir))
         if not user_space_docker_cmd:
 
             if not runtimeContext.no_read_only:
@@ -387,7 +377,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
             if self.networkaccess:
                 if runtimeContext.custom_net:
-                    runtime.append("--net={0}".format(runtimeContext.custom_net))
+                    runtime.append(f"--net={runtimeContext.custom_net}")
             else:
                 runtime.append("--net=none")
 
@@ -395,9 +385,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 runtime.append("--log-driver=none")
 
             euid, egid = docker_vm_id()
-            if not onWindows():
-                # MS Windows does not have getuid() or geteuid() functions
-                euid, egid = euid or os.geteuid(), egid or os.getgid()
+            euid, egid = euid or os.geteuid(), egid or os.getgid()
 
             if runtimeContext.no_match_user is False and (
                 euid is not None and egid is not None
@@ -406,13 +394,6 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         if runtimeContext.rm_container:
             runtime.append("--rm")
-
-        runtime.append("--env=TMPDIR=/tmp")
-
-        # spec currently says "HOME must be set to the designated output
-        # directory." but spec might change to designated temp directory.
-        # runtime.append("--env=HOME=/tmp")
-        runtime.append("--env=HOME=%s" % self.builder.outdir)
 
         cidfile_path = None  # type: Optional[str]
         # add parameters to docker to write a container ID file
@@ -430,12 +411,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     _logger.error(
                         "--cidfile-dir %s error:\n%s",
                         cidfile_dir,
-                        cidfile_dir + " is not a directory, " "please check it first",
+                        cidfile_dir + " is not a directory, please check it first",
                     )
                     exit(2)
             else:
-                tmp_dir, tmp_prefix = os.path.split(runtimeContext.tmpdir_prefix)
-                cidfile_dir = tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
+                cidfile_dir = runtimeContext.create_tmpdir()
 
             cidfile_name = datetime.datetime.now().strftime("%Y%m%d%H%M%S-%f") + ".cid"
             if runtimeContext.cidfile_prefix is not None:
@@ -443,10 +423,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             cidfile_path = os.path.join(cidfile_dir, cidfile_name)
             runtime.append("--cidfile=%s" % cidfile_path)
         for key, value in self.environment.items():
-            runtime.append("--env=%s=%s" % (key, value))
+            runtime.append(f"--env={key}={value}")
 
         if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
-            runtime.append("--memory=%dm" % self.builder.resources["ram"])
+            ram = self.builder.resources["ram"]
+            runtime.append("--memory=%dm" % ram)
         elif not user_space_docker_cmd:
             res_req, _ = self.builder.get_requirement("ResourceRequirement")
             if res_req and ("ramMin" in res_req or "ramMax" in res_req):

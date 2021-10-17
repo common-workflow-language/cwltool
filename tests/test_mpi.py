@@ -1,25 +1,26 @@
-import pytest  # type: ignore
-
-import sys
-import os.path
-from io import StringIO
-from ruamel import yaml
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
+"""Tests of the experimental MPI extension."""
 import json
+import os.path
+import sys
+from io import StringIO
 from pathlib import Path
-from typing import Any, Optional, List, MutableMapping, Generator, Tuple, cast
+from typing import Any, Generator, List, MutableMapping, Optional, Tuple
+
 import pkg_resources
+import pytest
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Names
+from schema_salad.utils import yaml_no_ts
 
-from .util import get_data, working_directory, windows_needs_docker
-
+import cwltool.load_tool
+import cwltool.singularity
+import cwltool.udocker
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
 from cwltool.mpi import MpiConfig, MPIRequirementName
-import cwltool.singularity
-import cwltool.udocker
-import cwltool.load_tool
+
+from .util import get_data, working_directory
 
 
 def test_mpi_conf_defaults() -> None:
@@ -35,10 +36,10 @@ def test_mpi_conf_defaults() -> None:
 
 def test_mpi_conf_unknownkeys() -> None:
     with pytest.raises(TypeError):
-        MpiConfig(runner="mpiexec", foo="bar")
+        MpiConfig(runner="mpiexec", foo="bar")  # type: ignore
 
 
-@pytest.fixture(scope="class")  # type: ignore
+@pytest.fixture(scope="class")
 def fake_mpi_conf(tmp_path_factory: Any) -> Generator[str, None, None]:
     """
     Make a super simple mpirun-alike for applications that don't actually use MPI.
@@ -103,7 +104,8 @@ if __name__ == "__main__":
         "env_pass": ["USER"],
     }
     plat_conf_file = mpitmp / "plat_mpi.yml"
-    plat_conf_file.write_text(yaml.round_trip_dump(plat_conf))
+    yaml = yaml_no_ts()
+    yaml.dump(plat_conf, plat_conf_file)
 
     yield str(plat_conf_file)
 
@@ -133,7 +135,6 @@ class TestMpiRun:
         assert conf_obj.default_nproc == 1
         assert conf_obj.extra_flags == ["--no-fail"]
 
-    @windows_needs_docker  # type: ignore
     def test_simple_mpi_tool(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         stdout = StringIO()
         stderr = StringIO()
@@ -152,7 +153,6 @@ class TestMpiRun:
                 pids = [int(line) for line in pidfile]
             assert len(pids) == 2
 
-    @windows_needs_docker  # type: ignore
     def test_simple_mpi_nproc_expr(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         np = 4
         input_file = make_processes_input(np, tmp_path)
@@ -173,7 +173,6 @@ class TestMpiRun:
                 pids = [int(line) for line in pidfile]
             assert len(pids) == np
 
-    @windows_needs_docker  # type: ignore
     def test_mpi_workflow(self, fake_mpi_conf: str, tmp_path: Path) -> None:
         np = 3
         input_file = make_processes_input(np, tmp_path)
@@ -194,9 +193,8 @@ class TestMpiRun:
                 lc = int(lc_file.read())
                 assert lc == np
 
-    @windows_needs_docker  # type: ignore
     def test_environment(
-        self, fake_mpi_conf: str, tmp_path: Path, monkeypatch: Any
+        self, fake_mpi_conf: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         stdout = StringIO()
         stderr = StringIO()
@@ -220,12 +218,14 @@ class TestMpiRun:
             assert e["TEST_MPI_FOO"] == "bar"
 
 
-def test_env_passing(monkeypatch: Any) -> None:
+def test_env_passing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Confirm that MPI extension passes environment variables correctly."""
     config = MpiConfig(
-        env_pass=["A", "B", "LONG_NAME"], env_pass_regex=["TOOLNAME", "MPI_.*_CONF"],
+        env_pass=["A", "B", "LONG_NAME"],
+        env_pass_regex=["TOOLNAME", "MPI_.*_CONF"],
     )
 
-    env = {}  # type: MutableMapping[str, str]
+    env: MutableMapping[str, str] = {}
 
     with monkeypatch.context() as m:
         m.setattr(os, "environ", {})
@@ -280,12 +280,14 @@ def test_env_passing(monkeypatch: Any) -> None:
 
 
 # Reading the schema is super slow - cache for the session
-@pytest.fixture(scope="session")  # type: ignore
+@pytest.fixture(scope="session")
 def schema_ext11() -> Generator[Names, None, None]:
     with pkg_resources.resource_stream("cwltool", "extensions-v1.1.yml") as res:
         ext11 = res.read().decode("utf-8")
         cwltool.process.use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
-        yield cwltool.process.get_schema("v1.1")[1]
+        schema = cwltool.process.get_schema("v1.1")[1]
+        assert isinstance(schema, Names)
+        yield schema
 
 
 mpiReq = CommentedMap({"class": MPIRequirementName, "processes": 1})

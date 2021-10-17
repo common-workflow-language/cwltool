@@ -6,18 +6,11 @@ import random
 from typing import (
     Callable,
     Dict,
-    Generator,
-    Iterable,
     List,
     Mapping,
     MutableMapping,
     MutableSequence,
-    NamedTuple,
     Optional,
-    Sequence,
-    Sized,
-    Tuple,
-    Union,
     cast,
 )
 from uuid import UUID
@@ -73,10 +66,12 @@ context.default_make_tool = default_make_tool
 
 class Workflow(Process):
     def __init__(
-        self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
+        self,
+        toolpath_object: CommentedMap,
+        loadingContext: LoadingContext,
     ) -> None:
         """Initialize this Workflow."""
-        super(Workflow, self).__init__(toolpath_object, loadingContext)
+        super().__init__(toolpath_object, loadingContext)
         self.provenance_object = None  # type: Optional[ProvenanceProfile]
         if loadingContext.research_obj is not None:
             run_uuid = None  # type: Optional[UUID]
@@ -175,8 +170,7 @@ class Workflow(Process):
         runtimeContext.part_of = "workflow %s" % job.name
         runtimeContext.toplevel = False
 
-        for wjob in job.job(builder.job, output_callbacks, runtimeContext):
-            yield wjob
+        yield from job.job(builder.job, output_callbacks, runtimeContext)
 
     def visit(self, op: Callable[[CommentedMap], None]) -> None:
         op(self.tool)
@@ -204,6 +198,7 @@ class WorkflowStep(Process):
         parentworkflowProv: Optional[ProvenanceProfile] = None,
     ) -> None:
         """Initialize this WorkflowStep."""
+        debug = loadingContext.debug
         if "id" in toolpath_object:
             self.id = toolpath_object["id"]
         else:
@@ -248,6 +243,14 @@ class WorkflowStep(Process):
         validation_errors = []
         self.tool = toolpath_object = copy.deepcopy(toolpath_object)
         bound = set()
+
+        if self.embedded_tool.get_requirement("SchemaDefRequirement")[0]:
+            if "requirements" not in toolpath_object:
+                toolpath_object["requirements"] = []
+            toolpath_object["requirements"].append(
+                self.embedded_tool.get_requirement("SchemaDefRequirement")[0]
+            )
+
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
             for index, step_entry in enumerate(toolpath_object[stepfield]):
@@ -286,12 +289,18 @@ class WorkflowStep(Process):
                         else:
                             step_entry_name = step_entry
                         validation_errors.append(
-                            SourceLine(self.tool["out"], index).makeError(
+                            SourceLine(
+                                self.tool["out"], index, include_traceback=debug
+                            ).makeError(
                                 "Workflow step output '%s' does not correspond to"
                                 % shortname(step_entry_name)
                             )
                             + "\n"
-                            + SourceLine(self.embedded_tool.tool, "outputs").makeError(
+                            + SourceLine(
+                                self.embedded_tool.tool,
+                                "outputs",
+                                include_traceback=debug,
+                            ).makeError(
                                 "  tool output (expected '%s')"
                                 % (
                                     "', '".join(
@@ -319,7 +328,7 @@ class WorkflowStep(Process):
 
         if missing_values:
             validation_errors.append(
-                SourceLine(self.tool, "in").makeError(
+                SourceLine(self.tool, "in", include_traceback=debug).makeError(
                     "Step is missing required parameter%s '%s'"
                     % (
                         "s" if len(missing_values) > 1 else "",
@@ -331,7 +340,7 @@ class WorkflowStep(Process):
         if validation_errors:
             raise ValidationException("\n".join(validation_errors))
 
-        super(WorkflowStep, self).__init__(toolpath_object, loadingContext)
+        super().__init__(toolpath_object, loadingContext)
 
         if self.embedded_tool.tool["class"] == "Workflow":
             (feature, _) = self.get_requirement("SubworkflowFeatureRequirement")
@@ -362,14 +371,14 @@ class WorkflowStep(Process):
             inp_map = {i["id"]: i for i in inputparms}
             for inp in scatter:
                 if inp not in inp_map:
-                    raise ValidationException(
-                        SourceLine(self.tool, "scatter").makeError(
-                            "Scatter parameter '%s' does not correspond to "
-                            "an input parameter of this step, expecting '%s'"
-                            % (
-                                shortname(inp),
-                                "', '".join(shortname(k) for k in inp_map.keys()),
-                            )
+                    SourceLine(
+                        self.tool, "scatter", ValidationException, debug
+                    ).makeError(
+                        "Scatter parameter '%s' does not correspond to "
+                        "an input parameter of this step, expecting '%s'"
+                        % (
+                            shortname(inp),
+                            "', '".join(shortname(k) for k in inp_map.keys()),
                         )
                     )
 
@@ -436,12 +445,11 @@ class WorkflowStep(Process):
                 step_input[field] = job_order[inp["id"]]
 
         try:
-            for tool in self.embedded_tool.job(
+            yield from self.embedded_tool.job(
                 step_input,
                 functools.partial(self.receive_output, output_callbacks),
                 runtimeContext,
-            ):
-                yield tool
+            )
         except WorkflowException:
             _logger.error("Exception on step '%s'", runtimeContext.name)
             raise

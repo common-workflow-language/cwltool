@@ -1,9 +1,10 @@
+#!/usr/bin/env cwl-runner
 class: CommandLineTool
 cwlVersion: v1.0
 
 requirements:
   DockerRequirement:
-      dockerPull: debian:stable-slim
+      dockerPull: docker.io/debian:stable-slim
   InlineJavascriptRequirement: {}
   InitialWorkDirRequirement:
     listing: |

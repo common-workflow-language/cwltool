@@ -3,7 +3,6 @@ from functools import partial
 from typing import (
     Callable,
     Dict,
-    List,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -27,14 +26,14 @@ def v1_1to1_2(
     """Public updater for v1.1 to v1.2."""
     doc = copy.deepcopy(doc)
 
-    upd = doc
+    upd: Union[CommentedSeq, CommentedMap] = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
-        upd = cast(CommentedMap, upd["$graph"])
+        upd = upd["$graph"]
     for proc in aslist(upd):
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
 
-    return doc, "v1.2.0-dev1"
+    return doc, "v1.2"
 
 
 def v1_0to1_1(
@@ -73,7 +72,7 @@ def v1_0to1_1(
                         r["class"] = rewrite[cls]
                 else:
                     raise ValidationException(
-                        "hints entries must be dictionaries: {} {}.".format(type(r), r)
+                        f"hints entries must be dictionaries: {type(r)} {r}."
                     )
         if "steps" in t:
             for s in cast(MutableSequence[CWLObjectType], t["steps"]):
@@ -81,7 +80,7 @@ def v1_0to1_1(
                     rewrite_requirements(s)
                 else:
                     raise ValidationException(
-                        "steps entries must be dictionaries: {} {}.".format(type(s), s)
+                        f"steps entries must be dictionaries: {type(s)} {s}."
                     )
 
     def update_secondaryFiles(t, top=False):
@@ -120,9 +119,9 @@ def v1_0to1_1(
     visit_class(doc, ("ExpressionTool", "Workflow"), fix_inputBinding)
     visit_field(doc, "secondaryFiles", partial(update_secondaryFiles, top=True))
 
-    upd = doc
+    upd: Union[CommentedMap, CommentedSeq] = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
-        upd = cast(CommentedMap, upd["$graph"])
+        upd = upd["$graph"]
     for proc in aslist(upd):
         proc.setdefault("hints", CommentedSeq())
         proc["hints"].insert(
@@ -143,12 +142,14 @@ def v1_0to1_1(
 def v1_1_0dev1to1_1(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    """Public updater for v1.1.0-dev1 to v1.1."""
     return (doc, "v1.1")
 
 
 def v1_2_0dev1todev2(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    """Public updater for v1.2.0-dev1 to v1.2.0-dev2."""
     return (doc, "v1.2.0-dev2")
 
 
@@ -166,9 +167,9 @@ def v1_2_0dev2todev3(
                         inp["pickValue"] = "the_only_non_null"
 
     visit_class(doc, "Workflow", update_pickvalue)
-    upd = doc
+    upd: Union[CommentedSeq, CommentedMap] = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
-        upd = cast(CommentedMap, upd["$graph"])
+        upd = upd["$graph"]
     for proc in aslist(upd):
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
@@ -178,7 +179,22 @@ def v1_2_0dev2todev3(
 def v1_2_0dev3todev4(
     doc: CommentedMap, loader: Loader, baseuri: str
 ) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    """Public updater for v1.2.0-dev3 to v1.2.0-dev4."""
     return (doc, "v1.2.0-dev4")
+
+
+def v1_2_0dev4todev5(
+    doc: CommentedMap, loader: Loader, baseuri: str
+) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    """Public updater for v1.2.0-dev4 to v1.2.0-dev5."""
+    return (doc, "v1.2.0-dev5")
+
+
+def v1_2_0dev5to1_2(
+    doc: CommentedMap, loader: Loader, baseuri: str
+) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+    """Public updater for v1.2.0-dev5 to v1.2."""
+    return (doc, "v1.2")
 
 
 ORDERED_VERSIONS = [
@@ -189,26 +205,30 @@ ORDERED_VERSIONS = [
     "v1.2.0-dev2",
     "v1.2.0-dev3",
     "v1.2.0-dev4",
+    "v1.2.0-dev5",
+    "v1.2",
 ]
 
 UPDATES = {
-    u"v1.0": v1_0to1_1,
-    u"v1.1": v1_1to1_2,
+    "v1.0": v1_0to1_1,
+    "v1.1": v1_1to1_2,
+    "v1.2": None,
 }  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
 
 DEVUPDATES = {
-    u"v1.1.0-dev1": v1_1_0dev1to1_1,
-    u"v1.2.0-dev1": v1_2_0dev1todev2,
-    u"v1.2.0-dev2": v1_2_0dev2todev3,
-    u"v1.2.0-dev3": v1_2_0dev3todev4,
-    u"v1.2.0-dev4": None,
+    "v1.1.0-dev1": v1_1_0dev1to1_1,
+    "v1.2.0-dev1": v1_2_0dev1todev2,
+    "v1.2.0-dev2": v1_2_0dev2todev3,
+    "v1.2.0-dev3": v1_2_0dev3todev4,
+    "v1.2.0-dev4": v1_2_0dev4todev5,
+    "v1.2.0-dev5": v1_2_0dev5to1_2,
 }  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
 
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = u"v1.2.0-dev4"
+INTERNAL_VERSION = "v1.2"
 
 ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 
@@ -221,7 +241,9 @@ def identity(
 
 
 def checkversion(
-    doc: Union[CommentedSeq, CommentedMap], metadata: CommentedMap, enable_dev: bool,
+    doc: Union[CommentedSeq, CommentedMap],
+    metadata: CommentedMap,
+    enable_dev: bool,
 ) -> Tuple[CommentedMap, str]:
     """Check the validity of the version of the give CWL document.
 
@@ -261,7 +283,7 @@ def checkversion(
                 keys = list(UPDATES.keys())
                 keys.sort()
                 raise ValidationException(
-                    u"Version '%s' is a development or deprecated version.\n "
+                    "Version '%s' is a development or deprecated version.\n "
                     "Update your document to a stable version (%s) or use "
                     "--enable-dev to enable support for development and "
                     "deprecated versions." % (version, ", ".join(keys))
@@ -280,7 +302,7 @@ def update(
     metadata: CommentedMap,
     update_to: Optional[str] = None,
 ) -> CommentedMap:
-
+    """Update a CWL document to 'update_to' (if provided) or INTERNAL_VERSION."""
     if update_to is None:
         update_to = INTERNAL_VERSION
 
@@ -297,7 +319,7 @@ def update(
 
     cdoc["cwlVersion"] = version
     metadata["cwlVersion"] = version
-    metadata["http://commonwl.org/cwltool#original_cwlVersion"] = originalversion
-    cdoc["http://commonwl.org/cwltool#original_cwlVersion"] = originalversion
+    metadata[ORIGINAL_CWLVERSION] = originalversion
+    cdoc[ORIGINAL_CWLVERSION] = originalversion
 
     return cdoc

@@ -1,7 +1,6 @@
-from typing import Any
-
-from ruamel import yaml
+import pytest
 from schema_salad.avro.schema import Names
+from schema_salad.utils import yaml_no_ts
 
 from cwltool import process, validate_js
 from cwltool.sandboxjs import code_fragment_to_js
@@ -24,27 +23,32 @@ outputs: []
 
 
 def test_get_expressions() -> None:
-    test_cwl_yaml = yaml.main.round_trip_load(TEST_CWL)
+    yaml = yaml_no_ts()
+    test_cwl_yaml = yaml.load(TEST_CWL)
     schema = process.get_schema("v1.0")[1]
     assert isinstance(schema, Names)
-    clt_schema = schema.names["CommandLineTool"]
+    clt_schema = schema.names["org.w3id.cwl.cwl.CommandLineTool"]
 
     exprs = validate_js.get_expressions(test_cwl_yaml, clt_schema)
 
     assert len(exprs) == 1
 
 
-def test_validate_js_expressions(mocker: Any) -> None:
-    test_cwl_yaml = yaml.main.round_trip_load(TEST_CWL)
+def test_validate_js_expressions(caplog: pytest.LogCaptureFixture) -> None:
+    """Test invalid JS expression."""
+    yaml = yaml_no_ts()
+    test_cwl_yaml = yaml.load(TEST_CWL)
     schema = process.get_schema("v1.0")[1]
     assert isinstance(schema, Names)
-    clt_schema = schema.names["CommandLineTool"]
+    clt_schema = schema.names["org.w3id.cwl.cwl.CommandLineTool"]
 
-    mocker.patch("cwltool.validate_js._logger")
-    # mocker.patch("cwltool.validate_js.print_js_hint_messages")
     validate_js.validate_js_expressions(test_cwl_yaml, clt_schema)
 
-    validate_js._logger.warning.assert_called_with(" JSHINT: (function(){return ((kjdbfkjd));})()\n JSHINT:                      ^\n JSHINT: W117: 'kjdbfkjd' is not defined.")  # type: ignore
+    assert (
+        " JSHINT: (function(){return ((kjdbfkjd));})()\n"
+        " JSHINT:                      ^\n"
+        " JSHINT: W117: 'kjdbfkjd' is not defined."
+    ) in caplog.text
 
 
 def test_js_hint_basic() -> None:

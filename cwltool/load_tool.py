@@ -8,7 +8,6 @@ import urllib
 import uuid
 from typing import (
     Any,
-    Callable,
     Dict,
     List,
     MutableMapping,
@@ -21,7 +20,6 @@ from typing import (
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
-from schema_salad.fetcher import Fetcher
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.schema import validate_doc
 from schema_salad.sourceline import SourceLine, cmap
@@ -33,7 +31,7 @@ from schema_salad.utils import (
     json_dumps,
 )
 
-from . import process, update
+from . import CWL_CONTENT_TYPES, process, update
 from .context import LoadingContext
 from .errors import WorkflowException
 from .loghandler import _logger
@@ -129,7 +127,10 @@ def fetch_document(
             resolver=loadingContext.resolver,
             document_loader=loadingContext.loader,
         )
-        workflowobj = cast(CommentedMap, loadingContext.loader.fetch(fileuri))
+        workflowobj = cast(
+            CommentedMap,
+            loadingContext.loader.fetch(fileuri, content_types=CWL_CONTENT_TYPES),
+        )
         return loadingContext, workflowobj, uri
     if isinstance(argsworkflow, MutableMapping):
         uri = (
@@ -166,7 +167,7 @@ def _convert_stdstreams_to_files(
                 ):
                     if not isinstance(out, CommentedMap):
                         raise ValidationException(
-                            "Output '{}' is not a valid " "OutputParameter.".format(out)
+                            f"Output '{out}' is not a valid OutputParameter."
                         )
                     for streamtype in ["stdout", "stderr"]:
                         if out.get("type") == streamtype:
@@ -306,14 +307,18 @@ def resolve_and_validate_document(
             "No cwlVersion found. "
             "Use the following syntax in your CWL document to declare "
             "the version: cwlVersion: <version>.\n"
-            "Note: if this is a CWL draft-2 (pre v1.0) document then it "
-            "will need to be upgraded first."
+            "Note: if this is a CWL draft-3 (pre v1.0) document then it "
+            "will need to be upgraded first using https://pypi.org/project/cwl-upgrader/ . "
+            "'sbg:draft-2' documents can be upgraded using "
+            "https://pypi.org/project/sevenbridges-cwl-draft2-upgrader/ ."
         )
 
     if not isinstance(cwlVersion, str):
-        with SourceLine(workflowobj, "cwlVersion", ValidationException):
+        with SourceLine(
+            workflowobj, "cwlVersion", ValidationException, loadingContext.debug
+        ):
             raise ValidationException(
-                "'cwlVersion' must be a string, " "got {}".format(type(cwlVersion))
+                f"'cwlVersion' must be a string, got {type(cwlVersion)}"
             )
     # strip out version
     cwlVersion = re.sub(r"^(?:cwl:|https://w3id.org/cwl/cwl#)", "", cwlVersion)
@@ -482,7 +487,9 @@ def load_tool(
 
 
 def resolve_overrides(
-    ov: IdxResultType, ov_uri: str, baseurl: str,
+    ov: IdxResultType,
+    ov_uri: str,
+    baseurl: str,
 ) -> List[CWLObjectType]:
     ovloader = Loader(overrides_ctx)
     ret, _ = ovloader.resolve_all(ov, baseurl)
@@ -496,3 +503,22 @@ def resolve_overrides(
 def load_overrides(ov: str, base_url: str) -> List[CWLObjectType]:
     ovloader = Loader(overrides_ctx)
     return resolve_overrides(ovloader.fetch(ov), ov, base_url)
+
+
+def recursive_resolve_and_validate_document(
+    loadingContext: LoadingContext,
+    workflowobj: Union[CommentedMap, CommentedSeq],
+    uri: str,
+    preprocess_only: bool = False,
+    skip_schemas: Optional[bool] = None,
+) -> Tuple[LoadingContext, str, Process]:
+    """Validate a CWL document, checking that a tool object can be built."""
+    loadingContext, uri = resolve_and_validate_document(
+        loadingContext,
+        workflowobj,
+        uri,
+        preprocess_only=preprocess_only,
+        skip_schemas=skip_schemas,
+    )
+    tool = make_tool(uri, loadingContext)
+    return loadingContext, uri, tool

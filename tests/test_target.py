@@ -1,9 +1,8 @@
 from cwltool.main import main
 
-from .util import get_data, windows_needs_docker
+from .util import get_data
 
 
-@windows_needs_docker  # type: ignore
 def test_target() -> None:
     """Test --target option successful."""
     test_file = "tests/wf/scatter-wf4.cwl"
@@ -30,7 +29,6 @@ def test_wrong_target() -> None:
     assert exit_code == 1
 
 
-@windows_needs_docker  # type: ignore
 def test_target_packed() -> None:
     """Test --target option with packed workflow schema."""
     test_file = "tests/wf/scatter-wf4.json"

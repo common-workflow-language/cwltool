@@ -3,11 +3,9 @@
 import errno
 import json
 import os
-import queue
 import re
 import select
 import subprocess  # nosec
-import sys
 import threading
 from io import BytesIO
 from typing import List, Optional, Tuple, cast
@@ -16,7 +14,8 @@ from pkg_resources import resource_stream
 from schema_salad.utils import json_dumps
 
 from .loghandler import _logger
-from .utils import CWLOutputType, onWindows, processes_to_kill
+from .singularity_utils import singularity_supports_userns
+from .utils import CWLOutputType, processes_to_kill
 
 
 class JavascriptException(Exception):
@@ -50,9 +49,10 @@ def check_js_threshold_version(working_alias: str) -> bool:
     return current_version >= minimum_node_version
 
 
-def new_js_proc(js_text: str, force_docker_pull: bool = False):
-    # type: (...) -> subprocess.Popen[str]
-
+def new_js_proc(
+    js_text: str, force_docker_pull: bool = False, container_engine: str = "docker"
+) -> "subprocess.Popen[str]":
+    """Return a subprocess ready to submit javascript to."""
     required_node_version, docker = (False,) * 2
     nodejs = None  # type: Optional[subprocess.Popen[str]]
     trynodes = ("nodejs", "node")
@@ -81,36 +81,76 @@ def new_js_proc(js_text: str, force_docker_pull: bool = False):
 
     if nodejs is None or nodejs is not None and required_node_version is False:
         try:
-            nodeimg = "node:slim"
+            nodeimg = "docker.io/node:slim"
             global have_node_slim
+            if container_engine == "singularity":
+                nodeimg = f"docker://{nodeimg}"
 
             if not have_node_slim:
-                dockerimgs = subprocess.check_output(  # nosec
-                    ["docker", "images", "-q", nodeimg], universal_newlines=True
-                )
-                # if output is an empty string
-                if (len(dockerimgs.split("\n")) <= 1) or force_docker_pull:
-                    # pull node:slim docker container
-                    nodejsimg = subprocess.check_output(  # nosec
-                        ["docker", "pull", nodeimg], universal_newlines=True
+                if container_engine in ("docker", "podman"):
+                    dockerimgs = subprocess.check_output(  # nosec
+                        [container_engine, "images", "-q", nodeimg],
+                        universal_newlines=True,
                     )
-                    _logger.info("Pulled Docker image %s %s", nodeimg, nodejsimg)
+                elif container_engine != "singularity":
+                    raise Exception(f"Unknown container_engine: {container_engine}.")
+                # if output is an empty string
+                if (
+                    container_engine == "singularity"
+                    or len(dockerimgs.split("\n")) <= 1
+                    or force_docker_pull
+                ):
+                    # pull node:slim docker container
+                    nodejs_pull_commands = [container_engine, "pull"]
+                    if container_engine == "singularity":
+                        nodejs_pull_commands.append("--force")
+                    nodejs_pull_commands.append(nodeimg)
+                    nodejsimg = subprocess.check_output(  # nosec
+                        nodejs_pull_commands, universal_newlines=True
+                    )
+                    _logger.debug(
+                        "Pulled Docker image %s %s using %s",
+                        nodeimg,
+                        nodejsimg,
+                        container_engine,
+                    )
                 have_node_slim = True
-            nodejs = subprocess.Popen(  # nosec
+            nodejs_commands = [
+                container_engine,
+            ]
+            if container_engine != "singularity":
+                nodejs_commands.extend(
+                    [
+                        "run",
+                        "--attach=STDIN",
+                        "--attach=STDOUT",
+                        "--attach=STDERR",
+                        "--sig-proxy=true",
+                        "--interactive",
+                        "--rm",
+                    ]
+                )
+            else:
+                nodejs_commands.extend(
+                    [
+                        "exec",
+                        "--contain",
+                        "--ipc",
+                        "--cleanenv",
+                        "--userns" if singularity_supports_userns() else "--pid",
+                    ]
+                )
+            nodejs_commands.extend(
                 [
-                    "docker",
-                    "run",
-                    "--attach=STDIN",
-                    "--attach=STDOUT",
-                    "--attach=STDERR",
-                    "--sig-proxy=true",
-                    "--interactive",
-                    "--rm",
                     nodeimg,
                     "node",
                     "--eval",
                     js_text,
                 ],
+            )
+            _logger.debug("Running nodejs via %s", nodejs_commands[:-1])
+            nodejs = subprocess.Popen(  # nosec
+                nodejs_commands,
                 universal_newlines=True,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -131,7 +171,7 @@ def new_js_proc(js_text: str, force_docker_pull: bool = False):
         raise JavascriptException(
             "cwltool requires Node.js engine to evaluate and validate "
             "Javascript expressions, but couldn't find it.  Tried {}, "
-            "docker run node:slim".format(", ".join(trynodes))
+            f"{container_engine} run node:slim".format(", ".join(trynodes))
         )
 
     # docker failed, but nodejs is installed on system but the version is below the required version
@@ -155,6 +195,7 @@ def exec_js_process(
     js_console: bool = False,
     context: Optional[str] = None,
     force_docker_pull: bool = False,
+    container_engine: str = "docker",
 ) -> Tuple[int, str, str]:
 
     if not hasattr(localdata, "procs"):
@@ -180,13 +221,17 @@ def exec_js_process(
     else:
         nodejs = localdata.procs.get(js_engine)
 
-    if nodejs is None or nodejs.poll() is not None or onWindows():
+    if nodejs is None or nodejs.poll() is not None:
         res = resource_stream(__name__, js_engine)
         js_engine_code = res.read().decode("utf-8")
 
         created_new_process = True
 
-        new_proc = new_js_proc(js_engine_code, force_docker_pull=force_docker_pull)
+        new_proc = new_js_proc(
+            js_engine_code,
+            force_docker_pull=force_docker_pull,
+            container_engine=container_engine,
+        )
 
         if context is None:
             localdata.procs[js_engine] = new_proc
@@ -226,95 +271,20 @@ def exec_js_process(
             PROCESS_FINISHED_STR
         ) and stderr_buf.getvalue().decode("utf-8").endswith(PROCESS_FINISHED_STR)
 
-    # On windows system standard input/output are not handled properly by select module
-    # (modules like  pywin32, msvcrt, gevent don't work either)
-    if sys.platform == "win32":
-        READ_BYTES_SIZE = 512
-
-        # creating queue for reading from a thread to queue
-        input_queue = queue.Queue()
-        output_queue = queue.Queue()
-        error_queue = queue.Queue()
-
-        # To tell threads that output has ended and threads can safely exit
-        no_more_output = threading.Lock()
-        no_more_output.acquire()
-        no_more_error = threading.Lock()
-        no_more_error.acquire()
-
-        # put constructed command to input queue which then will be passed to nodejs's stdin
-        def put_input(input_queue):
-            while True:
-                buf = stdin_buf.read(READ_BYTES_SIZE)
+    while not process_finished() and timer.is_alive():
+        rready, wready, _ = select.select(rselect, wselect, [])
+        try:
+            if nodejs.stdin in wready:
+                buf = stdin_buf.read(select.PIPE_BUF)
                 if buf:
-                    input_queue.put(buf)
-                else:
-                    break
-
-        # get the output from nodejs's stdout and continue till output ends
-        def get_output(output_queue):
-            while not no_more_output.acquire(False):
-                buf = os.read(nodejs.stdout.fileno(), READ_BYTES_SIZE)
-                if buf:
-                    output_queue.put(buf)
-
-        # get the output from nodejs's stderr and continue till error output ends
-        def get_error(error_queue):
-            while not no_more_error.acquire(False):
-                buf = os.read(nodejs.stderr.fileno(), READ_BYTES_SIZE)
-                if buf:
-                    error_queue.put(buf)
-
-        # Threads managing nodejs.stdin, nodejs.stdout and nodejs.stderr respectively
-        input_thread = threading.Thread(target=put_input, args=(input_queue,))
-        input_thread.daemon = True
-        input_thread.start()
-        output_thread = threading.Thread(target=get_output, args=(output_queue,))
-        output_thread.daemon = True
-        output_thread.start()
-        error_thread = threading.Thread(target=get_error, args=(error_queue,))
-        error_thread.daemon = True
-        error_thread.start()
-
-        finished = False
-
-        while not finished and timer.is_alive():
-            try:
-                if nodejs.stdin in wselect:
-                    if not input_queue.empty():
-                        os.write(nodejs.stdin.fileno(), input_queue.get())
-                    elif not input_thread.is_alive():
-                        wselect = []
-                if nodejs.stdout in rselect:
-                    if not output_queue.empty():
-                        stdout_buf.write(output_queue.get())
-
-                if nodejs.stderr in rselect:
-                    if not error_queue.empty():
-                        stderr_buf.write(error_queue.get())
-
-                if process_finished() and error_queue.empty() and output_queue.empty():
-                    finished = True
-                    no_more_output.release()
-                    no_more_error.release()
-            except OSError:
-                break
-
-    else:
-        while not process_finished() and timer.is_alive():
-            rready, wready, _ = select.select(rselect, wselect, [])
-            try:
-                if nodejs.stdin in wready:
-                    buf = stdin_buf.read(select.PIPE_BUF)
+                    os.write(nodejs.stdin.fileno(), buf)
+            for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
+                if pipes[0] in rready:
+                    buf = os.read(pipes[0].fileno(), select.PIPE_BUF)
                     if buf:
-                        os.write(nodejs.stdin.fileno(), buf)
-                for pipes in ((nodejs.stdout, stdout_buf), (nodejs.stderr, stderr_buf)):
-                    if pipes[0] in rready:
-                        buf = os.read(pipes[0].fileno(), select.PIPE_BUF)
-                        if buf:
-                            pipes[1].write(buf)
-            except OSError:
-                break
+                        pipes[1].write(buf)
+        except OSError:
+            break
     timer.cancel()
 
     stdin_buf.close()
@@ -330,10 +300,6 @@ def exec_js_process(
             returncode = nodejs.returncode
     else:
         returncode = 0
-        # On windows currently a new instance of nodejs process is used due to
-        # problem with blocking on read operation on windows
-        if onWindows():
-            nodejs.kill()
 
     return returncode, stdoutdata.decode("utf-8"), stderrdata.decode("utf-8")
 
@@ -344,7 +310,7 @@ def code_fragment_to_js(jscript: str, jslib: str = "") -> str:
     else:
         inner_js = "{return (%s);}" % jscript
 
-    return u'"use strict";\n{}\n(function(){})()'.format(jslib, inner_js)
+    return f'"use strict";\n{jslib}\n(function(){inner_js})()'
 
 
 def execjs(
@@ -354,12 +320,17 @@ def execjs(
     force_docker_pull: bool = False,
     debug: bool = False,
     js_console: bool = False,
+    container_engine: str = "docker",
 ) -> CWLOutputType:
 
     fn = code_fragment_to_js(js, jslib)
 
     returncode, stdout, stderr = exec_js_process(
-        fn, timeout, js_console=js_console, force_docker_pull=force_docker_pull
+        fn,
+        timeout,
+        js_console=js_console,
+        force_docker_pull=force_docker_pull,
+        container_engine=container_engine,
     )
 
     if js_console:
@@ -394,15 +365,17 @@ def execjs(
                 % (returncode, fn_linenum(), stdfmt(stdout), stdfmt(stderr))
             )
         else:
-            info = "Javascript expression was: %s\nstdout was: %s\nstderr was: %s" % (
-                js,
-                stdfmt(stdout),
-                stdfmt(stderr),
+            info = (
+                "Javascript expression was: {}\nstdout was: {}\nstderr was: {}".format(
+                    js,
+                    stdfmt(stdout),
+                    stdfmt(stderr),
+                )
             )
 
         if returncode == -1:
             raise JavascriptException(
-                "Long-running script killed after {} seconds: {}".format(timeout, info)
+                f"Long-running script killed after {timeout} seconds: {info}"
             )
         else:
             raise JavascriptException(info)

@@ -53,6 +53,8 @@ $graph:
 
       * `coresMin` and `coresMax` of
           [ResourceRequirement](#ResourceRequirement) may now request fractional CPUs.
+      * `ramMin`, `ramMax`, `tmpdirMin`, `tmpdirMax`, `outdirMin`, and `outdirMax` of
+          [ResourceRequirement](#ResourceRequirement) now accept floating point values.
       * (CommandLineTool)[#CommandLineTool] can now express `intent`
         with an identifier for the type of computational operation.
       * Added conformance tests for order of operations evaluating `secondaryFiles` on input
@@ -68,10 +70,20 @@ $graph:
       * Note that only enum and record types can be typedef-ed
       * Added conformance tests for order of operations evaluating `secondaryFiles` on input
         and ensure that input and output secondaryFiles expressions can return a File object.
-      * Escaping in "string interpolation":#String_Interpolation has
+      * Escaping in [string interpolation](#String_Interpolation) has
         been added to the specification along with conformance tests.
+      * It is now possible to have an absolute path in the `entryname`
+        field in
+        [InitialWorkDirRequirement](#InitialWorkDirRequirement) when
+        running in a mandatory container.  Together with
+        `DockerRequirement.dockerOutputDirectory` this it possible to
+        control the locations of both input and output files when
+        running in containers.
+      * Specify default success/fail interpretation of exit codes when not given.
 
       See also the [CWL Workflow Description, v1.2.0-dev4 changelog](Workflow.html#Changelog).
+      For other changes since CWL v1.0, see the
+      [CWL Command Line Tool Description, v1.1 changelog](https://www.commonwl.org/v1.1/CommandLineTool.html#Changelog)
 
       ## Purpose
 
@@ -305,7 +317,7 @@ $graph:
 
         If a tool needs to return a large amount of structured data to
         the workflow, loading the output object from `cwl.output.json`
-        bypasses `outputEval` but is not subject to the 64 KiB
+        bypasses `outputEval` and is not subject to the 64 KiB
         `loadContents` limit.
 
 - name: CommandLineBindable
@@ -693,6 +705,8 @@ $graph:
       doc: |
         Exit codes that indicate the process completed successfully.
 
+        If not specified, only exit code 0 is considered success.
+
     - name: temporaryFailCodes
       type: int[]?
       doc: |
@@ -700,12 +714,16 @@ $graph:
         temporary condition, where executing the process with the same
         runtime environment and inputs may produce different results.
 
+        If not specified, no exit codes are considered temporary failure.
+
     - name: permanentFailCodes
       type: int[]?
       doc:
         Exit codes that indicate the process failed due to a permanent logic
         error, where executing the process with the same runtime environment and
         same inputs is expected to always fail.
+
+        If not specified, all exit codes except 0 are considered permanent failure.
 
 
 - type: record
@@ -883,24 +901,45 @@ $graph:
 - name: Dirent
   type: record
   doc: |
-    Define a file or subdirectory that must be placed in the designated output
-    directory prior to executing the command line tool.  May be the result of
-    executing an expression, such as building a configuration file from a
-    template.
+    Define a file or subdirectory that must be staged to a particular
+    place prior to executing the command line tool.  May be the result
+    of executing an expression, such as building a configuration file
+    from a template.
+
+    Usually files are staged within the [designated output directory](#Runtime_environment).
+    However, under certain circumstances, files may be staged at
+    arbitrary locations, see discussion for `entryname`.
+
   fields:
     - name: entryname
       type: ["null", string, Expression]
       jsonldPredicate:
         _id: cwl:entryname
       doc: |
-        The name of the file or subdirectory to create in the output
-        directory.  If `entry` is a File or Directory, the `entryname`
-        field overrides the value of `basename` of the File or
-        Directory object.
+        The "target" name of the file or subdirectory.  If `entry` is
+        a File or Directory, the `entryname` field overrides the value
+        of `basename` of the File or Directory object.
 
         * Required when `entry` evaluates to file contents only
         * Optional when `entry` evaluates to a File or Directory object with a `basename`
         * Invalid when `entry` evaluates to an array of File or Directory objects.
+
+        If `entryname` is a relative path, it specifies a name within
+        the designated output directory.  A relative path starting
+        with `../` or that resolves to location above the designated output directory is an error.
+
+        If `entryname` is an absolute path (starts with a slash `/`)
+        it is an error unless the following conditions are met:
+
+          * `DockerRequirement` is present in `requirements`
+          * The program is will run inside a software container
+          where, from the perspective of the program, the root
+          filesystem is not shared with any other user or
+          running program.
+
+        In this case, and the above conditions are met, then
+        `entryname` may specify the absolute path within the container
+        where the file or directory must be placed.
 
     - name: entry
       type: [string, Expression]
@@ -956,9 +995,16 @@ $graph:
   type: record
   extends: ProcessRequirement
   doc:
-    Define a list of files and subdirectories that must be created by the
-    workflow platform in the designated output directory prior to executing the
-    command line tool.
+    Define a list of files and subdirectories that must be staged by
+    the workflow platform prior to executing the command line tool.
+
+    Normally files are staged within the designated output directory.
+    However, when running inside containers, files may be staged at
+    arbitrary locations, see discussion for `Dirent.entryname`.
+    Together with `DockerRequirement.dockerOutputDirectory` this it
+    possible to control the locations of both input and output files
+    when running in containers.
+
   fields:
     - name: class
       type: string
@@ -983,8 +1029,8 @@ $graph:
       jsonldPredicate:
         _id: "cwl:listing"
       doc: |
-        The list of files or subdirectories that must be placed in the
-        designated output directory prior to executing the command line tool.
+        The list of files or subdirectories that must be staged prior
+        to executing the command line tool.
 
         Return type of each expression must validate as `["null",
         File, Directory, Dirent, {type: array, items: [File,
@@ -1000,12 +1046,13 @@ $graph:
 
         Expressions may return null, in which case they have no effect.
 
-        Files or Directories which are listed in the input parameters and
-        appear in the `InitialWorkDirRequirement` listing must have their
-        `path` set to their staged location in the designated output directory.
-        If the same File or Directory appears more than once in the
-        `InitialWorkDirRequirement` listing, the implementation must choose
-        exactly one value for `path`; how this value is chosen is undefined.
+        Files or Directories which are listed in the input parameters
+        and appear in the `InitialWorkDirRequirement` listing must
+        have their `path` set to their staged location.  If the same
+        File or Directory appears more than once in the
+        `InitialWorkDirRequirement` listing, the implementation must
+        choose exactly one value for `path`; how this value is chosen
+        is undefined.
 
 
 - name: EnvVarRequirement
@@ -1055,15 +1102,20 @@ $graph:
   doc: |
     Specify basic hardware resource requirements.
 
-    "min" is the minimum amount of a resource that must be reserved to schedule
-    a job. If "min" cannot be satisfied, the job should not be run.
+    "min" is the minimum amount of a resource that must be reserved to
+    schedule a job. If "min" cannot be satisfied, the job should not
+    be run.
 
-    "max" is the maximum amount of a resource that the job shall be permitted
-    to use. If a node has sufficient resources, multiple jobs may be scheduled
-    on a single node provided each job's "max" resource requirements are
-    met. If a job attempts to exceed its "max" resource allocation, an
-    implementation may deny additional resources, which may result in job
-    failure.
+    "max" is the maximum amount of a resource that the job shall be
+    allocated. If a node has sufficient resources, multiple jobs may
+    be scheduled on a single node provided each job's "max" resource
+    requirements are met. If a job attempts to exceed its resource
+    allocation, an implementation may deny additional resources, which
+    may result in job failure.
+
+    If both "min" and "max" are specified, an implementation may
+    choose to allocate any amount between "min" and "max", with the
+    actual allocation provided in the `runtime` object.
 
     If "min" is specified but "max" is not, then "max" == "min"
     If "max" is specified by "min" is not, then "min" == "max".
@@ -1118,28 +1170,58 @@ $graph:
         See `coresMin` for discussion about fractional CPU requests.
 
     - name: ramMin
-      type: ["null", long, Expression]
-      doc: Minimum reserved RAM in mebibytes (2**20) (default is 256)
+      type: ["null", long, float, Expression]
+      doc: |
+        Minimum reserved RAM in mebibytes (2**20) (default is 256)
+
+        May be a fractional value.  If so, the actual RAM request must
+        be rounded up to the next whole number.  The reported amount of
+        RAM reserved for the process, which is available to
+        expressions on the CommandLineTool as `runtime.ram`, must be a
+        non-zero integer.
 
     - name: ramMax
-      type: ["null", long, Expression]
-      doc: Maximum reserved RAM in mebibytes (2**20)
+      type: ["null", long, float, Expression]
+      doc: |
+        Maximum reserved RAM in mebibytes (2**20)
+
+        See `ramMin` for discussion about fractional RAM requests.
 
     - name: tmpdirMin
-      type: ["null", long, Expression]
-      doc: Minimum reserved filesystem based storage for the designated temporary directory, in mebibytes (2**20) (default is 1024)
+      type: ["null", long, float, Expression]
+      doc: |
+        Minimum reserved filesystem based storage for the designated temporary directory, in mebibytes (2**20) (default is 1024)
+
+        May be a fractional value.  If so, the actual storage request
+        must be rounded up to the next whole number.  The reported
+        amount of storage reserved for the process, which is available
+        to expressions on the CommandLineTool as `runtime.tmpdirSize`,
+        must be a non-zero integer.
 
     - name: tmpdirMax
-      type: ["null", long, Expression]
-      doc: Maximum reserved filesystem based storage for the designated temporary directory, in mebibytes (2**20)
+      type: ["null", long, float, Expression]
+      doc: |
+        Maximum reserved filesystem based storage for the designated temporary directory, in mebibytes (2**20)
+
+        See `tmpdirMin` for discussion about fractional storage requests.
 
     - name: outdirMin
-      type: ["null", long, Expression]
-      doc: Minimum reserved filesystem based storage for the designated output directory, in mebibytes (2**20) (default is 1024)
+      type: ["null", long, float, Expression]
+      doc: |
+        Minimum reserved filesystem based storage for the designated output directory, in mebibytes (2**20) (default is 1024)
+
+        May be a fractional value.  If so, the actual storage request
+        must be rounded up to the next whole number.  The reported
+        amount of storage reserved for the process, which is available
+        to expressions on the CommandLineTool as `runtime.outdirSize`,
+        must be a non-zero integer.
 
     - name: outdirMax
-      type: ["null", long, Expression]
-      doc: Maximum reserved filesystem based storage for the designated output directory, in mebibytes (2**20)
+      type: ["null", long, float, Expression]
+      doc: |
+        Maximum reserved filesystem based storage for the designated output directory, in mebibytes (2**20)
+
+        See `outdirMin` for discussion about fractional storage requests.
 
 
 - type: record

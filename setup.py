@@ -2,9 +2,23 @@
 """Setup for the reference implementation of the CWL standards."""
 import os
 import sys
+import warnings
 
 import setuptools.command.egg_info as egg_info_cmd
 from setuptools import setup
+
+if os.name == "nt":
+    warnings.warn(
+        "The CWL reference runner (cwltool) no longer supports running "
+        "CWL workflows natively on MS Windows as its previous MS Windows "
+        "support was incomplete and untested. Instead, please see "
+        "https://pypi.org/project/cwltool/#ms-windows-users "
+        "for instructions on running cwltool via "
+        "Windows Subsystem for Linux 2 (WSL2). If don't need to execute "
+        "CWL documents, then you can ignore this warning, but please "
+        "consider migrating to https://pypi.org/project/cwl-utils/ "
+        "for your CWL document processing needs."
+    )
 
 SETUP_DIR = os.path.dirname(__file__)
 README = os.path.join(SETUP_DIR, "README.rst")
@@ -76,7 +90,7 @@ else:
 
 setup(
     name="cwltool",
-    version="3.0",
+    version="3.1",
     description="Common workflow language reference implementation",
     long_description=open(README).read(),
     long_description_content_type="text/x-rst",
@@ -94,27 +108,29 @@ setup(
         "setuptools",
         "requests >= 2.6.1",  # >= 2.6.1 to workaround
         # https://github.com/ionrock/cachecontrol/issues/137
-        "ruamel.yaml >= 0.12.4, <= 0.16.5",
-        "rdflib >= 4.2.2, < 4.3.0",
-        "shellescape >= 3.4.1, < 3.5",
-        "schema-salad >= 7, < 8",
+        "ruamel.yaml >= 0.15, < 0.17.17",
+        "rdflib >= 4.2.2, < 6.1.0",
+        "shellescape >= 3.4.1, < 3.9",
+        # 7.1.20210518142926 or later required due to
+        # https://github.com/common-workflow-language/schema_salad/issues/385
+        "schema-salad >= 8.2.20210914115719, < 9",
         "mypy-extensions",
-        "psutil",
+        "psutil >= 5.6.6",
         "prov == 1.5.1",
         "bagit >= 1.6.4",
         "typing-extensions",
         "coloredlogs",
+        "pydot >= 1.4.1",
+        "argcomplete",
     ],
     extras_require={
-        ':python_version<"3.6"': ["typing >= 3.5.3"],
-        "deps": ["galaxy-tool-util"],
-        "docs": ["sphinx >= 2.2", "sphinx-rtd-theme"],
+        "deps": ["galaxy-tool-util >= 21.1.0"],
     },
-    python_requires=">=3.5, <4",
+    python_requires=">=3.6, <4",
     setup_requires=PYTEST_RUNNER,
     test_suite="tests",
     tests_require=[
-        "pytest < 6",
+        "pytest >= 6.2, < 6.3",
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
         "arcp >= 0.2.0",
@@ -134,17 +150,11 @@ setup(
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX",
         "Operating System :: POSIX :: Linux",
-        "Operating System :: OS Independent",
-        "Operating System :: Microsoft :: Windows",
-        "Operating System :: Microsoft :: Windows :: Windows 10",
-        "Operating System :: Microsoft :: Windows :: Windows 8.1",
-        # 'Operating System :: Microsoft :: Windows :: Windows 8',  # not tested
-        # 'Operating System :: Microsoft :: Windows :: Windows 7',  # not tested
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Topic :: Scientific/Engineering :: Astronomy",

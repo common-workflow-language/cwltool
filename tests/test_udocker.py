@@ -1,74 +1,55 @@
+"""Test optional udocker feature."""
+import copy
 import os
-import shutil
 import subprocess
 import sys
-import tempfile
+from pathlib import Path
 
-try:
-    from psutil.tests import TRAVIS
-except ImportError:
-    TRAVIS = True
+import pytest
+from _pytest.tmpdir import TempPathFactory
 
-
-import py.path
-import pytest  # type: ignore
-
-from .util import get_data, get_main_output
+from .util import get_data, get_main_output, working_directory
 
 LINUX = sys.platform in ("linux", "linux2")
 
 
-@pytest.mark.skipif(not LINUX, reason="LINUX only")
-class TestUdocker:
-    udocker_path = ""
-    docker_install_dir = ""
+@pytest.fixture(scope="session")
+def udocker(tmp_path_factory: TempPathFactory) -> str:
+    """Udocker fixture, returns the path to the udocker script."""
+    test_cwd = os.getcwd()
+    test_environ = copy.copy(os.environ)
+    docker_install_dir = str(tmp_path_factory.mktemp("udocker"))
+    with working_directory(docker_install_dir):
 
-    @classmethod
-    def setup_class(cls) -> None:
-        test_cwd = os.getcwd()
-        test_environ = os.environ.copy()
-        cls.docker_install_dir = tempfile.mkdtemp()
-        os.chdir(cls.docker_install_dir)
-
-        url = "https://download.ncg.ingrid.pt/webdav/udocker/udocker-1.1.3.tar.gz"
+        url = "https://github.com/indigo-dc/udocker/releases/download/v1.3.1/udocker-1.3.1.tar.gz"
         install_cmds = [
-            ["curl", url, "-o", "./udocker-tarball.tgz"],
-            ["tar", "xzvf", "udocker-tarball.tgz", "udocker"],
-            [
-                "bash",
-                "-c",
-                "UDOCKER_TARBALL={}/udocker-tarball.tgz ./udocker install".format(
-                    cls.docker_install_dir
-                ),
-            ],
+            ["curl", "-L", url, "-o", "./udocker-tarball.tgz"],
+            ["tar", "xzvf", "udocker-tarball.tgz"],
+            ["./udocker/udocker", "install"],
         ]
 
-        os.environ["UDOCKER_DIR"] = os.path.join(cls.docker_install_dir, ".udocker")
-        os.environ["HOME"] = cls.docker_install_dir
+        test_environ["UDOCKER_DIR"] = os.path.join(docker_install_dir, ".udocker")
+        test_environ["HOME"] = docker_install_dir
 
         results = []
         for _ in range(3):
-            results = [subprocess.call(cmds) for cmds in install_cmds]
+            results = [subprocess.call(cmds, env=test_environ) for cmds in install_cmds]
             if sum(results) == 0:
                 break
-            subprocess.call(["rm", "./udocker"])
+            subprocess.call(["rm", "-Rf", "./udocker"])
 
         assert sum(results) == 0
 
-        cls.udocker_path = os.path.join(cls.docker_install_dir, "udocker")
-        os.chdir(test_cwd)
-        os.environ = test_environ  # type: ignore
-        print("Udocker install dir: " + cls.docker_install_dir)
+        udocker_path = os.path.join(docker_install_dir, "udocker/udocker")
 
-    @classmethod
-    def teardown_class(cls) -> None:
-        shutil.rmtree(cls.docker_install_dir)
+    return udocker_path
 
-    def test_udocker_usage_should_not_write_cid_file(
-        self, tmpdir: py.path.local
-    ) -> None:
-        cwd = tmpdir.chdir()
 
+@pytest.mark.skipif(not LINUX, reason="LINUX only")
+def test_udocker_usage_should_not_write_cid_file(udocker: str, tmp_path: Path) -> None:
+    """Confirm that no cidfile is made when udocker is used."""
+
+    with working_directory(tmp_path):
         test_file = "tests/wf/wc-tool.cwl"
         job_file = "tests/wf/wc-job.json"
         error_code, stdout, stderr = get_main_output(
@@ -76,36 +57,35 @@ class TestUdocker:
                 "--debug",
                 "--default-container",
                 "debian",
-                "--user-space-docker-cmd=" + self.udocker_path,
+                "--user-space-docker-cmd=" + udocker,
                 get_data(test_file),
                 get_data(job_file),
             ]
         )
-        cwd.chdir()
-        cidfiles_count = sum(1 for _ in tmpdir.visit(fil="*.cid"))
 
-        tmpdir.remove(ignore_errors=True)
+        cidfiles_count = sum(1 for _ in tmp_path.glob("*.cid"))
 
-        assert "completed success" in stderr, stderr
-        assert cidfiles_count == 0
+    assert "completed success" in stderr, stderr
+    assert cidfiles_count == 0
 
-    @pytest.mark.skipif(  # type: ignore
-        TRAVIS, reason="Not reliable on single threaded test on travis."
-    )
-    def test_udocker_should_display_memory_usage(self, tmpdir: py.path.local) -> None:
-        cwd = tmpdir.chdir()
+
+@pytest.mark.skipif(
+    not LINUX or "GITHUB" in os.environ,
+    reason="Linux only",
+)
+def test_udocker_should_display_memory_usage(udocker: str, tmp_path: Path) -> None:
+    """Confirm that memory ussage is logged even with udocker."""
+    with working_directory(tmp_path):
         error_code, stdout, stderr = get_main_output(
             [
                 "--enable-ext",
                 "--default-container=debian",
-                "--user-space-docker-cmd=" + self.udocker_path,
+                "--user-space-docker-cmd=" + udocker,
                 get_data("tests/wf/timelimit.cwl"),
                 "--sleep_time",
                 "10",
             ]
         )
-        cwd.chdir()
-        tmpdir.remove(ignore_errors=True)
 
-        assert "completed success" in stderr, stderr
-        assert "Max memory" in stderr, stderr
+    assert "completed success" in stderr, stderr
+    assert "Max memory" in stderr, stderr

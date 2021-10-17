@@ -4,13 +4,16 @@ import copy
 import datetime
 import hashlib
 import os
+import pwd
 import re
 import shutil
 import tempfile
 import uuid
+from array import array
 from collections import OrderedDict
 from getpass import getuser
-from io import FileIO, TextIOWrapper, open
+from io import FileIO, TextIOWrapper
+from mmap import mmap
 from pathlib import Path, PurePosixPath
 from typing import (
     IO,
@@ -18,23 +21,20 @@ from typing import (
     BinaryIO,
     Callable,
     Dict,
-    Generator,
     List,
     MutableMapping,
     MutableSequence,
     Optional,
     Set,
     Tuple,
-    Type,
     Union,
     cast,
 )
 
-from schema_salad.utils import json_dumps
-from typing_extensions import TYPE_CHECKING, TypedDict
-
 import prov.model as provM
 from prov.model import PROV, ProvDocument
+from schema_salad.utils import json_dumps
+from typing_extensions import TYPE_CHECKING, TypedDict
 
 from .loghandler import _logger
 from .provenance_constants import (
@@ -62,26 +62,17 @@ from .stdfsaccess import StdFsAccess
 from .utils import (
     CWLObjectType,
     CWLOutputType,
+    create_tmp_dir,
     local_path,
-    onWindows,
     posix_path,
     versionstring,
 )
 
-# imports needed for retrieving user data
-if onWindows():
-    import ctypes  # pylint: disable=unused-import
-else:
-    try:
-        import pwd  # pylint: disable=unused-import
-    except ImportError:
-        pass
-
 if TYPE_CHECKING:
-    from .command_line_tool import (
+    from .command_line_tool import (  # pylint: disable=unused-import
         CommandLineTool,
         ExpressionTool,
-    )  # pylint: disable=unused-import
+    )
     from .workflow import Workflow  # pylint: disable=unused-import
 
 
@@ -89,16 +80,7 @@ def _whoami() -> Tuple[str, str]:
     """Return the current operating system account as (username, fullname)."""
     username = getuser()
     try:
-        if onWindows():
-            get_user_name = ctypes.windll.secur32.GetUserNameExW  # type: ignore
-            size = ctypes.pointer(ctypes.c_ulong(0))
-            get_user_name(3, None, size)
-
-            name_buffer = ctypes.create_unicode_buffer(size.contents.value)
-            get_user_name(3, name_buffer, size)
-            fullname = str(name_buffer.value)
-        else:
-            fullname = pwd.getpwuid(os.getuid())[4].split(",")[0]
+        fullname = pwd.getpwuid(os.getuid())[4].split(",")[0]
     except (KeyError, IndexError):
         fullname = username
 
@@ -126,14 +108,15 @@ class WritableBagFile(FileIO):
         if not path.startswith(os.path.abspath(research_object.folder)):
             raise ValueError("Path is outside Research Object: %s" % path)
         _logger.debug("[provenance] Creating WritableBagFile at %s.", path)
-        super(WritableBagFile, self).__init__(path, mode="w")
+        super().__init__(path, mode="w")
 
-    def write(self, b: Union[bytes, str]) -> int:
-        real_b = b if isinstance(b, bytes) else b.encode("utf-8")
+    def write(self, b: Any) -> int:
+        """Write some content to the Bag."""
+        real_b = b if isinstance(b, (bytes, mmap, array)) else b.encode("utf-8")
         total = 0
         length = len(real_b)
         while total < length:
-            ret = super(WritableBagFile, self).write(real_b)
+            ret = super().write(real_b)
             if ret:
                 total += ret
         for val in self.hashes.values():
@@ -148,7 +131,7 @@ class WritableBagFile(FileIO):
         else:
             self.research_object.tagfiles.add(self.rel_path)
 
-        super(WritableBagFile, self).close()
+        super().close()
         # { "sha1": "f572d396fae9206628714fb2ce00f72e94f2258f" }
         checksums = {}
         for name in self.hashes:
@@ -170,7 +153,7 @@ class WritableBagFile(FileIO):
         # FIXME: This breaks contract IOBase,
         # as it means we would have to recalculate the hash
         if size is not None:
-            raise IOError("WritableBagFile can't truncate")
+            raise OSError("WritableBagFile can't truncate")
         return self.tell()
 
 
@@ -242,14 +225,14 @@ def _valid_orcid(orcid: Optional[str]) -> str:
         "116780-structure-of-the-orcid-identifier"
     )
     if not match:
-        raise ValueError("Invalid ORCID: %s\n%s" % (orcid, help_url))
+        raise ValueError(f"Invalid ORCID: {orcid}\n{help_url}")
 
     # Conservative in what we produce:
     # a) Ensure any checksum digit is uppercase
     orcid_num = match.group("orcid").upper()
     # b) ..and correct
     if not _check_mod_11_2(orcid_num):
-        raise ValueError("Invalid ORCID checksum: %s\n%s" % (orcid_num, help_url))
+        raise ValueError(f"Invalid ORCID checksum: {orcid_num}\n{help_url}")
 
     # c) Re-add the official prefix https://orcid.org/
     return "https://orcid.org/%s" % orcid_num
@@ -298,10 +281,7 @@ class ResearchObject:
         self.temp_prefix = temp_prefix_ro
         self.orcid = "" if not orcid else _valid_orcid(orcid)
         self.full_name = full_name
-        tmp_dir, tmp_prefix = os.path.split(temp_prefix_ro)
-        self.folder = os.path.abspath(
-            tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
-        )  # type: str
+        self.folder = create_tmp_dir(temp_prefix_ro)
         self.closed = False
         # map of filename "data/de/alsdklkas": 12398123 bytes
         self.bagged_size = {}  # type: Dict[str, int]
@@ -332,7 +312,7 @@ class ResearchObject:
 
     def __str__(self) -> str:
         """Represent this RO as a string."""
-        return "ResearchObject <{}> in <{}>".format(self.ro_uuid, self.folder)
+        return f"ResearchObject <{self.ro_uuid}> in <{self.folder}>"
 
     def _initialize(self) -> None:
         for research_obj_folder in (
@@ -351,7 +331,6 @@ class ResearchObject:
         self.self_check()
         bagit = os.path.join(self.folder, "bagit.txt")
         # encoding: always UTF-8 (although ASCII would suffice here)
-        # newline: ensure LF also on Windows
         with open(bagit, "w", encoding=ENCODING, newline="\n") as bag_it_file:
             # TODO: \n or \r\n ?
             bag_it_file.write("BagIt-Version: 0.97\n")
@@ -368,8 +347,8 @@ class ResearchObject:
             name = "engine"
         else:
             name = "activity"
-        p = os.path.join(LOGS, "{}.{}.txt".format(name, activity_uuid))
-        _logger.debug("[provenance] Opening log file for %s: %s" % (name, p))
+        p = os.path.join(LOGS, f"{name}.{activity_uuid}.txt")
+        _logger.debug(f"[provenance] Opening log file for {name}: {p}")
         self.add_annotation(activity_uuid.urn, [p], CWLPROV["log"].uri)
         return self.write_bag_file(p)
 
@@ -426,7 +405,6 @@ class ResearchObject:
         bag_file = WritableBagFile(self, path)
         if encoding is not None:
             # encoding: match Tag-File-Character-Encoding: UTF-8
-            # newline: ensure LF also on Windows
             return TextIOWrapper(
                 cast(BinaryIO, bag_file), encoding=encoding, newline="\n"
             )
@@ -714,7 +692,7 @@ class ResearchObject:
         manifest = OrderedDict(
             {
                 "@context": [
-                    {"@base": "%s%s/" % (self.base_uri, posix_path(METADATA))},
+                    {"@base": f"{self.base_uri}{posix_path(METADATA)}/"},
                     "https://w3id.org/bundle/context",
                 ],
                 "id": "/",
@@ -833,7 +811,6 @@ class ResearchObject:
         os.rename(tmp.name, path)
 
         # Relative posix path
-        # (to avoid \ on Windows)
         rel_path = posix_path(os.path.relpath(path, self.folder))
 
         # Register in bagit checksum
@@ -884,15 +861,12 @@ class ResearchObject:
         for (method, hash_value) in checksums.items():
             # File not in manifest because we bailed out on
             # existence in bagged_size above
-            manifestpath = os.path.join(
-                self.folder, "%s-%s.txt" % (manifest, method.lower())
-            )
+            manifestpath = os.path.join(self.folder, f"{manifest}-{method.lower()}.txt")
             # encoding: match Tag-File-Character-Encoding: UTF-8
-            # newline: ensure LF also on Windows
             with open(
                 manifestpath, "a", encoding=ENCODING, newline="\n"
             ) as checksum_file:
-                line = "%s  %s\n" % (hash_value, rel_path)
+                line = f"{hash_value}  {rel_path}\n"
                 _logger.debug("[provenance] Added to %s: %s", manifestpath, line)
                 checksum_file.write(line)
 
@@ -901,7 +875,7 @@ class ResearchObject:
             raise ValueError("rel_path must be relative: %s" % rel_path)
         lpath = os.path.join(self.folder, local_path(rel_path))
         if not os.path.exists(lpath):
-            raise IOError("File %s does not exist within RO: %s" % (rel_path, lpath))
+            raise OSError(f"File {rel_path} does not exist within RO: {lpath}")
 
         if rel_path in self.bagged_size:
             # Already added, assume checksum OK
@@ -984,14 +958,9 @@ class ResearchObject:
                     ) as fp:
                         relative_path = self.add_data_file(fp)
                         checksum = PurePosixPath(relative_path).name
-                        structure["checksum"] = "%s$%s" % (SHA1, checksum)
-                if relative_path is not None:
-                    # RO-relative path as new location
-                    structure["location"] = str(PurePosixPath("..") / relative_path)
-                else:
-                    _logger.warning(
-                        "Could not determine RO path for file %s", structure
-                    )
+                        structure["checksum"] = f"{SHA1}${checksum}"
+                # RO-relative path as new location
+                structure["location"] = str(PurePosixPath("..") / relative_path)
                 if "path" in structure:
                     del structure["path"]
 

@@ -1,18 +1,5 @@
 import copy
-from typing import (
-    Callable,
-    Dict,
-    Generator,
-    Iterable,
-    List,
-    Mapping,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Dict, Optional, Tuple, cast
 
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
@@ -26,7 +13,9 @@ from .process import Process, shortname
 from .utils import CWLObjectType, JobsGeneratorType, OutputCallbackType
 
 
-class ProcessGeneratorJob(object):
+class ProcessGeneratorJob:
+    """Result of ProcessGenerator.job()."""
+
     def __init__(self, procgenerator: "ProcessGenerator") -> None:
         """Create a ProccessGenerator Job."""
         self.procgenerator = procgenerator
@@ -47,10 +36,9 @@ class ProcessGeneratorJob(object):
     ) -> JobsGeneratorType:
 
         try:
-            for tool in self.procgenerator.embedded_tool.job(
+            yield from self.procgenerator.embedded_tool.job(
                 job_order, self.receive_output, runtimeContext
-            ):
-                yield tool
+            )
 
             while self.processStatus is None:
                 yield None
@@ -66,8 +54,7 @@ class ProcessGeneratorJob(object):
                 job_order, self.jobout, runtimeContext
             )
 
-            for tool in created_tool.job(runinputs, output_callbacks, runtimeContext):
-                yield tool
+            yield from created_tool.job(runinputs, output_callbacks, runtimeContext)
 
         except WorkflowException:
             raise
@@ -78,10 +65,12 @@ class ProcessGeneratorJob(object):
 
 class ProcessGenerator(Process):
     def __init__(
-        self, toolpath_object: CommentedMap, loadingContext: LoadingContext,
+        self,
+        toolpath_object: CommentedMap,
+        loadingContext: LoadingContext,
     ) -> None:
         """Create a ProcessGenerator from the given dictionary and context."""
-        super(ProcessGenerator, self).__init__(toolpath_object, loadingContext)
+        super().__init__(toolpath_object, loadingContext)
         self.loadingContext = loadingContext  # type: LoadingContext
         try:
             if isinstance(toolpath_object["run"], CommentedMap):
