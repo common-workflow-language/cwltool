@@ -169,7 +169,9 @@ class PathMapper:
         stagedir = self.stagedir
         for fob in referenced_files:
             if self.separateDirs:
-                stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
+                location = fob['location'] if not fob['location'].startswith('file://') else fob['location'][len('file://'):]
+                stagedir = os.path.join(self.stagedir, os.path.basename(os.path.dirname(location)))
+                # stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
             self.visit(
                 fob,
                 stagedir,

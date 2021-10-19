@@ -179,6 +179,7 @@ class Builder(HasReqsHints):
         tmpdir: str,
         stagedir: str,
         cwlVersion: str,
+        dockerstagedir: str = None,
     ) -> None:
         """Initialize this Builder."""
         self.job = job
@@ -209,6 +210,7 @@ class Builder(HasReqsHints):
         self.outdir = outdir
         self.tmpdir = tmpdir
         self.stagedir = stagedir
+        self.dockerstagedir = dockerstagedir
 
         self.cwlVersion = cwlVersion
 

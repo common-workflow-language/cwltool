@@ -772,6 +772,18 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 % (self.metadata.get("cwlVersion"), INTERNAL_VERSION)
             )
 
+        if os.environ.get('GROUP_STAGING') or True:
+            dockerstagedir = runtime_context.get_stagedir()
+            for input_keyname, input in joborder.items():
+                if input.get('location') and input.get('class') == 'File':
+                    location = str(input.get('location'))
+                    location = location if not location.startswith('file://') else location[len('file://'):]
+                    unique_staging_dir = os.path.join(dockerstagedir, str(uuid.uuid4()))
+                    os.makedirs(unique_staging_dir, exist_ok=True)
+                    new_uri = os.path.join(unique_staging_dir, input['basename'])
+                    shutil.copyfile(location, new_uri)
+                    input['location'] = new_uri
+
         job = copy.deepcopy(joborder)
 
         make_fs_access = getdefault(runtime_context.make_fs_access, StdFsAccess)
@@ -911,6 +923,7 @@ hints:
             tmpdir,
             stagedir,
             cwl_version,
+            dockerstagedir,
         )
 
         bindings.extend(
