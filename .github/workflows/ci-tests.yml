@@ -7,6 +7,10 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   singularity_version: 3.6.4
 
@@ -20,7 +24,7 @@ jobs:
     strategy:
       matrix:
         py-ver-major: [3]
-        py-ver-minor: [6, 7, 8, 9]
+        py-ver-minor: [6, 7, 8, 9, 10]
         step: [lint, unit, bandit, mypy]
 
     env:
@@ -70,7 +74,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: ${{ matrix.step == 'unit' }}
-        uses: codecov/codecov-action@v2.0.2
+        uses: codecov/codecov-action@v2.1.0
         with:
           fail_ci_if_error: true
 
@@ -123,7 +127,7 @@ jobs:
     strategy:
       matrix:
         cwl-version: [v1.0, v1.1, v1.2]
-        container: [docker, singularity]
+        container: [docker, singularity, podman]
 
     steps:
       - uses: actions/checkout@v2

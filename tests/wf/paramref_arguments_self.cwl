@@ -24,7 +24,7 @@ steps:
       class: CommandLineTool
       hints:
         DockerRequirement:
-          dockerPull: everpeace/curl-jq
+          dockerPull: docker.io/everpeace/curl-jq
       inputs:
         self:
           type: File

@@ -1,6 +1,7 @@
 """Tests related SchemaDefRequirement."""
 
 from cwltool.main import main
+
 from .util import get_data
 
 

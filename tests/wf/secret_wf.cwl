@@ -7,7 +7,7 @@ hints:
   "cwltool:Secrets":
     secrets: [pw]
   DockerRequirement:
-    dockerPull: debian:8
+    dockerPull: docker.io/debian:8
 inputs:
   pw: string
 outputs:

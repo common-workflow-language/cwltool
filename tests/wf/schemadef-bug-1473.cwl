@@ -151,7 +151,7 @@
             "doc": "Runs the BCL Convert application off standard architechture\n",
             "hints": [
                 {
-                    "dockerPull": "umccr/bcl-convert:3.7.5",
+                    "dockerPull": "docker.io/umccr/bcl-convert:3.7.5",
                     "class": "DockerRequirement"
                 },
                 {
@@ -400,7 +400,7 @@
             "doc": "Use before running bcl-convert workflow to ensure that the bclConvert workflow can run in parallel.\nSamples will be split into separate samplesheets based on their cycles specification\n",
             "hints": [
                 {
-                    "dockerPull": "umccr/alpine_pandas:latest-cwl",
+                    "dockerPull": "docker.io/umccr/alpine_pandas:latest-cwl",
                     "class": "DockerRequirement"
                 },
                 {
@@ -700,7 +700,7 @@
             "doc": "Documentation for custom-create-dummy-file v1.0.0\n",
             "hints": [
                 {
-                    "dockerPull": "alpine:latest",
+                    "dockerPull": "docker.io/alpine:latest",
                     "class": "DockerRequirement"
                 },
                 {
@@ -762,7 +762,7 @@
             "doc": "Producing QC report using interop matrix\n",
             "hints": [
                 {
-                    "dockerPull": "umccr/multiqc_dragen:1.2.1",
+                    "dockerPull": "docker.io/umccr/multiqc_dragen:1.2.1",
                     "class": "DockerRequirement"
                 },
                 {

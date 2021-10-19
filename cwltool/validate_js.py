@@ -63,6 +63,7 @@ def get_expressions(
     schema: Optional[Union[Schema, ArraySchema]],
     source_line: Optional[SourceLine] = None,
 ) -> List[Tuple[str, Optional[SourceLine]]]:
+    debug = _logger.isEnabledFor(logging.DEBUG)
     if is_expression(tool, schema):
         return [(cast(str, tool), source_line)]
     elif isinstance(schema, UnionSchema):
@@ -90,7 +91,9 @@ def get_expressions(
         ) -> List[Tuple[str, Optional[SourceLine]]]:
             # using a lambda for this broke mypyc v0.910 and before
             return get_expressions(
-                x[1], cast(ArraySchema, schema).items, SourceLine(tool, x[0])
+                x[1],
+                cast(ArraySchema, schema).items,
+                SourceLine(tool, x[0], include_traceback=debug),
             )
 
         return list(
@@ -114,7 +117,7 @@ def get_expressions(
                     get_expressions(
                         tool[schema_field.name],
                         schema_field.type,
-                        SourceLine(tool, schema_field.name),
+                        SourceLine(tool, schema_field.name, include_traceback=debug),
                     )
                 )
 
@@ -130,6 +133,7 @@ def jshint_js(
     js_text: str,
     globals: Optional[List[str]] = None,
     options: Optional[Dict[str, Union[List[str], str, int]]] = None,
+    container_engine: str = "docker",
 ) -> JSHintJSReturn:
     if globals is None:
         globals = []
@@ -162,6 +166,7 @@ def jshint_js(
         % json_dumps({"code": js_text, "options": options, "globals": globals}),
         timeout=30,
         context=jshint_functions_text,
+        container_engine=container_engine,
     )
 
     def dump_jshint_error():
@@ -210,11 +215,12 @@ def validate_js_expressions(
     tool: CommentedMap,
     schema: Schema,
     jshint_options: Optional[Dict[str, Union[List[str], str, int]]] = None,
+    container_engine: str = "docker",
 ) -> None:
 
     if tool.get("requirements") is None:
         return
-
+    debug = _logger.isEnabledFor(logging.DEBUG)
     requirements = tool["requirements"]
 
     default_globals = ["self", "inputs", "runtime", "console"]
@@ -230,11 +236,12 @@ def validate_js_expressions(
 
     for i, expression_lib_line in enumerate(expression_lib):
         expression_lib_line_errors, expression_lib_line_globals = jshint_js(
-            expression_lib_line, js_globals, jshint_options
+            expression_lib_line, js_globals, jshint_options, container_engine
         )
         js_globals.extend(expression_lib_line_globals)
         print_js_hint_messages(
-            expression_lib_line_errors, SourceLine(expression_lib, i)
+            expression_lib_line_errors,
+            SourceLine(expression_lib, i, include_traceback=debug),
         )
 
     expressions = get_expressions(tool, schema)
@@ -255,7 +262,7 @@ def validate_js_expressions(
                 code_fragment = unscanned_str[scan_slice[0] + 1 : scan_slice[1]]
                 code_fragment_js = code_fragment_to_js(code_fragment, "")
                 expression_errors, _ = jshint_js(
-                    code_fragment_js, js_globals, jshint_options
+                    code_fragment_js, js_globals, jshint_options, container_engine
                 )
                 print_js_hint_messages(expression_errors, source_line)
 

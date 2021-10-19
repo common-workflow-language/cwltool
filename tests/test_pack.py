@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict
 
 import pytest
-from ruamel.yaml.main import YAML
+from schema_salad.utils import yaml_no_ts
 
 import cwltool.pack
 import cwltool.workflow
@@ -30,6 +30,14 @@ from .util import get_data, needs_docker
             "tests/wf/operation/expect_operation-single_packed.cwl",
         ),
         ("tests/wf/trick_revsort.cwl", "tests/wf/expect_trick_packed.cwl"),
+        (
+            "tests/wf/iwd-passthrough1.cwl",
+            "tests/wf/expect_iwd-passthrough1_packed.cwl",
+        ),
+        (
+            "tests/wf/revsort_datetime.cwl",
+            "tests/wf/expect_revsort_datetime_packed.cwl",
+        ),
     ],
 )
 def test_packing(unpacked: str, expected: str) -> None:
@@ -40,14 +48,13 @@ def test_packing(unpacked: str, expected: str) -> None:
         loadingContext, workflowobj, uri
     )
 
-    packed = cwltool.pack.pack(loadingContext, uri)
+    packed = json.loads(print_pack(loadingContext, uri))
     context_dir = os.path.abspath(os.path.dirname(get_data(unpacked)))
     adjustFileObjs(packed, partial(make_relative, context_dir))
     adjustDirObjs(packed, partial(make_relative, context_dir))
 
-    yaml = YAML(typ="safe", pure=True)
     with open(get_data(expected)) as packed_file:
-        expect_packed = yaml.load(packed_file)
+        expect_packed = json.load(packed_file)
 
     if "$schemas" in expect_packed:
         assert "$schemas" in packed
@@ -77,7 +84,7 @@ def test_pack_single_tool() -> None:
 
 
 def test_pack_fragment() -> None:
-    yaml = YAML(typ="safe", pure=True)
+    yaml = yaml_no_ts()
 
     with open(get_data("tests/wf/scatter2_subwf.cwl")) as packed_file:
         expect_packed = yaml.load(packed_file)
@@ -89,9 +96,10 @@ def test_pack_fragment() -> None:
     )
     adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
 
-    assert json.dumps(packed, sort_keys=True, indent=2) == json.dumps(
-        expect_packed, sort_keys=True, indent=2
-    )
+    packed_result = json.dumps(packed, sort_keys=True, indent=2)
+    expected = json.dumps(expect_packed, sort_keys=True, indent=2)
+
+    assert packed_result == expected
 
 
 def test_pack_rewrites() -> None:

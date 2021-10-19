@@ -1,7 +1,0 @@
-{
-    "srcfile": {
-        "path": "whale.txt",
-        "class": "File"
-    },
-    "newname": "fish.txt"
-}

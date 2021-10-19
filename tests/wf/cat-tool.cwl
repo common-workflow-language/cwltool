@@ -5,7 +5,7 @@ cwlVersion: v1.0
 
 hints:
   DockerRequirement:
-    dockerPull: frolvlad/alpine-bash
+    dockerPull: docker.io/frolvlad/alpine-bash
 
 inputs:
   file1: File

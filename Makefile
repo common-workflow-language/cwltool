@@ -79,7 +79,8 @@ docs: FORCE
 
 ## clean       : clean up all temporary / machine-generated files
 clean: check-python3 FORCE
-	rm -f ${MODILE}/*.pyc tests/*.pyc
+	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so
+	rm -Rf ${MODULE}/__pycache__/
 	python setup.py clean --all || true
 	rm -Rf .coverage
 	rm -f diff-cover.html
@@ -147,11 +148,11 @@ diff-cover.html: coverage.xml
 
 ## test        : run the ${MODULE} test suite
 test: check-python3 $(PYSOURCES)
-	python -m pytest ${PYTEST_EXTRA}
+	python -m pytest -rs ${PYTEST_EXTRA}
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
 testcov: check-python3 $(PYSOURCES)
-	python -m pytest --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
+	python -m pytest -rs --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
 
 sloccount.sc: $(PYSOURCES) Makefile
 	sloccount --duplicates --wide --details $^ > $@
@@ -176,7 +177,7 @@ mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
 
 mypyc: $(PYSOURCES)
 	MYPYPATH=typeshed CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
-		 && pytest ${PYTEST_EXTRA}
+		 && pytest -rs -vv ${PYTEST_EXTRA}
 
 shellcheck: FORCE
 	shellcheck build-cwltool-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \

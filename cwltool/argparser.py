@@ -436,6 +436,12 @@ def arg_parser() -> argparse.ArgumentParser:
         "backported.",
     )
     dockergroup.add_argument(
+        "--podman",
+        action="store_true",
+        default=False,
+        help="[experimental] Use " "Podman runtime for running containers. ",
+    )
+    dockergroup.add_argument(
         "--no-container",
         action="store_false",
         default=True,

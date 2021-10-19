@@ -9,8 +9,8 @@ from typing import Any, Generator, List, MutableMapping, Optional, Tuple
 import pkg_resources
 import pytest
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.main import YAML
 from schema_salad.avro.schema import Names
+from schema_salad.utils import yaml_no_ts
 
 import cwltool.load_tool
 import cwltool.singularity
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         "env_pass": ["USER"],
     }
     plat_conf_file = mpitmp / "plat_mpi.yml"
-    yaml = YAML()
+    yaml = yaml_no_ts()
     yaml.dump(plat_conf, plat_conf_file)
 
     yield str(plat_conf_file)

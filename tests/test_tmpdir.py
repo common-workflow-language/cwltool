@@ -14,9 +14,10 @@ from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.docker import DockerCommandLineJob
 from cwltool.job import JobBase
+from cwltool.main import main
 from cwltool.pathmapper import MapperEnt, PathMapper
 from cwltool.stdfsaccess import StdFsAccess
-from cwltool.update import INTERNAL_VERSION
+from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from cwltool.utils import create_tmp_dir
 
 from .util import get_data, needs_docker
@@ -28,7 +29,7 @@ def test_docker_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
         {
             "metadata": {
                 "cwlVersion": INTERNAL_VERSION,
-                "http://commonwl.org/cwltool#original_cwlVersion": INTERNAL_VERSION,
+                ORIGINAL_CWLVERSION: INTERNAL_VERSION,
             }
         }
     )
@@ -42,7 +43,10 @@ def test_docker_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
                     "inputs": [],
                     "outputs": [],
                     "requirements": [
-                        {"class": "DockerRequirement", "dockerPull": "debian:stable"}
+                        {
+                            "class": "DockerRequirement",
+                            "dockerPull": "docker.io/debian:stable",
+                        }
                     ],
                 }
             ),
@@ -70,7 +74,7 @@ def test_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
         {
             "metadata": {
                 "cwlVersion": INTERNAL_VERSION,
-                "http://commonwl.org/cwltool#original_cwlVersion": INTERNAL_VERSION,
+                ORIGINAL_CWLVERSION: INTERNAL_VERSION,
             }
         }
     )
@@ -160,6 +164,7 @@ def test_docker_tmpdir_prefix(tmp_path: Path) -> None:
         runtime_context.get_tmpdir(),
         runtime_context.get_stagedir(),
         INTERNAL_VERSION,
+        "docker",
     )
     job = DockerCommandLineJob(builder, {}, PathMapper, [], [], "")
     runtime: List[str] = []
@@ -226,3 +231,20 @@ def test_runtimeContext_respects_tmp_outdir_prefix(tmp_path: Path) -> None:
     runtime_context = RuntimeContext({"tmp_outdir_prefix": tmpdir_prefix})
     assert runtime_context.get_outdir().startswith(tmpdir_prefix)
     assert runtime_context.create_outdir().startswith(tmpdir_prefix)
+
+
+def test_remove_tmpdirs(tmp_path: Path) -> None:
+    """Test that the tmpdirs are removed after the job execution."""
+    assert (
+        main(
+            [
+                "--tmpdir-prefix",
+                str(f"{tmp_path}/"),
+                get_data("tests/wf/hello_single_tool.cwl"),
+                "--message",
+                "Hello",
+            ]
+        )
+        == 0
+    )
+    assert len(list(tmp_path.iterdir())) == 0
