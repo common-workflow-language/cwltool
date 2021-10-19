@@ -16,6 +16,7 @@ from .util import get_data
 configure_logging(_logger.handlers[-1], False, True, True, True)
 _logger.setLevel(logging.DEBUG)
 
+
 def test_check_version() -> None:
     """
     It is permitted to load without updating, but not execute.
@@ -120,7 +121,10 @@ def test_load_graph_fragment_from_packed() -> None:
         # This was solved by making a shallow copy of the metadata
         # dict to ensure that the updater did not modify the original
         # document.
-        uri2 = Path(get_data("tests/wf/packed-with-loadlisting.cwl")).as_uri() + "#16169-step.cwl"
+        uri2 = (
+            Path(get_data("tests/wf/packed-with-loadlisting.cwl")).as_uri()
+            + "#16169-step.cwl"
+        )
         tool2 = load_tool(uri2, loadingContext)
 
     finally:
