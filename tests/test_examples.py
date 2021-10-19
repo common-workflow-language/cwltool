@@ -921,6 +921,7 @@ def test_format_expr_error() -> None:
 def test_static_checker() -> None:
     # check that the static checker raises exception when a source type
     # mismatches its sink type.
+    """Confirm that static checker raises expected exception."""
     factory = cwltool.factory.Factory()
 
     with pytest.raises(ValidationException):
@@ -936,6 +937,7 @@ def test_static_checker() -> None:
 def test_circular_dependency_checker() -> None:
     # check that the circular dependency checker raises exception when there is
     # circular dependency in the workflow.
+    """Confirm that circular dependency checker raises expected exception."""
     factory = cwltool.factory.Factory()
 
     with pytest.raises(ValidationException):
