@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+import logging
 
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.errors import WorkflowException
@@ -8,8 +9,12 @@ from cwltool.load_tool import load_tool
 from cwltool.process import use_custom_schema, use_standard_schema
 from cwltool.update import INTERNAL_VERSION
 from cwltool.utils import CWLObjectType
+from cwltool.loghandler import _logger, configure_logging
 
 from .util import get_data
+
+configure_logging(_logger.handlers[-1], False, True, True, True)
+_logger.setLevel(logging.DEBUG)
 
 
 def test_check_version() -> None:
@@ -96,5 +101,31 @@ def test_load_graph_fragment_from_packed() -> None:
         assert tool.tool["requirements"] == [
             {"class": "LoadListingRequirement", "loadListing": "no_listing"}
         ]
+
+        # This tests an additional, related bug, in which the updater
+        # updates only one fragment of the document, but would update
+        # the metadata dict in-place.  This had the effect of marking
+        # the original document as updated.  On a subsequent load, it
+        # would get the original un-updated document, which mistakenly
+        # had the version modified in place, and validate it with the
+        # newer schema instead of the original one.
+        #
+        # The specific case where this failed was
+        # cwltool:LoadListingRequirement which is only recognized for
+        # v1.0 documents, newer documents are supposed to be
+        # auto-updated to the spec LoadListingRequirement, so it is
+        # dropped from the schema.  However if we try to validate a
+        # v1.0 document with a v1.2 schema, it will throw an error the
+        # cwltool:LoadListingRequirement extension.
+        #
+        # This was solved by making a shallow copy of the metadata
+        # dict to ensure that the updater did not modify the original
+        # document.
+        uri2 = (
+            Path(get_data("tests/wf/packed-with-loadlisting.cwl")).as_uri()
+            + "#16169-step.cwl"
+        )
+        tool2 = load_tool(uri2, loadingContext)
+
     finally:
         use_standard_schema("v1.0")
