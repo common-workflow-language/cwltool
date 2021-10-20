@@ -16,7 +16,7 @@ from cwltool.docker import DockerCommandLineJob
 from cwltool.job import JobBase
 from cwltool.main import main
 from cwltool.pathmapper import MapperEnt, PathMapper
-from cwltool.stdfsaccess import StdFsAccess, LocalFsAccess
+from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from cwltool.utils import create_tmp_dir
 
@@ -152,8 +152,8 @@ def test_docker_tmpdir_prefix(tmp_path: Path) -> None:
         {},
         None,
         None,
-        LocalFsAccess,
-        LocalFsAccess(""),
+        StdFsAccess,
+        StdFsAccess(""),
         None,
         0.1,
         False,

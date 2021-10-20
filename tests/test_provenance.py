@@ -16,7 +16,7 @@ from rdflib.term import Literal
 from cwltool import provenance, provenance_constants
 from cwltool.main import main
 from cwltool.provenance import ResearchObject
-from cwltool.stdfsaccess import StdFsAccess, LocalFsAccess
+from cwltool.stdfsaccess import StdFsAccess
 
 from .util import get_data, needs_docker, working_directory
 
@@ -584,7 +584,7 @@ def check_prov(
 
 @pytest.fixture
 def research_object() -> Generator[ResearchObject, None, None]:
-    re_ob = ResearchObject(LocalFsAccess(""))
+    re_ob = ResearchObject(StdFsAccess(""))
     yield re_ob
     re_ob.close()
 

@@ -25,7 +25,7 @@ from .context import RuntimeContext, getdefault
 from .errors import WorkflowException
 from .loghandler import _logger
 from .process import shortname, uniquename
-from .stdfsaccess import StdFsAccess, LocalFsAccess
+from .stdfsaccess import StdFsAccess
 from .utils import (
     CWLObjectType,
     CWLOutputType,
@@ -653,7 +653,7 @@ class WorkflowJob:
             def postScatterEval(io: CWLObjectType) -> Optional[CWLObjectType]:
                 shortio = cast(CWLObjectType, {shortname(k): v for k, v in io.items()})
 
-                fs_access = getdefault(runtimeContext.make_fs_access, LocalFsAccess)("")
+                fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
                 for k, v in io.items():
                     if k in loadContents:
                         val = cast(CWLObjectType, v)

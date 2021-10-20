@@ -56,7 +56,7 @@ from .loghandler import _logger
 from .mpi import MPIRequirementName
 from .pathmapper import MapperEnt, PathMapper
 from .secrets import SecretStore
-from .stdfsaccess import StdFsAccess, LocalFsAccess
+from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from .utils import (
     CWLObjectType,
@@ -773,7 +773,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
 
         job = copy.deepcopy(joborder)
 
-        make_fs_access = getdefault(runtime_context.make_fs_access, LocalFsAccess)
+        make_fs_access = getdefault(runtime_context.make_fs_access, StdFsAccess)
         fs_access = make_fs_access(runtime_context.basedir)
 
         load_listing_req, _ = self.get_requirement("LoadListingRequirement")
