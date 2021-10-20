@@ -1,3 +1,4 @@
+"""Tests for cwltool.load_tool."""
 import logging
 from pathlib import Path
 
