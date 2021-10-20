@@ -1,6 +1,7 @@
 import urllib.parse
 from pathlib import Path
 from typing import cast
+import os
 
 import pytest
 from ruamel.yaml.comments import CommentedMap
@@ -109,26 +110,6 @@ def test_unicode_in_output_files(tmp_path: Path, filename: str) -> None:
     assert main(params) == 0
 
 
-class TestFsAccess(StdFsAccess):
-    """Stub fs access object that doesn't rely on the filesystem."""
-
-    def glob(self, pattern: str) -> List[str]:
-        """glob."""
-        return [pattern]
-
-    def open(self, fn: str, mode: str) -> IO[Any]:
-        """open."""
-        return BytesIO(b"aoeu")
-
-    def isfile(self, fn: str) -> bool:
-        """isfile."""
-        return True
-
-    def size(self, fn: str) -> int:
-        """size."""
-        return 4
-
-
 def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
     """Confirm that special characters in filenames do not cause problems."""
     loading_context = LoadingContext(
@@ -191,6 +172,46 @@ def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
     assert result["basename"] == special
     assert result["nameroot"] == special
     assert str(result["location"]).endswith(urllib.parse.quote(special))
+
+
+    class TestFsAccess(StdFsAccess):
+        """Stub fs access object that doesn't rely on the filesystem."""
+
+        def __init__(self, basedir: str) -> None:
+            """init."""
+            pass
+
+        def glob(self, pattern: str) -> List[str]:
+            """glob."""
+            return [pattern]
+
+        def open(self, fn: str, mode: str) -> IO[Any]:
+            """open."""
+            return BytesIO(b"aoeu")
+
+        def isfile(self, fn: str) -> bool:
+            """isfile."""
+            return True
+
+        def size(self, fn: str) -> int:
+            """size."""
+            return 4
+
+        def exists(self, fn: str) -> bool:
+            pass
+
+        def isdir(self, fn: str) -> bool:
+            pass
+
+        def listdir(self, fn: str) -> List[str]:
+            pass
+
+        def join(self, path, *paths):  # type: (str, *str) -> str
+            return os.path.join(path, *paths)
+
+        def realpath(self, path: str) -> str:
+            pass
+
 
     # Now test when outdir is a URI, make sure it doesn't get
     # incorrectly quoted as a file.

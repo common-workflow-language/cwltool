@@ -167,7 +167,7 @@ class Builder(HasReqsHints):
         resources: Dict[str, Union[int, float]],
         mutation_manager: Optional[MutationManager],
         formatgraph: Optional[Graph],
-        make_fs_access: Type[StdFsAccess],
+        make_fs_access: Callable[[str], StdFsAccess],
         fs_access: StdFsAccess,
         job_script_provider: Optional[DependenciesConfiguration],
         timeout: float,

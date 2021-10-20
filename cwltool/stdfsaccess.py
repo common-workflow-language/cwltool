@@ -3,6 +3,7 @@
 import glob
 import os
 import urllib
+import abc
 from typing import IO, Any, List
 
 from schema_salad.ref_resolver import file_uri, uri_file_path
@@ -21,7 +22,47 @@ def abspath(src: str, basedir: str) -> str:
     return abpath
 
 
-class StdFsAccess:
+class StdFsAccess(metaclass=abc.ABCMeta):
+    """Abstract base for filesystem implementation."""
+
+    @abc.abstractmethod
+    def glob(self, pattern: str) -> List[str]:
+        pass
+
+    @abc.abstractmethod
+    def open(self, fn: str, mode: str) -> IO[Any]:
+        pass
+
+    @abc.abstractmethod
+    def exists(self, fn: str) -> bool:
+        pass
+
+    @abc.abstractmethod
+    def size(self, fn: str) -> int:
+        pass
+
+    @abc.abstractmethod
+    def isfile(self, fn: str) -> bool:
+        pass
+
+    @abc.abstractmethod
+    def isdir(self, fn: str) -> bool:
+        pass
+
+    @abc.abstractmethod
+    def listdir(self, fn: str) -> List[str]:
+        pass
+
+    @abc.abstractmethod
+    def join(self, path, *paths):  # type: (str, *str) -> str
+        pass
+
+    @abc.abstractmethod
+    def realpath(self, path: str) -> str:
+        pass
+
+
+class LocalFsAccess(StdFsAccess):
     """Local filesystem implementation."""
 
     def __init__(self, basedir: str) -> None:

@@ -18,7 +18,7 @@ from .mutation import MutationManager
 from .pathmapper import PathMapper
 from .secrets import SecretStore
 from .software_requirements import DependenciesConfiguration
-from .stdfsaccess import StdFsAccess
+from .stdfsaccess import StdFsAccess, LocalFsAccess
 from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, ResolverType
 
 if TYPE_CHECKING:
@@ -127,7 +127,7 @@ class RuntimeContext(ContextBase):
         self.basedir = ""  # type: str
         self.toplevel = False  # type: bool
         self.mutation_manager = None  # type: Optional[MutationManager]
-        self.make_fs_access = StdFsAccess  # type: Callable[[str], StdFsAccess]
+        self.make_fs_access = LocalFsAccess  # type: Callable[[str], StdFsAccess]
         self.path_mapper = PathMapper
         self.builder = None  # type: Optional[Builder]
         self.docker_outdir = ""  # type: str

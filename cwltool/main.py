@@ -81,7 +81,7 @@ from .software_requirements import (
     DependenciesConfiguration,
     get_container_from_software_requirements,
 )
-from .stdfsaccess import StdFsAccess
+from .stdfsaccess import StdFsAccess, LocalFsAccess
 from .subgraph import get_process, get_step, get_subgraph
 from .update import ALLUPDATES, UPDATES
 from .utils import (
@@ -394,7 +394,7 @@ def init_job_order(
     stdout: Union[TextIO, StreamWriter],
     print_input_deps: bool = False,
     relative_deps: str = "primary",
-    make_fs_access: Callable[[str], StdFsAccess] = StdFsAccess,
+    make_fs_access: Callable[[str], StdFsAccess] = LocalFsAccess,
     input_basedir: str = "",
     secret_store: Optional[SecretStore] = None,
     input_required: bool = True,
