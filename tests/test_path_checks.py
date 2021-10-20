@@ -173,6 +173,7 @@ def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
     assert result["nameroot"] == special
     assert str(result["location"]).endswith(urllib.parse.quote(special))
 
+
     class TestFsAccess(StdFsAccess):
         """Stub fs access object that doesn't rely on the filesystem."""
 
@@ -210,6 +211,7 @@ def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
 
         def realpath(self, path: str) -> str:
             pass
+
 
     # Now test when outdir is a URI, make sure it doesn't get
     # incorrectly quoted as a file.
