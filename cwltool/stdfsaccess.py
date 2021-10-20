@@ -6,6 +6,7 @@ import urllib
 import abc
 from typing import IO, Any, List
 
+from mypy_extensions import mypyc_attr
 from schema_salad.ref_resolver import file_uri, uri_file_path
 
 
@@ -22,6 +23,7 @@ def abspath(src: str, basedir: str) -> str:
     return abpath
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class StdFsAccess(metaclass=abc.ABCMeta):
     """Abstract base for filesystem implementation."""
 
