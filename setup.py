@@ -73,7 +73,7 @@ if USE_MYPYC:
         "cwltool/secrets.py",
         "cwltool/singularity.py",
         "cwltool/software_requirements.py",
-        "cwltool/stdfsaccess.py",
+        # "cwltool/stdfsaccess.py",  # StdFsAccess needs to be subclassable
         "cwltool/subgraph.py",
         "cwltool/update.py",
         "cwltool/utils.py",
