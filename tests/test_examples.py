@@ -921,7 +921,7 @@ def test_format_expr_error() -> None:
 def test_static_checker() -> None:
     # check that the static checker raises exception when a source type
     # mismatches its sink type.
-    """Confirm that static checker raises expected exception."""
+    """Confirm that static type checker raises expected exception."""
     factory = cwltool.factory.Factory()
 
     with pytest.raises(ValidationException):
