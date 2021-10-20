@@ -110,16 +110,22 @@ def test_unicode_in_output_files(tmp_path: Path, filename: str) -> None:
 
 
 class TestFsAccess(StdFsAccess):
+    """Stub fs access object that doesn't rely on the filesystem."""
+
     def glob(self, pattern: str) -> List[str]:
+        """glob."""
         return [pattern]
 
     def open(self, fn: str, mode: str) -> IO[Any]:
+        """open."""
         return BytesIO(b"aoeu")
 
     def isfile(self, fn: str) -> bool:
+        """isfile."""
         return True
 
     def size(self, fn: str) -> int:
+        """size."""
         return 4
 
 
