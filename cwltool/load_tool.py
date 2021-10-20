@@ -1,12 +1,12 @@
 """Loads a CWL document."""
 
+import copy
 import hashlib
 import logging
 import os
 import re
 import urllib
 import uuid
-import copy
 from typing import (
     Any,
     Dict,

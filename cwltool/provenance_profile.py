@@ -47,7 +47,6 @@ from .provenance_constants import (
 from .stdfsaccess import StdFsAccess
 from .utils import (
     CWLObjectType,
-    CWLOutputType,
     JobsType,
     get_listing,
     posix_path,

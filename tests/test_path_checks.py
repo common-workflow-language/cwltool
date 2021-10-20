@@ -1,6 +1,7 @@
 import urllib.parse
+from io import BytesIO
 from pathlib import Path
-from typing import cast
+from typing import IO, Any, List, cast
 
 import pytest
 from ruamel.yaml.comments import CommentedMap
@@ -9,6 +10,7 @@ from schema_salad.sourceline import cmap
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
+from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
 from cwltool.utils import CWLObjectType
 
@@ -105,6 +107,26 @@ def test_unicode_in_output_files(tmp_path: Path, filename: str) -> None:
     assert main(params) == 0
 
 
+class TestFsAccess(StdFsAccess):
+    """Stub fs access object that doesn't rely on the filesystem."""
+
+    def glob(self, pattern: str) -> List[str]:
+        """glob."""
+        return [pattern]
+
+    def open(self, fn: str, mode: str) -> IO[Any]:
+        """open."""
+        return BytesIO(b"aoeu")
+
+    def isfile(self, fn: str) -> bool:
+        """isfile."""
+        return True
+
+    def size(self, fn: str) -> int:
+        """size."""
+        return 4
+
+
 def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
     """Confirm that special characters in filenames do not cause problems."""
     loading_context = LoadingContext(
@@ -167,3 +189,30 @@ def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
     assert result["basename"] == special
     assert result["nameroot"] == special
     assert str(result["location"]).endswith(urllib.parse.quote(special))
+
+    # Now test when outdir is a URI, make sure it doesn't get
+    # incorrectly quoted as a file.
+    builder = clt._init_job({}, RuntimeContext())
+    builder.pathmapper = clt.make_path_mapper(
+        builder.files, builder.stagedir, RuntimeContext(), True
+    )
+    builder.outdir = "/var/spool/cwl"
+    fs_access = TestFsAccess("")
+
+    result = cast(
+        CWLObjectType,
+        clt.collect_output(
+            output_schema,
+            builder,
+            "keep:ae755cd1b3cff63152ff4200f4dea7e9+52",
+            fs_access,
+        ),
+    )
+
+    assert result["class"] == "File"
+    assert result["basename"] == special
+    assert result["nameroot"] == special
+    assert (
+        result["location"]
+        == "keep:ae755cd1b3cff63152ff4200f4dea7e9+52/%3A%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D"
+    )
