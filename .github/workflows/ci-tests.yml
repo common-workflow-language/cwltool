@@ -88,8 +88,8 @@ jobs:
         step: [lintreadme, shellcheck, pydocstyle]
 
     env:
-      py-semver: 3.9
-      TOXENV: ${{ format('py39-{0}', matrix.step) }}
+      py-semver: "3.10"
+      TOXENV: ${{ format('py310-{0}', matrix.step) }}
 
     steps:
       - uses: actions/checkout@v2
@@ -171,7 +171,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.9
+          python-version: "3.10"  # quoted, otherwise that turns into the number 3.1
 
       - name: Give the test runner user a name to make provenance happy.
         run: sudo usermod -c 'CI Runner' $(whoami)
