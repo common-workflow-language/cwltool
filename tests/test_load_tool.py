@@ -1,15 +1,15 @@
+import logging
 from pathlib import Path
 
 import pytest
-import logging
 
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.load_tool import load_tool
+from cwltool.loghandler import _logger, configure_logging
 from cwltool.process import use_custom_schema, use_standard_schema
 from cwltool.update import INTERNAL_VERSION
 from cwltool.utils import CWLObjectType
-from cwltool.loghandler import _logger, configure_logging
 
 from .util import get_data
 

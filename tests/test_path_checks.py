@@ -1,20 +1,18 @@
 import urllib.parse
+from io import BytesIO
 from pathlib import Path
-from typing import cast
+from typing import IO, Any, List, cast
 
 import pytest
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
-from io import BytesIO
-
-from typing import IO, Any, List
 
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
+from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
 from cwltool.utils import CWLObjectType
-from cwltool.stdfsaccess import StdFsAccess
 
 from .util import needs_docker
 
