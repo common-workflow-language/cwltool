@@ -38,7 +38,7 @@ jobs:
 
       - name: Set up Singularity
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
-        uses: eWaterCycle/setup-singularity@v6
+        uses: eWaterCycle/setup-singularity@v7
         with:
           singularity-version: ${{ env.singularity_version }}
 
@@ -133,7 +133,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up Singularity
-        uses: eWaterCycle/setup-singularity@v6
+        uses: eWaterCycle/setup-singularity@v7
         with:
           singularity-version: ${{ env.singularity_version }}
 
@@ -164,7 +164,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up Singularity
-        uses: eWaterCycle/setup-singularity@v6
+        uses: eWaterCycle/setup-singularity@v7
         with:
           singularity-version: ${{ env.singularity_version }}
 
