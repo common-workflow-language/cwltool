@@ -458,18 +458,19 @@ def get_dependency_tree(step_inputs: List[CWLObjectType]) -> Dict[str, List[str]
     """Get the dependency tree in the form of adjacency list."""
     adjacency = {}  # adjacency list of the dependency tree
     for step_input in step_inputs:
-        if isinstance(step_input["source"], list):
-            vertices_in = [get_step_id(cast(str, src)) for src in step_input["source"]]
-        else:
-            vertices_in = [get_step_id(cast(str, step_input["source"]))]
-        vertex_out = get_step_id(cast(str, step_input["id"]))
-        for vertex_in in vertices_in:
-            if vertex_in not in adjacency:
-                adjacency[vertex_in] = [vertex_out]
-            elif vertex_out not in adjacency[vertex_in]:
-                adjacency[vertex_in].append(vertex_out)
-        if vertex_out not in adjacency:
-            adjacency[vertex_out] = []
+        if "source" in step_input:
+            if isinstance(step_input["source"], list):
+                vertices_in = [get_step_id(cast(str, src)) for src in step_input["source"]]
+            else:
+                vertices_in = [get_step_id(cast(str, step_input["source"]))]
+            vertex_out = get_step_id(cast(str, step_input["id"]))
+            for vertex_in in vertices_in:
+                if vertex_in not in adjacency:
+                    adjacency[vertex_in] = [vertex_out]
+                elif vertex_out not in adjacency[vertex_in]:
+                    adjacency[vertex_in].append(vertex_out)
+            if vertex_out not in adjacency:
+                adjacency[vertex_out] = []
     return adjacency
 
 
