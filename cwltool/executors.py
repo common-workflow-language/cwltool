@@ -33,7 +33,7 @@ from .process import Process, cleanIntermediate, relocateOutputs
 from .provenance_profile import ProvenanceProfile
 from .task_queue import TaskQueue
 from .update import ORIGINAL_CWLVERSION
-from .utils import CWLObjectType, CWLOutputType, JobsType
+from .utils import CWLObjectType, JobsType
 from .workflow import Workflow
 from .workflow_job import WorkflowJob, WorkflowJobStep
 

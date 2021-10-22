@@ -45,14 +45,7 @@ from .provenance_constants import (
     WFPROV,
 )
 from .stdfsaccess import StdFsAccess
-from .utils import (
-    CWLObjectType,
-    CWLOutputType,
-    JobsType,
-    get_listing,
-    posix_path,
-    versionstring,
-)
+from .utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
 from .workflow_job import WorkflowJob
 
 if TYPE_CHECKING:

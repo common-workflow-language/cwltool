@@ -2,10 +2,10 @@ import json
 import logging
 import os
 import re
+import shutil
 import stat
 import subprocess
 import sys
-import shutil
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Union, cast
@@ -1080,6 +1080,7 @@ def test_js_console_cmd_line_tool(factor: str) -> None:
         )
         error_code, _, stderr = get_main_output(commands)
 
+        stderr = re.sub(r"\s\s+", " ", stderr)
         assert "[log] Log message" in stderr
         assert "[err] Error message" in stderr
 
@@ -1093,6 +1094,7 @@ def test_no_js_console(factor: str) -> None:
         commands.extend(["--no-container", get_data("tests/wf/" + test_file)])
         _, _, stderr = get_main_output(commands)
 
+        stderr = re.sub(r"\s\s+", " ", stderr)
         assert "[log] Log message" not in stderr
         assert "[err] Error message" not in stderr
 
@@ -1108,6 +1110,7 @@ def test_cid_file_dir(tmp_path: Path, factor: str) -> None:
             ["--cidfile-dir", str(tmp_path), get_data("tests/wf/" + test_file)]
         )
         error_code, stdout, stderr = get_main_output(commands)
+        stderr = re.sub(r"\s\s+", " ", stderr)
         assert "completed success" in stderr
         assert error_code == 0
         cidfiles_count = sum(1 for _ in tmp_path.glob("**/*"))
@@ -1126,6 +1129,7 @@ def test_cid_file_dir_arg_is_file_instead_of_dir(tmp_path: Path, factor: str) ->
         ["--cidfile-dir", str(bad_cidfile_dir), get_data("tests/wf/" + test_file)]
     )
     error_code, _, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "is not a directory, please check it first" in stderr, stderr
     assert error_code == 2 or error_code == 1, stderr
 
@@ -1146,6 +1150,7 @@ def test_cid_file_non_existing_dir(tmp_path: Path, factor: str) -> None:
         ]
     )
     error_code, _, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "directory doesn't exist, please create it first" in stderr, stderr
     assert error_code == 2 or error_code == 1, stderr
 
@@ -1169,6 +1174,7 @@ def test_cid_file_w_prefix(tmp_path: Path, factor: str) -> None:
         finally:
             listing = tmp_path.iterdir()
             cidfiles_count = sum(1 for _ in tmp_path.glob("**/pytestcid*"))
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
     assert cidfiles_count == 2, f"{list(listing)}/n{stderr}"
@@ -1194,6 +1200,7 @@ def test_secondary_files_v1_1(factor: str) -> None:
         # 664 in octal, '-rw-rw-r--'
         assert stat.S_IMODE(os.stat("lsout").st_mode) == 436
         os.umask(old_umask)  # revert back to original umask
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
 
@@ -1236,6 +1243,7 @@ def test_secondary_files_v1_0(tmp_path: Path, factor: str) -> None:
         ]
     )
     error_code, _, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
 
@@ -1260,6 +1268,7 @@ def test_wf_without_container(tmp_path: Path, factor: str) -> None:
     )
     error_code, _, stderr = get_main_output(commands)
 
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
 
@@ -1274,6 +1283,7 @@ def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
     commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
     error_code, _, stderr = get_main_output(commands)
 
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
 
@@ -1281,6 +1291,7 @@ def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
     commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
     error_code, _, stderr = get_main_output(commands)
 
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "Output of job will be cached in" not in stderr
     assert error_code == 0, stderr
 
@@ -1369,6 +1380,7 @@ def test_no_compute_chcksum(tmp_path: Path, factor: str) -> None:
         ]
     )
     error_code, stdout, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
     assert "checksum" not in stdout
@@ -1388,6 +1400,7 @@ def test_bad_userspace_runtime(factor: str) -> None:
         ]
     )
     error_code, stdout, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "or quaquioN is missing or broken" in stderr, stderr
     assert error_code == 1
 
@@ -1398,6 +1411,7 @@ def test_bad_basecommand(factor: str) -> None:
     commands = factor.split()
     commands.extend([get_data(test_file)])
     error_code, stdout, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "'neenooGo' not found" in stderr, stderr
     assert error_code == 1
 
@@ -1420,6 +1434,7 @@ def test_v1_0_position_expression(factor: str) -> None:
     commands = factor.split()
     commands.extend(["--debug", get_data(test_file), get_data(test_job)])
     error_code, stdout, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "is not int" in stderr, stderr
     assert error_code == 1
 
@@ -1444,6 +1459,7 @@ def test_optional_numeric_output_0(factor: str) -> None:
     commands.extend([get_data(test_file)])
     error_code, stdout, stderr = get_main_output(commands)
 
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
     assert json.loads(stdout)["out"] == 0
@@ -1477,6 +1493,7 @@ def test_env_filtering(factor: str) -> None:
     assert sh_name_b
     sh_name = sh_name_b.decode("utf-8").strip()
 
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr, (error_code, stdout, stderr)
     assert error_code == 0, (error_code, stdout, stderr)
     if sh_name == "dash":
@@ -1498,6 +1515,7 @@ def test_v1_0_arg_empty_prefix_separate_false() -> None:
     error_code, stdout, stderr = get_main_output(
         ["--debug", get_data(test_file), "--echo"]
     )
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
 
@@ -1529,7 +1547,7 @@ def test_malformed_hints() -> None:
     factory = cwltool.factory.Factory()
     with pytest.raises(
         ValidationException,
-        match=r".*wc-tool-bad-hints\.cwl:6:1: If 'hints' is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
+        match=r".*wc-tool-bad-hints\.cwl:6:1:\s*If\s*'hints'\s*is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
     ):
         factory.make(get_data("tests/wc-tool-bad-hints.cwl"))
 

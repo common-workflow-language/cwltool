@@ -13,7 +13,6 @@ import threading
 import time
 import uuid
 from abc import ABCMeta, abstractmethod
-from io import IOBase
 from threading import Timer
 from typing import (
     IO,
@@ -451,7 +450,6 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         Note that with containers, the paths will (likely) be those from
         inside.
         """
-        pass
 
     def _preserve_environment_on_containers_warning(
         self, varname: Optional[Iterable[str]] = None
@@ -459,7 +457,6 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         """When running in a container, issue a warning."""
         # By default, don't do anything; ContainerCommandLineJob below
         # will issue a warning.
-        pass
 
     def prepare_environment(
         self, runtimeContext: RuntimeContext, envVarReq: Mapping[str, str]
