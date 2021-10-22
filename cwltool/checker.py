@@ -460,7 +460,9 @@ def get_dependency_tree(step_inputs: List[CWLObjectType]) -> Dict[str, List[str]
     for step_input in step_inputs:
         if "source" in step_input:
             if isinstance(step_input["source"], list):
-                vertices_in = [get_step_id(cast(str, src)) for src in step_input["source"]]
+                vertices_in = [
+                    get_step_id(cast(str, src)) for src in step_input["source"]
+                ]
             else:
                 vertices_in = [get_step_id(cast(str, step_input["source"]))]
             vertex_out = get_step_id(cast(str, step_input["id"]))
