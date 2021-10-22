@@ -1,6 +1,8 @@
 #!/usr/bin/env cwl-runner
 cwlVersion: v1.1
 class: Workflow
+requirements:
+  MultipleInputFeatureRequirement: {}
 
 inputs:
   txt:
@@ -18,7 +20,9 @@ steps:
   cat-a:
     run: cat-a.cwl
     in:
-      intxt: wc/wctxt
+      intxt:
+        source: [txt, wc/wctxt]
+        linkMerge: merge_flattened
     out: [cattxt]
   ls:
     run: ls.cwl

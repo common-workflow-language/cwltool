@@ -3,7 +3,7 @@ cwlVersion: v1.1
 class: CommandLineTool
 inputs:
   intxt:
-    type: File
+    type: File[]
     inputBinding: {}
 outputs:
   cattxt:
