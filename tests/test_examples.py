@@ -976,6 +976,7 @@ def test_circular_dependency_checker() -> None:
     ):
         factory.make(get_data("tests/checker_wf/circ-dep-wf2.cwl"))
 
+
 def test_var_spool_cwl_checker1() -> None:
     """Confirm that references to /var/spool/cwl are caught."""
     stream = StringIO()
