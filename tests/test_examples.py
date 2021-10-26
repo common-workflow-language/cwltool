@@ -942,16 +942,39 @@ def test_circular_dependency_checker() -> None:
 
     with pytest.raises(
         ValidationException,
-        match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency:\s*.*#cat-a.*#ls.*#wc.*",
+        match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency:\s*.*",
     ):
         factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
 
     with pytest.raises(
         ValidationException,
-        match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency:\s*.*#ls.*",
+        match=r".*#cat-a.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*#ls.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*#wc.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency:\s*.*",
     ):
         factory.make(get_data("tests/checker_wf/circ-dep-wf2.cwl"))
 
+    with pytest.raises(
+        ValidationException,
+        match=r".*#ls.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf2.cwl"))
 
 def test_var_spool_cwl_checker1() -> None:
     """Confirm that references to /var/spool/cwl are caught."""
