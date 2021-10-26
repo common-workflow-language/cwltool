@@ -940,10 +940,16 @@ def test_circular_dependency_checker() -> None:
     """Confirm that circular dependency checker raises expected exception."""
     factory = cwltool.factory.Factory()
 
-    with pytest.raises(ValidationException):
+    with pytest.raises(
+        ValidationException,
+        match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency.*#cat-a.*#ls.*#wc.*",
+    ):
         factory.make(get_data("tests/checker_wf/cir-dep-wf.cwl"))
 
-    with pytest.raises(ValidationException):
+    with pytest.raises(
+        ValidationException,
+        match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency.*#ls.*",
+    ):
         factory.make(get_data("tests/checker_wf/cir-dep-wf2.cwl"))
 
 
