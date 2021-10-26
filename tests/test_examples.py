@@ -944,13 +944,13 @@ def test_circular_dependency_checker() -> None:
         ValidationException,
         match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency.*#cat-a.*#ls.*#wc.*",
     ):
-        factory.make(get_data("tests/checker_wf/cir-dep-wf.cwl"))
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
 
     with pytest.raises(
         ValidationException,
         match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency.*#ls.*",
     ):
-        factory.make(get_data("tests/checker_wf/cir-dep-wf2.cwl"))
+        factory.make(get_data("tests/checker_wf/circ-dep-wf2.cwl"))
 
 
 def test_var_spool_cwl_checker1() -> None:
