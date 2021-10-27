@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Union, cast
 from urllib.parse import urlparse
 
-import pydot  # type: ignore
+import pydot
 import pytest
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
@@ -1080,7 +1080,7 @@ def test_print_dot() -> None:
         )
     )[0]
     stdout = StringIO()
-    assert main(["--print-dot", cwl_path], stdout=stdout) == 0
+    assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
     computed_edges = sorted(
         (urlparse(source).fragment, urlparse(target).fragment)
