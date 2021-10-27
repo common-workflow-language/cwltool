@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Union, cast
 from urllib.parse import urlparse
 
-import pydot  # type: ignore
+import pydot
 import pytest
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
