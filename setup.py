@@ -121,6 +121,7 @@ setup(
         "typing-extensions",
         "coloredlogs",
         "pydot >= 1.4.1",
+        "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
         "argcomplete",
     ],
     extras_require={
