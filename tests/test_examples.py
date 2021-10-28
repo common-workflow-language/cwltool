@@ -921,6 +921,7 @@ def test_format_expr_error() -> None:
 def test_static_checker() -> None:
     # check that the static checker raises exception when a source type
     # mismatches its sink type.
+    """Confirm that static type checker raises expected exception."""
     factory = cwltool.factory.Factory()
 
     with pytest.raises(ValidationException):
@@ -931,6 +932,49 @@ def test_static_checker() -> None:
 
     with pytest.raises(ValidationException):
         factory.make(get_data("tests/checker_wf/broken-wf3.cwl"))
+
+
+def test_circular_dependency_checker() -> None:
+    # check that the circular dependency checker raises exception when there is
+    # circular dependency in the workflow.
+    """Confirm that circular dependency checker raises expected exception."""
+    factory = cwltool.factory.Factory()
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency:\s*.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*#cat-a.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*#ls.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*#wc.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency:\s*.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf2.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*#ls.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf2.cwl"))
 
 
 def test_var_spool_cwl_checker1() -> None:
