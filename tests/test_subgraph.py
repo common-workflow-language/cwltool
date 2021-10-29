@@ -9,7 +9,7 @@ from cwltool.load_tool import load_tool
 from cwltool.subgraph import get_step, get_subgraph
 from cwltool.workflow import Workflow, default_make_tool
 
-from .util import get_data
+from .util import get_data, get_main_output
 
 
 def clean(val: Any, path: str) -> Any:
@@ -87,3 +87,20 @@ def test_get_step() -> None:
         extracted = get_step(tool, wf + "#" + a)
         with open(get_data("tests/subgraph/single_" + a + ".json")) as f:
             assert json.load(f) == clean(convert_to_dict(extracted), sg)
+
+
+def test_single_process_inherit_reqshints() -> None:
+    """Inherit reqs and hints from parent(s) with --single-step."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-process",
+            "step1",
+            get_data("tests/subgraph/env-wf2.cwl"),
+            get_data("tests/subgraph/env-job.json"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["out"]["checksum"]
+        == "sha1$cdc1e84968261d6a7575b5305945471f8be199b6"
+    )

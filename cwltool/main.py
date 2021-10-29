@@ -754,6 +754,31 @@ def make_template(
     )
 
 
+def inherit_reqshints(tool: Process, parent: Process) -> None:
+    """Copy down requirements and hints from ancestors of a given process."""
+    for parent_req in parent.requirements:
+        found = False
+        for tool_req in tool.requirements:
+            if parent_req["class"] == tool_req["class"]:
+                found = True
+                break
+        if not found:
+            tool.requirements.append(parent_req)
+    for parent_hint in parent.hints:
+        found = False
+        for tool_req in tool.requirements:
+            if parent_hint["class"] == tool_req["class"]:
+                found = True
+                break
+        if not found:
+            for tool_hint in tool.hints:
+                if parent_hint["class"] == tool_hint["class"]:
+                    found = True
+                    break
+            if not found:
+                tool.hints.append(parent_req)
+
+
 def choose_target(
     args: argparse.Namespace,
     tool: Process,
@@ -826,36 +851,33 @@ def choose_process(
     tool: Process,
     loadingContext: LoadingContext,
 ) -> Optional[Process]:
-    """Walk the given Workflow and extract just args.single_step."""
+    """Walk the given Workflow and extract just args.single_process."""
     if loadingContext.loader is None:
         raise Exception("loadingContext.loader cannot be None")
 
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
         if url.fragment:
-            extracted = get_process(
-                tool,
-                tool.tool["id"] + "/" + args.single_process,
-                loadingContext.loader.idx,
-            )
+            step_id = tool.tool["id"] + "/" + args.single_process
         else:
-            extracted = get_process(
-                tool,
-                loadingContext.loader.fetcher.urljoin(
-                    tool.tool["id"], "#" + args.single_process
-                ),
-                loadingContext.loader.idx,
+            step_id = loadingContext.loader.fetcher.urljoin(
+                tool.tool["id"], "#" + args.single_process
             )
+        extracted, step_pos = get_process(
+            tool,
+            step_id,
+            loadingContext.loader.idx,
+        )
     else:
         _logger.error("Can only use --single-process on Workflows")
         return None
     if isinstance(loadingContext.loader.idx, MutableMapping):
         loadingContext.loader.idx[extracted["id"]] = extracted
-        tool = make_tool(extracted["id"], loadingContext)
+        new_tool = make_tool(extracted["id"], loadingContext)
     else:
         raise Exception("Missing loadingContext.loader.idx!")
-
-    return tool
+    inherit_reqshints(new_tool, tool.steps[step_pos])
+    return new_tool
 
 
 def check_working_directories(

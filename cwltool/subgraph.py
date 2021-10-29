@@ -15,6 +15,7 @@ from typing import (
 
 from ruamel.yaml.comments import CommentedMap
 
+from .process import Process
 from .utils import CWLObjectType, aslist
 from .workflow import Workflow, WorkflowStep
 
@@ -55,11 +56,14 @@ def declare_node(nodes: Dict[str, Node], nodeid: str, tp: Optional[str]) -> Node
     return nodes[nodeid]
 
 
-def find_step(steps: List[WorkflowStep], stepid: str) -> Optional[CWLObjectType]:
-    for st in steps:
+def find_step(
+    steps: List[WorkflowStep], stepid: str
+) -> Tuple[Optional[CWLObjectType], int]:
+    """Find the step and step_index for a given step id."""
+    for index, st in enumerate(steps):
         if st.tool["id"] == stepid:
-            return st.tool
-    return None
+            return st.tool, index
+    return None, -1
 
 
 def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
@@ -124,7 +128,7 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
                     df = urllib.parse.urldefrag(u)
                     rn = str(df[0] + "#" + df[1].replace("/", "_"))
                     if nodes[v].type == STEP:
-                        wfstep = find_step(tool.steps, v)
+                        wfstep = find_step(tool.steps, v)[0]
                         if wfstep is not None:
                             for inp in cast(
                                 MutableSequence[CWLObjectType], wfstep["inputs"]
@@ -169,7 +173,7 @@ def get_step(tool: Workflow, step_id: str) -> CommentedMap:
 
     extracted = CommentedMap()
 
-    step = find_step(tool.steps, step_id)
+    step = find_step(tool.steps, step_id)[0]
     if step is None:
         raise Exception(f"Step {step_id} was not found")
 
@@ -197,15 +201,18 @@ def get_step(tool: Workflow, step_id: str) -> CommentedMap:
     return extracted
 
 
-def get_process(tool: Workflow, step_id: str, index: Mapping[str, Any]) -> Any:
-    """Return just a single Process from a Workflow step."""
-    step = find_step(tool.steps, step_id)
+def get_process(
+    tool: Workflow, step_id: str, index: Mapping[str, Any]
+) -> Tuple[Any, int]:
+    """Find the underlying Process for a given Workflow step id."""
+    step, step_pos = find_step(tool.steps, step_id)
     if step is None:
         raise Exception(f"Step {step_id} was not found")
 
     run = step["run"]
 
     if isinstance(run, str):
-        return index[run]
+        process = index[run]
     else:
-        return run
+        process = run
+    return process, step_pos
