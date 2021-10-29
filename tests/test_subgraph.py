@@ -26,10 +26,10 @@ def clean(val: Any, path: str) -> Any:
 
 def test_get_subgraph() -> None:
     """Compare known correct subgraphs to generated subgraphs."""
-    loadingContext = LoadingContext({"construct_tool_object": default_make_tool})
+    loading_context = LoadingContext({"construct_tool_object": default_make_tool})
     wf = Path(get_data("tests/subgraph/count-lines1-wf.cwl")).as_uri()
-    loadingContext.do_update = False
-    tool = load_tool(wf, loadingContext)
+    loading_context.do_update = False
+    tool = load_tool(wf, loading_context)
 
     sg = Path(get_data("tests/subgraph")).as_uri()
 
@@ -48,31 +48,31 @@ def test_get_subgraph() -> None:
         "step5",
     ):
         assert isinstance(tool, Workflow)
-        extracted = get_subgraph([wf + "#" + a], tool)
+        extracted = get_subgraph([wf + "#" + a], tool, loading_context)
         with open(get_data("tests/subgraph/extract_" + a + ".json")) as f:
             assert json.load(f) == clean(convert_to_dict(extracted), sg)
 
 
 def test_get_subgraph_long_out_form() -> None:
     """Compare subgraphs generatation when 'out' is in the long form."""
-    loadingContext = LoadingContext({"construct_tool_object": default_make_tool})
+    loading_context = LoadingContext({"construct_tool_object": default_make_tool})
     wf = Path(get_data("tests/subgraph/1432.cwl")).as_uri()
-    loadingContext.do_update = False
-    tool = load_tool(wf, loadingContext)
+    loading_context.do_update = False
+    tool = load_tool(wf, loading_context)
 
     sg = Path(get_data("tests/")).as_uri()
 
     assert isinstance(tool, Workflow)
-    extracted = get_subgraph([wf + "#step2"], tool)
+    extracted = get_subgraph([wf + "#step2"], tool, loading_context)
     with open(get_data("tests/subgraph/extract_step2_1432.json")) as f:
         assert json.load(f) == clean(convert_to_dict(extracted), sg)
 
 
 def test_get_step() -> None:
-    loadingContext = LoadingContext({"construct_tool_object": default_make_tool})
+    loading_context = LoadingContext({"construct_tool_object": default_make_tool})
     wf = Path(get_data("tests/subgraph/count-lines1-wf.cwl")).as_uri()
-    loadingContext.do_update = False
-    tool = load_tool(wf, loadingContext)
+    loading_context.do_update = False
+    tool = load_tool(wf, loading_context)
     assert isinstance(tool, Workflow)
 
     sg = Path(get_data("tests/subgraph")).as_uri()
@@ -84,13 +84,13 @@ def test_get_step() -> None:
         "step4",
         "step5",
     ):
-        extracted = get_step(tool, wf + "#" + a)
+        extracted = get_step(tool, wf + "#" + a, loading_context)
         with open(get_data("tests/subgraph/single_" + a + ".json")) as f:
             assert json.load(f) == clean(convert_to_dict(extracted), sg)
 
 
 def test_single_process_inherit_reqshints() -> None:
-    """Inherit reqs and hints from parent(s) with --single-step."""
+    """Inherit reqs and hints from parent(s) with --single-process."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-process",
@@ -103,4 +103,106 @@ def test_single_process_inherit_reqshints() -> None:
     assert (
         json.loads(stdout)["out"]["checksum"]
         == "sha1$cdc1e84968261d6a7575b5305945471f8be199b6"
+    )
+
+
+def test_single_process_inherit_hints_collision() -> None:
+    """Inherit reqs and hints --single-process hints collision."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-process",
+            "step1",
+            get_data("tests/subgraph/env-wf2_hint_collision.cwl"),
+            get_data("tests/subgraph/env-job.json"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["out"]["checksum"]
+        == "sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519"
+    )
+
+
+def test_single_process_inherit_reqs_collision() -> None:
+    """Inherit reqs and hints --single-process reqs collision."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-process",
+            "step1",
+            get_data("tests/subgraph/env-wf2_req_collision.cwl"),
+            get_data("tests/subgraph/env-job.json"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["out"]["checksum"]
+        == "sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519"
+    )
+
+
+def test_single_process_inherit_reqs_hints_collision() -> None:
+    """Inherit reqs and hints --single-process reqs + hints collision."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-process",
+            "step1",
+            get_data("tests/subgraph/env-wf2_hint_req_collision.cwl"),
+            get_data("tests/subgraph/env-job.json"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["out"]["checksum"]
+        == "sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519"
+    )
+
+
+def test_single_process_inherit_only_hints() -> None:
+    """Inherit reqs and hints --single-process only hints."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-process",
+            "step1",
+            get_data("tests/subgraph/env-wf2_only_hint.cwl"),
+            get_data("tests/subgraph/env-job.json"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["out"]["checksum"]
+        == "sha1$ab5f2a9add5f54622dde555ac8ae9a3000e5ee0a"
+    )
+
+
+def test_single_process_subwf_step() -> None:
+    """Inherit reqs and hints --single-process on sub-workflow step."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-process",
+            "sub_wf/step1",
+            get_data("tests/subgraph/env-wf2_subwf.cwl"),
+            get_data("tests/subgraph/env-job.json"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["out"]["checksum"]
+        == "sha1$cdc1e84968261d6a7575b5305945471f8be199b6"
+    )
+
+
+def test_single_step_subwf_step() -> None:
+    """Inherit reqs and hints --single-step on sub-workflow step."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-step",
+            "sub_wf/step1",
+            get_data("tests/subgraph/env-wf2_subwf.cwl"),
+            get_data("tests/subgraph/env-job.json"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["out"]["checksum"]
+        == "sha1$7608e5669ba454c61fab01c9b133b52a9a7de68c"
     )

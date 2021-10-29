@@ -776,40 +776,41 @@ def inherit_reqshints(tool: Process, parent: Process) -> None:
                     found = True
                     break
             if not found:
-                tool.hints.append(parent_req)
+                tool.hints.append(parent_hint)
 
 
 def choose_target(
     args: argparse.Namespace,
     tool: Process,
-    loadingContext: LoadingContext,
+    loading_context: LoadingContext,
 ) -> Optional[Process]:
     """Walk the Workflow, extract the subset matches all the args.targets."""
-    if loadingContext.loader is None:
-        raise Exception("loadingContext.loader cannot be None")
+    if loading_context.loader is None:
+        raise Exception("loading_context.loader cannot be None")
 
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
         if url.fragment:
             extracted = get_subgraph(
-                [tool.tool["id"] + "/" + r for r in args.target], tool
+                [tool.tool["id"] + "/" + r for r in args.target], tool, loading_context
             )
         else:
             extracted = get_subgraph(
                 [
-                    loadingContext.loader.fetcher.urljoin(tool.tool["id"], "#" + r)
+                    loading_context.loader.fetcher.urljoin(tool.tool["id"], "#" + r)
                     for r in args.target
                 ],
                 tool,
+                loading_context,
             )
     else:
         _logger.error("Can only use --target on Workflows")
         return None
-    if isinstance(loadingContext.loader.idx, MutableMapping):
-        loadingContext.loader.idx[extracted["id"]] = extracted
-        tool = make_tool(extracted["id"], loadingContext)
+    if isinstance(loading_context.loader.idx, MutableMapping):
+        loading_context.loader.idx[extracted["id"]] = extracted
+        tool = make_tool(extracted["id"], loading_context)
     else:
-        raise Exception("Missing loadingContext.loader.idx!")
+        raise Exception("Missing loading_context.loader.idx!")
 
     return tool
 
@@ -817,31 +818,29 @@ def choose_target(
 def choose_step(
     args: argparse.Namespace,
     tool: Process,
-    loadingContext: LoadingContext,
+    loading_context: LoadingContext,
 ) -> Optional[Process]:
     """Walk the given Workflow and extract just args.single_step."""
-    if loadingContext.loader is None:
-        raise Exception("loadingContext.loader cannot be None")
+    if loading_context.loader is None:
+        raise Exception("loading_context.loader cannot be None")
 
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
         if url.fragment:
-            extracted = get_step(tool, tool.tool["id"] + "/" + args.single_step)
+            step_id = tool.tool["id"] + "/" + args.single_step
         else:
-            extracted = get_step(
-                tool,
-                loadingContext.loader.fetcher.urljoin(
-                    tool.tool["id"], "#" + args.single_step
-                ),
+            step_id = loading_context.loader.fetcher.urljoin(
+                tool.tool["id"], "#" + args.single_step
             )
+        extracted = get_step(tool, step_id, loading_context)
     else:
         _logger.error("Can only use --single-step on Workflows")
         return None
-    if isinstance(loadingContext.loader.idx, MutableMapping):
-        loadingContext.loader.idx[extracted["id"]] = extracted
-        tool = make_tool(extracted["id"], loadingContext)
+    if isinstance(loading_context.loader.idx, MutableMapping):
+        loading_context.loader.idx[extracted["id"]] = extracted
+        tool = make_tool(extracted["id"], loading_context)
     else:
-        raise Exception("Missing loadingContext.loader.idx!")
+        raise Exception("Missing loading_context.loader.idx!")
 
     return tool
 
@@ -863,10 +862,10 @@ def choose_process(
             step_id = loadingContext.loader.fetcher.urljoin(
                 tool.tool["id"], "#" + args.single_process
             )
-        extracted, step_pos = get_process(
+        extracted, workflow_step = get_process(
             tool,
             step_id,
-            loadingContext.loader.idx,
+            loadingContext,
         )
     else:
         _logger.error("Can only use --single-process on Workflows")
@@ -876,7 +875,7 @@ def choose_process(
         new_tool = make_tool(extracted["id"], loadingContext)
     else:
         raise Exception("Missing loadingContext.loader.idx!")
-    inherit_reqshints(new_tool, tool.steps[step_pos])
+    inherit_reqshints(new_tool, workflow_step)
     return new_tool
 
 
@@ -907,6 +906,33 @@ def check_working_directories(
                     _logger.exception("Failed to create directory.")
                     return 1
     return None
+
+
+def print_targets(
+    tool: Process,
+    stdout: Union[TextIO, StreamWriter],
+    loading_context: LoadingContext,
+    prefix: str = "",
+) -> None:
+    """Recursively find targets for --subgraph and friends."""
+    for f in ("outputs", "inputs"):
+        if tool.tool[f]:
+            _logger.info("%s %s%s targets:", prefix[:-1], f[0].upper(), f[1:-1])
+            stdout.write(
+                "  "
+                + "\n  ".join([f"{prefix}{shortname(t['id'])}" for t in tool.tool[f]])
+                + "\n"
+            )
+    if "steps" in tool.tool:
+        _logger.info("%s steps targets:", prefix[:-1])
+        for t in tool.tool["steps"]:
+            stdout.write(f"  {prefix}{shortname(t['id'])}\n")
+            run: Union[str, Process] = t["run"]
+            if isinstance(run, str):
+                process = make_tool(run, loading_context)
+            else:
+                process = run
+            print_targets(process, stdout, loading_context, shortname(t["id"]) + "/")
 
 
 def main(
@@ -1106,14 +1132,7 @@ def main(
                 return 0
 
             if args.print_targets:
-                for f in ("outputs", "steps", "inputs"):
-                    if tool.tool[f]:
-                        _logger.info("%s%s targets:", f[0].upper(), f[1:-1])
-                        stdout.write(
-                            "  "
-                            + "\n  ".join([shortname(t["id"]) for t in tool.tool[f]])
-                            + "\n"
-                        )
+                print_targets(tool, stdout, loadingContext)
                 return 0
 
             if args.target:

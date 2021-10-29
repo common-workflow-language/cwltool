@@ -1,6 +1,3 @@
-from typing import Any
-
-import pydot
 from pytest import LogCaptureFixture
 
 from .util import get_main_output
