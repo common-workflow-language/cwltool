@@ -191,6 +191,23 @@ def test_single_process_subwf_step() -> None:
     )
 
 
+def test_single_process_packed_subwf_step() -> None:
+    """Inherit reqs and hints --single-process on packed sub-workflow step."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-process",
+            "sub_wf/step1",
+            get_data("tests/subgraph/env-wf2_subwf-packed.cwl"),
+            get_data("tests/subgraph/env-job.json"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["out"]["checksum"]
+        == "sha1$cdc1e84968261d6a7575b5305945471f8be199b6"
+    )
+
+
 def test_single_step_subwf_step() -> None:
     """Inherit reqs and hints --single-step on sub-workflow step."""
     err_code, stdout, stderr = get_main_output(
@@ -198,6 +215,23 @@ def test_single_step_subwf_step() -> None:
             "--single-step",
             "sub_wf/step1",
             get_data("tests/subgraph/env-wf2_subwf.cwl"),
+            get_data("tests/subgraph/env-job.json"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["out"]["checksum"]
+        == "sha1$7608e5669ba454c61fab01c9b133b52a9a7de68c"
+    )
+
+
+def test_single_step_packed_subwf_step() -> None:
+    """Inherit reqs and hints --single-step on packed sub-workflow step."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-step",
+            "sub_wf/step1",
+            get_data("tests/subgraph/env-wf2_subwf-packed.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
     )

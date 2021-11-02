@@ -40,7 +40,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
-from schema_salad.sourceline import strip_dup_lineno
+from schema_salad.sourceline import cmap, strip_dup_lineno
 from schema_salad.utils import ContextType, FetcherCallableType, json_dumps, yaml_no_ts
 
 from . import CWL_CONTENT_TYPES, workflow
@@ -837,7 +837,9 @@ def choose_step(
         _logger.error("Can only use --single-step on Workflows")
         return None
     if isinstance(loading_context.loader.idx, MutableMapping):
-        loading_context.loader.idx[extracted["id"]] = extracted
+        loading_context.loader.idx[extracted["id"]] = cast(
+            Union[CommentedMap, CommentedSeq, str, None], cmap(extracted)
+        )
         tool = make_tool(extracted["id"], loading_context)
     else:
         raise Exception("Missing loading_context.loader.idx!")

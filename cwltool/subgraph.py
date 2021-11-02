@@ -79,7 +79,11 @@ def find_step(
                 if isinstance(process, Workflow):
                     suffix = stepid[len(st.tool["id"]) + 1 :]
                     prefix = process.tool["id"]
-                    adj_stepid = f"{prefix}#{suffix}"
+                    if "#" in prefix:
+                        sep = "/"
+                    else:
+                        sep = "#"
+                    adj_stepid = f"{prefix}{sep}{suffix}"
                     result2, st3 = find_step(process.steps, adj_stepid, loading_context)
                     if result2:
                         return result2, st3
@@ -231,6 +235,8 @@ def get_step(
         if f not in ("steps", "inputs", "outputs"):
             extracted[f] = tool.tool[f]
     extracted["id"] = new_id
+    if "cwlVersion" not in extracted:
+        extracted["cwlVersion"] = tool.metadata["cwlVersion"]
     return extracted
 
 
