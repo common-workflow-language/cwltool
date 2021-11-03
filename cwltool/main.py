@@ -45,7 +45,6 @@ from schema_salad.utils import ContextType, FetcherCallableType, json_dumps, yam
 
 from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
-from .builder import HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
 from .cwlrdf import printdot, printrdf
 from .errors import ArgumentException, UnsupportedRequirement, WorkflowException
@@ -89,6 +88,7 @@ from .utils import (
     CWLObjectType,
     CWLOutputAtomType,
     CWLOutputType,
+    HasReqsHints,
     adjustDirObjs,
     normalizeFilesDirs,
     processes_to_kill,

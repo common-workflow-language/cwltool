@@ -11,7 +11,6 @@ from typing import (
     MutableSequence,
     Optional,
     Set,
-    Tuple,
     Union,
     cast,
 )
@@ -36,6 +35,7 @@ from .utils import (
     CONTENT_LIMIT,
     CWLObjectType,
     CWLOutputType,
+    HasReqsHints,
     aslist,
     get_listing,
     normalizeFilesDirs,
@@ -132,26 +132,6 @@ def check_format(
         raise ValidationException(
             f"File has an incompatible format: {json_dumps(afile, indent=4)}"
         )
-
-
-class HasReqsHints:
-    """Base class for get_requirement()."""
-
-    def __init__(self) -> None:
-        """Initialize this reqs decorator."""
-        self.requirements = []  # type: List[CWLObjectType]
-        self.hints = []  # type: List[CWLObjectType]
-
-    def get_requirement(
-        self, feature: str
-    ) -> Tuple[Optional[CWLObjectType], Optional[bool]]:
-        for item in reversed(self.requirements):
-            if item["class"] == feature:
-                return (item, True)
-        for item in reversed(self.hints):
-            if item["class"] == feature:
-                return (item, False)
-        return (None, None)
 
 
 class Builder(HasReqsHints):
