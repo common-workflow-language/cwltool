@@ -49,7 +49,7 @@ from schema_salad.validate import avro_type_name, validate_ex
 from typing_extensions import TYPE_CHECKING
 
 from . import expression
-from .builder import INPUT_OBJ_VOCAB, Builder, HasReqsHints
+from .builder import INPUT_OBJ_VOCAB, Builder
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
@@ -62,6 +62,7 @@ from .utils import (
     CWLObjectType,
     CWLOutputAtomType,
     CWLOutputType,
+    HasReqsHints,
     JobsGeneratorType,
     OutputCallbackType,
     adjustDirObjs,

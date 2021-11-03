@@ -39,7 +39,7 @@ from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
 
 from . import env_to_stdout, run_job
-from .builder import Builder, HasReqsHints
+from .builder import Builder
 from .context import RuntimeContext
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
@@ -49,6 +49,7 @@ from .secrets import SecretStore
 from .utils import (
     CWLObjectType,
     CWLOutputType,
+    HasReqsHints,
     DirectoryType,
     OutputCallbackType,
     bytes2str_in_dicts,

@@ -12,14 +12,14 @@ from schema_salad.ref_resolver import Loader
 from schema_salad.utils import FetcherCallableType
 from typing_extensions import TYPE_CHECKING
 
-from .builder import Builder, HasReqsHints
+from .builder import Builder
 from .mpi import MpiConfig
 from .mutation import MutationManager
 from .pathmapper import PathMapper
 from .secrets import SecretStore
 from .software_requirements import DependenciesConfiguration
 from .stdfsaccess import StdFsAccess
-from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, ResolverType
+from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, HasReqsHints, ResolverType
 
 if TYPE_CHECKING:
     from .process import Process
