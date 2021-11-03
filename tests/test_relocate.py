@@ -1,8 +1,12 @@
 import json
 import sys
 from pathlib import Path
+import tempfile
 
 from cwltool.main import main
+from cwltool.process import relocateOutputs
+from cwltool.stdfsaccess import StdFsAccess
+from cwltool.pathmapper import PathMapper
 
 from .util import get_data, needs_docker
 
@@ -33,3 +37,12 @@ def test_for_conflict_file_names(tmp_path: Path) -> None:
     out = json.loads(stream.getvalue())
     assert out["b1"]["basename"] == out["b2"]["basename"]
     assert out["b1"]["location"] != out["b2"]["location"]
+
+
+def test_relocate_symlinks(tmp_path: Path) -> None:
+    assert (
+        main(
+            ["--debug", "--outdir", get_data("tests/reloc")+"/dir2", get_data("tests/reloc/test.cwl"), "--inp", get_data("tests/reloc")+"/dir2"]
+        )
+        == 0
+    )
