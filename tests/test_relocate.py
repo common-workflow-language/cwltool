@@ -42,7 +42,14 @@ def test_for_conflict_file_names(tmp_path: Path) -> None:
 def test_relocate_symlinks(tmp_path: Path) -> None:
     assert (
         main(
-            ["--debug", "--outdir", get_data("tests/reloc")+"/dir2", get_data("tests/reloc/test.cwl"), "--inp", get_data("tests/reloc")+"/dir2"]
+            [
+                "--debug",
+                "--outdir",
+                get_data("tests/reloc") + "/dir2",
+                get_data("tests/reloc/test.cwl"),
+                "--inp",
+                get_data("tests/reloc") + "/dir2",
+            ]
         )
         == 0
     )
