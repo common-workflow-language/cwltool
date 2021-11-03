@@ -354,11 +354,13 @@ def relocateOutputs(
                 yield from _collectDirEntries(sub_obj)
 
     def _relocate(src: str, dst: str) -> None:
+        src = fs_access.realpath(src)
+        dst = fs_access.realpath(dst)
+
         if src == dst:
             return
 
         # If the source is not contained in source_directories we're not allowed to delete it
-        src = fs_access.realpath(src)
         src_can_deleted = any(
             os.path.commonprefix([p, src]) == p for p in source_directories
         )
