@@ -77,6 +77,12 @@ and similar Linux distribution try
 
    sudo apt-get install cwltool
 
+If you encounter an error, first try to update package information by using
+
+.. code:: bash
+
+   sudo apt-get update
+
 If you are running macOS X or other UNIXes and you want to use packages prepared by the conda-forge project, then
 please follow the install instructions for `conda-forge <https://conda-forge.org/#about>`_ (if you haven't already) and then 
 
