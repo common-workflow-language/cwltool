@@ -10,6 +10,9 @@ include tests/tmp4/alpha/*
 include tests/wf/*
 include tests/wf/operation/*
 include tests/override/*
+include tests/reloc/*.cwl
+include tests/reloc/dir1/*
+include tests/reloc/dir2/*
 include tests/checker_wf/*
 include tests/subgraph/*
 include tests/trs/*
