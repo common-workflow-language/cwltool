@@ -14,6 +14,7 @@ RUN rm /wheels/schema_salad*
 RUN pip install black
 RUN SCHEMA_SALAD_USE_MYPYC=1 MYPYPATH=typeshed pip wheel --no-binary schema-salad \
 	$(grep schema.salad requirements.txt) --wheel-dir=/wheels
+RUN rm /wheels/pyparsing-3*
 RUN pip install --force-reinstall --no-index --no-warn-script-location --root=/pythonroot/ /wheels/*.whl
 # --force-reinstall to install our new mypyc compiled schema-salad package
 
