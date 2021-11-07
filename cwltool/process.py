@@ -1159,7 +1159,7 @@ def scandeps(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,
 ) -> MutableSequence[CWLObjectType]:
-    r = []  # type: MutableSequence[CWLObjectType]
+    r: MutableSequence[CWLObjectType] = []
     if isinstance(doc, MutableMapping):
         if "id" in doc:
             if cast(str, doc["id"]).startswith("file://"):
