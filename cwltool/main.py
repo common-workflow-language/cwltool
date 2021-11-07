@@ -929,9 +929,11 @@ def print_targets(
         _logger.info("%s steps targets:", prefix[:-1])
         for t in tool.tool["steps"]:
             stdout.write(f"  {prefix}{shortname(t['id'])}\n")
-            run: Union[str, Process] = t["run"]
+            run: Union[str, Process, Dict[str, Any]] = t["run"]
             if isinstance(run, str):
                 process = make_tool(run, loading_context)
+            elif isinstance(run, dict):
+                process = make_tool(cast(CommentedMap, cmap(run)), loading_context)
             else:
                 process = run
             print_targets(process, stdout, loading_context, shortname(t["id"]) + "/")

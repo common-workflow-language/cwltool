@@ -240,3 +240,14 @@ def test_single_step_packed_subwf_step() -> None:
         json.loads(stdout)["out"]["checksum"]
         == "sha1$7608e5669ba454c61fab01c9b133b52a9a7de68c"
     )
+
+
+def test_print_targets_embedded_step() -> None:
+    """Confirm that --print-targets works when a Workflow has embedded Processes."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--print-targets",
+            get_data("tests/subgraph/timelimit2-wf.cwl"),
+        ]
+    )
+    assert err_code == 0
