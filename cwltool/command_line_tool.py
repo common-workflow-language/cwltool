@@ -527,13 +527,11 @@ class CommandLineTool(Process):
                                         "not a File nor a Directory object."
                                     )
                     elif not (
-                        (
-                            isinstance(entry, MutableMapping)
-                            and (
-                                "class" in entry
-                                and (entry["class"] == "File" or "Directory")
-                                or "entry" in entry
-                            )
+                        isinstance(entry, MutableMapping)
+                        and (
+                            "class" in entry
+                            and (entry["class"] == "File" or "Directory")
+                            or "entry" in entry
                         )
                     ):
                         fail = entry

@@ -398,6 +398,7 @@ def init_job_order(
     input_basedir: str = "",
     secret_store: Optional[SecretStore] = None,
     input_required: bool = True,
+    runtime_context: Optional[RuntimeContext] = None,
 ) -> CWLObjectType:
     secrets_req, _ = process.get_requirement("http://commonwl.org/cwltool#Secrets")
     if job_order_object is None:
@@ -472,23 +473,6 @@ def init_job_order(
         else:
             job_order_object = {}
 
-    if print_input_deps:
-        basedir = None  # type: Optional[str]
-        uri = cast(str, job_order_object["id"])
-        if uri == args.workflow:
-            basedir = os.path.dirname(uri)
-            uri = ""
-        printdeps(
-            job_order_object,
-            loader,
-            stdout,
-            relative_deps,
-            uri,
-            basedir=basedir,
-            nestdirs=False,
-        )
-        exit(0)
-
     def path_to_loc(p: CWLObjectType) -> None:
         if "location" not in p and "path" in p:
             p["location"] = p["path"]
@@ -512,6 +496,31 @@ def init_job_order(
     visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
+
+    if print_input_deps:
+        if not runtime_context:
+            raise RuntimeError("runtime_context is required for print_input_deps.")
+        runtime_context.toplevel = True
+        builder = process._init_job(job_order_object, runtime_context)
+        builder.loadListing = "no_listing"
+        builder.bind_input(
+            process.inputs_record_schema, job_order_object, discover_secondaryFiles=True
+        )
+        basedir: Optional[str] = None
+        uri = cast(str, job_order_object["id"])
+        if uri == args.workflow:
+            basedir = os.path.dirname(uri)
+            uri = ""
+        printdeps(
+            job_order_object,
+            loader,
+            stdout,
+            relative_deps,
+            uri,
+            basedir=basedir,
+            nestdirs=False,
+        )
+        exit(0)
 
     if secret_store and secrets_req:
         secret_store.store(
@@ -1266,6 +1275,7 @@ def main(
                     input_basedir=input_basedir,
                     secret_store=runtimeContext.secret_store,
                     input_required=input_required,
+                    runtime_context=runtimeContext,
                 )
             except SystemExit as err:
                 return err.code
