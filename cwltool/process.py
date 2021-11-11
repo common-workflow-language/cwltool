@@ -775,6 +775,10 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             )
 
         job = copy.deepcopy(joborder)
+        if len(job.keys()) > 0:
+            for jo in joborder:
+                field = shortname(jo)
+                job[field] = joborder[jo]
 
         make_fs_access = getdefault(runtime_context.make_fs_access, StdFsAccess)
         fs_access = make_fs_access(runtime_context.basedir)

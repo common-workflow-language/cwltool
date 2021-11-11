@@ -386,6 +386,8 @@ def object_from_state(
     incomplete: bool = False,
 ) -> Optional[CWLObjectType]:
     inputobj = {}  # type: CWLObjectType
+    for s in state.keys():
+        inputobj[s] = state[s].value
     for inp in parms:
         iid = original_id = cast(str, inp["id"])
         if frag_only:

@@ -440,10 +440,11 @@ class WorkflowStep(Process):
             )
 
         step_input = {}
-        for inp in self.tool["inputs"]:
-            field = shortname(inp["id"])
-            if not inp.get("not_connected"):
-                step_input[field] = job_order[inp["id"]]
+        for inp in job_order:
+            field = shortname(inp)
+            step_input[field] = job_order[inp]
+            # if not inp.get("not_connected"):
+            #    step_input[field] = job_order[field]
 
         try:
             yield from self.embedded_tool.job(
