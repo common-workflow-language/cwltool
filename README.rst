@@ -117,8 +117,10 @@ MS Windows users
 1.  Install `"Windows Subsystem for Linux 2" (WSL2) and Docker Desktop <https://docs.docker.com/docker-for-windows/wsl/#prerequisites>`_
 2.  Install `Debian from the Microsoft Store <https://www.microsoft.com/en-us/p/debian/9msvkqc78pk6>`_
 3.  Set Debian as your default WSL 2 distro: ``wsl --set-default debian``
-4.  Reboot if you have not yet already.
-5.  Launch Debian and follow the Linux instructions above (``apt-get install cwltool`` or use the ``venv`` method)
+4.  Return to the Docker Desktop, choose [Settings > Resources > WSL Integration](https://docs.docker.com/desktop/windows/images/wsl2-choose-distro.png)
+      and under "Enable integration with additional distros" select "Debian"
+5.  Reboot if you have not yet already.
+6.  Launch Debian and follow the Linux instructions above (``apt-get install cwltool`` or use the ``venv`` method)
 
 ``cwltool`` development version
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
