@@ -2,6 +2,7 @@ import collections
 import logging
 import os
 import tempfile
+import shutil
 import stat
 import urllib
 import uuid
@@ -156,7 +157,10 @@ class PathMapper:
                             st = os.lstat(deref)
                     if stage_source_dir:
                         staged_source_file = os.path.join(stage_source_dir, os.path.basename(deref))
-                        os.link(deref, staged_source_file)
+                        try:
+                            os.link(deref, staged_source_file)
+                        except OSError:
+                            shutil.copyfile(deref, staged_source_file)
                         deref = staged_source_file
                     self._pathmap[path] = MapperEnt(
                         deref, tgt, "WritableFile" if copy else "File", staged
