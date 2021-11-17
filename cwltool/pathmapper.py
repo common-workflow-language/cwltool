@@ -156,7 +156,9 @@ class PathMapper:
                             )
                             st = os.lstat(deref)
                     if stage_source_dir:
-                        staged_source_file = os.path.join(stage_source_dir, os.path.basename(deref))
+                        staged_source_file = os.path.join(
+                            stage_source_dir, os.path.basename(deref)
+                        )
                         try:
                             os.link(deref, staged_source_file)
                         except OSError:
@@ -177,7 +179,9 @@ class PathMapper:
         # Go through each file and set the target to its own directory along
         # with any secondary files.
         stagedir = self.stagedir
-        stage_source_dir = os.environ.get('STAGE_SRC_DIR', os.path.join(tempfile.gettempdir(), 'cwl-stg-src-dir'))
+        stage_source_dir = os.environ.get(
+            "STAGE_SRC_DIR", os.path.join(tempfile.gettempdir(), "cwl-stg-src-dir")
+        )
         for fob in referenced_files:
             staging_uuid = str(uuid.uuid4())
             if self.separateDirs:
@@ -186,7 +190,9 @@ class PathMapper:
             # if STAGE_SRC_DIR is set, this is where input paths will be linked/staged at
             unique_stage_source_dir = None
             if stage_source_dir:
-                unique_stage_source_dir = os.path.join(stage_source_dir, "stg%s" % staging_uuid)
+                unique_stage_source_dir = os.path.join(
+                    stage_source_dir, "stg%s" % staging_uuid
+                )
                 os.makedirs(stage_source_dir, exist_ok=True)
             self.visit(
                 fob,
