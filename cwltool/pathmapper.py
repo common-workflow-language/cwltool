@@ -1,6 +1,7 @@
 import collections
 import logging
 import os
+import tempfile
 import stat
 import urllib
 import uuid
@@ -65,6 +66,7 @@ class PathMapper:
     ) -> None:
         """Initialize the PathMapper."""
         self._pathmap = {}  # type: Dict[str, MapperEnt]
+        self.staged_src_files = set()
         self.stagedir = stagedir
         self.separateDirs = separateDirs
         self.setup(dedup(referenced_files), basedir)
@@ -93,7 +95,10 @@ class PathMapper:
         basedir: str,
         copy: bool = False,
         staged: bool = False,
+        stage_source_dir: Optional[str] = None,
     ) -> None:
+        if stage_source_dir:
+            os.makedirs(stage_source_dir, exist_ok=True)
         stagedir = cast(Optional[str], obj.get("dirname")) or stagedir
         tgt = os.path.join(
             stagedir,
@@ -150,10 +155,16 @@ class PathMapper:
                                 else os.path.join(os.path.dirname(deref), rl)
                             )
                             st = os.lstat(deref)
-
-                    self._pathmap[path] = MapperEnt(
-                        deref, tgt, "WritableFile" if copy else "File", staged
-                    )
+                    if stage_source_dir:
+                        staged_source_file = os.path.join(stage_source_dir, os.path.basename(deref))
+                        os.link(deref, staged_source_file)
+                        self._pathmap[path] = MapperEnt(
+                            staged_source_file, tgt, "WritableFile" if copy else "File", staged
+                        )
+                    else:
+                        self._pathmap[path] = MapperEnt(
+                            deref, tgt, "WritableFile" if copy else "File", staged
+                        )
             self.visitlisting(
                 cast(List[CWLObjectType], obj.get("secondaryFiles", [])),
                 stagedir,
@@ -163,19 +174,26 @@ class PathMapper:
             )
 
     def setup(self, referenced_files: List[CWLObjectType], basedir: str) -> None:
-
         # Go through each file and set the target to its own directory along
         # with any secondary files.
         stagedir = self.stagedir
+        stage_source_dir = os.environ.get('STAGE_SRC_DIR', os.path.join(tempfile.gettempdir(), 'cwl-stg-src-dir'))
+        if stage_source_dir:
+            os.makedirs(stage_source_dir, exist_ok=True)
         for fob in referenced_files:
+            staging_uuid = str(uuid.uuid4())
             if self.separateDirs:
-                stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
+                # this is what the path will be inside of the container environment
+                stagedir = os.path.join(self.stagedir, "stg%s" % staging_uuid)
+            # if STAGE_SRC_DIR is set, this is where input paths will be linked/staged at
+            stagesourcedir = None if not stage_source_dir else os.path.join(stage_source_dir, "stg%s" % staging_uuid)
             self.visit(
                 fob,
                 stagedir,
                 basedir,
                 copy=cast(bool, fob.get("writable", False)),
                 staged=True,
+                stage_source_dir=stagesourcedir,
             )
 
     def mapper(self, src: str) -> MapperEnt:
