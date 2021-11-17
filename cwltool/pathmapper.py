@@ -66,7 +66,6 @@ class PathMapper:
     ) -> None:
         """Initialize the PathMapper."""
         self._pathmap = {}  # type: Dict[str, MapperEnt]
-        self.staged_src_files = set()
         self.stagedir = stagedir
         self.separateDirs = separateDirs
         self.setup(dedup(referenced_files), basedir)
@@ -158,13 +157,10 @@ class PathMapper:
                     if stage_source_dir:
                         staged_source_file = os.path.join(stage_source_dir, os.path.basename(deref))
                         os.link(deref, staged_source_file)
-                        self._pathmap[path] = MapperEnt(
-                            staged_source_file, tgt, "WritableFile" if copy else "File", staged
-                        )
-                    else:
-                        self._pathmap[path] = MapperEnt(
-                            deref, tgt, "WritableFile" if copy else "File", staged
-                        )
+                        deref = staged_source_file
+                    self._pathmap[path] = MapperEnt(
+                        deref, tgt, "WritableFile" if copy else "File", staged
+                    )
             self.visitlisting(
                 cast(List[CWLObjectType], obj.get("secondaryFiles", [])),
                 stagedir,
@@ -186,14 +182,14 @@ class PathMapper:
                 # this is what the path will be inside of the container environment
                 stagedir = os.path.join(self.stagedir, "stg%s" % staging_uuid)
             # if STAGE_SRC_DIR is set, this is where input paths will be linked/staged at
-            stagesourcedir = None if not stage_source_dir else os.path.join(stage_source_dir, "stg%s" % staging_uuid)
+            unique_stage_source_dir = None if not stage_source_dir else os.path.join(stage_source_dir, "stg%s" % staging_uuid)
             self.visit(
                 fob,
                 stagedir,
                 basedir,
                 copy=cast(bool, fob.get("writable", False)),
                 staged=True,
-                stage_source_dir=stagesourcedir,
+                stage_source_dir=unique_stage_source_dir,
             )
 
     def mapper(self, src: str) -> MapperEnt:

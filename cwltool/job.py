@@ -701,14 +701,14 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 host_outdir_tgt = os.path.join(
                     self.outdir, vol.target[len(container_outdir) + 1 :]
                 )
-            if stage_source_dir and vol.resolved.startswith(stage_source_dir):
-                continue  # path is already staged; only mount the host directory
             if not host_outdir_tgt and not any_path_okay:
                 raise WorkflowException(
                     "No mandatory DockerRequirement, yet path is outside "
                     "the designated output directory, also know as "
                     "$(runtime.outdir): {}".format(vol)
                 )
+            if stage_source_dir and vol.resolved.startswith(stage_source_dir):
+                continue  # path is already staged; only mount the host directory (at the end of this function)
             if vol.type in ("File", "Directory"):
                 logging.critical(f'file/dir: {vol.target}')
                 self.add_file_or_directory_volume(runtime, vol, host_outdir_tgt)
@@ -728,8 +728,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix
                 )
                 pathmapper.update(key, new_path, vol.target, vol.type, vol.staged)
-        # mount a single host directory for all staged source files
         if stage_source_dir and pathmapper.stagedir != container_outdir:
+            # mount a single host directory for all staged input files
             self.append_volume(runtime, stage_source_dir, pathmapper.stagedir, writable=True)
 
     def run(
