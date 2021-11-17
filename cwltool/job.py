@@ -710,20 +710,16 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             if stage_source_dir and vol.resolved.startswith(stage_source_dir):
                 continue  # path is already staged; only mount the host directory (at the end of this function)
             if vol.type in ("File", "Directory"):
-                logging.critical(f'file/dir: {vol.target}')
                 self.add_file_or_directory_volume(runtime, vol, host_outdir_tgt)
             elif vol.type == "WritableFile":
-                logging.critical(f'wfile: {vol.target}')
                 self.add_writable_file_volume(
                     runtime, vol, host_outdir_tgt, tmpdir_prefix
                 )
             elif vol.type == "WritableDirectory":
-                logging.critical(f'wdir: {vol.target}')
                 self.add_writable_directory_volume(
                     runtime, vol, host_outdir_tgt, tmpdir_prefix
                 )
             elif vol.type in ["CreateFile", "CreateWritableFile"]:
-                logging.critical(f'cf: {vol.target}')
                 new_path = self.create_file_and_add_volume(
                     runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix
                 )
