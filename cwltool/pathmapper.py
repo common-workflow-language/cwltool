@@ -174,15 +174,16 @@ class PathMapper:
         # with any secondary files.
         stagedir = self.stagedir
         stage_source_dir = os.environ.get('STAGE_SRC_DIR', os.path.join(tempfile.gettempdir(), 'cwl-stg-src-dir'))
-        if stage_source_dir:
-            os.makedirs(stage_source_dir, exist_ok=True)
         for fob in referenced_files:
             staging_uuid = str(uuid.uuid4())
             if self.separateDirs:
                 # this is what the path will be inside of the container environment
                 stagedir = os.path.join(self.stagedir, "stg%s" % staging_uuid)
             # if STAGE_SRC_DIR is set, this is where input paths will be linked/staged at
-            unique_stage_source_dir = None if not stage_source_dir else os.path.join(stage_source_dir, "stg%s" % staging_uuid)
+            unique_stage_source_dir = None
+            if stage_source_dir:
+                unique_stage_source_dir = os.path.join(stage_source_dir, "stg%s" % staging_uuid)
+                os.makedirs(stage_source_dir, exist_ok=True)
             self.visit(
                 fob,
                 stagedir,
