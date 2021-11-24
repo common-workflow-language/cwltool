@@ -357,8 +357,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 
             if processStatus != "success":
                 if rcode < 0:
-                    _logger.warning("[job %s] was terminated by signal: %s", self.name,
-                                    signal.Signals(-rcode).name)
+                    _logger.warning(
+                        "[job %s] was terminated by signal: %s",
+                        self.name,
+                        signal.Signals(-rcode).name,
+                    )
                 else:
                     _logger.warning("[job %s] exited with status: %d", self.name, rcode)
 
