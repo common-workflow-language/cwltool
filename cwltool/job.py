@@ -356,11 +356,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 processStatus = "permanentFail"
 
             if processStatus != "success":
-                if rcode > 0:
-                    _logger.warning("Job %s exited with status: %d", self.name, rcode)
                 if rcode < 0:
-                    _logger.warning("Job %s was terminated by signal: %s", self.name,
+                    _logger.warning("[job %s] was terminated by signal: %s", self.name,
                                     signal.Signals(-rcode).name)
+                else:
+                    _logger.warning("[job %s] exited with status: %d", self.name, rcode)
 
             if "listing" in self.generatefiles:
                 if self.generatemapper:
