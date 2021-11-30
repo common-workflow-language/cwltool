@@ -1074,6 +1074,10 @@ hints:
     ) -> JobsGeneratorType:
         pass
 
+    def __str__(self) -> str:
+        """Return the id of this CWL process."""
+        return f"{type(self).__name__}: {self.tool['id']}"
+
 
 _names = set()  # type: Set[str]
 
