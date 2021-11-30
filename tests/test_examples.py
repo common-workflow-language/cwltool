@@ -1574,3 +1574,27 @@ def test_custom_type_in_step_process() -> None:
         ]
     )
     assert err_code == 0
+
+
+def test_expression_tool_class() -> None:
+    """Confirm properties of the ExpressionTool class."""
+    factory = cwltool.factory.Factory()
+    tool_path = get_data("tests/wf/parseInt-tool.cwl")
+    expression_tool = factory.make(tool_path).t
+    assert str(expression_tool) == f"ExpressionTool: file://{tool_path}"
+
+
+def test_operation_class() -> None:
+    """Confirm properties of the AbstractOperation class."""
+    factory = cwltool.factory.Factory()
+    tool_path = get_data("tests/wf/operation/abstract-cosifer.cwl")
+    expression_tool = factory.make(tool_path).t
+    assert str(expression_tool) == f"AbstractOperation: file://{tool_path}"
+
+
+def test_command_line_tool_class() -> None:
+    """Confirm properties of the CommandLineTool class."""
+    factory = cwltool.factory.Factory()
+    tool_path = get_data("tests/echo.cwl")
+    expression_tool = factory.make(tool_path).t
+    assert str(expression_tool) == f"CommandLineTool: file://{tool_path}"
