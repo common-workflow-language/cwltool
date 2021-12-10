@@ -156,8 +156,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 found = True
             elif "dockerFile" in docker_requirement:
                 dockerfile_dir = create_tmp_dir(tmp_outdir_prefix)
-                with open(os.path.join(dockerfile_dir, "Dockerfile"), "wb") as dfile:
-                    dfile.write(docker_requirement["dockerFile"].encode("utf-8"))
+                with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as dfile:
+                    dfile.write(docker_requirement["dockerFile"])
                 cmd = [
                     "docker",
                     "build",
