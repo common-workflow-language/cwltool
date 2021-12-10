@@ -312,13 +312,11 @@ def stage_files(
                 shutil.copytree(entry.resolved, entry.target)
                 ensure_writable(entry.target, include_root=True)
         elif entry.type == "CreateFile" or entry.type == "CreateWritableFile":
-            with open(entry.target, "wb") as new:
+            with open(entry.target, "w") as new:
                 if secret_store is not None:
-                    new.write(
-                        cast(str, secret_store.retrieve(entry.resolved)).encode("utf-8")
-                    )
+                    new.write(cast(str, secret_store.retrieve(entry.resolved)))
                 else:
-                    new.write(entry.resolved.encode("utf-8"))
+                    new.write(entry.resolved)
             if entry.type == "CreateFile":
                 os.chmod(entry.target, stat.S_IRUSR)  # Read only
             else:  # it is a "CreateWritableFile"

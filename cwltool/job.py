@@ -685,8 +685,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         dirname = os.path.dirname(host_outdir_tgt or new_file)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
-        with open(host_outdir_tgt or new_file, "wb") as file_literal:
-            file_literal.write(contents.encode("utf-8"))
+        with open(host_outdir_tgt or new_file, "w") as file_literal:
+            file_literal.write(contents)
         if not host_outdir_tgt:
             self.append_volume(runtime, new_file, volume.target, writable=writable)
         if writable:
@@ -1031,8 +1031,8 @@ def _job_popen(
             ) as job_file:
                 json_dump(job_description, job_file, ensure_ascii=False)
             job_script = os.path.join(job_dir, "run_job.bash")
-            with open(job_script, "wb") as _:
-                _.write(job_script_contents.encode("utf-8"))
+            with open(job_script, "w") as _:
+                _.write(job_script_contents)
 
             job_run = os.path.join(job_dir, "run_job.py")
             shutil.copyfile(run_job.__file__, job_run)
@@ -1041,7 +1041,7 @@ def _job_popen(
             shutil.copyfile(env_to_stdout.__file__, env_getter)
 
             sproc = subprocess.Popen(  # nosec
-                ["bash", job_script.encode("utf-8")],
+                ["bash", job_script],
                 shell=False,  # nosec
                 cwd=job_dir,
                 # The nested script will output the paths to the correct files if they need
