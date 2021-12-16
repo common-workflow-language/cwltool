@@ -325,7 +325,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 )
 
             job_script_contents = None  # type: Optional[str]
-            builder = getattr(self, "builder", None)  # type: Builder
+            builder: Optional[Builder] = getattr(self, "builder", None)
             if builder is not None:
                 job_script_contents = builder.build_job_script(commands)
             rcode = _job_popen(

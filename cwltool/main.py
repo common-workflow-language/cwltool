@@ -28,6 +28,7 @@ from typing import (
     Sized,
     TextIO,
     Tuple,
+    TypeVar,
     Union,
     cast,
 )
@@ -114,9 +115,11 @@ def _terminate_processes() -> None:
     # we're executing, so it's not safe to use a for loop here.
     while processes_to_kill:
         process = processes_to_kill.popleft()
-        cidfile = [
-            str(arg).split("=")[1] for arg in process.args if "--cidfile" in str(arg)
-        ]
+        if isinstance(process.args, MutableSequence):
+            args = process.args
+        else:
+            args = [process.args]
+        cidfile = [str(arg).split("=")[1] for arg in args if "--cidfile" in str(arg)]
         if cidfile:
             try:
                 with open(cidfile[0]) as inp_stream:
@@ -680,11 +683,14 @@ class ProvLogFormatter(logging.Formatter):
         return with_msecs
 
 
+ProvOut = Union[io.TextIOWrapper, WritableBagFile]
+
+
 def setup_provenance(
     args: argparse.Namespace,
     argsl: List[str],
     runtimeContext: RuntimeContext,
-) -> Union[io.TextIOWrapper, WritableBagFile]:
+) -> Tuple[ProvOut, "logging.StreamHandler[ProvOut]"]:
     if not args.compute_checksum:
         _logger.error("--provenance incompatible with --no-compute-checksum")
         raise ArgumentException()
@@ -705,7 +711,7 @@ def setup_provenance(
         # Log cwltool command line options to provenance file
         _logger.info("[cwltool] %s %s", sys.argv[0], " ".join(argsl))
     _logger.debug("[cwltool] Arguments: %s", args)
-    return log_file_io
+    return log_file_io, prov_log_handler
 
 
 def setup_loadingContext(
@@ -983,7 +989,7 @@ def main(
         coloredlogs.install(logger=_logger, stream=stderr)
         stderr_handler = _logger.handlers[-1]
     workflowobj = None
-    prov_log_handler = None  # type: Optional[logging.StreamHandler]
+    prov_log_handler: Optional[logging.StreamHandler[Any]] = None
     try:
         if args is None:
             if argsl is None:
@@ -1051,7 +1057,9 @@ def main(
             if argsl is None:
                 raise Exception("argsl cannot be None")
             try:
-                prov_log_stream = setup_provenance(args, argsl, runtimeContext)
+                prov_log_stream, prov_log_handler = setup_provenance(
+                    args, argsl, runtimeContext
+                )
             except ArgumentException:
                 return 1
 
