@@ -134,7 +134,10 @@ def _terminate_processes() -> None:
                 pass
         if process.stdin:
             process.stdin.close()
-        process.wait(10)
+        try:
+            process.wait(10)
+        except subprocess.TimeoutExpired:
+            pass
         process.kill()  # Always kill, even if we tried with the cidfile
 
 
