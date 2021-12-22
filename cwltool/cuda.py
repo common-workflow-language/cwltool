@@ -8,11 +8,10 @@ from typing import Tuple, cast
 
 def cuda_version_and_device_count() -> Tuple[str, int]:
     try:
-        res = subprocess.run(["nvidia-smi", "-q", "-x"], capture_output=True)  # nosec
+        out = subprocess.check_output(["nvidia-smi", "-q", "-x"])  # nosec
     except Exception as e:
         _logger.warning(e)
         return ("", 0)
-    out = res.stdout
     dm = xml.dom.minidom.parseString(out)  # nosec
     ag = dm.getElementsByTagName("attached_gpus")[0].firstChild
     cv = dm.getElementsByTagName("cuda_version")[0].firstChild
