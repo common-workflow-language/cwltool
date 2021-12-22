@@ -401,7 +401,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             count = cuda_check(cuda_req)
             if count == 0:
                 raise WorkflowException("Could not satisfy CUDARequirement")
-            runtime.append("--gpus", str(count))
+            runtime.append("--gpus="+str(count))
 
         cidfile_path = None  # type: Optional[str]
         # add parameters to docker to write a container ID file
