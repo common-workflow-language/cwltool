@@ -396,7 +396,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if runtimeContext.rm_container:
             runtime.append("--rm")
 
-        cuda_req, _ = self.builder.get_requirement("http://commonwl.org/cwltool#CUDARequirement"):
+        cuda_req, _ = self.builder.get_requirement("http://commonwl.org/cwltool#CUDARequirement")
         if cuda_req:
             count = cuda_check(cuda_req)
             if count == 0:
