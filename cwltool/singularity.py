@@ -13,6 +13,7 @@ from schema_salad.sourceline import SourceLine
 
 from .builder import Builder
 from .context import RuntimeContext
+from .cuda import cuda_check
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
@@ -433,6 +434,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 runtime.extend(["--net", "--network", runtime_context.custom_net])
         else:
             runtime.extend(["--net", "--network", "none"])
+
+        cuda_req, _ = self.builder.get_requirement("http://commonwl.org/cwltool#CUDARequirement"):
+        if cuda_req:
+            count = cuda_check(cuda_req)
+            if count == 0:
+                raise WorkflowException("Could not satisfy CUDARequirement")
+            runtime.append("--nv")
 
         for name, value in self.environment.items():
             env[f"SINGULARITYENV_{name}"] = str(value)
