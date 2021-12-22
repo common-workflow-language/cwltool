@@ -1,10 +1,12 @@
 import subprocess
 import xml.dom.minidom
+from .loghandler import _logger
 
 def cuda_version_and_device_count():
     try:
         res = subprocess.run(["nvidia-smi", "-q", "-x"], capture_output=True)
-    except:
+    except Exception as e:
+        _logger.warning(e)
         return ('', 0)
     out = res.stdout
     dm = xml.dom.minidom.parseString(out)
@@ -13,12 +15,18 @@ def cuda_version_and_device_count():
     return (cv.data, int(ag.data))
 
 def cuda_check(cuda_req):
-    vmin = cuda_req["cudaVersionMin"]
-    version, devices = cuda_version_and_device_count()
-    if float(version) < float(vmin):
+    try:
+        vmin = cuda_req["cudaVersionMin"]
+        version, devices = cuda_version_and_device_count()
+        if float(version) < float(vmin):
+            _logger.warning("CUDA version '%s' is less than minimum version '%s'", version, vmin)
+            return 0
+        dmin = cuda_req.get("deviceCountMin", 1)
+        dmax = cuda_req.get("deviceCountMax", dmin)
+        if devices < dmin:
+            _logger.warning("Requested at least %d GPU devices but only %d available", dmin, devices)
+            return 0
+        return min(dmax, devices)
+    except Exception as e:
+        _logger.warning("Error checking CUDA requirements: %s", e)
         return 0
-    dmin = cuda_req.get("deviceCountMin", 1)
-    dmax = cuda_req.get("deviceCountMax", dmin)
-    if devices < dmin:
-        return 0
-    return min(dmax, devices)
