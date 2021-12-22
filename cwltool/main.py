@@ -3,6 +3,7 @@
 """Entry point for cwltool."""
 
 import argparse
+import copy
 import functools
 import io
 import logging
@@ -941,6 +942,9 @@ def print_targets(
                 + "\n"
             )
     if "steps" in tool.tool:
+        loading_context = copy.copy(loading_context)
+        loading_context.requirements = tool.requirements
+        loading_context.hints = tool.hints
         _logger.info("%s steps targets:", prefix[:-1])
         for t in tool.tool["steps"]:
             stdout.write(f"  {prefix}{shortname(t['id'])}\n")
