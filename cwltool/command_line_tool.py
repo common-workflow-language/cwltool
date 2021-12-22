@@ -89,14 +89,51 @@ if TYPE_CHECKING:
 
 
 class PathCheckingMode(Enum):
-    """What characters are allowed in path names.
+    """
+    What characters are allowed in path names.
 
-    We have the strict, default mode and the relaxed mode.
+    We have the strict (default) mode and the relaxed mode.
     """
 
-    STRICT = re.compile(
-        r"^[\w.+\-\u2600-\u26FF\U0001f600-\U0001f64f]+$"
-    )  # accept unicode word characters and emojis
+    STRICT = re.compile(r"^[\w.+\,\-:@\]^\u2600-\u26FF\U0001f600-\U0001f64f]+$")
+    # accepts names that contain one or more of the following:
+    # "\w"                  unicode word characters; this includes most characters
+    #                       that can be part of a word in any language, as well
+    #                       as numbers and the underscore
+    # "."                   a literal period
+    # "+"                   a literal plus sign
+    # "\,"                  a literal comma
+    # "\-"                  a literal minus sign
+    # ":"                   a literal colon
+    # "@"                   a literal at-symbol
+    # "\]"                  a literal end-square-bracket
+    # "^"                   a literal caret symbol
+    # \u2600-\u26FF         matches a single character in the range between
+    #                       ☀ (index 9728) and ⛿ (index 9983)
+    # \U0001f600-\U0001f64f matches a single character in the range between
+    #                       😀 (index 128512) and 🙏 (index 128591)
+
+    # Note: the following characters are intentionally not included:
+    #
+    # reserved words in POSIX:
+    # ! { }
+    #
+    # POSIX metacharacters
+    # | & ; < > ( ) $ ` " ' <space> <tab> <newline>
+    # (In accordance with
+    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path"
+    #
+    # POSIX path separator
+    # \
+    # (also listed at
+    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path")
+    #
+    # Additional POSIX metacharacters
+    # * ? [ # ˜ = %
+
+    # TODO: switch to https://pypi.org/project/regex/ and use
+    # `\p{Extended_Pictographic}` instead of the manual emoji ranges
+
     RELAXED = re.compile(r".*")  # Accept anything
 
 
