@@ -121,7 +121,7 @@ def _terminate_processes() -> None:
         else:
             args = [process.args]
         cidfile = [str(arg).split("=")[1] for arg in args if "--cidfile" in str(arg)]
-        if cidfile:
+        if cidfile:  # Try to be nice
             try:
                 with open(cidfile[0]) as inp_stream:
                     p = subprocess.Popen(  # nosec
@@ -133,6 +133,13 @@ def _terminate_processes() -> None:
                         p.kill()
             except FileNotFoundError:
                 pass
+        if process.stdin:
+            process.stdin.close()
+        try:
+            process.wait(10)
+        except subprocess.TimeoutExpired:
+            pass
+        process.kill()  # Always kill, even if we tried with the cidfile
 
 
 def _signal_handler(signum: int, _: Any) -> None:
