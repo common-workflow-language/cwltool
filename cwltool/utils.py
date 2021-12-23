@@ -255,14 +255,14 @@ except ImportError:
 
 def shared_file_lock(fd: IO[Any]) -> None:
     if fcntl:
-        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)  # type: ignore
+        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)
     elif msvcrt:
-        msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)  # type: ignore
+        msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)
 
 
 def upgrade_lock(fd: IO[Any]) -> None:
     if fcntl:
-        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)  # type: ignore
+        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
     elif msvcrt:
         pass
 
