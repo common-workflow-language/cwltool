@@ -625,8 +625,6 @@ class WorkflowJob:
                 _logger.debug("[%s] job step %s not ready", self.name, step.id)
                 return
 
-            if step.submitted:
-                return
             _logger.info("[%s] starting %s", self.name, step.name)
 
             callback = functools.partial(
