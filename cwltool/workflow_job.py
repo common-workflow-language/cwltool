@@ -69,7 +69,17 @@ class WorkflowJobStep:
     ) -> JobsGeneratorType:
         runtimeContext = runtimeContext.copy()
         runtimeContext.part_of = self.name
-        runtimeContext.name = shortname(self.id)
+
+        jobnameReq, is_required = self.step.get_requirement(
+            "http://commonwl.org/cwltool#JobName"
+        )
+        if jobnameReq is not None:
+            vfinputs = {shortname(k): v for k, v in joborder.items()}
+            runtimeContext.name = expression.do_eval(
+                jobnameReq["jobname"], vfinputs, self.step.requirements, None, None, {}
+            )
+        else:
+            runtimeContext.name = shortname(self.id)
 
         _logger.info("[%s] start", self.name)
 
