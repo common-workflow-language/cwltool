@@ -10,7 +10,7 @@ def cuda_version_and_device_count() -> Tuple[str, int]:
     try:
         out = subprocess.check_output(["nvidia-smi", "-q", "-x"])  # nosec
     except Exception as e:
-        _logger.warning(e)
+        _logger.warning("Error checking CUDA version with nvidia-smi: %s", e)
         return ("", 0)
     dm = xml.dom.minidom.parseString(out)  # nosec
     ag = dm.getElementsByTagName("attached_gpus")[0].firstChild
@@ -22,6 +22,9 @@ def cuda_check(cuda_req: CWLObjectType) -> int:
     try:
         vmin = float(str(cuda_req["cudaVersionMin"]))
         version, devices = cuda_version_and_device_count()
+        if version == "":
+            # nvidia-smi not detected, or failed some other way
+            return 0
         versionf = float(version)
         if versionf < vmin:
             _logger.warning(
