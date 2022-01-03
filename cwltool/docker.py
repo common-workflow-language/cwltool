@@ -400,9 +400,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             "http://commonwl.org/cwltool#CUDARequirement"
         )
         if cuda_req:
+            # Checked earlier that the device count is non-zero in _setup
             count = cuda_check(cuda_req)
-            if count == 0:
-                raise WorkflowException("Could not satisfy CUDARequirement")
             runtime.append("--gpus=" + str(count))
 
         cidfile_path = None  # type: Optional[str]

@@ -439,9 +439,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             "http://commonwl.org/cwltool#CUDARequirement"
         )
         if cuda_req:
-            count = cuda_check(cuda_req)
-            if count == 0:
-                raise WorkflowException("Could not satisfy CUDARequirement")
+            # Checked earlier that the device count is non-zero in _setup
             runtime.append("--nv")
 
         for name, value in self.environment.items():

@@ -42,6 +42,7 @@ from typing_extensions import TYPE_CHECKING
 from . import env_to_stdout, run_job
 from .builder import Builder
 from .context import RuntimeContext
+from .cuda import cuda_check
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
@@ -174,6 +175,15 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         pass
 
     def _setup(self, runtimeContext: RuntimeContext) -> None:
+
+        cuda_req, _ = self.builder.get_requirement(
+            "http://commonwl.org/cwltool#CUDARequirement"
+        )
+        if cuda_req:
+            count = cuda_check(cuda_req)
+            if count == 0:
+                raise WorkflowException("Could not satisfy CUDARequirement")
+
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
