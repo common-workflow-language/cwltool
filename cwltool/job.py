@@ -42,6 +42,7 @@ from typing_extensions import TYPE_CHECKING
 from . import env_to_stdout, run_job
 from .builder import Builder
 from .context import RuntimeContext
+from .cuda import cuda_check
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
@@ -174,6 +175,15 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         pass
 
     def _setup(self, runtimeContext: RuntimeContext) -> None:
+
+        cuda_req, _ = self.builder.get_requirement(
+            "http://commonwl.org/cwltool#CUDARequirement"
+        )
+        if cuda_req:
+            count = cuda_check(cuda_req)
+            if count == 0:
+                raise WorkflowException("Could not satisfy CUDARequirement")
+
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -515,14 +525,17 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 
         def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
             children = monitor.children()
-            rss = monitor.memory_info().rss
-            while len(children):
-                rss += sum(process.memory_info().rss for process in children)
-                children = list(
-                    itertools.chain(*(process.children() for process in children))
-                )
-            if memory_usage[0] is None or rss > memory_usage[0]:
-                memory_usage[0] = rss
+            try:
+                rss = monitor.memory_info().rss
+                while len(children):
+                    rss += sum(process.memory_info().rss for process in children)
+                    children = list(
+                        itertools.chain(*(process.children() for process in children))
+                    )
+                if memory_usage[0] is None or rss > memory_usage[0]:
+                    memory_usage[0] = rss
+            except psutil.NoSuchProcess:
+                mem_tm.cancel()
 
         mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
         mem_tm.daemon = True
@@ -887,7 +900,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     cid = cidhandle.readline().strip()
             except (OSError):
                 cid = None
-        max_mem = psutil.virtual_memory().total
+        max_mem = psutil.virtual_memory().total  # type: ignore[no-untyped-call]
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
         stats_file_name = stats_file.name

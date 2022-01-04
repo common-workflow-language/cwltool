@@ -120,6 +120,7 @@ supportedProcessRequirements = [
     "http://commonwl.org/cwltool#NetworkAccess",
     "http://commonwl.org/cwltool#LoadListingRequirement",
     "http://commonwl.org/cwltool#InplaceUpdateRequirement",
+    "http://commonwl.org/cwltool#CUDARequirement",
 ]
 
 cwl_files = (

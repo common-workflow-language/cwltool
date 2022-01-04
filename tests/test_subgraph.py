@@ -251,3 +251,14 @@ def test_print_targets_embedded_step() -> None:
         ]
     )
     assert err_code == 0
+
+
+def test_print_targets_embedded_reqsinherit() -> None:
+    """Confirm --print-targets works with a step that needs a req from parent Workflow."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--print-targets",
+            get_data("tests/wf/double-nested.cwl"),
+        ]
+    )
+    assert err_code == 0

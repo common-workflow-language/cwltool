@@ -3,6 +3,7 @@
 """Entry point for cwltool."""
 
 import argparse
+import copy
 import functools
 import io
 import logging
@@ -120,7 +121,7 @@ def _terminate_processes() -> None:
         else:
             args = [process.args]
         cidfile = [str(arg).split("=")[1] for arg in args if "--cidfile" in str(arg)]
-        if cidfile:
+        if cidfile:  # Try to be nice
             try:
                 with open(cidfile[0]) as inp_stream:
                     p = subprocess.Popen(  # nosec
@@ -132,6 +133,13 @@ def _terminate_processes() -> None:
                         p.kill()
             except FileNotFoundError:
                 pass
+        if process.stdin:
+            process.stdin.close()
+        try:
+            process.wait(10)
+        except subprocess.TimeoutExpired:
+            pass
+        process.kill()  # Always kill, even if we tried with the cidfile
 
 
 def _signal_handler(signum: int, _: Any) -> None:
@@ -655,12 +663,14 @@ def setup_schema(
             ext11 = res.read().decode("utf-8")
         use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext10)
         use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
+        use_custom_schema("v1.2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev3", "http://commonwl.org/cwltool", ext11)
     else:
         use_standard_schema("v1.0")
         use_standard_schema("v1.1")
+        use_standard_schema("v1.2")
         use_standard_schema("v1.2.0-dev1")
         use_standard_schema("v1.2.0-dev2")
         use_standard_schema("v1.2.0-dev3")
@@ -941,6 +951,9 @@ def print_targets(
                 + "\n"
             )
     if "steps" in tool.tool:
+        loading_context = copy.copy(loading_context)
+        loading_context.requirements = tool.requirements
+        loading_context.hints = tool.hints
         _logger.info("%s steps targets:", prefix[:-1])
         for t in tool.tool["steps"]:
             stdout.write(f"  {prefix}{shortname(t['id'])}\n")
