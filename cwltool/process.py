@@ -49,7 +49,7 @@ from schema_salad.validate import avro_type_name, validate_ex
 from typing_extensions import TYPE_CHECKING
 
 from . import expression
-from .builder import INPUT_OBJ_VOCAB, Builder, HasReqsHints
+from .builder import INPUT_OBJ_VOCAB, Builder
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
@@ -62,6 +62,7 @@ from .utils import (
     CWLObjectType,
     CWLOutputAtomType,
     CWLOutputType,
+    HasReqsHints,
     JobsGeneratorType,
     OutputCallbackType,
     adjustDirObjs,
@@ -119,6 +120,7 @@ supportedProcessRequirements = [
     "http://commonwl.org/cwltool#NetworkAccess",
     "http://commonwl.org/cwltool#LoadListingRequirement",
     "http://commonwl.org/cwltool#InplaceUpdateRequirement",
+    "http://commonwl.org/cwltool#CUDARequirement",
 ]
 
 cwl_files = (
@@ -311,13 +313,11 @@ def stage_files(
                 shutil.copytree(entry.resolved, entry.target)
                 ensure_writable(entry.target, include_root=True)
         elif entry.type == "CreateFile" or entry.type == "CreateWritableFile":
-            with open(entry.target, "wb") as new:
+            with open(entry.target, "w") as new:
                 if secret_store is not None:
-                    new.write(
-                        cast(str, secret_store.retrieve(entry.resolved)).encode("utf-8")
-                    )
+                    new.write(cast(str, secret_store.retrieve(entry.resolved)))
                 else:
-                    new.write(entry.resolved.encode("utf-8"))
+                    new.write(entry.resolved)
             if entry.type == "CreateFile":
                 os.chmod(entry.target, stat.S_IRUSR)  # Read only
             else:  # it is a "CreateWritableFile"
@@ -353,11 +353,13 @@ def relocateOutputs(
                 yield from _collectDirEntries(sub_obj)
 
     def _relocate(src: str, dst: str) -> None:
+        src = fs_access.realpath(src)
+        dst = fs_access.realpath(dst)
+
         if src == dst:
             return
 
         # If the source is not contained in source_directories we're not allowed to delete it
-        src = fs_access.realpath(src)
         src_can_deleted = any(
             os.path.commonprefix([p, src]) == p for p in source_directories
         )
@@ -697,6 +699,12 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             )
             make_avsc_object(convert_to_dict(self.outputs_record_schema), self.names)
 
+        self.container_engine = "docker"
+        if loadingContext.podman:
+            self.container_engine = "podman"
+        elif loadingContext.singularity:
+            self.container_engine = "singularity"
+
         if toolpath_object.get("class") is not None and not getdefault(
             loadingContext.disable_js_validation, False
         ):
@@ -722,6 +730,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     toolpath_object,
                     self.doc_schema.names[avroname],
                     validate_js_options,
+                    self.container_engine,
                 )
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
@@ -903,6 +912,7 @@ hints:
             tmpdir,
             stagedir,
             cwl_version,
+            self.container_engine,
         )
 
         bindings.extend(
@@ -966,7 +976,7 @@ hints:
 
     def evalResources(
         self, builder: Builder, runtimeContext: RuntimeContext
-    ) -> Dict[str, Union[int, float, str]]:
+    ) -> Dict[str, Union[int, float]]:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -1010,19 +1020,14 @@ hints:
                 request[a + "Min"] = mn
                 request[a + "Max"] = cast(Union[int, float], mx)
 
+        request_evaluated = cast(Dict[str, Union[int, float]], request)
         if runtimeContext.select_resources is not None:
-            return runtimeContext.select_resources(request, runtimeContext)
+            return runtimeContext.select_resources(request_evaluated, runtimeContext)
         return {
-            "cores": request["coresMin"],
-            "ram": math.ceil(request["ramMin"])
-            if not isinstance(request["ramMin"], str)
-            else request["ramMin"],
-            "tmpdirSize": math.ceil(request["tmpdirMin"])
-            if not isinstance(request["tmpdirMin"], str)
-            else request["tmpdirMin"],
-            "outdirSize": math.ceil(request["outdirMin"])
-            if not isinstance(request["outdirMin"], str)
-            else request["outdirMin"],
+            "cores": request_evaluated["coresMin"],
+            "ram": math.ceil(request_evaluated["ramMin"]),
+            "tmpdirSize": math.ceil(request_evaluated["tmpdirMin"]),
+            "outdirSize": math.ceil(request_evaluated["outdirMin"]),
         }
 
     def validate_hints(
@@ -1069,6 +1074,10 @@ hints:
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         pass
+
+    def __str__(self) -> str:
+        """Return the id of this CWL process."""
+        return f"{type(self).__name__}: {self.tool['id']}"
 
 
 _names = set()  # type: Set[str]
@@ -1153,7 +1162,7 @@ def scandeps(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,
 ) -> MutableSequence[CWLObjectType]:
-    r = []  # type: MutableSequence[CWLObjectType]
+    r: MutableSequence[CWLObjectType] = []
     if isinstance(doc, MutableMapping):
         if "id" in doc:
             if cast(str, doc["id"]).startswith("file://"):

@@ -959,13 +959,8 @@ class ResearchObject:
                         relative_path = self.add_data_file(fp)
                         checksum = PurePosixPath(relative_path).name
                         structure["checksum"] = f"{SHA1}${checksum}"
-                if relative_path is not None:
-                    # RO-relative path as new location
-                    structure["location"] = str(PurePosixPath("..") / relative_path)
-                else:
-                    _logger.warning(
-                        "Could not determine RO path for file %s", structure
-                    )
+                # RO-relative path as new location
+                structure["location"] = str(PurePosixPath("..") / relative_path)
                 if "path" in structure:
                     del structure["path"]
 

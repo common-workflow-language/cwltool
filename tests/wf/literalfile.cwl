@@ -6,5 +6,5 @@ inputs:
 outputs: []
 requirements:
   DockerRequirement:
-    dockerPull: debian:9
+    dockerPull: docker.io/debian:9
 arguments: [cat, $(inputs.a1)]

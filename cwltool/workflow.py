@@ -20,7 +20,7 @@ from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
 
 from . import command_line_tool, context, procgenerator
-from .checker import static_checker
+from .checker import circular_dependency_checker, static_checker
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import WorkflowException
 from .load_tool import load_tool
@@ -139,6 +139,7 @@ class Workflow(Process):
                 step_outputs,
                 param_to_step,
             )
+            circular_dependency_checker(step_inputs)
 
     def make_workflow_step(
         self,
@@ -243,6 +244,14 @@ class WorkflowStep(Process):
         validation_errors = []
         self.tool = toolpath_object = copy.deepcopy(toolpath_object)
         bound = set()
+
+        if self.embedded_tool.get_requirement("SchemaDefRequirement")[0]:
+            if "requirements" not in toolpath_object:
+                toolpath_object["requirements"] = []
+            toolpath_object["requirements"].append(
+                self.embedded_tool.get_requirement("SchemaDefRequirement")[0]
+            )
+
         for stepfield, toolfield in (("in", "inputs"), ("out", "outputs")):
             toolpath_object[toolfield] = []
             for index, step_entry in enumerate(toolpath_object[stepfield]):

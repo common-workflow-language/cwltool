@@ -18,7 +18,7 @@ requirements:
 
 hints:
 - class: DockerRequirement
-  dockerPull: ubuntu
+  dockerPull: docker.io/ubuntu
 
 inputs: []
 
