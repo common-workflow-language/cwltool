@@ -3,9 +3,10 @@ import functools
 import itertools
 import logging
 import os
-import stat
 import re
 import shutil
+import signal
+import stat
 import subprocess  # nosec
 import sys
 import tempfile
@@ -13,7 +14,6 @@ import threading
 import time
 import uuid
 from abc import ABCMeta, abstractmethod
-from io import IOBase
 from threading import Timer
 from typing import (
     IO,
@@ -40,8 +40,9 @@ from schema_salad.utils import json_dump, json_dumps
 from typing_extensions import TYPE_CHECKING
 
 from . import env_to_stdout, run_job
-from .builder import Builder, HasReqsHints
+from .builder import Builder
 from .context import RuntimeContext
+from .cuda import cuda_check
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
@@ -50,6 +51,7 @@ from .secrets import SecretStore
 from .utils import (
     CWLObjectType,
     CWLOutputType,
+    HasReqsHints,
     DirectoryType,
     OutputCallbackType,
     bytes2str_in_dicts,
@@ -173,6 +175,15 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         pass
 
     def _setup(self, runtimeContext: RuntimeContext) -> None:
+
+        cuda_req, _ = self.builder.get_requirement(
+            "http://commonwl.org/cwltool#CUDARequirement"
+        )
+        if cuda_req:
+            count = cuda_check(cuda_req)
+            if count == 0:
+                raise WorkflowException("Could not satisfy CUDARequirement")
+
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -324,7 +335,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 )
 
             job_script_contents = None  # type: Optional[str]
-            builder = getattr(self, "builder", None)  # type: Builder
+            builder: Optional[Builder] = getattr(self, "builder", None)
             if builder is not None:
                 job_script_contents = builder.build_job_script(commands)
             rcode = _job_popen(
@@ -353,6 +364,16 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 processStatus = "success"
             else:
                 processStatus = "permanentFail"
+
+            if processStatus != "success":
+                if rcode < 0:
+                    _logger.warning(
+                        "[job %s] was terminated by signal: %s",
+                        self.name,
+                        signal.Signals(-rcode).name,
+                    )
+                else:
+                    _logger.warning("[job %s] exited with status: %d", self.name, rcode)
 
             if "listing" in self.generatefiles:
                 if self.generatemapper:
@@ -451,7 +472,6 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         Note that with containers, the paths will (likely) be those from
         inside.
         """
-        pass
 
     def _preserve_environment_on_containers_warning(
         self, varname: Optional[Iterable[str]] = None
@@ -459,7 +479,6 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         """When running in a container, issue a warning."""
         # By default, don't do anything; ContainerCommandLineJob below
         # will issue a warning.
-        pass
 
     def prepare_environment(
         self, runtimeContext: RuntimeContext, envVarReq: Mapping[str, str]
@@ -506,14 +525,17 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 
         def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
             children = monitor.children()
-            rss = monitor.memory_info().rss
-            while len(children):
-                rss += sum(process.memory_info().rss for process in children)
-                children = list(
-                    itertools.chain(*(process.children() for process in children))
-                )
-            if memory_usage[0] is None or rss > memory_usage[0]:
-                memory_usage[0] = rss
+            try:
+                rss = monitor.memory_info().rss
+                while len(children):
+                    rss += sum(process.memory_info().rss for process in children)
+                    children = list(
+                        itertools.chain(*(process.children() for process in children))
+                    )
+                if memory_usage[0] is None or rss > memory_usage[0]:
+                    memory_usage[0] = rss
+            except psutil.NoSuchProcess:
+                mem_tm.cancel()
 
         mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
         mem_tm.daemon = True
@@ -676,8 +698,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         dirname = os.path.dirname(host_outdir_tgt or new_file)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
-        with open(host_outdir_tgt or new_file, "wb") as file_literal:
-            file_literal.write(contents.encode("utf-8"))
+        with open(host_outdir_tgt or new_file, "w") as file_literal:
+            file_literal.write(contents)
         if not host_outdir_tgt:
             self.append_volume(runtime, new_file, volume.target, writable=writable)
         if writable:
@@ -729,6 +751,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         runtimeContext: RuntimeContext,
         tmpdir_lock: Optional[threading.Lock] = None,
     ) -> None:
+        debug = runtimeContext.debug
         if tmpdir_lock:
             with tmpdir_lock:
                 if not os.path.exists(self.tmpdir):
@@ -753,22 +776,18 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 try:
                     subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 except OSError:
-                    raise WorkflowException(
-                        SourceLine(docker_req).makeError(
-                            "Either Docker container {} is not available with "
-                            "user space docker implementation {} or {} is missing "
-                            "or broken.".format(
-                                img_id, user_space_docker_cmd, user_space_docker_cmd
-                            )
-                        )
+                    raise SourceLine(
+                        docker_req, None, WorkflowException, debug
+                    ).makeError(
+                        f"Either Docker container {img_id} is not available with "
+                        f"user space docker implementation {user_space_docker_cmd} "
+                        f" or {user_space_docker_cmd} is missing or broken."
                     )
             else:
-                raise WorkflowException(
-                    SourceLine(docker_req).makeError(
-                        "Docker image must be specified as 'dockerImageId' or "
-                        "'dockerPull' when using user space implementations of "
-                        "Docker"
-                    )
+                raise SourceLine(docker_req, None, WorkflowException, debug).makeError(
+                    "Docker image must be specified as 'dockerImageId' or "
+                    "'dockerPull' when using user space implementations of "
+                    "Docker"
                 )
         else:
             try:
@@ -881,7 +900,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     cid = cidhandle.readline().strip()
             except (OSError):
                 cid = None
-        max_mem = psutil.virtual_memory().total
+        max_mem = psutil.virtual_memory().total  # type: ignore[no-untyped-call]
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
         stats_file_name = stats_file.name
@@ -995,7 +1014,7 @@ def _job_popen(
         if tm is not None:
             tm.cancel()
 
-        if isinstance(stdin, IOBase) and hasattr(stdin, "close"):
+        if isinstance(stdin, IO) and hasattr(stdin, "close"):
             stdin.close()
 
         if stdout is not sys.stderr and hasattr(stdout, "close"):
@@ -1025,8 +1044,8 @@ def _job_popen(
             ) as job_file:
                 json_dump(job_description, job_file, ensure_ascii=False)
             job_script = os.path.join(job_dir, "run_job.bash")
-            with open(job_script, "wb") as _:
-                _.write(job_script_contents.encode("utf-8"))
+            with open(job_script, "w") as _:
+                _.write(job_script_contents)
 
             job_run = os.path.join(job_dir, "run_job.py")
             shutil.copyfile(run_job.__file__, job_run)
@@ -1035,7 +1054,7 @@ def _job_popen(
             shutil.copyfile(env_to_stdout.__file__, env_getter)
 
             sproc = subprocess.Popen(  # nosec
-                ["bash", job_script.encode("utf-8")],
+                ["bash", job_script],
                 shell=False,  # nosec
                 cwd=job_dir,
                 # The nested script will output the paths to the correct files if they need

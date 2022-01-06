@@ -44,7 +44,11 @@ if [ ! -d "${repo}-${spec_branch}" ]; then
 fi
 
 if [ "${container}" == "docker" ]; then
-    docker pull node:slim
+    docker pull docker.io/node:slim
+fi
+
+if [ "${container}" == "podman" ]; then
+    podman pull docker.io/node:slim
 fi
 
 venv cwltool-venv3
@@ -109,11 +113,8 @@ if [[ "$container" = "singularity" ]]; then
         # See issue #1440
         exclusions+=(stdin_shorcut)
     fi
-
-    if [[ "${version}" = "v1.2" ]]; then
-	# See issue #1441
-	exclusions+=(iwdr_dir_literal_real_file)
-    fi
+elif [[ "$container" = "podman" ]]; then
+    EXTRA+=" --podman"
 fi
 
 if [ -n "$EXTRA" ]

@@ -21,10 +21,7 @@
             ],
             "baseCommand": "rev",
             "stdout": "output.txt",
-            "id": "#revtool.cwl",
-            "$namespaces": {
-                "iana": "https://www.iana.org/assignments/media-types/"
-            }
+            "id": "#revtool.cwl"
         },
         {
             "class": "CommandLineTool",
@@ -65,7 +62,7 @@
             "hints": [
                 {
                     "class": "DockerRequirement",
-                    "dockerPull": "debian:8"
+                    "dockerPull": "docker.io/debian:8"
                 }
             ],
             "inputs": [
@@ -138,5 +135,8 @@
     "$schemas": [
         "empty2.ttl",
         "empty.ttl"
-    ]
+    ],
+    "$namespaces": {
+        "iana": "https://www.iana.org/assignments/media-types/"
+    }
 }

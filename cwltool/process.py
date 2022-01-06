@@ -44,12 +44,12 @@ from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.schema import load_schema, make_avro_schema, make_valid_avro
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
-from schema_salad.utils import ContextType, convert_to_dict
-from schema_salad.validate import validate_ex, avro_type_name
+from schema_salad.utils import convert_to_dict
+from schema_salad.validate import avro_type_name, validate_ex
 from typing_extensions import TYPE_CHECKING
 
 from . import expression
-from .builder import Builder, HasReqsHints, INPUT_OBJ_VOCAB
+from .builder import INPUT_OBJ_VOCAB, Builder
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
@@ -57,11 +57,12 @@ from .mpi import MPIRequirementName
 from .pathmapper import MapperEnt, PathMapper
 from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
-from .update import INTERNAL_VERSION
+from .update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from .utils import (
     CWLObjectType,
     CWLOutputAtomType,
     CWLOutputType,
+    HasReqsHints,
     JobsGeneratorType,
     OutputCallbackType,
     adjustDirObjs,
@@ -119,6 +120,7 @@ supportedProcessRequirements = [
     "http://commonwl.org/cwltool#NetworkAccess",
     "http://commonwl.org/cwltool#LoadListingRequirement",
     "http://commonwl.org/cwltool#InplaceUpdateRequirement",
+    "http://commonwl.org/cwltool#CUDARequirement",
 ]
 
 cwl_files = (
@@ -236,13 +238,14 @@ def checkRequirements(
 ) -> None:
     if isinstance(rec, MutableMapping):
         if "requirements" in rec:
+            debug = _logger.isEnabledFor(logging.DEBUG)
             for i, entry in enumerate(
                 cast(MutableSequence[CWLObjectType], rec["requirements"])
             ):
-                with SourceLine(rec["requirements"], i, UnsupportedRequirement):
+                with SourceLine(rec["requirements"], i, UnsupportedRequirement, debug):
                     if cast(str, entry["class"]) not in supported_process_requirements:
                         raise UnsupportedRequirement(
-                            "Unsupported requirement {}".format(entry["class"])
+                            f"Unsupported requirement {entry['class']}."
                         )
         for key in rec:
             checkRequirements(rec[key], supported_process_requirements)
@@ -310,13 +313,11 @@ def stage_files(
                 shutil.copytree(entry.resolved, entry.target)
                 ensure_writable(entry.target, include_root=True)
         elif entry.type == "CreateFile" or entry.type == "CreateWritableFile":
-            with open(entry.target, "wb") as new:
+            with open(entry.target, "w") as new:
                 if secret_store is not None:
-                    new.write(
-                        cast(str, secret_store.retrieve(entry.resolved)).encode("utf-8")
-                    )
+                    new.write(cast(str, secret_store.retrieve(entry.resolved)))
                 else:
-                    new.write(entry.resolved.encode("utf-8"))
+                    new.write(entry.resolved)
             if entry.type == "CreateFile":
                 os.chmod(entry.target, stat.S_IRUSR)  # Read only
             else:  # it is a "CreateWritableFile"
@@ -352,11 +353,13 @@ def relocateOutputs(
                 yield from _collectDirEntries(sub_obj)
 
     def _relocate(src: str, dst: str) -> None:
+        src = fs_access.realpath(src)
+        dst = fs_access.realpath(dst)
+
         if src == dst:
             return
 
         # If the source is not contained in source_directories we're not allowed to delete it
-        src = fs_access.realpath(src)
         src_can_deleted = any(
             os.path.commonprefix([p, src]) == p for p in source_directories
         )
@@ -438,10 +441,9 @@ def fill_in_defaults(
     job: CWLObjectType,
     fsaccess: StdFsAccess,
 ) -> None:
+    debug = _logger.isEnabledFor(logging.DEBUG)
     for e, inp in enumerate(inputs):
-        with SourceLine(
-            inputs, e, WorkflowException, _logger.isEnabledFor(logging.DEBUG)
-        ):
+        with SourceLine(inputs, e, WorkflowException, debug):
             fieldname = shortname(cast(str, inp["id"]))
             if job.get(fieldname) is not None:
                 pass
@@ -581,14 +583,15 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
 
         self.names = make_avro_schema([SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY], Loader({}))
         self.tool = toolpath_object
+        debug = loadingContext.debug
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
         tool_requirements = self.tool.get("requirements", [])
         if tool_requirements is None:
-            raise ValidationException(
-                SourceLine(self.tool, "requirements").makeError(
-                    "If 'requirements' is present then it must be a list "
-                    "or map/dictionary, not empty."
-                )
+            raise SourceLine(
+                self.tool, "requirements", ValidationException, debug
+            ).makeError(
+                "If 'requirements' is present then it must be a list "
+                "or map/dictionary, not empty."
             )
         self.requirements.extend(tool_requirements)
         if "id" not in self.tool:
@@ -604,11 +607,9 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         self.hints = copy.deepcopy(getdefault(loadingContext.hints, []))
         tool_hints = self.tool.get("hints", [])
         if tool_hints is None:
-            raise ValidationException(
-                SourceLine(self.tool, "hints").makeError(
-                    "If 'hints' is present then it must be a list "
-                    "or map/dictionary, not empty."
-                )
+            raise SourceLine(self.tool, "hints", ValidationException, debug).makeError(
+                "If 'hints' is present then it must be a list "
+                "or map/dictionary, not empty."
             )
         self.hints.extend(tool_hints)
         # Versions of requirements and hints which aren't mutated.
@@ -685,18 +686,24 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                         List[CWLObjectType], self.outputs_record_schema["fields"]
                     ).append(c)
 
-        with SourceLine(toolpath_object, "inputs", ValidationException):
+        with SourceLine(toolpath_object, "inputs", ValidationException, debug):
             self.inputs_record_schema = cast(
                 CWLObjectType,
                 make_valid_avro(self.inputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.inputs_record_schema), self.names)
-        with SourceLine(toolpath_object, "outputs", ValidationException):
+        with SourceLine(toolpath_object, "outputs", ValidationException, debug):
             self.outputs_record_schema = cast(
                 CWLObjectType,
                 make_valid_avro(self.outputs_record_schema, {}, set()),
             )
             make_avsc_object(convert_to_dict(self.outputs_record_schema), self.names)
+
+        self.container_engine = "docker"
+        if loadingContext.podman:
+            self.container_engine = "podman"
+        elif loadingContext.singularity:
+            self.container_engine = "singularity"
 
         if toolpath_object.get("class") is not None and not getdefault(
             loadingContext.disable_js_validation, False
@@ -723,6 +730,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     toolpath_object,
                     self.doc_schema.names[avroname],
                     validate_js_options,
+                    self.container_engine,
                 )
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
@@ -879,7 +887,7 @@ hints:
 
         cwl_version = cast(
             str,
-            self.metadata.get("http://commonwl.org/cwltool#original_cwlVersion", None),
+            self.metadata.get(ORIGINAL_CWLVERSION, None),
         )
         builder = Builder(
             job,
@@ -904,6 +912,7 @@ hints:
             tmpdir,
             stagedir,
             cwl_version,
+            self.container_engine,
         )
 
         bindings.extend(
@@ -967,13 +976,11 @@ hints:
 
     def evalResources(
         self, builder: Builder, runtimeContext: RuntimeContext
-    ) -> Dict[str, Union[int, float, str]]:
+    ) -> Dict[str, Union[int, float]]:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
-        cwl_version = self.metadata.get(
-            "http://commonwl.org/cwltool#original_cwlVersion", None
-        )
+        cwl_version = self.metadata.get(ORIGINAL_CWLVERSION, None)
         if cwl_version == "v1.0":
             ram = 1024
         else:
@@ -1013,19 +1020,14 @@ hints:
                 request[a + "Min"] = mn
                 request[a + "Max"] = cast(Union[int, float], mx)
 
+        request_evaluated = cast(Dict[str, Union[int, float]], request)
         if runtimeContext.select_resources is not None:
-            return runtimeContext.select_resources(request, runtimeContext)
+            return runtimeContext.select_resources(request_evaluated, runtimeContext)
         return {
-            "cores": request["coresMin"],
-            "ram": math.ceil(request["ramMin"])
-            if not isinstance(request["ramMin"], str)
-            else request["ramMin"],
-            "tmpdirSize": math.ceil(request["tmpdirMin"])
-            if not isinstance(request["tmpdirMin"], str)
-            else request["tmpdirMin"],
-            "outdirSize": math.ceil(request["outdirMin"])
-            if not isinstance(request["outdirMin"], str)
-            else request["outdirMin"],
+            "cores": request_evaluated["coresMin"],
+            "ram": math.ceil(request_evaluated["ramMin"]),
+            "tmpdirSize": math.ceil(request_evaluated["tmpdirMin"]),
+            "outdirSize": math.ceil(request_evaluated["outdirMin"]),
         }
 
     def validate_hints(
@@ -1033,8 +1035,9 @@ hints:
     ) -> None:
         if self.doc_loader is None:
             return
+        debug = _logger.isEnabledFor(logging.DEBUG)
         for i, r in enumerate(hints):
-            sl = SourceLine(hints, i, ValidationException)
+            sl = SourceLine(hints, i, ValidationException, debug)
             with sl:
                 classname = cast(str, r["class"])
                 avroname = classname
@@ -1071,6 +1074,10 @@ hints:
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         pass
+
+    def __str__(self) -> str:
+        """Return the id of this CWL process."""
+        return f"{type(self).__name__}: {self.tool['id']}"
 
 
 _names = set()  # type: Set[str]
@@ -1155,7 +1162,7 @@ def scandeps(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,
 ) -> MutableSequence[CWLObjectType]:
-    r = []  # type: MutableSequence[CWLObjectType]
+    r: MutableSequence[CWLObjectType] = []
     if isinstance(doc, MutableMapping):
         if "id" in doc:
             if cast(str, doc["id"]).startswith("file://"):

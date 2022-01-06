@@ -1,16 +1,21 @@
-include README.rst
+include README.rst CODE_OF_CONDUCT.md CONTRIBUTING.md
 include MANIFEST.in
 include LICENSE.txt
-include *requirements.txt
+include *requirements.txt mypy.ini tox.ini
 include gittaggers.py Makefile cwltool.py
+recursive-include typeshed *.pyi
 include tests/*
 include tests/tmp1/tmp2/tmp3/.gitkeep
 include tests/tmp4/alpha/*
 include tests/wf/*
 include tests/wf/operation/*
 include tests/override/*
+include tests/reloc/*.cwl
+include tests/reloc/dir1/*
+include tests/reloc/dir2/*
 include tests/checker_wf/*
 include tests/subgraph/*
+include tests/input_deps/*
 include tests/trs/*
 include tests/wf/generator/*
 include cwltool/py.typed
@@ -61,9 +66,6 @@ prune cwltool/schemas/v1.0/salad/schema_salad/tests
 prune cwltool/schemas/v1.1.0-dev1/salad/typeshed
 prune cwltool/schemas/v1.1.0-dev1/salad/schema_salad/tests
 prune cwltool/schemas/presentations
-prune cwltool/schemas/draft-2
-prune cwltool/schemas/draft-1
-prune cwltool/schemas/draft-3
 prune cwltool/schemas/site
 prune cwltool/schemas/v1.0/examples
 prune cwltool/schemas/v1.0/v1.0

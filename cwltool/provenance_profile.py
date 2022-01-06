@@ -6,7 +6,16 @@ import uuid
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from socket import getfqdn
-from typing import List, MutableMapping, MutableSequence, Optional, Tuple, Union, cast
+from typing import (
+    Any,
+    List,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 from prov.identifier import Identifier
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
@@ -36,14 +45,7 @@ from .provenance_constants import (
     WFPROV,
 )
 from .stdfsaccess import StdFsAccess
-from .utils import (
-    CWLObjectType,
-    CWLOutputType,
-    JobsType,
-    get_listing,
-    posix_path,
-    versionstring,
-)
+from .utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
 from .workflow_job import WorkflowJob
 
 if TYPE_CHECKING:
@@ -59,13 +61,9 @@ def copy_job_order(
         return job_order_object
     customised_job = {}  # type: CWLObjectType
     # new job object for RO
+    debug = _logger.isEnabledFor(logging.DEBUG)
     for each, i in enumerate(job.tool["inputs"]):
-        with SourceLine(
-            job.tool["inputs"],
-            each,
-            WorkflowException,
-            _logger.isEnabledFor(logging.DEBUG),
-        ):
+        with SourceLine(job.tool["inputs"], each, WorkflowException, debug):
             iid = shortname(i["id"])
             if iid in job_order_object:
                 customised_job[iid] = copy.deepcopy(job_order_object[iid])
@@ -490,7 +488,7 @@ class ProvenanceProfile:
         )  # type: ProvEntity
         return entity, checksum
 
-    def declare_artefact(self, value: Optional[CWLOutputType]) -> ProvEntity:
+    def declare_artefact(self, value: Any) -> ProvEntity:
         """Create data artefact entities for all file objects."""
         if value is None:
             # FIXME: If this can happen in CWL, we'll

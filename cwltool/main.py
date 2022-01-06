@@ -3,6 +3,7 @@
 """Entry point for cwltool."""
 
 import argparse
+import copy
 import functools
 import io
 import logging
@@ -28,6 +29,7 @@ from typing import (
     Sized,
     TextIO,
     Tuple,
+    TypeVar,
     Union,
     cast,
 )
@@ -40,12 +42,11 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
-from schema_salad.sourceline import strip_dup_lineno
-from schema_salad.utils import ContextType, FetcherCallableType, json_dumps
+from schema_salad.sourceline import cmap, strip_dup_lineno
+from schema_salad.utils import ContextType, FetcherCallableType, json_dumps, yaml_no_ts
 
 from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
-from .builder import HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
 from .cwlrdf import printdot, printrdf
 from .errors import ArgumentException, UnsupportedRequirement, WorkflowException
@@ -60,7 +61,7 @@ from .load_tool import (
     resolve_overrides,
     resolve_tool_uri,
 )
-from .loghandler import _logger, defaultStreamHandler
+from .loghandler import _logger, configure_logging, defaultStreamHandler
 from .mpi import MpiConfig
 from .mutation import MutationManager
 from .pack import pack
@@ -89,6 +90,7 @@ from .utils import (
     CWLObjectType,
     CWLOutputAtomType,
     CWLOutputType,
+    HasReqsHints,
     adjustDirObjs,
     normalizeFilesDirs,
     processes_to_kill,
@@ -114,10 +116,12 @@ def _terminate_processes() -> None:
     # we're executing, so it's not safe to use a for loop here.
     while processes_to_kill:
         process = processes_to_kill.popleft()
-        cidfile = [
-            str(arg).split("=")[1] for arg in process.args if "--cidfile" in str(arg)
-        ]
-        if cidfile:
+        if isinstance(process.args, MutableSequence):
+            args = process.args
+        else:
+            args = [process.args]
+        cidfile = [str(arg).split("=")[1] for arg in args if "--cidfile" in str(arg)]
+        if cidfile:  # Try to be nice
             try:
                 with open(cidfile[0]) as inp_stream:
                     p = subprocess.Popen(  # nosec
@@ -129,6 +133,13 @@ def _terminate_processes() -> None:
                         p.kill()
             except FileNotFoundError:
                 pass
+        if process.stdin:
+            process.stdin.close()
+        try:
+            process.wait(10)
+        except subprocess.TimeoutExpired:
+            pass
+        process.kill()  # Always kill, even if we tried with the cidfile
 
 
 def _signal_handler(signum: int, _: Any) -> None:
@@ -239,9 +250,9 @@ def generate_example_input(
 
 
 def realize_input_schema(
-    input_types: MutableSequence[CWLObjectType],
+    input_types: MutableSequence[Union[str, CWLObjectType]],
     schema_defs: MutableMapping[str, CWLObjectType],
-) -> MutableSequence[CWLObjectType]:
+) -> MutableSequence[Union[str, CWLObjectType]]:
     """Replace references to named typed with the actual types."""
     for index, entry in enumerate(input_types):
         if isinstance(entry, str):
@@ -251,32 +262,33 @@ def realize_input_schema(
                 input_type_name = entry
             if input_type_name in schema_defs:
                 entry = input_types[index] = schema_defs[input_type_name]
-        if isinstance(entry, Mapping):
+        if isinstance(entry, MutableMapping):
             if isinstance(entry["type"], str) and "#" in entry["type"]:
                 _, input_type_name = entry["type"].split("#")
                 if input_type_name in schema_defs:
-                    input_types[index]["type"] = cast(
+                    entry["type"] = cast(
                         CWLOutputAtomType,
                         realize_input_schema(
                             cast(
-                                MutableSequence[CWLObjectType],
+                                MutableSequence[Union[str, CWLObjectType]],
                                 schema_defs[input_type_name],
                             ),
                             schema_defs,
                         ),
                     )
             if isinstance(entry["type"], MutableSequence):
-                input_types[index]["type"] = cast(
+                entry["type"] = cast(
                     CWLOutputAtomType,
                     realize_input_schema(
-                        cast(MutableSequence[CWLObjectType], entry["type"]), schema_defs
+                        cast(MutableSequence[Union[str, CWLObjectType]], entry["type"]),
+                        schema_defs,
                     ),
                 )
             if isinstance(entry["type"], Mapping):
-                input_types[index]["type"] = cast(
+                entry["type"] = cast(
                     CWLOutputAtomType,
                     realize_input_schema(
-                        [cast(CWLObjectType, input_types[index]["type"])], schema_defs
+                        [cast(CWLObjectType, entry["type"])], schema_defs
                     ),
                 )
             if entry["type"] == "array":
@@ -285,17 +297,20 @@ def realize_input_schema(
                     if not isinstance(entry["items"], str)
                     else [entry["items"]]
                 )
-                input_types[index]["items"] = cast(
+                entry["items"] = cast(
                     CWLOutputAtomType,
                     realize_input_schema(
-                        cast(MutableSequence[CWLObjectType], items), schema_defs
+                        cast(MutableSequence[Union[str, CWLObjectType]], items),
+                        schema_defs,
                     ),
                 )
             if entry["type"] == "record":
-                input_types[index]["fields"] = cast(
+                entry["fields"] = cast(
                     CWLOutputAtomType,
                     realize_input_schema(
-                        cast(MutableSequence[CWLObjectType], entry["fields"]),
+                        cast(
+                            MutableSequence[Union[str, CWLObjectType]], entry["fields"]
+                        ),
                         schema_defs,
                     ),
                 )
@@ -305,8 +320,11 @@ def realize_input_schema(
 def generate_input_template(tool: Process) -> CWLObjectType:
     """Generate an example input object for the given CWL process."""
     template = ruamel.yaml.comments.CommentedMap()
-    for inp in realize_input_schema(tool.tool["inputs"], tool.schemaDefs):
-        name = shortname(cast(str, inp["id"]))
+    for inp in cast(
+        List[MutableMapping[str, str]],
+        realize_input_schema(tool.tool["inputs"], tool.schemaDefs),
+    ):
+        name = shortname(inp["id"])
         value, comment = generate_example_input(inp["type"], inp.get("default", None))
         template.insert(0, name, value, comment)
     return template
@@ -329,7 +347,7 @@ def load_job_order(
     if len(args.job_order) == 1 and args.job_order[0][0] != "-":
         job_order_file = args.job_order[0]
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
-        yaml = YAML()
+        yaml = yaml_no_ts()
         job_order_object = yaml.load(stdin)
         job_order_object, _ = loader.resolve_all(
             job_order_object, file_uri(os.getcwd()) + "/"
@@ -391,6 +409,7 @@ def init_job_order(
     input_basedir: str = "",
     secret_store: Optional[SecretStore] = None,
     input_required: bool = True,
+    runtime_context: Optional[RuntimeContext] = None,
 ) -> CWLObjectType:
     secrets_req, _ = process.get_requirement("http://commonwl.org/cwltool#Secrets")
     if job_order_object is None:
@@ -443,7 +462,7 @@ def init_job_order(
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug(
                 "Parsed job order from command line: %s",
-                json_dumps(job_order_object, indent=4),
+                json_dumps(job_order_object, indent=4, default=str),
             )
 
     for inp in process.tool["inputs"]:
@@ -454,7 +473,7 @@ def init_job_order(
                 job_order_object = {}
             job_order_object[shortname(inp["id"])] = inp["default"]
 
-    if job_order_object is None:
+    if len(job_order_object) == 0:
         if process.tool["inputs"]:
             if toolparser is not None:
                 print(f"\nOptions for {args.workflow} ")
@@ -464,23 +483,6 @@ def init_job_order(
             exit(1)
         else:
             job_order_object = {}
-
-    if print_input_deps:
-        basedir = None  # type: Optional[str]
-        uri = cast(str, job_order_object["id"])
-        if uri == args.workflow:
-            basedir = os.path.dirname(uri)
-            uri = ""
-        printdeps(
-            job_order_object,
-            loader,
-            stdout,
-            relative_deps,
-            uri,
-            basedir=basedir,
-            nestdirs=False,
-        )
-        exit(0)
 
     def path_to_loc(p: CWLObjectType) -> None:
         if "location" not in p and "path" in p:
@@ -505,6 +507,31 @@ def init_job_order(
     visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
+
+    if print_input_deps:
+        if not runtime_context:
+            raise RuntimeError("runtime_context is required for print_input_deps.")
+        runtime_context.toplevel = True
+        builder = process._init_job(job_order_object, runtime_context)
+        builder.loadListing = "no_listing"
+        builder.bind_input(
+            process.inputs_record_schema, job_order_object, discover_secondaryFiles=True
+        )
+        basedir: Optional[str] = None
+        uri = cast(str, job_order_object["id"])
+        if uri == args.workflow:
+            basedir = os.path.dirname(uri)
+            uri = ""
+        printdeps(
+            job_order_object,
+            loader,
+            stdout,
+            relative_deps,
+            uri,
+            basedir=basedir,
+            nestdirs=False,
+        )
+        exit(0)
 
     if secret_store and secrets_req:
         secret_store.store(
@@ -546,7 +573,7 @@ def printdeps(
     elif relative_deps == "cwd":
         base = os.getcwd()
     visit_class(deps, ("File", "Directory"), functools.partial(make_relative, base))
-    stdout.write(json_dumps(deps, indent=4))
+    stdout.write(json_dumps(deps, indent=4, default=str))
 
 
 def prov_deps(
@@ -608,9 +635,9 @@ def print_pack(
     """Return a CWL serialization of the CWL document in JSON."""
     packed = pack(loadingContext, uri)
     if len(cast(Sized, packed["$graph"])) > 1:
-        return json_dumps(packed, indent=4)
+        return json_dumps(packed, indent=4, default=str)
     return json_dumps(
-        cast(MutableSequence[CWLObjectType], packed["$graph"])[0], indent=4
+        cast(MutableSequence[CWLObjectType], packed["$graph"])[0], indent=4, default=str
     )
 
 
@@ -622,31 +649,6 @@ def supported_cwl_versions(enable_dev: bool) -> List[str]:
         versions = list(UPDATES)
     versions.sort()
     return versions
-
-
-def configure_logging(
-    args: argparse.Namespace,
-    stderr_handler: logging.Handler,
-    runtimeContext: RuntimeContext,
-) -> None:
-    rdflib_logger = logging.getLogger("rdflib.term")
-    rdflib_logger.addHandler(stderr_handler)
-    rdflib_logger.setLevel(logging.ERROR)
-    if args.quiet:
-        # Silence STDERR, not an eventual provenance log file
-        stderr_handler.setLevel(logging.WARN)
-    if runtimeContext.debug:
-        # Increase to debug for both stderr and provenance log file
-        _logger.setLevel(logging.DEBUG)
-        stderr_handler.setLevel(logging.DEBUG)
-        rdflib_logger.setLevel(logging.DEBUG)
-    fmtclass = coloredlogs.ColoredFormatter if args.enable_color else logging.Formatter
-    formatter = fmtclass("%(levelname)s %(message)s")
-    if args.timestamps:
-        formatter = fmtclass(
-            "[%(asctime)s] %(levelname)s %(message)s", "%Y-%m-%d %H:%M:%S"
-        )
-    stderr_handler.setFormatter(formatter)
 
 
 def setup_schema(
@@ -661,12 +663,14 @@ def setup_schema(
             ext11 = res.read().decode("utf-8")
         use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext10)
         use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
+        use_custom_schema("v1.2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev3", "http://commonwl.org/cwltool", ext11)
     else:
         use_standard_schema("v1.0")
         use_standard_schema("v1.1")
+        use_standard_schema("v1.2")
         use_standard_schema("v1.2.0-dev1")
         use_standard_schema("v1.2.0-dev2")
         use_standard_schema("v1.2.0-dev3")
@@ -689,11 +693,14 @@ class ProvLogFormatter(logging.Formatter):
         return with_msecs
 
 
+ProvOut = Union[io.TextIOWrapper, WritableBagFile]
+
+
 def setup_provenance(
     args: argparse.Namespace,
     argsl: List[str],
     runtimeContext: RuntimeContext,
-) -> Union[io.TextIOWrapper, WritableBagFile]:
+) -> Tuple[ProvOut, "logging.StreamHandler[ProvOut]"]:
     if not args.compute_checksum:
         _logger.error("--provenance incompatible with --no-compute-checksum")
         raise ArgumentException()
@@ -714,7 +721,7 @@ def setup_provenance(
         # Log cwltool command line options to provenance file
         _logger.info("[cwltool] %s %s", sys.argv[0], " ".join(argsl))
     _logger.debug("[cwltool] Arguments: %s", args)
-    return log_file_io
+    return log_file_io, prov_log_handler
 
 
 def setup_loadingContext(
@@ -722,8 +729,11 @@ def setup_loadingContext(
     runtimeContext: RuntimeContext,
     args: argparse.Namespace,
 ) -> LoadingContext:
+    """Prepare a LoadingContext from the given arguments."""
     if loadingContext is None:
         loadingContext = LoadingContext(vars(args))
+        loadingContext.singularity = runtimeContext.singularity
+        loadingContext.podman = runtimeContext.podman
     else:
         loadingContext = loadingContext.copy()
     loadingContext.loader = default_loader(
@@ -769,37 +779,63 @@ def make_template(
     )
 
 
+def inherit_reqshints(tool: Process, parent: Process) -> None:
+    """Copy down requirements and hints from ancestors of a given process."""
+    for parent_req in parent.requirements:
+        found = False
+        for tool_req in tool.requirements:
+            if parent_req["class"] == tool_req["class"]:
+                found = True
+                break
+        if not found:
+            tool.requirements.append(parent_req)
+    for parent_hint in parent.hints:
+        found = False
+        for tool_req in tool.requirements:
+            if parent_hint["class"] == tool_req["class"]:
+                found = True
+                break
+        if not found:
+            for tool_hint in tool.hints:
+                if parent_hint["class"] == tool_hint["class"]:
+                    found = True
+                    break
+            if not found:
+                tool.hints.append(parent_hint)
+
+
 def choose_target(
     args: argparse.Namespace,
     tool: Process,
-    loadingContext: LoadingContext,
+    loading_context: LoadingContext,
 ) -> Optional[Process]:
     """Walk the Workflow, extract the subset matches all the args.targets."""
-    if loadingContext.loader is None:
-        raise Exception("loadingContext.loader cannot be None")
+    if loading_context.loader is None:
+        raise Exception("loading_context.loader cannot be None")
 
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
         if url.fragment:
             extracted = get_subgraph(
-                [tool.tool["id"] + "/" + r for r in args.target], tool
+                [tool.tool["id"] + "/" + r for r in args.target], tool, loading_context
             )
         else:
             extracted = get_subgraph(
                 [
-                    loadingContext.loader.fetcher.urljoin(tool.tool["id"], "#" + r)
+                    loading_context.loader.fetcher.urljoin(tool.tool["id"], "#" + r)
                     for r in args.target
                 ],
                 tool,
+                loading_context,
             )
     else:
         _logger.error("Can only use --target on Workflows")
         return None
-    if isinstance(loadingContext.loader.idx, MutableMapping):
-        loadingContext.loader.idx[extracted["id"]] = extracted
-        tool = make_tool(extracted["id"], loadingContext)
+    if isinstance(loading_context.loader.idx, MutableMapping):
+        loading_context.loader.idx[extracted["id"]] = extracted
+        tool = make_tool(extracted["id"], loading_context)
     else:
-        raise Exception("Missing loadingContext.loader.idx!")
+        raise Exception("Missing loading_context.loader.idx!")
 
     return tool
 
@@ -807,31 +843,31 @@ def choose_target(
 def choose_step(
     args: argparse.Namespace,
     tool: Process,
-    loadingContext: LoadingContext,
+    loading_context: LoadingContext,
 ) -> Optional[Process]:
     """Walk the given Workflow and extract just args.single_step."""
-    if loadingContext.loader is None:
-        raise Exception("loadingContext.loader cannot be None")
+    if loading_context.loader is None:
+        raise Exception("loading_context.loader cannot be None")
 
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
         if url.fragment:
-            extracted = get_step(tool, tool.tool["id"] + "/" + args.single_step)
+            step_id = tool.tool["id"] + "/" + args.single_step
         else:
-            extracted = get_step(
-                tool,
-                loadingContext.loader.fetcher.urljoin(
-                    tool.tool["id"], "#" + args.single_step
-                ),
+            step_id = loading_context.loader.fetcher.urljoin(
+                tool.tool["id"], "#" + args.single_step
             )
+        extracted = get_step(tool, step_id, loading_context)
     else:
         _logger.error("Can only use --single-step on Workflows")
         return None
-    if isinstance(loadingContext.loader.idx, MutableMapping):
-        loadingContext.loader.idx[extracted["id"]] = extracted
-        tool = make_tool(extracted["id"], loadingContext)
+    if isinstance(loading_context.loader.idx, MutableMapping):
+        loading_context.loader.idx[extracted["id"]] = cast(
+            Union[CommentedMap, CommentedSeq, str, None], cmap(extracted)
+        )
+        tool = make_tool(extracted["id"], loading_context)
     else:
-        raise Exception("Missing loadingContext.loader.idx!")
+        raise Exception("Missing loading_context.loader.idx!")
 
     return tool
 
@@ -841,36 +877,33 @@ def choose_process(
     tool: Process,
     loadingContext: LoadingContext,
 ) -> Optional[Process]:
-    """Walk the given Workflow and extract just args.single_step."""
+    """Walk the given Workflow and extract just args.single_process."""
     if loadingContext.loader is None:
         raise Exception("loadingContext.loader cannot be None")
 
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
         if url.fragment:
-            extracted = get_process(
-                tool,
-                tool.tool["id"] + "/" + args.single_process,
-                loadingContext.loader.idx,
-            )
+            step_id = tool.tool["id"] + "/" + args.single_process
         else:
-            extracted = get_process(
-                tool,
-                loadingContext.loader.fetcher.urljoin(
-                    tool.tool["id"], "#" + args.single_process
-                ),
-                loadingContext.loader.idx,
+            step_id = loadingContext.loader.fetcher.urljoin(
+                tool.tool["id"], "#" + args.single_process
             )
+        extracted, workflow_step = get_process(
+            tool,
+            step_id,
+            loadingContext,
+        )
     else:
         _logger.error("Can only use --single-process on Workflows")
         return None
     if isinstance(loadingContext.loader.idx, MutableMapping):
         loadingContext.loader.idx[extracted["id"]] = extracted
-        tool = make_tool(extracted["id"], loadingContext)
+        new_tool = make_tool(extracted["id"], loadingContext)
     else:
         raise Exception("Missing loadingContext.loader.idx!")
-
-    return tool
+    inherit_reqshints(new_tool, workflow_step)
+    return new_tool
 
 
 def check_working_directories(
@@ -900,6 +933,38 @@ def check_working_directories(
                     _logger.exception("Failed to create directory.")
                     return 1
     return None
+
+
+def print_targets(
+    tool: Process,
+    stdout: Union[TextIO, StreamWriter],
+    loading_context: LoadingContext,
+    prefix: str = "",
+) -> None:
+    """Recursively find targets for --subgraph and friends."""
+    for f in ("outputs", "inputs"):
+        if tool.tool[f]:
+            _logger.info("%s %s%s targets:", prefix[:-1], f[0].upper(), f[1:-1])
+            stdout.write(
+                "  "
+                + "\n  ".join([f"{prefix}{shortname(t['id'])}" for t in tool.tool[f]])
+                + "\n"
+            )
+    if "steps" in tool.tool:
+        loading_context = copy.copy(loading_context)
+        loading_context.requirements = tool.requirements
+        loading_context.hints = tool.hints
+        _logger.info("%s steps targets:", prefix[:-1])
+        for t in tool.tool["steps"]:
+            stdout.write(f"  {prefix}{shortname(t['id'])}\n")
+            run: Union[str, Process, Dict[str, Any]] = t["run"]
+            if isinstance(run, str):
+                process = make_tool(run, loading_context)
+            elif isinstance(run, dict):
+                process = make_tool(cast(CommentedMap, cmap(run)), loading_context)
+            else:
+                process = run
+            print_targets(process, stdout, loading_context, shortname(t["id"]) + "/")
 
 
 def main(
@@ -937,7 +1002,7 @@ def main(
         coloredlogs.install(logger=_logger, stream=stderr)
         stderr_handler = _logger.handlers[-1]
     workflowobj = None
-    prov_log_handler = None  # type: Optional[logging.StreamHandler]
+    prov_log_handler: Optional[logging.StreamHandler[Any]] = None
     try:
         if args is None:
             if argsl is None:
@@ -965,7 +1030,13 @@ def main(
             if not hasattr(args, key):
                 setattr(args, key, val)
 
-        configure_logging(args, stderr_handler, runtimeContext)
+        configure_logging(
+            stderr_handler,
+            args.quiet,
+            runtimeContext.debug,
+            args.enable_color,
+            args.timestamps,
+        )
 
         if args.version:
             print(versionfunc())
@@ -999,7 +1070,9 @@ def main(
             if argsl is None:
                 raise Exception("argsl cannot be None")
             try:
-                prov_log_stream = setup_provenance(args, argsl, runtimeContext)
+                prov_log_stream, prov_log_handler = setup_provenance(
+                    args, argsl, runtimeContext
+                )
             except ArgumentException:
                 return 1
 
@@ -1064,7 +1137,11 @@ def main(
             if args.print_pre:
                 stdout.write(
                     json_dumps(
-                        processobj, indent=4, sort_keys=True, separators=(",", ": ")
+                        processobj,
+                        indent=4,
+                        sort_keys=True,
+                        separators=(",", ": "),
+                        default=str,
                     )
                 )
                 return 0
@@ -1089,14 +1166,7 @@ def main(
                 return 0
 
             if args.print_targets:
-                for f in ("outputs", "steps", "inputs"):
-                    if tool.tool[f]:
-                        _logger.info("%s%s targets:", f[0].upper(), f[1:-1])
-                        stdout.write(
-                            "  "
-                            + "\n  ".join([shortname(t["id"]) for t in tool.tool[f]])
-                            + "\n"
-                        )
+                print_targets(tool, stdout, loadingContext)
                 return 0
 
             if args.target:
@@ -1125,7 +1195,11 @@ def main(
                     del tool.tool["name"]
                 stdout.write(
                     json_dumps(
-                        tool.tool, indent=4, sort_keys=True, separators=(",", ": ")
+                        tool.tool,
+                        indent=4,
+                        sort_keys=True,
+                        separators=(",", ": "),
+                        default=str,
                     )
                 )
                 return 0
@@ -1222,6 +1296,7 @@ def main(
                     input_basedir=input_basedir,
                     secret_store=runtimeContext.secret_store,
                     input_required=input_required,
+                    runtime_context=runtimeContext,
                 )
             except SystemExit as err:
                 return err.code
@@ -1285,10 +1360,7 @@ def main(
                 # Unsetting the Generation from final output object
                 visit_class(out, ("File",), MutationManager().unset_generation)
 
-                if isinstance(out, str):
-                    stdout.write(out)
-                else:
-                    stdout.write(json_dumps(out, indent=4, ensure_ascii=False))
+                stdout.write(json_dumps(out, indent=4, ensure_ascii=False, default=str))
                 stdout.write("\n")
                 if hasattr(stdout, "flush"):
                     stdout.flush()

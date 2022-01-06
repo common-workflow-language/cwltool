@@ -436,6 +436,12 @@ def arg_parser() -> argparse.ArgumentParser:
         "backported.",
     )
     dockergroup.add_argument(
+        "--podman",
+        action="store_true",
+        default=False,
+        help="[experimental] Use " "Podman runtime for running containers. ",
+    )
+    dockergroup.add_argument(
         "--no-container",
         action="store_false",
         default=True,
@@ -650,8 +656,10 @@ def arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Only executes the underlying Process (CommandLineTool, "
         "ExpressionTool, or sub-Workflow) for the given step in a workflow. "
-        "This will not include any step-level processing: scatter, when, no "
-        "processing of step-level default, or valueFrom input modifiers. "
+        "This will not include any step-level processing: 'scatter', 'when'; "
+        "and there will be no processing of step-level 'default', or 'valueFrom' "
+        "input modifiers. However, requirements/hints from the step or parent "
+        "workflow(s) will be inherited as usual."
         "The input object must match that Process's inputs.",
     )
 

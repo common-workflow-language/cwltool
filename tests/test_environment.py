@@ -41,6 +41,7 @@ def assert_env_matches(
     """
     e = dict(env)
     for k, check in checks.items():
+        assert k in e
         v = e.pop(k)
         assert_envvar_matches(check, k, env)
 
@@ -62,15 +63,12 @@ class CheckHolder(ABC):
     @abstractmethod
     def checks(tmp_prefix: str) -> EnvChecks:
         """Return a mapping from environment variable names to how to check for correctness."""
-        pass
 
     # Any flags to pass to cwltool to force use of the correct container
     flags: List[str]
 
     # Does the env tool (maybe in our container) accept a `-0` flag?
     env_accepts_null: bool
-
-    pass
 
 
 class NoContainer(CheckHolder):
@@ -127,7 +125,6 @@ class Singularity(CheckHolder):
             "LANG": "C",
             "LD_LIBRARY_PATH": None,
             "PATH": None,
-            "PROMPT_COMMAND": None,
             "PS1": None,
             "PWD": PWD,
             "TMPDIR": "/tmp",
@@ -140,12 +137,16 @@ class Singularity(CheckHolder):
         vminor = int(version[1])
         sing_vars: EnvChecks = {
             "SINGULARITY_CONTAINER": None,
-            "SINGULARITY_ENVIRONMENT": None,
             "SINGULARITY_NAME": None,
         }
-        if vminor < 6:
+        if vminor < 5:
+            sing_vars["SINGULARITY_APPNAME"] = None
+        if vminor >= 5:
+            sing_vars["PROMPT_COMMAND"] = None
+            sing_vars["SINGULARITY_ENVIRONMENT"] = None
+        if vminor == 5:
             sing_vars["SINGULARITY_INIT"] = "1"
-        else:
+        elif vminor > 5:
             sing_vars["SINGULARITY_COMMAND"] = "exec"
             if vminor >= 7:
 

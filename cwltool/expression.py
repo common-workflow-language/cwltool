@@ -218,11 +218,11 @@ def evaluator(
     force_docker_pull: bool = False,
     debug: bool = False,
     js_console: bool = False,
+    container_engine: str = "docker",
 ) -> Optional[CWLOutputType]:
     match = param_re.match(ex)
 
     expression_parse_exception = None
-    expression_parse_succeeded = False
 
     if match is not None:
         first_symbol = match.group(1)
@@ -241,10 +241,8 @@ def evaluator(
             )
         except WorkflowException as werr:
             expression_parse_exception = werr
-        else:
-            expression_parse_succeeded = True
 
-    if fullJS and not expression_parse_succeeded:
+    if fullJS:
         return execjs(
             ex,
             jslib,
@@ -252,6 +250,7 @@ def evaluator(
             force_docker_pull=force_docker_pull,
             debug=debug,
             js_console=js_console,
+            container_engine=container_engine,
         )
     else:
         if expression_parse_exception is not None:
@@ -284,6 +283,7 @@ def interpolate(
     strip_whitespace: bool = True,
     escaping_behavior: int = 2,
     convert_to_expression: bool = False,
+    container_engine: str = "docker",
 ) -> Optional[CWLOutputType]:
     """
     Interpolate and evaluate.
@@ -317,6 +317,7 @@ def interpolate(
                     force_docker_pull=force_docker_pull,
                     debug=debug,
                     js_console=js_console,
+                    container_engine=container_engine,
                 )
                 if w[0] == 0 and w[1] == len(scan) and len(parts) <= 1:
                     return e
@@ -373,7 +374,7 @@ def do_eval(
     requirements: List[CWLObjectType],
     outdir: Optional[str],
     tmpdir: Optional[str],
-    resources: Dict[str, Union[float, int, str]],
+    resources: Dict[str, Union[float, int]],
     context: Optional[CWLOutputType] = None,
     timeout: float = default_timeout,
     force_docker_pull: bool = False,
@@ -381,6 +382,7 @@ def do_eval(
     js_console: bool = False,
     strip_whitespace: bool = True,
     cwlVersion: str = "",
+    container_engine: str = "docker",
 ) -> Optional[CWLOutputType]:
 
     runtime = cast(MutableMapping[str, Union[int, str, None]], copy.deepcopy(resources))
@@ -423,6 +425,7 @@ def do_eval(
                     "v1.2.0-dev3",
                 )
                 else 2,
+                container_engine=container_engine,
             )
 
         except Exception as e:

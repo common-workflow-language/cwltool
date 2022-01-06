@@ -2,7 +2,7 @@
 Common Workflow Language tool description reference implementation
 ==================================================================
 
-|Linux Status| |Coverage Status|
+|Linux Status| |Coverage Status| |Docs Status|
 
 PyPI: |PyPI Version| |PyPI Downloads Month| |Total PyPI Downloads|
 
@@ -25,13 +25,13 @@ Quay.io (Docker): |Quay.io Container|
    :target: https://codecov.io/gh/common-workflow-language/cwltool
 
 .. |PyPI Version| image:: https://badge.fury.io/py/cwltool.svg
-    :target: https://badge.fury.io/py/cwltool
+   :target: https://badge.fury.io/py/cwltool
 
 .. |PyPI Downloads Month| image:: https://pepy.tech/badge/cwltool/month
    :target: https://pepy.tech/project/cwltool
 
 .. |Total PyPI Downloads| image:: https://static.pepy.tech/personalized-badge/cwltool?period=total&units=international_system&left_color=black&right_color=orange&left_text=Total%20PyPI%20Downloads
- :target: https://pepy.tech/project/cwltool
+   :target: https://pepy.tech/project/cwltool
 
 .. |Conda Version| image:: https://anaconda.org/conda-forge/cwltool/badges/version.svg 
    :target: https://anaconda.org/conda-forge/cwltool
@@ -42,12 +42,16 @@ Quay.io (Docker): |Quay.io Container|
 .. |Quay.io Container| image:: https://quay.io/repository/commonwl/cwltool/status
    :target: https://quay.io/repository/commonwl/cwltool
 
+.. |Docs Status| image:: https://readthedocs.org/projects/cwltool/badge/?version=latest
+   :target: https://cwltool.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
+
 This is the reference implementation of the Common Workflow Language.  It is
 intended to be feature complete and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
 This is written and tested for
-`Python <https://www.python.org/>`_ ``3.x {x = 6, 7, 8, 9}``
+`Python <https://www.python.org/>`_ ``3.x {x = 6, 7, 8, 9, 10}``
 
 The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
@@ -72,6 +76,12 @@ and similar Linux distribution try
 .. code:: bash
 
    sudo apt-get install cwltool
+
+If you encounter an error, first try to update package information by using
+
+.. code:: bash
+
+   sudo apt-get update
 
 If you are running macOS X or other UNIXes and you want to use packages prepared by the conda-forge project, then
 please follow the install instructions for `conda-forge <https://conda-forge.org/#about>`_ (if you haven't already) and then 
@@ -106,9 +116,12 @@ MS Windows users
 
 1.  Install `"Windows Subsystem for Linux 2" (WSL2) and Docker Desktop <https://docs.docker.com/docker-for-windows/wsl/#prerequisites>`_
 2.  Install `Debian from the Microsoft Store <https://www.microsoft.com/en-us/p/debian/9msvkqc78pk6>`_
-3.  Set Debian as your default WSL 2 distro: ``wsl --set-default debian``
-4.  Reboot if you have not yet already.
-5.  Launch Debian and follow the Linux instructions above (``apt-get install cwltool`` or use the ``venv`` method)
+3.  Set Debian as your default WSL 2 distro: ``wsl --set-default debian``.
+4.  Return to the Docker Desktop, choose `Settings → Resources → WSL Integration <https://docs.docker.com/desktop/windows/images/wsl2-choose-distro.png>`_ and under "Enable integration with additional distros" select "Debian",
+5.  Reboot if you have not yet already.
+6.  Launch Debian and follow the Linux instructions above (``apt-get install cwltool`` or use the ``venv`` method)
+
+Network problems from within WSL2? Try `these instructions <https://github.com/microsoft/WSL/issues/4731#issuecomment-702176954>`_ followed by ``wsl --shutdown``.
 
 ``cwltool`` development version
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -669,7 +682,7 @@ To run the basic tests after installing `cwltool` execute the following:
 .. code:: bash
 
   pip install -rtest-requirements.txt
-  pytest
+  pytest   ## N.B. This requires node.js or docker to be available
 
 To run various tests in all supported Python environments, we use `tox <https://github.com/common-workflow-language/cwltool/tree/main/tox.ini>`_. To run the test suite in all supported Python environments
 first clone the complete code repository (see the ``git clone`` instructions above) and then run
