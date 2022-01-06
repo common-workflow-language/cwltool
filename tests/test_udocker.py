@@ -21,17 +21,11 @@ def udocker(tmp_path_factory: TempPathFactory) -> str:
     docker_install_dir = str(tmp_path_factory.mktemp("udocker"))
     with working_directory(docker_install_dir):
 
-        url = "https://raw.githubusercontent.com/jorge-lip/udocker-builds/master/tarballs/udocker-1.1.4.tar.gz"
+        url = "https://github.com/indigo-dc/udocker/releases/download/v1.3.1/udocker-1.3.1.tar.gz"
         install_cmds = [
-            ["curl", url, "-o", "./udocker-tarball.tgz"],
-            ["tar", "xzvf", "udocker-tarball.tgz", "udocker"],
-            [
-                "bash",
-                "-c",
-                "UDOCKER_TARBALL={}/udocker-tarball.tgz ./udocker install".format(
-                    docker_install_dir
-                ),
-            ],
+            ["curl", "-L", url, "-o", "./udocker-tarball.tgz"],
+            ["tar", "xzvf", "udocker-tarball.tgz"],
+            ["./udocker/udocker", "install"],
         ]
 
         test_environ["UDOCKER_DIR"] = os.path.join(docker_install_dir, ".udocker")
@@ -42,11 +36,11 @@ def udocker(tmp_path_factory: TempPathFactory) -> str:
             results = [subprocess.call(cmds, env=test_environ) for cmds in install_cmds]
             if sum(results) == 0:
                 break
-            subprocess.call(["rm", "./udocker"])
+            subprocess.call(["rm", "-Rf", "./udocker"])
 
         assert sum(results) == 0
 
-        udocker_path = os.path.join(docker_install_dir, "udocker")
+        udocker_path = os.path.join(docker_install_dir, "udocker/udocker")
 
     return udocker_path
 

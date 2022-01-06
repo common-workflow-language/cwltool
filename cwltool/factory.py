@@ -39,6 +39,9 @@ class Callable:
 class Factory:
     """Easy way to load a CWL document for execution."""
 
+    loading_context: LoadingContext
+    runtime_context: RuntimeContext
+
     def __init__(
         self,
         executor: Optional[JobExecutor] = None,
@@ -48,13 +51,16 @@ class Factory:
         if executor is None:
             executor = SingleJobExecutor()
         self.executor = executor
-        self.loading_context = loading_context
-        if loading_context is None:
-            self.loading_context = LoadingContext()
         if runtime_context is None:
             self.runtime_context = RuntimeContext()
         else:
             self.runtime_context = runtime_context
+        if loading_context is None:
+            self.loading_context = LoadingContext()
+            self.loading_context.singularity = self.runtime_context.singularity
+            self.loading_context.podman = self.runtime_context.podman
+        else:
+            self.loading_context = loading_context
 
     def make(self, cwl: Union[str, Dict[str, Any]]) -> Callable:
         """Instantiate a CWL object from a CWl document."""

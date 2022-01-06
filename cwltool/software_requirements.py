@@ -14,8 +14,10 @@ from typing import Dict, List, MutableMapping, MutableSequence, Optional, Union,
 
 from typing_extensions import TYPE_CHECKING
 
+from .utils import HasReqsHints
+
 if TYPE_CHECKING:
-    from .builder import Builder, HasReqsHints
+    from .builder import Builder
 
 try:
     from galaxy.tool_util import deps
@@ -98,7 +100,7 @@ class DependenciesConfiguration:
         return job_script
 
 
-def get_dependencies(builder: "HasReqsHints") -> ToolRequirements:
+def get_dependencies(builder: HasReqsHints) -> ToolRequirements:
     (software_requirement, _) = builder.get_requirement("SoftwareRequirement")
     dependencies = []  # type: List[ToolRequirement]
     if software_requirement and software_requirement.get("packages"):
@@ -129,7 +131,7 @@ def get_dependencies(builder: "HasReqsHints") -> ToolRequirements:
 
 
 def get_container_from_software_requirements(
-    use_biocontainers: bool, builder: "HasReqsHints"
+    use_biocontainers: bool, builder: HasReqsHints
 ) -> Optional[str]:
     if use_biocontainers:
         ensure_galaxy_lib_available()

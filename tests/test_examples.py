@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -10,7 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Union, cast
 from urllib.parse import urlparse
 
-import pydot  # type: ignore
+import pydot
 import pytest
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
@@ -412,7 +413,9 @@ def test_scandeps() -> None:
         ],
     }
 
-    def loadref(base: str, p: str) -> Union[CommentedMap, CommentedSeq, str, None]:
+    def loadref(
+        base: str, p: Union[CommentedMap, CommentedSeq, str, None]
+    ) -> Union[CommentedMap, CommentedSeq, str, None]:
         if isinstance(p, dict):
             return p
         raise Exception("test case can't load things")
@@ -534,97 +537,6 @@ def test_scandeps_defaults_with_secondaryfiles() -> None:
     assert json.loads(stream.getvalue())["secondaryFiles"][0]["secondaryFiles"][0][
         "location"
     ].endswith(os.path.join("tests", "wf", "indir1"))
-
-
-def test_input_deps() -> None:
-    stream = StringIO()
-
-    main(
-        [
-            "--print-input-deps",
-            get_data("tests/wf/count-lines1-wf.cwl"),
-            get_data("tests/wf/wc-job.json"),
-        ],
-        stdout=stream,
-    )
-
-    expected = {
-        "class": "File",
-        "location": "wc-job.json",
-        "format": CWL_IANA,
-        "secondaryFiles": [
-            {
-                "class": "File",
-                "location": "whale.txt",
-                "basename": "whale.txt",
-                "nameroot": "whale",
-                "nameext": ".txt",
-            }
-        ],
-    }
-    assert json.loads(stream.getvalue()) == expected
-
-
-def test_input_deps_cmdline_opts() -> None:
-    stream = StringIO()
-
-    main(
-        [
-            "--print-input-deps",
-            get_data("tests/wf/count-lines1-wf.cwl"),
-            "--file1",
-            get_data("tests/wf/whale.txt"),
-        ],
-        stdout=stream,
-    )
-    expected = {
-        "class": "File",
-        "location": "",
-        "format": CWL_IANA,
-        "secondaryFiles": [
-            {
-                "class": "File",
-                "location": "whale.txt",
-                "basename": "whale.txt",
-                "nameroot": "whale",
-                "nameext": ".txt",
-            }
-        ],
-    }
-    assert json.loads(stream.getvalue()) == expected
-
-
-def test_input_deps_cmdline_opts_relative_deps_cwd() -> None:
-    stream = StringIO()
-
-    data_path = get_data("tests/wf/whale.txt")
-    main(
-        [
-            "--print-input-deps",
-            "--relative-deps",
-            "cwd",
-            get_data("tests/wf/count-lines1-wf.cwl"),
-            "--file1",
-            data_path,
-        ],
-        stdout=stream,
-    )
-
-    goal = {
-        "class": "File",
-        "location": "",
-        "format": CWL_IANA,
-        "secondaryFiles": [
-            {
-                "class": "File",
-                "location": str(Path(os.path.relpath(data_path, os.path.curdir))),
-                "basename": "whale.txt",
-                "nameroot": "whale",
-                "nameext": ".txt",
-            }
-        ],
-    }
-    assert json.loads(stream.getvalue()) == goal
 
 
 def test_dedupe() -> None:
@@ -918,6 +830,7 @@ def test_format_expr_error() -> None:
 def test_static_checker() -> None:
     # check that the static checker raises exception when a source type
     # mismatches its sink type.
+    """Confirm that static type checker raises expected exception."""
     factory = cwltool.factory.Factory()
 
     with pytest.raises(ValidationException):
@@ -928,6 +841,49 @@ def test_static_checker() -> None:
 
     with pytest.raises(ValidationException):
         factory.make(get_data("tests/checker_wf/broken-wf3.cwl"))
+
+
+def test_circular_dependency_checker() -> None:
+    # check that the circular dependency checker raises exception when there is
+    # circular dependency in the workflow.
+    """Confirm that circular dependency checker raises expected exception."""
+    factory = cwltool.factory.Factory()
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency:\s*.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*#cat-a.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*#ls.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*#wc.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*The\s*following\s*steps\s*have\s*circular\s*dependency:\s*.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf2.cwl"))
+
+    with pytest.raises(
+        ValidationException,
+        match=r".*#ls.*",
+    ):
+        factory.make(get_data("tests/checker_wf/circ-dep-wf2.cwl"))
 
 
 def test_var_spool_cwl_checker1() -> None:
@@ -1033,7 +989,7 @@ def test_print_dot() -> None:
         )
     )[0]
     stdout = StringIO()
-    assert main(["--print-dot", cwl_path], stdout=stdout) == 0
+    assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
     computed_edges = sorted(
         (urlparse(source).fragment, urlparse(target).fragment)
@@ -1063,6 +1019,7 @@ def test_js_console_cmd_line_tool(factor: str) -> None:
         )
         error_code, _, stderr = get_main_output(commands)
 
+        stderr = re.sub(r"\s\s+", " ", stderr)
         assert "[log] Log message" in stderr
         assert "[err] Error message" in stderr
 
@@ -1076,6 +1033,7 @@ def test_no_js_console(factor: str) -> None:
         commands.extend(["--no-container", get_data("tests/wf/" + test_file)])
         _, _, stderr = get_main_output(commands)
 
+        stderr = re.sub(r"\s\s+", " ", stderr)
         assert "[log] Log message" not in stderr
         assert "[err] Error message" not in stderr
 
@@ -1091,6 +1049,7 @@ def test_cid_file_dir(tmp_path: Path, factor: str) -> None:
             ["--cidfile-dir", str(tmp_path), get_data("tests/wf/" + test_file)]
         )
         error_code, stdout, stderr = get_main_output(commands)
+        stderr = re.sub(r"\s\s+", " ", stderr)
         assert "completed success" in stderr
         assert error_code == 0
         cidfiles_count = sum(1 for _ in tmp_path.glob("**/*"))
@@ -1109,6 +1068,7 @@ def test_cid_file_dir_arg_is_file_instead_of_dir(tmp_path: Path, factor: str) ->
         ["--cidfile-dir", str(bad_cidfile_dir), get_data("tests/wf/" + test_file)]
     )
     error_code, _, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "is not a directory, please check it first" in stderr, stderr
     assert error_code == 2 or error_code == 1, stderr
 
@@ -1129,6 +1089,7 @@ def test_cid_file_non_existing_dir(tmp_path: Path, factor: str) -> None:
         ]
     )
     error_code, _, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "directory doesn't exist, please create it first" in stderr, stderr
     assert error_code == 2 or error_code == 1, stderr
 
@@ -1152,6 +1113,7 @@ def test_cid_file_w_prefix(tmp_path: Path, factor: str) -> None:
         finally:
             listing = tmp_path.iterdir()
             cidfiles_count = sum(1 for _ in tmp_path.glob("**/pytestcid*"))
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
     assert cidfiles_count == 2, f"{list(listing)}/n{stderr}"
@@ -1177,6 +1139,7 @@ def test_secondary_files_v1_1(factor: str) -> None:
         # 664 in octal, '-rw-rw-r--'
         assert stat.S_IMODE(os.stat("lsout").st_mode) == 436
         os.umask(old_umask)  # revert back to original umask
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
 
@@ -1205,23 +1168,21 @@ def test_secondary_files_bad_v1_1(factor: str) -> None:
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_secondary_files_v1_0(factor: str) -> None:
+def test_secondary_files_v1_0(tmp_path: Path, factor: str) -> None:
+    """Test plain strings under "secondaryFiles"."""
     test_file = "secondary-files-string-v1.cwl"
     test_job_file = "secondary-files-job.yml"
-    try:
-        old_umask = os.umask(stat.S_IWOTH)  # test run with umask 002
-        commands = factor.split()
-        commands.extend(
-            [
-                get_data(os.path.join("tests", test_file)),
-                get_data(os.path.join("tests", test_job_file)),
-            ]
-        )
-        error_code, _, stderr = get_main_output(commands)
-    finally:
-        # 664 in octal, '-rw-rw-r--'
-        assert stat.S_IMODE(os.stat("lsout").st_mode) == 436
-        os.umask(old_umask)  # revert back to original umask
+    commands = factor.split()
+    commands.extend(
+        [
+            "--outdir",
+            str(tmp_path),
+            get_data(os.path.join("tests", test_file)),
+            get_data(os.path.join("tests", test_job_file)),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
 
@@ -1246,6 +1207,7 @@ def test_wf_without_container(tmp_path: Path, factor: str) -> None:
     )
     error_code, _, stderr = get_main_output(commands)
 
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
 
@@ -1260,6 +1222,7 @@ def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
     commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
     error_code, _, stderr = get_main_output(commands)
 
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
 
@@ -1267,6 +1230,7 @@ def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
     commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
     error_code, _, stderr = get_main_output(commands)
 
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "Output of job will be cached in" not in stderr
     assert error_code == 0, stderr
 
@@ -1355,6 +1319,7 @@ def test_no_compute_chcksum(tmp_path: Path, factor: str) -> None:
         ]
     )
     error_code, stdout, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
     assert "checksum" not in stdout
@@ -1374,6 +1339,7 @@ def test_bad_userspace_runtime(factor: str) -> None:
         ]
     )
     error_code, stdout, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "or quaquioN is missing or broken" in stderr, stderr
     assert error_code == 1
 
@@ -1384,6 +1350,7 @@ def test_bad_basecommand(factor: str) -> None:
     commands = factor.split()
     commands.extend([get_data(test_file)])
     error_code, stdout, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "'neenooGo' not found" in stderr, stderr
     assert error_code == 1
 
@@ -1406,6 +1373,7 @@ def test_v1_0_position_expression(factor: str) -> None:
     commands = factor.split()
     commands.extend(["--debug", get_data(test_file), get_data(test_job)])
     error_code, stdout, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "is not int" in stderr, stderr
     assert error_code == 1
 
@@ -1430,6 +1398,7 @@ def test_optional_numeric_output_0(factor: str) -> None:
     commands.extend([get_data(test_file)])
     error_code, stdout, stderr = get_main_output(commands)
 
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
     assert json.loads(stdout)["out"] == 0
@@ -1463,6 +1432,7 @@ def test_env_filtering(factor: str) -> None:
     assert sh_name_b
     sh_name = sh_name_b.decode("utf-8").strip()
 
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr, (error_code, stdout, stderr)
     assert error_code == 0, (error_code, stdout, stderr)
     if sh_name == "dash":
@@ -1484,6 +1454,7 @@ def test_v1_0_arg_empty_prefix_separate_false() -> None:
     error_code, stdout, stderr = get_main_output(
         ["--debug", get_data(test_file), "--echo"]
     )
+    stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
 
@@ -1515,7 +1486,7 @@ def test_malformed_hints() -> None:
     factory = cwltool.factory.Factory()
     with pytest.raises(
         ValidationException,
-        match=r".*wc-tool-bad-hints\.cwl:6:1: If 'hints' is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
+        match=r".*wc-tool-bad-hints\.cwl:6:1:\s*If\s*'hints'\s*is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
     ):
         factory.make(get_data("tests/wc-tool-bad-hints.cwl"))
 
@@ -1525,7 +1496,7 @@ def test_malformed_reqs() -> None:
     factory = cwltool.factory.Factory()
     with pytest.raises(
         ValidationException,
-        match=r".*wc-tool-bad-reqs\.cwl:6:1: If 'requirements' is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
+        match=r".*wc-tool-bad-reqs\.cwl:6:1:\s*If\s*'requirements'\s*is\s*present\s*then\s*it\s*must\s*be\s*a\s*list.*",
     ):
         factory.make(get_data("tests/wc-tool-bad-reqs.cwl"))
 
@@ -1533,6 +1504,19 @@ def test_malformed_reqs() -> None:
 def test_arguments_self() -> None:
     """Confirm that $(self) works in the arguments list."""
     factory = cwltool.factory.Factory()
+    if not shutil.which("docker"):
+        if shutil.which("podman"):
+            factory.runtime_context.podman = True
+            factory.loading_context.podman = True
+        elif shutil.which("singularity"):
+            factory.runtime_context.singularity = True
+            factory.loading_context.singularity = True
+        elif not shutil.which("jq"):
+            pytest.skip(
+                "Need a container engine (docker, podman, or signularity) or jq to run this test."
+            )
+        else:
+            factory.runtime_context.use_container = False
     check = factory.make(get_data("tests/wf/paramref_arguments_self.cwl"))
     outputs = cast(Dict[str, Any], check())
     assert "self_review" in outputs
@@ -1571,3 +1555,46 @@ def test_bad_networkaccess_expr() -> None:
         "Got '42' for expression '${return 42;}" in stderr
     )
     assert err_code == 1
+
+
+def test_staging_files_in_any() -> None:
+    """Confirm that inputs of type File are staged, even if the schema is Any."""
+    err_code, _, stderr = get_main_output(
+        [get_data("tests/wf/816_wf.cwl"), "--file", get_data("tests/echo-job.yaml")]
+    )
+    assert err_code == 0
+
+
+def test_custom_type_in_step_process() -> None:
+    """Test that any needed custom types are available when processing a WorkflowStep."""
+    err_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/811.cwl"),
+            get_data("tests/wf/811_inputs.yml"),
+        ]
+    )
+    assert err_code == 0
+
+
+def test_expression_tool_class() -> None:
+    """Confirm properties of the ExpressionTool class."""
+    factory = cwltool.factory.Factory()
+    tool_path = get_data("tests/wf/parseInt-tool.cwl")
+    expression_tool = factory.make(tool_path).t
+    assert str(expression_tool) == f"ExpressionTool: file://{tool_path}"
+
+
+def test_operation_class() -> None:
+    """Confirm properties of the AbstractOperation class."""
+    factory = cwltool.factory.Factory()
+    tool_path = get_data("tests/wf/operation/abstract-cosifer.cwl")
+    expression_tool = factory.make(tool_path).t
+    assert str(expression_tool) == f"AbstractOperation: file://{tool_path}"
+
+
+def test_command_line_tool_class() -> None:
+    """Confirm properties of the CommandLineTool class."""
+    factory = cwltool.factory.Factory()
+    tool_path = get_data("tests/echo.cwl")
+    expression_tool = factory.make(tool_path).t
+    assert str(expression_tool) == f"CommandLineTool: file://{tool_path}"

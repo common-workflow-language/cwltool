@@ -6,7 +6,7 @@
             "hints": [
                 {
                     "class": "DockerRequirement",
-                    "dockerPull": "debian:8"
+                    "dockerPull": "docker.io/debian:8"
                 }
             ],
             "inputs": [
@@ -68,11 +68,7 @@
                 }
             ],
             "id": "#main",
-            "http://schema.org/dateCreated": "2020-10-08",
-            "$namespaces": {
-                "iana": "https://www.iana.org/assignments/media-types/",
-                "s": "http://schema.org/"
-            }
+            "http://schema.org/dateCreated": "2020-10-08"
         },
         {
             "class": "CommandLineTool",
@@ -136,5 +132,9 @@
         "empty2.ttl",
         "https://schema.org/version/latest/schemaorg-current-https.rdf",
         "empty.ttl"
-    ]
+    ],
+    "$namespaces": {
+        "iana": "https://www.iana.org/assignments/media-types/",
+        "s": "http://schema.org/"
+    }
 }

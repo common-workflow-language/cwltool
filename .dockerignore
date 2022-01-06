@@ -18,6 +18,7 @@ testenv*/
 .github/
 cwltool/*.so
 *.Dockerfile
+tmp/
 build-cwltool-docker.sh
 __pycache__/
 */__pycache__/
@@ -26,3 +27,4 @@ __pycache__/
 *.orig
 .dockerignore
 cache*
+*.swp

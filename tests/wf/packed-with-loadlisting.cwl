@@ -46,7 +46,7 @@
           "class": "CommandLineTool",
           "requirements": [
             {
-              "dockerPull": "debian:stretch-slim",
+              "dockerPull": "docker.io/debian:stretch-slim",
               "class": "DockerRequirement",
             },
             {

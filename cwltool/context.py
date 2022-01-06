@@ -12,14 +12,14 @@ from schema_salad.ref_resolver import Loader
 from schema_salad.utils import FetcherCallableType
 from typing_extensions import TYPE_CHECKING
 
-from .builder import Builder, HasReqsHints
+from .builder import Builder
 from .mpi import MpiConfig
 from .mutation import MutationManager
 from .pathmapper import PathMapper
 from .secrets import SecretStore
 from .software_requirements import DependenciesConfiguration
 from .stdfsaccess import StdFsAccess
-from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, ResolverType
+from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, HasReqsHints, ResolverType
 
 if TYPE_CHECKING:
     from .process import Process
@@ -58,7 +58,7 @@ class LoadingContext(ContextBase):
         self.loader = None  # type: Optional[Loader]
         self.avsc_names = None  # type: Optional[Names]
         self.disable_js_validation = False  # type: bool
-        self.js_hint_options_file = None
+        self.js_hint_options_file: Optional[str] = None
         self.do_validate = True  # type: bool
         self.enable_dev = False  # type: bool
         self.strict = True  # type: bool
@@ -75,6 +75,8 @@ class LoadingContext(ContextBase):
         self.jobdefaults = None  # type: Optional[CommentedMap]
         self.doc_cache = True  # type: bool
         self.relax_path_checks = False  # type: bool
+        self.singularity = False  # type: bool
+        self.podman = False  # type: bool
 
         super().__init__(kwargs)
 
@@ -87,8 +89,8 @@ class RuntimeContext(ContextBase):
     def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
         """Initialize the RuntimeContext from the kwargs."""
         select_resources_callable = Callable[  # pylint: disable=unused-variable
-            [Dict[str, Union[int, float, str]], RuntimeContext],
-            Dict[str, Union[int, float, str]],
+            [Dict[str, Union[int, float]], RuntimeContext],
+            Dict[str, Union[int, float]],
         ]
         self.user_space_docker_cmd = ""  # type: Optional[str]
         self.secret_store = None  # type: Optional[SecretStore]
@@ -110,6 +112,7 @@ class RuntimeContext(ContextBase):
         self.streaming_allowed: bool = False
 
         self.singularity = False  # type: bool
+        self.podman = False  # type: bool
         self.debug = False  # type: bool
         self.compute_checksum = True  # type: bool
         self.name = ""  # type: str
@@ -124,7 +127,7 @@ class RuntimeContext(ContextBase):
         self.basedir = ""  # type: str
         self.toplevel = False  # type: bool
         self.mutation_manager = None  # type: Optional[MutationManager]
-        self.make_fs_access = StdFsAccess  # type: Callable[[str], StdFsAccess]
+        self.make_fs_access = StdFsAccess
         self.path_mapper = PathMapper
         self.builder = None  # type: Optional[Builder]
         self.docker_outdir = ""  # type: str

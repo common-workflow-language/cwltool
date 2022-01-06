@@ -29,6 +29,7 @@ from typing import (
     NamedTuple,
     Optional,
     Set,
+    Tuple,
     Union,
     cast,
 )
@@ -254,14 +255,14 @@ except ImportError:
 
 def shared_file_lock(fd: IO[Any]) -> None:
     if fcntl:
-        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)  # type: ignore
+        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)
     elif msvcrt:
-        msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)  # type: ignore
+        msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)
 
 
 def upgrade_lock(fd: IO[Any]) -> None:
     if fcntl:
-        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)  # type: ignore
+        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
     elif msvcrt:
         pass
 
@@ -485,3 +486,23 @@ def create_tmp_dir(tmpdir_prefix: str) -> str:
     """Create a temporary directory that respects the given tmpdir_prefix."""
     tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
     return tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
+
+
+class HasReqsHints:
+    """Base class for get_requirement()."""
+
+    def __init__(self) -> None:
+        """Initialize this reqs decorator."""
+        self.requirements: List[CWLObjectType] = []
+        self.hints: List[CWLObjectType] = []
+
+    def get_requirement(
+        self, feature: str
+    ) -> Tuple[Optional[CWLObjectType], Optional[bool]]:
+        for item in reversed(self.requirements):
+            if item["class"] == feature:
+                return (item, True)
+        for item in reversed(self.hints):
+            if item["class"] == feature:
+                return (item, False)
+        return (None, None)

@@ -5,7 +5,7 @@ class: CommandLineTool
 baseCommand: touch
 requirements:
   DockerRequirement:
-    dockerPull: alpine
+    dockerPull: docker.io/alpine
 inputs:
   message:
     type: string

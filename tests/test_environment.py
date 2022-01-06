@@ -63,15 +63,12 @@ class CheckHolder(ABC):
     @abstractmethod
     def checks(tmp_prefix: str) -> EnvChecks:
         """Return a mapping from environment variable names to how to check for correctness."""
-        pass
 
     # Any flags to pass to cwltool to force use of the correct container
     flags: List[str]
 
     # Does the env tool (maybe in our container) accept a `-0` flag?
     env_accepts_null: bool
-
-    pass
 
 
 class NoContainer(CheckHolder):

@@ -10,11 +10,15 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Union,
     cast,
 )
 
-from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
+from .context import LoadingContext
+from .load_tool import load_tool
+from .process import Process
 from .utils import CWLObjectType, aslist
 from .workflow import Workflow, WorkflowStep
 
@@ -55,14 +59,41 @@ def declare_node(nodes: Dict[str, Node], nodeid: str, tp: Optional[str]) -> Node
     return nodes[nodeid]
 
 
-def find_step(steps: List[WorkflowStep], stepid: str) -> Optional[CWLObjectType]:
+def find_step(
+    steps: List[WorkflowStep], stepid: str, loading_context: LoadingContext
+) -> Tuple[Optional[CWLObjectType], Optional[WorkflowStep]]:
+    """Find the step (raw dictionary and WorkflowStep) for a given step id."""
     for st in steps:
         if st.tool["id"] == stepid:
-            return st.tool
-    return None
+            return st.tool, st
+        if stepid.startswith(st.tool["id"]):
+            run: Union[str, Process] = st.tool["run"]
+            if isinstance(run, Workflow):
+                result, st2 = find_step(
+                    run.steps, stepid[len(st.tool["id"]) + 1 :], loading_context
+                )
+                if result:
+                    return result, st2
+            elif isinstance(run, str):
+                process = load_tool(run, loading_context)
+                if isinstance(process, Workflow):
+                    suffix = stepid[len(st.tool["id"]) + 1 :]
+                    prefix = process.tool["id"]
+                    if "#" in prefix:
+                        sep = "/"
+                    else:
+                        sep = "#"
+                    adj_stepid = f"{prefix}{sep}{suffix}"
+                    result2, st3 = find_step(process.steps, adj_stepid, loading_context)
+                    if result2:
+                        return result2, st3
+    return None, None
 
 
-def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
+def get_subgraph(
+    roots: MutableSequence[str], tool: Workflow, loading_context: LoadingContext
+) -> CommentedMap:
+    """Extract the subgraph for the given roots."""
     if tool.tool["class"] != "Workflow":
         raise Exception("Can only extract subgraph from workflow")
 
@@ -73,7 +104,7 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
 
     for out in tool.tool["outputs"]:
         declare_node(nodes, out["id"], OUTPUT)
-        for i in aslist(out.get("outputSource", [])):
+        for i in aslist(out.get("outputSource", CommentedSeq)):
             # source is upstream from output (dependency)
             nodes[out["id"]].up.append(i)
             # output is downstream from source
@@ -92,6 +123,8 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
                 declare_node(nodes, src, None)
                 nodes[src].down.append(st["id"])
         for out in st["out"]:
+            if isinstance(out, Mapping) and "id" in out:
+                out = out["id"]
             # output is downstream from step
             step.down.append(out)
             # step is upstream from output
@@ -122,7 +155,7 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
                     df = urllib.parse.urldefrag(u)
                     rn = str(df[0] + "#" + df[1].replace("/", "_"))
                     if nodes[v].type == STEP:
-                        wfstep = find_step(tool.steps, v)
+                        wfstep = find_step(tool.steps, v, loading_context)[0]
                         if wfstep is not None:
                             for inp in cast(
                                 MutableSequence[CWLObjectType], wfstep["inputs"]
@@ -138,7 +171,7 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
     extracted = CommentedMap()
     for f in tool.tool:
         if f in ("steps", "inputs", "outputs"):
-            extracted[f] = []
+            extracted[f] = CommentedSeq()
             for i in tool.tool[f]:
                 if i["id"] in visited:
                     if f == "steps":
@@ -146,11 +179,13 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
                             if "source" not in inport:
                                 continue
                             if isinstance(inport["source"], MutableSequence):
-                                inport["source"] = [
-                                    rewire[s][0]
-                                    for s in inport["source"]
-                                    if s in rewire
-                                ]
+                                inport["source"] = CommentedSeq(
+                                    [
+                                        rewire[s][0]
+                                        for s in inport["source"]
+                                        if s in rewire
+                                    ]
+                                )
                             elif inport["source"] in rewire:
                                 inport["source"] = rewire[inport["source"]][0]
                     extracted[f].append(i)
@@ -158,26 +193,30 @@ def get_subgraph(roots: MutableSequence[str], tool: Workflow) -> CommentedMap:
             extracted[f] = tool.tool[f]
 
     for rv in rewire.values():
-        extracted["inputs"].append({"id": rv[0], "type": rv[1]})
+        extracted["inputs"].append(CommentedMap({"id": rv[0], "type": rv[1]}))
 
     return extracted
 
 
-def get_step(tool: Workflow, step_id: str) -> CommentedMap:
-
+def get_step(
+    tool: Workflow, step_id: str, loading_context: LoadingContext
+) -> CommentedMap:
+    """Extract a single WorkflowStep for the given step_id."""
     extracted = CommentedMap()
 
-    step = find_step(tool.steps, step_id)
+    step = find_step(tool.steps, step_id, loading_context)[0]
     if step is None:
         raise Exception(f"Step {step_id} was not found")
 
-    extracted["steps"] = [step]
-    extracted["inputs"] = []
-    extracted["outputs"] = []
+    new_id, step_name = cast(str, step["id"]).rsplit("#")
+
+    extracted["steps"] = CommentedSeq([step])
+    extracted["inputs"] = CommentedSeq()
+    extracted["outputs"] = CommentedSeq()
 
     for inport in cast(List[CWLObjectType], step["in"]):
-        name = cast(str, inport["id"]).split("#")[-1].split("/")[-1]
-        extracted["inputs"].append({"id": name, "type": "Any"})
+        name = "#" + cast(str, inport["id"]).split("#")[-1].split("/")[-1]
+        extracted["inputs"].append(CommentedMap({"id": name, "type": "Any"}))
         inport["source"] = name
         if "linkMerge" in inport:
             del inport["linkMerge"]
@@ -185,25 +224,36 @@ def get_step(tool: Workflow, step_id: str) -> CommentedMap:
     for outport in cast(List[str], step["out"]):
         name = outport.split("#")[-1].split("/")[-1]
         extracted["outputs"].append(
-            {"id": name, "type": "Any", "outputSource": f"{step_id}/{name}"}
+            {
+                "id": name,
+                "type": "Any",
+                "outputSource": f"{new_id}#{step_name}/{name}",
+            }
         )
 
     for f in tool.tool:
         if f not in ("steps", "inputs", "outputs"):
             extracted[f] = tool.tool[f]
-
+    extracted["id"] = new_id
+    if "cwlVersion" not in extracted:
+        extracted["cwlVersion"] = tool.metadata["cwlVersion"]
     return extracted
 
 
-def get_process(tool: Workflow, step_id: str, index: Mapping[str, Any]) -> Any:
-    """Return just a single Process from a Workflow step."""
-    step = find_step(tool.steps, step_id)
-    if step is None:
+def get_process(
+    tool: Workflow, step_id: str, loading_context: LoadingContext
+) -> Tuple[Any, WorkflowStep]:
+    """Find the underlying Process for a given Workflow step id."""
+    if loading_context.loader is None:
+        raise Exception("loading_context.loader cannot be None")
+    raw_step, step = find_step(tool.steps, step_id, loading_context)
+    if raw_step is None or step is None:
         raise Exception(f"Step {step_id} was not found")
 
-    run = step["run"]
+    run: Union[str, Any] = raw_step["run"]
 
     if isinstance(run, str):
-        return index[run]
+        process = loading_context.loader.idx[run]
     else:
-        return run
+        process = run
+    return process, step

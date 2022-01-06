@@ -72,5 +72,8 @@
       ]
     }
   ],
-  "cwlVersion": "v1.0"
+  "cwlVersion": "v1.0",
+  "$namespaces": {
+    "arv": "http://arvados.org/cwl#"
+  }
 }

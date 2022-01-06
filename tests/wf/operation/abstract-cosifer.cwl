@@ -3,7 +3,7 @@ cwlVersion: v1.2
 
 requirements:
   DockerRequirement:
-    dockerPull: 'tsenit/cosifer:b4d5af45d2fc54b6bff2a9153a8e9054e560302e'
+    dockerPull: 'docker.io/tsenit/cosifer:b4d5af45d2fc54b6bff2a9153a8e9054e560302e'
 
 inputs:
   data_matrix:

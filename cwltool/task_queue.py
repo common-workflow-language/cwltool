@@ -28,14 +28,10 @@ class TaskQueue:
     The threads are created during TaskQueue initialization.  Call
     join() when you're done with the TaskQueue and want the threads to
     stop.
-
-
-    Attributes
-    ----------
-    in_flight
-        the number of tasks in the queue
-
     """
+
+    in_flight: int = 0
+    """The number of tasks in the queue."""
 
     def __init__(self, lock: threading.Lock, thread_count: int):
         """Create a new task queue using the specified lock and number of threads."""
@@ -45,7 +41,6 @@ class TaskQueue:
         )
         self.task_queue_threads = []
         self.lock = lock
-        self.in_flight = 0
         self.error: Optional[BaseException] = None
 
         for _r in range(0, self.thread_count):
