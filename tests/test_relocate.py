@@ -1,12 +1,8 @@
 import json
 import sys
 from pathlib import Path
-import tempfile
 
 from cwltool.main import main
-from cwltool.process import relocateOutputs
-from cwltool.stdfsaccess import StdFsAccess
-from cwltool.pathmapper import PathMapper
 
 from .util import get_data, needs_docker
 

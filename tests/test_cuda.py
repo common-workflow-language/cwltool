@@ -2,8 +2,6 @@ from cwltool.cuda import cuda_version_and_device_count
 from cwltool.main import main
 from .util import (
     get_data,
-    get_main_output,
-    get_tool_env,
     needs_docker,
     needs_singularity_3_or_newer,
 )
