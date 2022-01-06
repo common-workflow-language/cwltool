@@ -29,7 +29,6 @@ from typing import (
     Sized,
     TextIO,
     Tuple,
-    TypeVar,
     Union,
     cast,
 )
