@@ -1,8 +1,9 @@
+#!/usr/bin/env cwl-runner
 class: CommandLineTool
 cwlVersion: v1.0
 requirements:
   DockerRequirement:
-    dockerPull: python:3
+    dockerPull: docker.io/python:3
   NetworkAccess:
     networkAccess: true
 inputs: []

@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 cwlVersion: v1.0
 class: Workflow
 $namespaces:
@@ -6,7 +7,7 @@ hints:
   "cwltool:Secrets":
     secrets: [pw]
   DockerRequirement:
-    dockerPull: debian:8
+    dockerPull: docker.io/debian:8
 inputs:
   pw: string
 outputs:

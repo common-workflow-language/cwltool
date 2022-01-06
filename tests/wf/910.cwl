@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 cwlVersion: v1.0
 class: CommandLineTool
 
@@ -17,7 +18,7 @@ requirements:
 
 hints:
 - class: DockerRequirement
-  dockerPull: ubuntu
+  dockerPull: docker.io/ubuntu
 
 inputs: []
 

@@ -1,22 +1,31 @@
-FROM python:3.6-alpine as builder
+FROM python:3.10-alpine as builder
 
 RUN apk add --no-cache git gcc python3-dev libxml2-dev libxslt-dev libc-dev linux-headers
 
 WORKDIR /cwltool
 COPY . .
 
-RUN python setup.py bdist_wheel --dist-dir=/wheels
-RUN pip wheel -r requirements.txt --wheel-dir=/wheels
-RUN pip install --no-index --no-warn-script-location --root=/pythonroot/ /wheels/*.whl
+RUN pip install toml -rmypy-requirements.txt "$(grep ruamel requirements.txt)" \
+	"$(grep schema.salad requirements.txt)"
+# schema-salad is needed to be installed (this time as pure Python) for
+# cwltool + mypyc
+RUN CWLTOOL_USE_MYPYC=1 MYPYPATH=typeshed pip wheel --no-binary schema-salad --wheel-dir=/wheels .[deps]
+RUN rm /wheels/schema_salad*
+RUN pip install black
+RUN SCHEMA_SALAD_USE_MYPYC=1 MYPYPATH=typeshed pip wheel --no-binary schema-salad \
+	$(grep schema.salad requirements.txt) black --wheel-dir=/wheels
+RUN rm /wheels/pyparsing-3*
+RUN pip install --force-reinstall --no-index --no-warn-script-location --root=/pythonroot/ /wheels/*.whl
+# --force-reinstall to install our new mypyc compiled schema-salad package
 
-FROM python:3.6-alpine as module
-LABEL maintainer peter.amstutz@curoverse.com
+FROM python:3.10-alpine as module
+LABEL maintainer peter.amstutz@curri.com
 
 RUN apk add --no-cache docker nodejs graphviz libxml2 libxslt
 COPY --from=builder /pythonroot/ /
 
-FROM python:3.6-alpine
-LABEL maintainer peter.amstutz@curoverse.com
+FROM python:3.10-alpine
+LABEL maintainer peter.amstutz@curri.com
 
 RUN apk add --no-cache docker nodejs graphviz libxml2 libxslt
 COPY --from=builder /pythonroot/ /

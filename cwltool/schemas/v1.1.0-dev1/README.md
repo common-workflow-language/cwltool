@@ -1,19 +1,9 @@
-# Common Workflow Language Specifications, v1.1.0-dev1
+Hello!
 
-The CWL specifications are divided up into several documents.
+This repo represent the current working proposal for v1.1 of the Common Workflow Language standard.
 
-The [User Guide](http://www.commonwl.org/user_guide/) provides a gentle
-introduction to writing CWL command line tools and workflows.
+Proposed changes that aren't yet implemented are tracked at https://github.com/common-workflow-language/common-workflow-language/milestone/6
 
-The [Command Line Tool Description Specification](CommandLineTool.html)
-specifies the document schema and execution semantics for wrapping and
-executing command line tools.
+You can render this using https://github.com/common-workflow-language/cwl-website/blob/master/website.sh
 
-The [Workflow Description Specification](Workflow.html) specifies the document
-schema and execution semantics for composing workflows from components such as
-command line tools and other workflows.
-
-The
-[Semantic Annotations for Linked Avro Data (SALAD) Specification](SchemaSalad.html)
-specifies the preprocessing steps that must be applied when loading CWL
-documents and the schema language used to write the above specifications.
+The current rendering is at https://www.commonwl.org/v1.1.0-dev1/

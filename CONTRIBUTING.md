@@ -1,10 +1,11 @@
 Style guide:
-PEP-8
-Python 2.7 + Python 3.4+ compatible code
-PEP-484 type hints, in comments for Python 2.7 compatibility
-Vertically align the type hints in function definitions
+- PEP-8
+- Python 3.7+ compatible code
+- PEP-484 type hints
+- Vertically align the type hints in function definitions
 
 The development is done using ``git``, we encourage you to get familiar with it.
+Here's a rough guide (improvements are welcome!) 
 To get the code and start working on the changes you can start a console and:
 - Clone the cwltool: ``git clone https://github.com/common-workflow-language/cwltool.git``
 - Switch to cwltool directory: ``cd cwltool``
@@ -15,12 +16,11 @@ There are a couple ways to test the code with your changes: let `tox` manage ins
 - Make your changes to the code and add tests for new cool things you're adding!
 - Run the tests with the command ``tox``, it's recommended to use some parameters as tox will try to run all the checks in all available python interpreters.
 - The important tests to run are ``unit tests`` and  ``type tests``.
-  To run these two in Python 3.5, we can tell tox to run only those tests by running: ``tox -e py37-unit,py37-mypy2,py37-mypy3``.
+  To run these two in Python 3.7, we can tell tox to run only those tests by running: ``tox -e py37-unit,py37-mypy2,py37-mypy3``.
 - Run ``tox -l`` to see all available tests and runtimes
 
 For the more traditional workflow:
-- Install virtualenv via pip: ``pip install virtualenv``
-- Create a virtual environment: ``virtualenv cwltool``
+- Create a virtual environment: ``python3 -m venv cwltool``
 - To begin using the virtual environment, it needs to be activated: ``source bin/activate``
 - To check if you have the virtual environment set up: ``which python`` and it should point to python executable in your virtualenv
 - Install cwltool: ``pip install -e .``

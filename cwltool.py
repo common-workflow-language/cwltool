@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-from __future__ import absolute_import
+#!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
 """Convenience entry point for cwltool.
 
 This can be used instead of the recommended method of `./setup.py install`

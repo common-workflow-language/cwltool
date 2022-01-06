@@ -1,17 +1,12 @@
 """Helper functions for docker."""
-from __future__ import absolute_import, print_function
 
-from typing import List, Optional, Tuple  # pylint: disable=unused-import
-
-from typing_extensions import Text  # pylint: disable=unused-import
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-
-from .utils import subprocess
+import subprocess  # nosec
+from typing import List, Optional, Tuple
 
 
-def docker_vm_id():  # type: () -> Tuple[Optional[int], Optional[int]]
+def docker_vm_id() -> Tuple[Optional[int], Optional[int]]:
     """
-    Returns the User ID and Group ID of the default docker user inside the VM
+    Return the User ID and Group ID of the default docker user inside the VM.
 
     When a host is using boot2docker or docker-machine to run docker with
     boot2docker.iso (As on Mac OS X), the UID that mounts the shared filesystem
@@ -26,15 +21,18 @@ def docker_vm_id():  # type: () -> Tuple[Optional[int], Optional[int]]
     return (None, None)
 
 
-def check_output_and_strip(cmd):  # type: (List[Text]) -> Optional[Text]
+def check_output_and_strip(cmd: List[str]) -> Optional[str]:
     """
-    Passes a command list to subprocess.check_output, returning None
-    if an expected exception is raised
+    Pass a command list to subprocess.check_output.
+
+    Returning None if an expected exception is raised
     :param cmd: The command to execute
     :return: Stripped string output of the command, or None if error
     """
     try:
-        result = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+        result = subprocess.check_output(  # nosec
+            cmd, stderr=subprocess.STDOUT, universal_newlines=True
+        )
         return result.strip()
     except (OSError, subprocess.CalledProcessError, TypeError, AttributeError):
         # OSError is raised if command doesn't exist
@@ -43,18 +41,19 @@ def check_output_and_strip(cmd):  # type: (List[Text]) -> Optional[Text]
         return None
 
 
-def docker_machine_name():  # type: () -> Optional[Text]
+def docker_machine_name() -> Optional[str]:
     """
-    Get the machine name of the active docker-machine machine
+    Get the machine name of the active docker-machine machine.
+
     :return: Name of the active machine or None if error
     """
-    return check_output_and_strip(['docker-machine', 'active'])
+    return check_output_and_strip(["docker-machine", "active"])
 
 
-def cmd_output_matches(check_cmd, expected_status):
-    # type: (List[Text], Text) -> bool
+def cmd_output_matches(check_cmd: List[str], expected_status: str) -> bool:
     """
-    Runs a command and compares output to expected
+    Run a command and compares output to expected.
+
     :param check_cmd: Command list to execute
     :param expected_status: Expected output, e.g. "Running" or "poweroff"
     :return: Boolean value, indicating whether or not command result matched
@@ -62,28 +61,31 @@ def cmd_output_matches(check_cmd, expected_status):
     return check_output_and_strip(check_cmd) == expected_status
 
 
-def boot2docker_running():  # type: () -> bool
+def boot2docker_running() -> bool:
     """
-    Checks if boot2docker CLI reports that boot2docker vm is running
+    Check if boot2docker CLI reports that boot2docker vm is running.
+
     :return: True if vm is running, False otherwise
     """
-    return cmd_output_matches(['boot2docker', 'status'], 'running')
+    return cmd_output_matches(["boot2docker", "status"], "running")
 
 
-def docker_machine_running():  # type: () -> bool
+def docker_machine_running() -> bool:
     """
-    Asks docker-machine for active machine and checks if its VM is running
+    Ask docker-machine for the active machine and checks if its VM is running.
+
     :return: True if vm is running, False otherwise
     """
     machine_name = docker_machine_name()
     if not machine_name:
         return False
-    return cmd_output_matches(['docker-machine', 'status', machine_name], 'Running')
+    return cmd_output_matches(["docker-machine", "status", machine_name], "Running")
 
 
-def cmd_output_to_int(cmd):  # type: (List[Text]) -> Optional[int]
+def cmd_output_to_int(cmd: List[str]) -> Optional[int]:
     """
-    Runs the provided command and returns the integer value of the result
+    Run the provided command and returns the integer value of the result.
+
     :param cmd: The command to run
     :return: Integer value of result, or None if an error occurred
     """
@@ -97,28 +99,31 @@ def cmd_output_to_int(cmd):  # type: (List[Text]) -> Optional[int]
     return None
 
 
-def boot2docker_id():  # type: () -> Tuple[Optional[int], Optional[int]]
+def boot2docker_id() -> Tuple[Optional[int], Optional[int]]:
     """
-    Gets the UID and GID of the docker user inside a running boot2docker vm
+    Get the UID and GID of the docker user inside a running boot2docker vm.
+
     :return: Tuple (UID, GID), or (None, None) if error (e.g. boot2docker not present or stopped)
     """
-    uid = cmd_output_to_int(['boot2docker', 'ssh', 'id', '-u'])
-    gid = cmd_output_to_int(['boot2docker', 'ssh', 'id', '-g'])
+    uid = cmd_output_to_int(["boot2docker", "ssh", "id", "-"])
+    gid = cmd_output_to_int(["boot2docker", "ssh", "id", "-g"])
     return (uid, gid)
 
-def docker_machine_id():  # type: () -> Tuple[Optional[int], Optional[int]]
+
+def docker_machine_id() -> Tuple[Optional[int], Optional[int]]:
     """
-    Asks docker-machine for active machine and gets the UID of the docker user
+    Ask docker-machine for active machine and gets the UID of the docker user.
+
     inside the vm
     :return: tuple (UID, GID), or (None, None) if error (e.g. docker-machine not present or stopped)
     """
     machine_name = docker_machine_name()
     if not machine_name:
         return (None, None)
-    uid = cmd_output_to_int(['docker-machine', 'ssh', machine_name, "id -u"])
-    gid = cmd_output_to_int(['docker-machine', 'ssh', machine_name, "id -g"])
+    uid = cmd_output_to_int(["docker-machine", "ssh", machine_name, "id -"])
+    gid = cmd_output_to_int(["docker-machine", "ssh", machine_name, "id -g"])
     return (uid, gid)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print(docker_vm_id())
