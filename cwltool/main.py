@@ -29,7 +29,6 @@ from typing import (
     Sized,
     TextIO,
     Tuple,
-    TypeVar,
     Union,
     cast,
 )
@@ -230,6 +229,8 @@ def generate_example_input(
             example = ruamel.yaml.comments.CommentedMap()
             if "name" in inptype:
                 comment = '"{}" record type.'.format(inptype["name"])
+            else:
+                comment = "Anonymous record type."
             for field in cast(List[CWLObjectType], inptype["fields"]):
                 value, f_comment = generate_example_input(field["type"], None)
                 example.insert(0, shortname(cast(str, field["name"])), value, f_comment)

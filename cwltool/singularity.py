@@ -13,7 +13,6 @@ from schema_salad.sourceline import SourceLine
 
 from .builder import Builder
 from .context import RuntimeContext
-from .cuda import cuda_check
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
