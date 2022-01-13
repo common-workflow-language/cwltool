@@ -1003,7 +1003,7 @@ def main(
         coloredlogs.install(logger=_logger, stream=stderr)
         stderr_handler = _logger.handlers[-1]
     workflowobj = None
-    prov_log_handler: Optional[logging.StreamHandler[Any]] = None
+    prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
     try:
         if args is None:
             if argsl is None:
