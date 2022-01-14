@@ -5,6 +5,7 @@ $namespaces:
   cwl: "https://w3id.org/cwl/cwl#"
   sld: "https://w3id.org/cwl/salad#"
   rdfs: "http://www.w3.org/2000/01/rdf-schema#"
+  xsd:  "http://www.w3.org/2001/XMLSchema#"
 
 $graph:
 
@@ -12,7 +13,165 @@ $graph:
   type: documentation
   doc: {$include: concepts.md}
 
-- $import: "salad/schema_salad/metaschema/metaschema_base.yml"
+- name: sld:Documented
+  type: record
+  abstract: true
+  docParent: "#Schema"
+  fields:
+    - name: doc
+      type:
+        - string?
+        - string[]?
+      doc: "A documentation string for this object, or an array of strings which should be concatenated."
+      jsonldPredicate: "rdfs:comment"
+
+
+- name: sld:PrimitiveType
+  type: enum
+  symbols:
+    - "sld:null"
+    - "xsd:boolean"
+    - "xsd:int"
+    - "xsd:long"
+    - "xsd:float"
+    - "xsd:double"
+    - "xsd:string"
+  doc:
+    - |
+      Salad data types are based on Avro schema declarations.  Refer to the
+      [Avro schema declaration documentation](https://avro.apache.org/docs/current/spec.html#schemas) for
+      detailed information.
+    - "null: no value"
+    - "boolean: a binary value"
+    - "int: 32-bit signed integer"
+    - "long: 64-bit signed integer"
+    - "float: single precision (32-bit) IEEE 754 floating-point number"
+    - "double: double precision (64-bit) IEEE 754 floating-point number"
+    - "string: Unicode character sequence"
+
+
+- name: sld:Any
+  type: enum
+  symbols: ["#Any"]
+  docAfter: "#PrimitiveType"
+  doc: |
+    The **Any** type validates for any non-null value.
+
+
+- name: sld:RecordField
+  type: record
+  extends: Documented
+  doc: A field of a record.
+  fields:
+    - name: name
+      type: string
+      jsonldPredicate: "@id"
+      doc: |
+        The name of the field
+
+    - name: type
+      type:
+        - PrimitiveType
+        - RecordSchema
+        - EnumSchema
+        - ArraySchema
+        - string
+        - type: array
+          items:
+            - PrimitiveType
+            - RecordSchema
+            - EnumSchema
+            - ArraySchema
+            - string
+      jsonldPredicate:
+        _id: sld:type
+        _type: "@vocab"
+        typeDSL: true
+        refScope: 2
+      doc: |
+        The field type
+
+
+- name: sld:RecordSchema
+  type: record
+  fields:
+    type:
+      doc: "Must be `record`"
+      type:
+        type: enum
+        symbols:
+          - "sld:record"
+      jsonldPredicate:
+        _id: "sld:type"
+        _type: "@vocab"
+        typeDSL: true
+        refScope: 2
+    fields:
+      type: RecordField[]?
+      jsonldPredicate:
+        _id: sld:fields
+        mapSubject: name
+        mapPredicate: type
+      doc: "Defines the fields of the record."
+
+
+- name: sld:EnumSchema
+  type: record
+  doc: |
+    Define an enumerated type.
+  fields:
+    type:
+      doc: "Must be `enum`"
+      type:
+        type: enum
+        symbols:
+          - "sld:enum"
+      jsonldPredicate:
+        _id: "sld:type"
+        _type: "@vocab"
+        typeDSL: true
+        refScope: 2
+    symbols:
+      type: string[]
+      jsonldPredicate:
+        _id: "sld:symbols"
+      doc: "Defines the set of valid symbols."
+
+
+- name: sld:ArraySchema
+  type: record
+  fields:
+    type:
+      doc: "Must be `array`"
+      type:
+        type: enum
+        symbols:
+          - "sld:array"
+      jsonldPredicate:
+        _id: "sld:type"
+        _type: "@vocab"
+        typeDSL: true
+        refScope: 2
+    items:
+      type:
+        - PrimitiveType
+        - RecordSchema
+        - EnumSchema
+        - ArraySchema
+        - string
+        - type: array
+          items:
+            - PrimitiveType
+            - RecordSchema
+            - EnumSchema
+            - ArraySchema
+            - string
+      jsonldPredicate:
+        _id: "sld:items"
+        _type: "@vocab"
+        refScope: 2
+        typeDSL: True
+      doc: "Defines the type of the array elements."
 
 - name: BaseTypesDoc
   type: documentation
@@ -688,7 +847,7 @@ $graph:
 
 - name: InputEnumSchema
   type: record
-  extends: ["sld:EnumSchema", InputSchema]
+  extends: [sld:EnumSchema, InputSchema]
 
 
 - name: InputArraySchema
@@ -730,7 +889,7 @@ $graph:
 
 - name: OutputEnumSchema
   type: record
-  extends: ["sld:EnumSchema", OutputSchema]
+  extends: [sld:EnumSchema, OutputSchema]
   docParent: "#OutputParameter"
 
 
