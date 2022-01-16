@@ -694,7 +694,7 @@ List of all environment can be seen using:
 and running a specfic test env using:
 ``tox -e <env name>``
 and additionally run a specific test using this format:
-``tox -e py36-unit -- -v tests/test_examples.py::test_scandeps``
+``tox -e py310-unit -- -v tests/test_examples.py::test_scandeps``
 
 -  Running the entire suite of CWL conformance tests:
 

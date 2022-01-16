@@ -66,8 +66,7 @@ def env_accepts_null() -> bool:
     if _env_accepts_null is None:
         result = subprocess.run(
             ["env", "-0"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             encoding="utf-8",
         )
         _env_accepts_null = result.returncode == 0

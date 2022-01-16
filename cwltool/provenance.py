@@ -247,24 +247,22 @@ Annotation = TypedDict(
         "oa:motivatedBy": Dict[str, str],
     },
 )
-Aggregate = TypedDict(
-    "Aggregate",
-    {
-        "uri": Optional[str],
-        "bundledAs": Optional[Dict[str, Any]],
-        "mediatype": Optional[str],
-        "conformsTo": Optional[Union[str, List[str]]],
-        "createdOn": Optional[str],
-        "createdBy": Optional[Dict[str, str]],
-    },
-    total=False,
-)
+
+
+class Aggregate(TypedDict, total=False):
+    uri: Optional[str]
+    bundledAs: Optional[Dict[str, Any]]
+    mediatype: Optional[str]
+    conformsTo: Optional[Union[str, List[str]]]
+    createdOn: Optional[str]
+    createdBy: Optional[Dict[str, str]]
+
+
 # Aggregate.bundledAs is actually type Aggregate, but cyclic definitions are not suported
-AuthoredBy = TypedDict(
-    "AuthoredBy",
-    {"orcid": Optional[str], "name": Optional[str], "uri": Optional[str]},
-    total=False,
-)
+class AuthoredBy(TypedDict, total=False):
+    orcid: Optional[str]
+    name: Optional[str]
+    uri: Optional[str]
 
 
 class ResearchObject:

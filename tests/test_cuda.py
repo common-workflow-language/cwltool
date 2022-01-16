@@ -1,12 +1,9 @@
+import pytest
+
 from cwltool.cuda import cuda_version_and_device_count
 from cwltool.main import main
-from .util import (
-    get_data,
-    needs_docker,
-    needs_singularity_3_or_newer,
-)
 
-import pytest
+from .util import get_data, needs_docker, needs_singularity_3_or_newer
 
 cuda_version = cuda_version_and_device_count()
 
