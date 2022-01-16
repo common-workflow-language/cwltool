@@ -1303,6 +1303,18 @@ def test_bad_stdout_expr_error() -> None:
     )
 
 
+def test_stdin_with_id_preset() -> None:
+    """Confirm that a type: stdin with a preset id does not give an error."""
+    error_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/1590.cwl"),
+            "--file1",
+            get_data("tests/wf/whale.txt"),
+        ]
+    )
+    assert error_code == 0
+
+
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_no_compute_chcksum(tmp_path: Path, factor: str) -> None:
