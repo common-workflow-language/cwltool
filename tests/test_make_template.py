@@ -1,6 +1,7 @@
 """Tests for --make-template."""
 
 from schema_salad.sourceline import cmap
+
 from cwltool import main
 
 

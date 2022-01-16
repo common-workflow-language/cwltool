@@ -51,8 +51,8 @@ from .secrets import SecretStore
 from .utils import (
     CWLObjectType,
     CWLOutputType,
-    HasReqsHints,
     DirectoryType,
+    HasReqsHints,
     OutputCallbackType,
     bytes2str_in_dicts,
     create_tmp_dir,
