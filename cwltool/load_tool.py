@@ -207,7 +207,7 @@ def _convert_stdstreams_to_files(
                     else:
                         workflowobj["stdin"] = (
                             "$(inputs.%s.path)"
-                            % cast(str, inp["id"]).rpartition("#")[2]
+                            % cast(str, inp["id"]).rpartition("#")[2].split("/")[-1]
                         )
                         inp["type"] = "File"
         else:
