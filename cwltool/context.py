@@ -151,7 +151,7 @@ class RuntimeContext(ContextBase):
         )  # type: Optional[Callable[[CWLObjectType], Optional[CWLObjectType]]]
         self.on_error = "stop"  # type: str
         self.strict_memory_limit = False  # type: bool
-        self.strict_cpu_limit = False # type: bool
+        self.strict_cpu_limit = False  # type: bool
         self.cidfile_dir = None  # type: Optional[str]
         self.cidfile_prefix = None  # type: Optional[str]
 

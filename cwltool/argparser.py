@@ -395,8 +395,8 @@ def arg_parser() -> argparse.ArgumentParser:
         "--strict-cpu-limit",
         action="store_true",
         help="When running with "
-             "software containers and the Docker engine, pass the "
-             "calculated cpu allocation from ResourceRequirements",
+        "software containers and the Docker engine, pass the "
+        "calculated cpu allocation from ResourceRequirements",
     )
 
     parser.add_argument(
