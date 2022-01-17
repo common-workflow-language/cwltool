@@ -448,5 +448,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     "assurance.",
                     self.name,
                 )
+        res_req, _ = self.builder.get_requirement("ResourceRequirement")
+        if res_req and "coresMin" in res_req:
+            cpus = res_req["coresMin"]
+            runtime.append("--cpus=%d" % cpus)
 
         return runtime, cidfile_path
