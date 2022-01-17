@@ -396,7 +396,8 @@ def arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="When running with "
         "software containers and the Docker engine, pass the "
-        "calculated cpu allocation from ResourceRequirements",
+        "calculated cpu allocation from ResourceRequirements to Docker's --cpu "
+        "option. Requires docker version >= v1.13.",
     )
 
     parser.add_argument(
