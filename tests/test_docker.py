@@ -100,3 +100,31 @@ def test_docker_strict_memory_limit() -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert result_code == 0
     assert "--memory=255m" in stderr
+
+
+@needs_docker
+def test_docker_strict_cpu_limit_warning() -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--default-container",
+            "docker.io/debian:stable-slim",
+            get_data("tests/wf/cores_float.cwl"),
+        ]
+    )
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert result_code == 0
+    assert "Skipping Docker software container '--cpus' limit" in stderr
+
+
+@needs_docker
+def test_docker_strict_memory_limit_warning() -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--default-container",
+            "docker.io/debian:stable-slim",
+            get_data("tests/wf/storage_float.cwl"),
+        ]
+    )
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert result_code == 0
+    assert "Skipping Docker software container '--memory' limit" in stderr
