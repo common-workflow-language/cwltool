@@ -73,7 +73,7 @@ def test_docker_file_mount() -> None:
 
 
 @needs_docker
-def test_docker_strict_cput_limit() -> None:
+def test_docker_strict_cpu_limit() -> None:
     result_code, stdout, stderr = get_main_output(
         [
             "--strict-cpu-limit",
@@ -85,3 +85,18 @@ def test_docker_strict_cput_limit() -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert result_code == 0
     assert "--cpus=2" in stderr
+
+
+@needs_docker
+def test_docker_strict_memory_limit() -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--strict-memory-limit",
+            "--default-container",
+            "docker.io/debian:stable-slim",
+            get_data("tests/wf/storage_float.cwl"),
+        ]
+    )
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert result_code == 0
+    assert "--memory=255m" in stderr
