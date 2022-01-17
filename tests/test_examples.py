@@ -1345,7 +1345,7 @@ def test_bad_userspace_runtime(factor: str) -> None:
     commands.extend(
         [
             "--user-space-docker-cmd=quaquioN",
-            "--default-container=debian",
+            "--default-container=docker.io/debian:stable-slim",
             get_data(test_file),
             get_data(job_file),
         ]
@@ -1372,7 +1372,14 @@ def test_bad_basecommand(factor: str) -> None:
 def test_bad_basecommand_docker(factor: str) -> None:
     test_file = "tests/wf/missing-tool.cwl"
     commands = factor.split()
-    commands.extend(["--debug", "--default-container", "debian", get_data(test_file)])
+    commands.extend(
+        [
+            "--debug",
+            "--default-container",
+            "docker.io/debian:stable-slim",
+            get_data(test_file),
+        ]
+    )
     error_code, stdout, stderr = get_main_output(commands)
     assert "permanentFail" in stderr, stderr
     assert error_code == 1
