@@ -434,11 +434,12 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         for key, value in self.environment.items():
             runtime.append(f"--env={key}={value}")
 
+        res_req, _ = self.builder.get_requirement("ResourceRequirement")
+
         if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
             ram = self.builder.resources["ram"]
             runtime.append("--memory=%dm" % ram)
         elif not user_space_docker_cmd:
-            res_req, _ = self.builder.get_requirement("ResourceRequirement")
             if res_req and ("ramMin" in res_req or "ramMax" in res_req):
                 _logger.warning(
                     "[job %s] Skipping Docker software container '--memory' limit "
@@ -448,9 +449,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     "assurance.",
                     self.name,
                 )
-        res_req, _ = self.builder.get_requirement("ResourceRequirement")
         if res_req and "coresMin" in res_req:
             cpus = res_req["coresMin"]
-            runtime.append("--cpus=%d" % cpus)
+            runtime.append(f"--cpus={cpus}")
 
         return runtime, cidfile_path
