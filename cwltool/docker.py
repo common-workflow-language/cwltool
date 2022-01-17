@@ -449,8 +449,19 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     "assurance.",
                     self.name,
                 )
-        if res_req and "coresMin" in res_req:
-            cpus = res_req["coresMin"]
-            runtime.append(f"--cpus={cpus}")
+        if runtimeContext.strict_cpu_limit and not user_space_docker_cmd:
+            if res_req and "coresMin" in res_req:
+                cpus = res_req["coresMin"]
+                runtime.append(f"--cpus={cpus}")
+        elif not user_space_docker_cmd:
+            if res_req and ("coresMin" in res_req):
+                _logger.warning(
+                    "[job %s] Skipping Docker software container '--cpus' limit "
+                    "despite presence of ResourceRequirement with coresMin "
+                    "setting. Consider running with "
+                    "--strict-cpu-limit for increased portability "
+                    "assurance.",
+                    self.name,
+                )
 
         return runtime, cidfile_path
