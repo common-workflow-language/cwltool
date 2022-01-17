@@ -56,7 +56,7 @@ def test_udocker_usage_should_not_write_cid_file(udocker: str, tmp_path: Path) -
             [
                 "--debug",
                 "--default-container",
-                "debian",
+                "docker.io/debian:stable-slim",
                 "--user-space-docker-cmd=" + udocker,
                 get_data(test_file),
                 get_data(job_file),
@@ -79,7 +79,7 @@ def test_udocker_should_display_memory_usage(udocker: str, tmp_path: Path) -> No
         error_code, stdout, stderr = get_main_output(
             [
                 "--enable-ext",
-                "--default-container=debian",
+                "--default-container=docker.io/debian:stable-slim",
                 "--user-space-docker-cmd=" + udocker,
                 get_data("tests/wf/timelimit.cwl"),
                 "--sleep_time",

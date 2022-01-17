@@ -2,6 +2,7 @@
 
 import csv
 import datetime
+import math
 import os
 import re
 import shutil
@@ -450,7 +451,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     self.name,
                 )
         if runtimeContext.strict_cpu_limit and not user_space_docker_cmd:
-            cpus = self.builder.resources["cores"]
+            cpus = math.ceil(self.builder.resources["cores"])
             runtime.append(f"--cpus={cpus}")
         elif not user_space_docker_cmd:
             if res_req and ("coresMin" in res_req or "coresMax" in res_req):
