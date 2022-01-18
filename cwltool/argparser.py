@@ -38,6 +38,14 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--log-host",
+        type=str,
+        default="",
+        help="Output directory. The default is the current directory.",
+    )
+
+
+    parser.add_argument(
         "--parallel",
         action="store_true",
         default=False,
