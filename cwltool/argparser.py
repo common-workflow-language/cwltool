@@ -400,6 +400,16 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--strict-cpu-limit",
+        action="store_true",
+        help="When running with "
+        "software containers and the Docker engine, pass either the "
+        "calculated cpu allocation from ResourceRequirements or the "
+        "default of 1 core to Docker's --cpu option. "
+        "Requires docker version >= v1.13.",
+    )
+
+    parser.add_argument(
         "--timestamps",
         action="store_true",
         help="Add timestamps to the errors, warnings, and notifications.",

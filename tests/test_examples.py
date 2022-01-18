@@ -1303,6 +1303,18 @@ def test_bad_stdout_expr_error() -> None:
     )
 
 
+def test_stdin_with_id_preset() -> None:
+    """Confirm that a type: stdin with a preset id does not give an error."""
+    error_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/1590.cwl"),
+            "--file1",
+            get_data("tests/wf/whale.txt"),
+        ]
+    )
+    assert error_code == 0
+
+
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_no_compute_chcksum(tmp_path: Path, factor: str) -> None:
@@ -1333,7 +1345,7 @@ def test_bad_userspace_runtime(factor: str) -> None:
     commands.extend(
         [
             "--user-space-docker-cmd=quaquioN",
-            "--default-container=debian",
+            "--default-container=docker.io/debian:stable-slim",
             get_data(test_file),
             get_data(job_file),
         ]
@@ -1360,7 +1372,14 @@ def test_bad_basecommand(factor: str) -> None:
 def test_bad_basecommand_docker(factor: str) -> None:
     test_file = "tests/wf/missing-tool.cwl"
     commands = factor.split()
-    commands.extend(["--debug", "--default-container", "debian", get_data(test_file)])
+    commands.extend(
+        [
+            "--debug",
+            "--default-container",
+            "docker.io/debian:stable-slim",
+            get_data(test_file),
+        ]
+    )
     error_code, stdout, stderr = get_main_output(commands)
     assert "permanentFail" in stderr, stderr
     assert error_code == 1

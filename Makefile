@@ -184,7 +184,7 @@ shellcheck: FORCE
 		cwltool-in-docker.sh
 
 pyupgrade: $(PYSOURCES)
-	pyupgrade --exit-zero-even-if-changed --py36-plus $^
+	pyupgrade --exit-zero-even-if-changed --py37-plus $^
 
 release-test: check-python3 FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )

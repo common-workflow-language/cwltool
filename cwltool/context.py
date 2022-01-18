@@ -3,14 +3,23 @@ import copy
 import os
 import tempfile
 import threading
-from typing import IO, Any, Callable, Dict, Iterable, List, Optional, TextIO, Union
+from typing import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    TextIO,
+    Union,
+)
 
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names
 from schema_salad.ref_resolver import Loader
 from schema_salad.utils import FetcherCallableType
-from typing_extensions import TYPE_CHECKING
 
 from .builder import Builder
 from .mpi import MpiConfig
@@ -143,7 +152,7 @@ class RuntimeContext(ContextBase):
         )  # type: Optional[Callable[[CWLObjectType], Optional[CWLObjectType]]]
         self.on_error = "stop"  # type: str
         self.strict_memory_limit = False  # type: bool
-
+        self.strict_cpu_limit = False  # type: bool
         self.cidfile_dir = None  # type: Optional[str]
         self.cidfile_prefix = None  # type: Optional[str]
 
