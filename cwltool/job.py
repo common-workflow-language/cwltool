@@ -267,6 +267,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             menv.pass_through_env_vars(env)
             menv.set_env_vars(env)
 
+        outdir_stdout_stderr =  self.outdir if runtimeContext.log_host == "" else runtimeContext.log_host
+
+
         _logger.info(
             "[job %s] %s$ %s%s%s%s",
             self.name,
@@ -278,8 +281,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 ]
             ),
             " < %s" % self.stdin if self.stdin else "",
-            " > %s" % os.path.join(self.outdir, self.stdout) if self.stdout else "",
-            " 2> %s" % os.path.join(self.outdir, self.stderr) if self.stderr else "",
+            " > %s" % os.path.join(outdir_stdout_stderr, self.stdout) if self.stdout else "",
+            " 2> %s" % os.path.join(outdir_stdout_stderr, self.stderr) if self.stderr else "",
         )
         if self.joborder is not None and runtimeContext.research_obj is not None:
             job_order = self.joborder
@@ -308,8 +311,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     stdin_path = rmap[1]
 
             stderr_path = None
+            outdir_stdout_stderr =  self.outdir if runtimeContext.log_host == "" else runtimeContext.log_host
             if self.stderr is not None:
-                abserr = os.path.join(self.outdir, self.stderr)
+                abserr = os.path.join(outdir_stdout_stderr, self.stderr)
                 dnerr = os.path.dirname(abserr)
                 if dnerr and not os.path.exists(dnerr):
                     os.makedirs(dnerr)
@@ -317,12 +321,12 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 
             stdout_path = None
             if self.stdout is not None:
-                absout = os.path.join(self.outdir, self.stdout)
+                absout = os.path.join(outdir_stdout_stderr, self.stdout)
                 dnout = os.path.dirname(absout)
                 if dnout and not os.path.exists(dnout):
                     os.makedirs(dnout)
                 stdout_path = absout
-
+            _logger.debug("stderr: %s stdout: %s hostdir: %s", stderr_path, stdout_path, outdir_stdout_stderr)
             commands = [str(x) for x in runtime + self.command_line]
             if runtimeContext.secret_store is not None:
                 commands = cast(
