@@ -106,7 +106,7 @@ class Docker(CheckHolder):
             "HOSTNAME": None,
         }
 
-    flags = ["--default-container=debian"]
+    flags = ["--default-container=docker.io/debian:stable-slim"]
     env_accepts_null = True
 
 
@@ -174,7 +174,7 @@ class Singularity(CheckHolder):
 
         return ans
 
-    flags = ["--default-container=debian", "--singularity"]
+    flags = ["--default-container=docker.io/debian:stable-slim", "--singularity"]
     env_accepts_null = True
 
 
