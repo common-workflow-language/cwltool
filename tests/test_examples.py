@@ -1303,6 +1303,7 @@ def test_bad_stdout_expr_error() -> None:
     )
 
 
+@needs_docker
 def test_stdin_with_id_preset() -> None:
     """Confirm that a type: stdin with a preset id does not give an error."""
     error_code, _, stderr = get_main_output(
