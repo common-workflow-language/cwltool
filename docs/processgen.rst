@@ -146,16 +146,16 @@ convert from another workflow language, etc.
 
 When this is executed, the following steps happen:
 
-  1. pytoolgen.py is loaded and executed with the 1st part of the file as the input object
+#. pytoolgen.py is loaded and executed with the 1st part of the file as the input object
 
-  2. The "script" parameter contains the contents of the second part.
+#. The "script" parameter contains the contents of the second part.
      The inline command line tool creates a file called "inp.py" with
      the contents of "script"
 
-  3. The inline command line tool runs python on "inp.py" and collects
+#. The inline command line tool runs python on "inp.py" and collects
      the output, which is CWL description for a trivial "echo" tool.
 
-  4. It loads the CWL description and executes it with any additional
+#. It loads the CWL description and executes it with any additional
      parameters declared in the input object or command line.
 
 
