@@ -38,10 +38,10 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--log-host",
+        "--log-dir",
         type=str,
         default="",
-        help="Output directory. The default is the current directory.",
+        help="Log your tools stdout/stderr to this location outside of container",
     )
 
 

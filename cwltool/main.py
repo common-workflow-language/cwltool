@@ -1247,8 +1247,7 @@ def main(
                 runtimeContext.move_outputs = "copy"
             runtimeContext.tmp_outdir_prefix = args.cachedir
 
-        if args.log_host:
-            runtimeContext.log_host = args.log_host
+        runtimeContext.log_dir = args.log_dir
 
         runtimeContext.secret_store = getdefault(
             runtimeContext.secret_store, SecretStore()
