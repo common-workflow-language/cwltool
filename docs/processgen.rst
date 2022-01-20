@@ -19,6 +19,7 @@ of a workflow step -- it specifies a tool to run that will create new
 CWL as output.
 
 .. code:: yaml
+
    - name: ProcessGenerator
      type: record
      inVocab: true
@@ -43,6 +44,7 @@ CWL as output.
 Process generator example (pytoolgen.cwl)
 
 .. code:: yaml
+
    #!/usr/bin/env cwl-runner
    cwlVersion: v1.0
    $namespaces:
@@ -105,6 +107,7 @@ ProcessGenerator as a whole.
 Here's an example (zing.cwl) that uses pytoolgen.cwl.
 
 .. code:: yaml
+
    #!/usr/bin/env cwltool
    {cwl:tool: pytoolgen.cwl, script: {$include: "#attachment-1"}, dir: {class: Directory, location: .}}
    --- |
@@ -164,6 +167,7 @@ Note: requires ``cwltool`` flags ``--enable-ext`` and ``--enable-dev``
 You can set these with the environment parameter CWLTOOL_OPTIONS
 
 .. code::
+
    $ export CWLTOOL_OPTIONS="--enable-dev --enable-ext"
 
    $ ./zing.cwl
@@ -177,6 +181,7 @@ You can set these with the environment parameter CWLTOOL_OPTIONS
 
 
 .. code::
+
    $ ./zing.cwl --zing blurf
    INFO /home/peter/work/cwltool/venv3/bin/cwltool 3.1.20211112163758
    INFO Resolved './zing.cwl' to 'file:///home/peter/work/cwltool/tests/wf/generator/zing.cwl'
@@ -200,6 +205,7 @@ You can set these with the environment parameter CWLTOOL_OPTIONS
    INFO Final process status is success
 
 .. code::
+
    $ echo "zing: zoop" > job.yml
    $ ./zing.cwl job.yml
    INFO /home/peter/work/cwltool/venv3/bin/cwltool 3.1.20211112163758
