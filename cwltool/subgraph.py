@@ -222,6 +222,8 @@ def get_step(
             del inport["linkMerge"]
 
     for outport in cast(List[str], step["out"]):
+        if isinstance(outport, Mapping) and "id" in outport:
+            outport = outport["id"]
         name = outport.split("#")[-1].split("/")[-1]
         extracted["outputs"].append(
             {
