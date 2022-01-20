@@ -1,4 +1,6 @@
+=================
 Process generator
+=================
 
 Experimental feature.
 
@@ -16,62 +18,63 @@ its inputs and outputs.  The "run" field is similar to the "run" field
 of a workflow step -- it specifies a tool to run that will create new
 CWL as output.
 
-
-- name: ProcessGenerator
-  type: record
-  inVocab: true
-  extends: cwl:Process
-  documentRoot: true
-  fields:
-    - name: class
-      jsonldPredicate:
-        "_id": "@type"
-        "_type": "@vocab"
-      type: string
-    - name: run
-      type: [string, cwl:Process]
-      jsonldPredicate:
-        _id: "cwl:run"
-        _type: "@id"
-        subscope: run
-      doc: |
-        Specifies the process to run.
+.. code:: yaml
+   - name: ProcessGenerator
+     type: record
+     inVocab: true
+     extends: cwl:Process
+     documentRoot: true
+     fields:
+       - name: class
+         jsonldPredicate:
+           "_id": "@type"
+           "_type": "@vocab"
+         type: string
+       - name: run
+         type: [string, cwl:Process]
+         jsonldPredicate:
+           _id: "cwl:run"
+           _type: "@id"
+           subscope: run
+         doc: |
+           Specifies the process to run.
 
 
 Process generator example (pytoolgen.cwl)
 
-#!/usr/bin/env cwl-runner
-cwlVersion: v1.0
-$namespaces:
-  cwltool: "http://commonwl.org/cwltool#"
-class: cwltool:ProcessGenerator
-inputs:
-  script: string
-  dir: Directory
-outputs: {}
-run:
-  class: CommandLineTool
-  inputs:
-    script: string
-    dir: Directory
-  outputs:
-    runProcess:
-      type: File
-      outputBinding:
-        glob: main.cwl
-  requirements:
-    InlineJavascriptRequirement: {}
-    cwltool:LoadListingRequirement:
-      loadListing: shallow_listing
-    InitialWorkDirRequirement:
-      listing: |
-        ${
-         var v = inputs.dir.listing;
-         v.push({entryname: "inp.py", entry: inputs.script});
-         return v;
-        }
-  arguments: [python, inp.py]
-  stdout: main.cwl
+.. code:: yaml
+   #!/usr/bin/env cwl-runner
+   cwlVersion: v1.0
+   $namespaces:
+     cwltool: "http://commonwl.org/cwltool#"
+   class: cwltool:ProcessGenerator
+   inputs:
+     script: string
+     dir: Directory
+   outputs: {}
+   run:
+     class: CommandLineTool
+     inputs:
+       script: string
+       dir: Directory
+     outputs:
+       runProcess:
+         type: File
+         outputBinding:
+           glob: main.cwl
+     requirements:
+       InlineJavascriptRequirement: {}
+       cwltool:LoadListingRequirement:
+         loadListing: shallow_listing
+       InitialWorkDirRequirement:
+         listing: |
+           ${
+            var v = inputs.dir.listing;
+            v.push({entryname: "inp.py", entry: inputs.script});
+            return v;
+           }
+     arguments: [python, inp.py]
+     stdout: main.cwl
 
 
 The process generator has two required inputs: "script" and "dir".  It
@@ -101,21 +104,22 @@ ProcessGenerator as a whole.
 
 Here's an example (zing.cwl) that uses pytoolgen.cwl.
 
-#!/usr/bin/env cwltool
-{cwl:tool: pytoolgen.cwl, script: {$include: "#attachment-1"}, dir: {class: Directory, location: .}}
---- |
-import os
-import sys
-print("""
-cwlVersion: v1.0
-class: CommandLineTool
-inputs:
-  zing: string
-outputs: {}
-arguments: [echo, $(inputs.zing)]
-""")
+.. code:: yaml
+   #!/usr/bin/env cwltool
+   {cwl:tool: pytoolgen.cwl, script: {$include: "#attachment-1"}, dir: {class: Directory, location: .}}
+   --- |
+   import os
+   import sys
+   print("""
+   cwlVersion: v1.0
+   class: CommandLineTool
+   inputs:
+     zing: string
+   outputs: {}
+   arguments: [echo, $(inputs.zing)]
+   """)
 
-The first line #!/usr/bin/env cwltool means that this file can be
+The first line ``#!/usr/bin/env cwltool`` means that this file can be
 given the executable bit (+x) and then run directly.
 
 This is a multi-part YAML file.  The first section is a CWL input
@@ -123,10 +127,10 @@ object.
 
 The input object uses "cwl:tool" to indicate that this input object
 should be used as input to execute "pytoolgen.cwl".
-l
-The parameter 'script: {$include: "#attachment-1"}' takes the text
+
+The parameter ``script: {$include: "#attachment-1"}`` takes the text
 from the second part of the file (following the YAML division marker
-"--- |") and assigns it as a string value to "script".
+``--- |``) and assigns it as a string value to "script".
 
 The "dir" parameter is not doing much in this example, but by
 capturing the whole directory it allows the Python script to refer to
@@ -153,65 +157,68 @@ When this is executed, the following steps happen:
 
 
 Example runs
+------------
 
-Note: requires cwltool flags --enable-ext and --enable-dev
+Note: requires ``cwltool`` flags ``--enable-ext`` and ``--enable-dev``
 
 You can set these with the environment parameter CWLTOOL_OPTIONS
 
-$ export CWLTOOL_OPTIONS="--enable-dev --enable-ext"
+.. code::
+   $ export CWLTOOL_OPTIONS="--enable-dev --enable-ext"
 
-$ ./zing.cwl
-INFO /home/peter/work/cwltool/venv3/bin/cwltool 3.1.20211112163758
-INFO Resolved './zing.cwl' to 'file:///home/peter/work/cwltool/tests/wf/generator/zing.cwl'
-INFO [job d3626216-d7d8-4322-bc21-4d469634cc9a] /tmp/8sez90gb$ python \
-    inp.py > /tmp/8sez90gb/main.cwl
-INFO [job d3626216-d7d8-4322-bc21-4d469634cc9a] completed success
-usage: ./zing.cwl [-h] --zing ZING [job_order]
-./zing.cwl: error: the following arguments are required: --zing
-
-
-$ ./zing.cwl --zing blurf
-INFO /home/peter/work/cwltool/venv3/bin/cwltool 3.1.20211112163758
-INFO Resolved './zing.cwl' to 'file:///home/peter/work/cwltool/tests/wf/generator/zing.cwl'
-INFO [job a580b69d-2b88-4268-904e-ed105ba7c85e] /tmp/ujff239o$ python \
-    inp.py > /tmp/ujff239o/main.cwl
-INFO [job a580b69d-2b88-4268-904e-ed105ba7c85e] completed success
-INFO [job main.cwl] /tmp/f_7bxncq$ echo \
-    blurf
-blurf
-INFO [job main.cwl] completed success
-{
-    "runProcess": {
-        "location": "file:///home/peter/work/cwltool/tests/wf/generator/main.cwl",
-        "basename": "main.cwl",
-        "class": "File",
-        "checksum": "sha1$8c160b680fb2cededef3228a53425e595b8cdf48",
-        "size": 111,
-        "path": "/home/peter/work/cwltool/tests/wf/generator/main.cwl"
-    }
-}
-INFO Final process status is success
+   $ ./zing.cwl
+   INFO /home/peter/work/cwltool/venv3/bin/cwltool 3.1.20211112163758
+   INFO Resolved './zing.cwl' to 'file:///home/peter/work/cwltool/tests/wf/generator/zing.cwl'
+   INFO [job d3626216-d7d8-4322-bc21-4d469634cc9a] /tmp/8sez90gb$ python \
+       inp.py > /tmp/8sez90gb/main.cwl
+   INFO [job d3626216-d7d8-4322-bc21-4d469634cc9a] completed success
+   usage: ./zing.cwl [-h] --zing ZING [job_order]
+   ./zing.cwl: error: the following arguments are required: --zing
 
 
-$ echo "zing: zoop" > job.yml
-$ ./zing.cwl job.yml
-INFO /home/peter/work/cwltool/venv3/bin/cwltool 3.1.20211112163758
-INFO Resolved './zing.cwl' to 'file:///home/peter/work/cwltool/tests/wf/generator/zing.cwl'
-INFO [job 9073a083-dc79-4719-8762-1c024480605c] /tmp/meeo3d19$ python \
-    inp.py > /tmp/meeo3d19/main.cwl
-INFO [job 9073a083-dc79-4719-8762-1c024480605c] completed success
-INFO [job main.cwl] /tmp/2pqdz5nq$ echo \
-    zoop
-zoop
-INFO [job main.cwl] completed success
-{
-    "runProcess": {
-        "location": "file:///home/peter/work/cwltool/tests/wf/generator/main.cwl",
-        "basename": "main.cwl",
-        "class": "File",
-        "checksum": "sha1$8c160b680fb2cededef3228a53425e595b8cdf48",
-        "size": 111,
-        "path": "/home/peter/work/cwltool/tests/wf/generator/main.cwl"
-    }
-}
-INFO Final process status is success
+.. code::
+   $ ./zing.cwl --zing blurf
+   INFO /home/peter/work/cwltool/venv3/bin/cwltool 3.1.20211112163758
+   INFO Resolved './zing.cwl' to 'file:///home/peter/work/cwltool/tests/wf/generator/zing.cwl'
+   INFO [job a580b69d-2b88-4268-904e-ed105ba7c85e] /tmp/ujff239o$ python \
+       inp.py > /tmp/ujff239o/main.cwl
+   INFO [job a580b69d-2b88-4268-904e-ed105ba7c85e] completed success
+   INFO [job main.cwl] /tmp/f_7bxncq$ echo \
+       blurf
+   blurf
+   INFO [job main.cwl] completed success
+   {
+       "runProcess": {
+           "location": "file:///home/peter/work/cwltool/tests/wf/generator/main.cwl",
+           "basename": "main.cwl",
+           "class": "File",
+           "checksum": "sha1$8c160b680fb2cededef3228a53425e595b8cdf48",
+           "size": 111,
+           "path": "/home/peter/work/cwltool/tests/wf/generator/main.cwl"
+       }
+   }
+   INFO Final process status is success
+
+.. code::
+   $ echo "zing: zoop" > job.yml
+   $ ./zing.cwl job.yml
+   INFO /home/peter/work/cwltool/venv3/bin/cwltool 3.1.20211112163758
+   INFO Resolved './zing.cwl' to 'file:///home/peter/work/cwltool/tests/wf/generator/zing.cwl'
+   INFO [job 9073a083-dc79-4719-8762-1c024480605c] /tmp/meeo3d19$ python \
+       inp.py > /tmp/meeo3d19/main.cwl
+   INFO [job 9073a083-dc79-4719-8762-1c024480605c] completed success
+   INFO [job main.cwl] /tmp/2pqdz5nq$ echo \
+       zoop
+   zoop
+   INFO [job main.cwl] completed success
+   {
+       "runProcess": {
+           "location": "file:///home/peter/work/cwltool/tests/wf/generator/main.cwl",
+           "basename": "main.cwl",
+           "class": "File",
+           "checksum": "sha1$8c160b680fb2cededef3228a53425e595b8cdf48",
+           "size": 111,
+           "path": "/home/peter/work/cwltool/tests/wf/generator/main.cwl"
+       }
+   }
+   INFO Final process status is success
