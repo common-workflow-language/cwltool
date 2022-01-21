@@ -110,6 +110,7 @@ def relink_initialworkdir(
 def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Optional[Match[str]]:
     return None
 
+
 CollectOutputsType = Union[Callable[[str, int], CWLObjectType], functools.partial]
 
 
@@ -230,10 +231,15 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             self.base_path_logs = self.outdir
         else:
             self.base_path_logs = runtimeContext.log_dir
-            # Generate random ids 
+            # Generate random ids
             import uuid
-            self.stdout = self.stdout if not self.stdout else self.stdout + uuid.uuid4().hex
-            self.stderr = self.stderr if not self.stderr else self.stderr + uuid.uuid4().hex
+
+            self.stdout = (
+                self.stdout if not self.stdout else self.stdout + uuid.uuid4().hex
+            )
+            self.stderr = (
+                self.stderr if not self.stderr else self.stderr + uuid.uuid4().hex
+            )
 
     def _execute(
         self,
@@ -285,8 +291,12 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 ]
             ),
             " < %s" % self.stdin if self.stdin else "",
-            " > %s" % os.path.join(self.base_path_logs, self.stdout) if self.stdout else "",
-            " 2> %s" % os.path.join(self.base_path_logs, self.stderr) if self.stderr else "",
+            " > %s" % os.path.join(self.base_path_logs, self.stdout)
+            if self.stdout
+            else "",
+            " 2> %s" % os.path.join(self.base_path_logs, self.stderr)
+            if self.stderr
+            else "",
         )
         if self.joborder is not None and runtimeContext.research_obj is not None:
             job_order = self.joborder

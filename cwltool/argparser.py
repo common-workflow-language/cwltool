@@ -47,7 +47,6 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Log your tools stdout/stderr to this location outside of container",
     )
 
-
     parser.add_argument(
         "--parallel",
         action="store_true",
