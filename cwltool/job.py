@@ -230,16 +230,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         if runtimeContext.log_dir == "":
             self.base_path_logs = self.outdir
         else:
-            self.base_path_logs = runtimeContext.log_dir
-            # Generate random ids
             import uuid
-
-            self.stdout = (
-                self.stdout if not self.stdout else self.stdout + uuid.uuid4().hex
-            )
-            self.stderr = (
-                self.stderr if not self.stderr else self.stderr + uuid.uuid4().hex
-            )
+            self.base_path_logs = runtimeContext.log_dir + '/' + uuid.uuid4().hex
 
     def _execute(
         self,
