@@ -230,8 +230,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         if runtimeContext.log_dir == "":
             self.base_path_logs = self.outdir
         else:
-            import uuid
-            self.base_path_logs = runtimeContext.log_dir + '/' + uuid.uuid4().hex
+            self.base_path_logs = runtimeContext.log_dir + "/" + uuid.uuid4().hex
 
     def _execute(
         self,
