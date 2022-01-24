@@ -140,6 +140,22 @@ def test_single_process_inherit_reqs_collision() -> None:
     )
 
 
+def test_single_process_inherit_reqs_step_collision() -> None:
+    """Inherit reqs and hints --single-process reqs collision."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-process",
+            "step1",
+            get_data("tests/subgraph/steplevel-resreq.cwl"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["output"]["checksum"]
+        == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
+    )
+
+
 def test_single_process_inherit_reqs_hints_collision() -> None:
     """Inherit reqs and hints --single-process reqs + hints collision."""
     err_code, stdout, stderr = get_main_output(
