@@ -314,22 +314,17 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     raise WorkflowException(f"{self.stdin} missing from pathmapper")
                 else:
                     stdin_path = rmap[1]
+            def stderr_stdout_log_path(base_path_logs, stderr_or_stdout) -> Optional[str]:
+                if stderr_or_stdout is not None:
+                    abserr = os.path.join(base_path_logs, stderr_or_stdout)
+                    dnerr = os.path.dirname(abserr)
+                    if dnerr and not os.path.exists(dnerr):
+                        os.makedirs(dnerr)
+                    return abserr
+                return None
 
-            stderr_path = None
-            if self.stderr is not None:
-                abserr = os.path.join(self.base_path_logs, self.stderr)
-                dnerr = os.path.dirname(abserr)
-                if dnerr and not os.path.exists(dnerr):
-                    os.makedirs(dnerr)
-                stderr_path = abserr
-
-            stdout_path = None
-            if self.stdout is not None:
-                absout = os.path.join(self.base_path_logs, self.stdout)
-                dnout = os.path.dirname(absout)
-                if dnout and not os.path.exists(dnout):
-                    os.makedirs(dnout)
-                stdout_path = absout
+            stderr_path = stderr_stdout_log_path(self.base_path_logs, self.stderr)
+            stdout_path = stderr_stdout_log_path(self.base_path_logs, self.stdout)
             commands = [str(x) for x in runtime + self.command_line]
             if runtimeContext.secret_store is not None:
                 commands = cast(
@@ -395,6 +390,15 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                         "'listing' in self.generatefiles but no "
                         "generatemapper was setup."
                     )
+            # Move logs from log location to final output
+            if self.outdir != self.base_path_logs:
+                if stdout_path:
+                    new_stdout_path = stdout_path.replace(self.base_path_logs, self.outdir)
+                    shutil.copy2(stdout_path, new_stdout_path)
+                if stderr_path:
+                    new_stderr_path = stderr_path.replace(self.base_path_logs, self.outdir)
+                    shutil.copy2(stderr_path, new_stderr_path)
+
 
             outputs = self.collect_outputs(self.outdir, rcode)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
