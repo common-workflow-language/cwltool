@@ -2,7 +2,7 @@
 Process generator
 =================
 
-Experimental feature.
+Experimental feature and unofficial extension to the CWL standards.
 
 A process generator is a CWL Process type that executes a concrete CWL
 process (CommandLineTool, Workflow or ExpressionTool) which produces
