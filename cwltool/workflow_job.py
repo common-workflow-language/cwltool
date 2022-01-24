@@ -692,7 +692,6 @@ class WorkflowJob:
                         None,
                         None,
                         {},
-                        context=cast(Optional[CWLObjectType], v),
                         debug=runtimeContext.debug,
                         js_console=runtimeContext.js_console,
                         timeout=runtimeContext.eval_timeout,
