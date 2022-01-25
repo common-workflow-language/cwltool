@@ -314,7 +314,10 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     raise WorkflowException(f"{self.stdin} missing from pathmapper")
                 else:
                     stdin_path = rmap[1]
-            def stderr_stdout_log_path(base_path_logs, stderr_or_stdout) -> Optional[str]:
+
+            def stderr_stdout_log_path(
+                base_path_logs, stderr_or_stdout
+            ) -> Optional[str]:
                 if stderr_or_stdout is not None:
                     abserr = os.path.join(base_path_logs, stderr_or_stdout)
                     dnerr = os.path.dirname(abserr)
@@ -393,12 +396,15 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             # Move logs from log location to final output
             if self.outdir != self.base_path_logs:
                 if stdout_path:
-                    new_stdout_path = stdout_path.replace(self.base_path_logs, self.outdir)
+                    new_stdout_path = stdout_path.replace(
+                        self.base_path_logs, self.outdir
+                    )
                     shutil.copy2(stdout_path, new_stdout_path)
                 if stderr_path:
-                    new_stderr_path = stderr_path.replace(self.base_path_logs, self.outdir)
+                    new_stderr_path = stderr_path.replace(
+                        self.base_path_logs, self.outdir
+                    )
                     shutil.copy2(stderr_path, new_stderr_path)
-
 
             outputs = self.collect_outputs(self.outdir, rcode)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
