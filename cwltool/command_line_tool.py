@@ -89,14 +89,51 @@ if TYPE_CHECKING:
 
 
 class PathCheckingMode(Enum):
-    """What characters are allowed in path names.
+    """
+    What characters are allowed in path names.
 
-    We have the strict, default mode and the relaxed mode.
+    We have the strict (default) mode and the relaxed mode.
     """
 
-    STRICT = re.compile(
-        r"^[\w.+\-\u2600-\u26FF\U0001f600-\U0001f64f]+$"
-    )  # accept unicode word characters and emojis
+    STRICT = re.compile(r"^[\w.+\,\-:@\]^\u2600-\u26FF\U0001f600-\U0001f64f]+$")
+    # accepts names that contain one or more of the following:
+    # "\w"                  unicode word characters; this includes most characters
+    #                            that can be part of a word in any language, as well
+    #                            as numbers and the underscore
+    # "."                    a literal period
+    # "+"                    a literal plus sign
+    # "\,"                  a literal comma
+    # "\-"                  a literal minus sign
+    # ":"                    a literal colon
+    # "@"                    a literal at-symbol
+    # "\]"                  a literal end-square-bracket
+    # "^"                    a literal caret symbol
+    # \u2600-\u26FF                  matches a single character in the range between
+    #                       ☀ (index 9728) and ⛿ (index 9983)
+    # \U0001f600-\U0001f64f matches a single character in the range between
+    #                       😀 (index 128512) and 🙏 (index 128591)
+
+    # Note: the following characters are intentionally not included:
+    #
+    # 1. reserved words in POSIX:
+    # ! { }
+    #
+    # 2. POSIX metacharacters listed in the CWL standard as okay to reject
+    # | & ; < > ( ) $ ` " ' <space> <tab> <newline>
+    # (In accordance with
+    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path" )
+    #
+    # 3. POSIX path separator
+    # \
+    # (also listed at
+    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path")
+    #
+    # 4. Additional POSIX metacharacters
+    # * ? [ # ˜ = %
+
+    # TODO: switch to https://pypi.org/project/regex/ and use
+    # `\p{Extended_Pictographic}` instead of the manual emoji ranges
+
     RELAXED = re.compile(r".*")  # Accept anything
 
 
@@ -200,10 +237,16 @@ def revmap_file(
     outside the container. Recognizes files in the pathmapper or remaps
     internal output directories to the external directory.
     """
-    outdir_uri, outdir_path = file_uri(str(outdir)), outdir
 
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
+
+    if outdir.startswith("/"):
+        # local file path, turn it into a file:// URI
+        outdir = file_uri(outdir)
+
+    # note: outer outdir should already be a URI and should not be URI
+    # quoted any further.
 
     if "location" in f and "path" not in f:
         location = cast(str, f["location"])
@@ -234,9 +277,9 @@ def revmap_file(
         ):
             f["location"] = revmap_f[1]
         elif (
-            uripath == outdir_uri
-            or uripath.startswith(outdir_uri + os.sep)
-            or uripath.startswith(outdir_uri + "/")
+            uripath == outdir
+            or uripath.startswith(outdir + os.sep)
+            or uripath.startswith(outdir + "/")
         ):
             f["location"] = uripath
         elif (
@@ -245,9 +288,9 @@ def revmap_file(
             or path.startswith(builder.outdir + "/")
         ):
             joined_path = builder.fs_access.join(
-                outdir_path, path[len(builder.outdir) + 1 :]
+                outdir, urllib.parse.quote(path[len(builder.outdir) + 1 :])
             )
-            f["location"] = file_uri(joined_path)
+            f["location"] = joined_path
         else:
             raise WorkflowException(
                 "Output file path %s must be within designated output directory (%s) or an input "
@@ -521,13 +564,11 @@ class CommandLineTool(Process):
                                         "not a File nor a Directory object."
                                     )
                     elif not (
-                        (
-                            isinstance(entry, MutableMapping)
-                            and (
-                                "class" in entry
-                                and (entry["class"] == "File" or "Directory")
-                                or "entry" in entry
-                            )
+                        isinstance(entry, MutableMapping)
+                        and (
+                            "class" in entry
+                            and (entry["class"] == "File" or "Directory")
+                            or "entry" in entry
                         )
                     ):
                         fail = entry

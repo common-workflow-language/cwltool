@@ -3,6 +3,7 @@
 """Entry point for cwltool."""
 
 import argparse
+import copy
 import functools
 import io
 import logging
@@ -40,12 +41,11 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
-from schema_salad.sourceline import strip_dup_lineno
+from schema_salad.sourceline import cmap, strip_dup_lineno
 from schema_salad.utils import ContextType, FetcherCallableType, json_dumps, yaml_no_ts
 
 from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
-from .builder import HasReqsHints
 from .context import LoadingContext, RuntimeContext, getdefault
 from .cwlrdf import printdot, printrdf
 from .errors import ArgumentException, UnsupportedRequirement, WorkflowException
@@ -89,6 +89,7 @@ from .utils import (
     CWLObjectType,
     CWLOutputAtomType,
     CWLOutputType,
+    HasReqsHints,
     adjustDirObjs,
     normalizeFilesDirs,
     processes_to_kill,
@@ -114,10 +115,12 @@ def _terminate_processes() -> None:
     # we're executing, so it's not safe to use a for loop here.
     while processes_to_kill:
         process = processes_to_kill.popleft()
-        cidfile = [
-            str(arg).split("=")[1] for arg in process.args if "--cidfile" in str(arg)
-        ]
-        if cidfile:
+        if isinstance(process.args, MutableSequence):
+            args = process.args
+        else:
+            args = [process.args]
+        cidfile = [str(arg).split("=")[1] for arg in args if "--cidfile" in str(arg)]
+        if cidfile:  # Try to be nice
             try:
                 with open(cidfile[0]) as inp_stream:
                     p = subprocess.Popen(  # nosec
@@ -129,6 +132,13 @@ def _terminate_processes() -> None:
                         p.kill()
             except FileNotFoundError:
                 pass
+        if process.stdin:
+            process.stdin.close()
+        try:
+            process.wait(10)
+        except subprocess.TimeoutExpired:
+            pass
+        process.kill()  # Always kill, even if we tried with the cidfile
 
 
 def _signal_handler(signum: int, _: Any) -> None:
@@ -219,6 +229,8 @@ def generate_example_input(
             example = ruamel.yaml.comments.CommentedMap()
             if "name" in inptype:
                 comment = '"{}" record type.'.format(inptype["name"])
+            else:
+                comment = "Anonymous record type."
             for field in cast(List[CWLObjectType], inptype["fields"]):
                 value, f_comment = generate_example_input(field["type"], None)
                 example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
@@ -398,6 +410,7 @@ def init_job_order(
     input_basedir: str = "",
     secret_store: Optional[SecretStore] = None,
     input_required: bool = True,
+    runtime_context: Optional[RuntimeContext] = None,
 ) -> CWLObjectType:
     secrets_req, _ = process.get_requirement("http://commonwl.org/cwltool#Secrets")
     if job_order_object is None:
@@ -472,23 +485,6 @@ def init_job_order(
         else:
             job_order_object = {}
 
-    if print_input_deps:
-        basedir = None  # type: Optional[str]
-        uri = cast(str, job_order_object["id"])
-        if uri == args.workflow:
-            basedir = os.path.dirname(uri)
-            uri = ""
-        printdeps(
-            job_order_object,
-            loader,
-            stdout,
-            relative_deps,
-            uri,
-            basedir=basedir,
-            nestdirs=False,
-        )
-        exit(0)
-
     def path_to_loc(p: CWLObjectType) -> None:
         if "location" not in p and "path" in p:
             p["location"] = p["path"]
@@ -512,6 +508,31 @@ def init_job_order(
     visit_class(job_order_object, ("File",), expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
+
+    if print_input_deps:
+        if not runtime_context:
+            raise RuntimeError("runtime_context is required for print_input_deps.")
+        runtime_context.toplevel = True
+        builder = process._init_job(job_order_object, runtime_context)
+        builder.loadListing = "no_listing"
+        builder.bind_input(
+            process.inputs_record_schema, job_order_object, discover_secondaryFiles=True
+        )
+        basedir: Optional[str] = None
+        uri = cast(str, job_order_object["id"])
+        if uri == args.workflow:
+            basedir = os.path.dirname(uri)
+            uri = ""
+        printdeps(
+            job_order_object,
+            loader,
+            stdout,
+            relative_deps,
+            uri,
+            basedir=basedir,
+            nestdirs=False,
+        )
+        exit(0)
 
     if secret_store and secrets_req:
         secret_store.store(
@@ -643,12 +664,14 @@ def setup_schema(
             ext11 = res.read().decode("utf-8")
         use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext10)
         use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
+        use_custom_schema("v1.2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev3", "http://commonwl.org/cwltool", ext11)
     else:
         use_standard_schema("v1.0")
         use_standard_schema("v1.1")
+        use_standard_schema("v1.2")
         use_standard_schema("v1.2.0-dev1")
         use_standard_schema("v1.2.0-dev2")
         use_standard_schema("v1.2.0-dev3")
@@ -671,11 +694,14 @@ class ProvLogFormatter(logging.Formatter):
         return with_msecs
 
 
+ProvOut = Union[io.TextIOWrapper, WritableBagFile]
+
+
 def setup_provenance(
     args: argparse.Namespace,
     argsl: List[str],
     runtimeContext: RuntimeContext,
-) -> Union[io.TextIOWrapper, WritableBagFile]:
+) -> Tuple[ProvOut, "logging.StreamHandler[ProvOut]"]:
     if not args.compute_checksum:
         _logger.error("--provenance incompatible with --no-compute-checksum")
         raise ArgumentException()
@@ -696,7 +722,7 @@ def setup_provenance(
         # Log cwltool command line options to provenance file
         _logger.info("[cwltool] %s %s", sys.argv[0], " ".join(argsl))
     _logger.debug("[cwltool] Arguments: %s", args)
-    return log_file_io
+    return log_file_io, prov_log_handler
 
 
 def setup_loadingContext(
@@ -754,37 +780,63 @@ def make_template(
     )
 
 
+def inherit_reqshints(tool: Process, parent: Process) -> None:
+    """Copy down requirements and hints from ancestors of a given process."""
+    for parent_req in parent.requirements:
+        found = False
+        for tool_req in tool.requirements:
+            if parent_req["class"] == tool_req["class"]:
+                found = True
+                break
+        if not found:
+            tool.requirements.append(parent_req)
+    for parent_hint in parent.hints:
+        found = False
+        for tool_req in tool.requirements:
+            if parent_hint["class"] == tool_req["class"]:
+                found = True
+                break
+        if not found:
+            for tool_hint in tool.hints:
+                if parent_hint["class"] == tool_hint["class"]:
+                    found = True
+                    break
+            if not found:
+                tool.hints.append(parent_hint)
+
+
 def choose_target(
     args: argparse.Namespace,
     tool: Process,
-    loadingContext: LoadingContext,
+    loading_context: LoadingContext,
 ) -> Optional[Process]:
     """Walk the Workflow, extract the subset matches all the args.targets."""
-    if loadingContext.loader is None:
-        raise Exception("loadingContext.loader cannot be None")
+    if loading_context.loader is None:
+        raise Exception("loading_context.loader cannot be None")
 
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
         if url.fragment:
             extracted = get_subgraph(
-                [tool.tool["id"] + "/" + r for r in args.target], tool
+                [tool.tool["id"] + "/" + r for r in args.target], tool, loading_context
             )
         else:
             extracted = get_subgraph(
                 [
-                    loadingContext.loader.fetcher.urljoin(tool.tool["id"], "#" + r)
+                    loading_context.loader.fetcher.urljoin(tool.tool["id"], "#" + r)
                     for r in args.target
                 ],
                 tool,
+                loading_context,
             )
     else:
         _logger.error("Can only use --target on Workflows")
         return None
-    if isinstance(loadingContext.loader.idx, MutableMapping):
-        loadingContext.loader.idx[extracted["id"]] = extracted
-        tool = make_tool(extracted["id"], loadingContext)
+    if isinstance(loading_context.loader.idx, MutableMapping):
+        loading_context.loader.idx[extracted["id"]] = extracted
+        tool = make_tool(extracted["id"], loading_context)
     else:
-        raise Exception("Missing loadingContext.loader.idx!")
+        raise Exception("Missing loading_context.loader.idx!")
 
     return tool
 
@@ -792,31 +844,31 @@ def choose_target(
 def choose_step(
     args: argparse.Namespace,
     tool: Process,
-    loadingContext: LoadingContext,
+    loading_context: LoadingContext,
 ) -> Optional[Process]:
     """Walk the given Workflow and extract just args.single_step."""
-    if loadingContext.loader is None:
-        raise Exception("loadingContext.loader cannot be None")
+    if loading_context.loader is None:
+        raise Exception("loading_context.loader cannot be None")
 
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
         if url.fragment:
-            extracted = get_step(tool, tool.tool["id"] + "/" + args.single_step)
+            step_id = tool.tool["id"] + "/" + args.single_step
         else:
-            extracted = get_step(
-                tool,
-                loadingContext.loader.fetcher.urljoin(
-                    tool.tool["id"], "#" + args.single_step
-                ),
+            step_id = loading_context.loader.fetcher.urljoin(
+                tool.tool["id"], "#" + args.single_step
             )
+        extracted = get_step(tool, step_id, loading_context)
     else:
         _logger.error("Can only use --single-step on Workflows")
         return None
-    if isinstance(loadingContext.loader.idx, MutableMapping):
-        loadingContext.loader.idx[extracted["id"]] = extracted
-        tool = make_tool(extracted["id"], loadingContext)
+    if isinstance(loading_context.loader.idx, MutableMapping):
+        loading_context.loader.idx[extracted["id"]] = cast(
+            Union[CommentedMap, CommentedSeq, str, None], cmap(extracted)
+        )
+        tool = make_tool(extracted["id"], loading_context)
     else:
-        raise Exception("Missing loadingContext.loader.idx!")
+        raise Exception("Missing loading_context.loader.idx!")
 
     return tool
 
@@ -826,36 +878,33 @@ def choose_process(
     tool: Process,
     loadingContext: LoadingContext,
 ) -> Optional[Process]:
-    """Walk the given Workflow and extract just args.single_step."""
+    """Walk the given Workflow and extract just args.single_process."""
     if loadingContext.loader is None:
         raise Exception("loadingContext.loader cannot be None")
 
     if isinstance(tool, Workflow):
         url = urllib.parse.urlparse(tool.tool["id"])
         if url.fragment:
-            extracted = get_process(
-                tool,
-                tool.tool["id"] + "/" + args.single_process,
-                loadingContext.loader.idx,
-            )
+            step_id = tool.tool["id"] + "/" + args.single_process
         else:
-            extracted = get_process(
-                tool,
-                loadingContext.loader.fetcher.urljoin(
-                    tool.tool["id"], "#" + args.single_process
-                ),
-                loadingContext.loader.idx,
+            step_id = loadingContext.loader.fetcher.urljoin(
+                tool.tool["id"], "#" + args.single_process
             )
+        extracted, workflow_step = get_process(
+            tool,
+            step_id,
+            loadingContext,
+        )
     else:
         _logger.error("Can only use --single-process on Workflows")
         return None
     if isinstance(loadingContext.loader.idx, MutableMapping):
         loadingContext.loader.idx[extracted["id"]] = extracted
-        tool = make_tool(extracted["id"], loadingContext)
+        new_tool = make_tool(extracted["id"], loadingContext)
     else:
         raise Exception("Missing loadingContext.loader.idx!")
-
-    return tool
+    inherit_reqshints(new_tool, workflow_step)
+    return new_tool
 
 
 def check_working_directories(
@@ -885,6 +934,38 @@ def check_working_directories(
                     _logger.exception("Failed to create directory.")
                     return 1
     return None
+
+
+def print_targets(
+    tool: Process,
+    stdout: Union[TextIO, StreamWriter],
+    loading_context: LoadingContext,
+    prefix: str = "",
+) -> None:
+    """Recursively find targets for --subgraph and friends."""
+    for f in ("outputs", "inputs"):
+        if tool.tool[f]:
+            _logger.info("%s %s%s targets:", prefix[:-1], f[0].upper(), f[1:-1])
+            stdout.write(
+                "  "
+                + "\n  ".join([f"{prefix}{shortname(t['id'])}" for t in tool.tool[f]])
+                + "\n"
+            )
+    if "steps" in tool.tool:
+        loading_context = copy.copy(loading_context)
+        loading_context.requirements = tool.requirements
+        loading_context.hints = tool.hints
+        _logger.info("%s steps targets:", prefix[:-1])
+        for t in tool.tool["steps"]:
+            stdout.write(f"  {prefix}{shortname(t['id'])}\n")
+            run: Union[str, Process, Dict[str, Any]] = t["run"]
+            if isinstance(run, str):
+                process = make_tool(run, loading_context)
+            elif isinstance(run, dict):
+                process = make_tool(cast(CommentedMap, cmap(run)), loading_context)
+            else:
+                process = run
+            print_targets(process, stdout, loading_context, shortname(t["id"]) + "/")
 
 
 def main(
@@ -922,7 +1003,7 @@ def main(
         coloredlogs.install(logger=_logger, stream=stderr)
         stderr_handler = _logger.handlers[-1]
     workflowobj = None
-    prov_log_handler = None  # type: Optional[logging.StreamHandler]
+    prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
     try:
         if args is None:
             if argsl is None:
@@ -990,7 +1071,9 @@ def main(
             if argsl is None:
                 raise Exception("argsl cannot be None")
             try:
-                prov_log_stream = setup_provenance(args, argsl, runtimeContext)
+                prov_log_stream, prov_log_handler = setup_provenance(
+                    args, argsl, runtimeContext
+                )
             except ArgumentException:
                 return 1
 
@@ -1084,14 +1167,7 @@ def main(
                 return 0
 
             if args.print_targets:
-                for f in ("outputs", "steps", "inputs"):
-                    if tool.tool[f]:
-                        _logger.info("%s%s targets:", f[0].upper(), f[1:-1])
-                        stdout.write(
-                            "  "
-                            + "\n  ".join([shortname(t["id"]) for t in tool.tool[f]])
-                            + "\n"
-                        )
+                print_targets(tool, stdout, loadingContext)
                 return 0
 
             if args.target:
@@ -1221,6 +1297,7 @@ def main(
                     input_basedir=input_basedir,
                     secret_store=runtimeContext.secret_store,
                     input_required=input_required,
+                    runtime_context=runtimeContext,
                 )
             except SystemExit as err:
                 return err.code

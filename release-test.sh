@@ -7,6 +7,7 @@ export LC_ALL=C
 
 package=cwltool
 module=cwltool
+extras="[deps]"
 
 if [ "$GITHUB_ACTIONS" = "true" ]; then
     # We are running as a GH Action
@@ -24,8 +25,8 @@ run_tests() {
 	"${test_prefix}"bin/py.test "--ignore=${mod_loc}/schemas/" \
 		--pyargs -x ${module} -n auto --dist=loadfile
 }
-pipver=20.3b1 # minimum required version of pip for Python 3.9
-setuptoolsver=41.1.0 # required for Python 3.9
+pipver=20.3.3 # minimum required version of pip for Python 3.10
+setuptoolsver=50.0.0 # required for Python 3.10
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 rm -Rf testenv? || /bin/true
@@ -41,8 +42,7 @@ then
 	rm -f testenv1/lib/python-wheels/setuptools* \
 		&& pip install --force-reinstall -U pip==${pipver} \
 		&& pip install setuptools==${setuptoolsver} wheel
-	pip install -rtest-requirements.txt
-	pip install -e .
+	pip install -rtest-requirements.txt ".${extras}"
 	make test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 	mkdir testenv1/not-${module}
@@ -67,7 +67,7 @@ rm -f lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==${setuptoolsver} wheel
 # The following can fail if you haven't pushed your commits to ${repo}
-pip install -e "git+${repo}@${HEAD}#egg=${package}"
+pip install -e "git+${repo}@${HEAD}#egg=${package}${extras}"
 pushd src/${package}
 pip install -rtest-requirements.txt
 make dist
@@ -90,12 +90,14 @@ rm -f lib/python-wheels/setuptools* \
         && pip install setuptools==${setuptoolsver} wheel
 package_tar=$(find . -name "${package}*tar.gz")
 pip install "-r${DIR}/test-requirements.txt"
-pip install "${package_tar}"
+pip install "${package_tar}${extras}"
 mkdir out
 tar --extract --directory=out -z -f ${package}*.tar.gz
 pushd out/${package}*
 make dist
 make test
+pip install "-r${DIR}/mypy-requirements.txt"
+make mypy
 pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 mkdir ../not-${module}
 pushd ../not-${module}

@@ -1,8 +1,8 @@
 requests>=2.4.3
-ruamel.yaml>=0.15,<0.17.17
-rdflib>=4.2.2,<6.1
+ruamel.yaml>=0.15,<0.17.21
+rdflib>=4.2.2,<6.2
 shellescape>=3.4.1,<3.9
-schema-salad>=8.2.20210914115719,<9
+schema-salad>=8.2.20211104054942,<9
 prov==1.5.1
 bagit==1.8.1
 mypy-extensions
@@ -11,3 +11,4 @@ typing-extensions
 coloredlogs
 pydot>=1.4.1
 argcomplete>=1.12.0
+pyparsing != 3.0.2  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319

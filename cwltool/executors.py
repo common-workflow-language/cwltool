@@ -33,7 +33,7 @@ from .process import Process, cleanIntermediate, relocateOutputs
 from .provenance_profile import ProvenanceProfile
 from .task_queue import TaskQueue
 from .update import ORIGINAL_CWLVERSION
-from .utils import CWLObjectType, CWLOutputType, JobsType
+from .utils import CWLObjectType, JobsType
 from .workflow import Workflow
 from .workflow_job import WorkflowJob, WorkflowJobStep
 
@@ -277,7 +277,7 @@ class MultithreadedJobExecutor(JobExecutor):
         self.pending_jobs = []  # type: List[JobsType]
         self.pending_jobs_lock = threading.Lock()
 
-        self.max_ram = int(psutil.virtual_memory().available / 2 ** 20)
+        self.max_ram = int(psutil.virtual_memory().available / 2 ** 20)  # type: ignore[no-untyped-call]
         self.max_cores = float(psutil.cpu_count())
         self.allocated_ram = float(0)
         self.allocated_cores = float(0)

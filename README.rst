@@ -77,6 +77,12 @@ and similar Linux distribution try
 
    sudo apt-get install cwltool
 
+If you encounter an error, first try to update package information by using
+
+.. code:: bash
+
+   sudo apt-get update
+
 If you are running macOS X or other UNIXes and you want to use packages prepared by the conda-forge project, then
 please follow the install instructions for `conda-forge <https://conda-forge.org/#about>`_ (if you haven't already) and then 
 
@@ -110,9 +116,12 @@ MS Windows users
 
 1.  Install `"Windows Subsystem for Linux 2" (WSL2) and Docker Desktop <https://docs.docker.com/docker-for-windows/wsl/#prerequisites>`_
 2.  Install `Debian from the Microsoft Store <https://www.microsoft.com/en-us/p/debian/9msvkqc78pk6>`_
-3.  Set Debian as your default WSL 2 distro: ``wsl --set-default debian``
-4.  Reboot if you have not yet already.
-5.  Launch Debian and follow the Linux instructions above (``apt-get install cwltool`` or use the ``venv`` method)
+3.  Set Debian as your default WSL 2 distro: ``wsl --set-default debian``.
+4.  Return to the Docker Desktop, choose `Settings → Resources → WSL Integration <https://docs.docker.com/desktop/windows/images/wsl2-choose-distro.png>`_ and under "Enable integration with additional distros" select "Debian",
+5.  Reboot if you have not yet already.
+6.  Launch Debian and follow the Linux instructions above (``apt-get install cwltool`` or use the ``venv`` method)
+
+Network problems from within WSL2? Try `these instructions <https://github.com/microsoft/WSL/issues/4731#issuecomment-702176954>`_ followed by ``wsl --shutdown``.
 
 ``cwltool`` development version
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -685,7 +694,7 @@ List of all environment can be seen using:
 and running a specfic test env using:
 ``tox -e <env name>``
 and additionally run a specific test using this format:
-``tox -e py36-unit -- -v tests/test_examples.py::test_scandeps``
+``tox -e py310-unit -- -v tests/test_examples.py::test_scandeps``
 
 -  Running the entire suite of CWL conformance tests:
 

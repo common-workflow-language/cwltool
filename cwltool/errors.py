@@ -8,5 +8,3 @@ class UnsupportedRequirement(WorkflowException):
 
 class ArgumentException(Exception):
     """Mismatched command line arguments provided."""
-
-    pass

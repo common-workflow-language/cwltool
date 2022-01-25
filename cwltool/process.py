@@ -49,7 +49,7 @@ from schema_salad.validate import avro_type_name, validate_ex
 from typing_extensions import TYPE_CHECKING
 
 from . import expression
-from .builder import INPUT_OBJ_VOCAB, Builder, HasReqsHints
+from .builder import INPUT_OBJ_VOCAB, Builder
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
@@ -62,6 +62,7 @@ from .utils import (
     CWLObjectType,
     CWLOutputAtomType,
     CWLOutputType,
+    HasReqsHints,
     JobsGeneratorType,
     OutputCallbackType,
     adjustDirObjs,
@@ -119,6 +120,7 @@ supportedProcessRequirements = [
     "http://commonwl.org/cwltool#NetworkAccess",
     "http://commonwl.org/cwltool#LoadListingRequirement",
     "http://commonwl.org/cwltool#InplaceUpdateRequirement",
+    "http://commonwl.org/cwltool#CUDARequirement",
 ]
 
 cwl_files = (
@@ -311,13 +313,11 @@ def stage_files(
                 shutil.copytree(entry.resolved, entry.target)
                 ensure_writable(entry.target, include_root=True)
         elif entry.type == "CreateFile" or entry.type == "CreateWritableFile":
-            with open(entry.target, "wb") as new:
+            with open(entry.target, "w") as new:
                 if secret_store is not None:
-                    new.write(
-                        cast(str, secret_store.retrieve(entry.resolved)).encode("utf-8")
-                    )
+                    new.write(cast(str, secret_store.retrieve(entry.resolved)))
                 else:
-                    new.write(entry.resolved.encode("utf-8"))
+                    new.write(entry.resolved)
             if entry.type == "CreateFile":
                 os.chmod(entry.target, stat.S_IRUSR)  # Read only
             else:  # it is a "CreateWritableFile"
@@ -353,11 +353,13 @@ def relocateOutputs(
                 yield from _collectDirEntries(sub_obj)
 
     def _relocate(src: str, dst: str) -> None:
+        src = fs_access.realpath(src)
+        dst = fs_access.realpath(dst)
+
         if src == dst:
             return
 
         # If the source is not contained in source_directories we're not allowed to delete it
-        src = fs_access.realpath(src)
         src_can_deleted = any(
             os.path.commonprefix([p, src]) == p for p in source_directories
         )
@@ -1084,6 +1086,10 @@ hints:
     ) -> JobsGeneratorType:
         pass
 
+    def __str__(self) -> str:
+        """Return the id of this CWL process."""
+        return f"{type(self).__name__}: {self.tool['id']}"
+
 
 _names = set()  # type: Set[str]
 
@@ -1167,7 +1173,7 @@ def scandeps(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,
 ) -> MutableSequence[CWLObjectType]:
-    r = []  # type: MutableSequence[CWLObjectType]
+    r: MutableSequence[CWLObjectType] = []
     if isinstance(doc, MutableMapping):
         if "id" in doc:
             if cast(str, doc["id"]).startswith("file://"):

@@ -625,8 +625,6 @@ class WorkflowJob:
                 _logger.debug("[%s] job step %s not ready", self.name, step.id)
                 return
 
-            if step.submitted:
-                return
             _logger.info("[%s] starting %s", self.name, step.name)
 
             callback = functools.partial(
@@ -694,7 +692,6 @@ class WorkflowJob:
                         None,
                         None,
                         {},
-                        context=cast(Optional[CWLObjectType], v),
                         debug=runtimeContext.debug,
                         js_console=runtimeContext.js_console,
                         timeout=runtimeContext.eval_timeout,

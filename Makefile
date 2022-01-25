@@ -27,7 +27,7 @@ MODULE=cwltool
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
 DEVPKGS=diff_cover black pylint pep257 pydocstyle flake8 tox tox-pyenv \
 	isort wheel autoflake flake8-bugbear pyupgrade bandit \
-	-rtest-requirements.txt -rmypy_requirements.txt
+	-rtest-requirements.txt -rmypy-requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 
@@ -49,6 +49,9 @@ install-dep: install-dependencies
 install-dependencies: FORCE
 	pip install --upgrade $(DEVPKGS)
 	pip install -r requirements.txt
+
+install-doc-dep:
+	pip install -r docs/requirements.txt
 
 ## install-deb-dep: install most of the dev dependencies via apt-get
 install-deb-dep:
@@ -184,7 +187,7 @@ shellcheck: FORCE
 		cwltool-in-docker.sh
 
 pyupgrade: $(PYSOURCES)
-	pyupgrade --exit-zero-even-if-changed --py36-plus $^
+	pyupgrade --exit-zero-even-if-changed --py37-plus $^
 
 release-test: check-python3 FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )

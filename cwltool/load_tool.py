@@ -1,5 +1,6 @@
 """Loads a CWL document."""
 
+import copy
 import hashlib
 import logging
 import os
@@ -206,7 +207,7 @@ def _convert_stdstreams_to_files(
                     else:
                         workflowobj["stdin"] = (
                             "$(inputs.%s.path)"
-                            % cast(str, inp["id"]).rpartition("#")[2]
+                            % cast(str, inp["id"]).rpartition("#")[2].split("/")[-1]
                         )
                         inp["type"] = "File"
         else:
@@ -390,6 +391,11 @@ def resolve_and_validate_document(
 
     if loadingContext.metadata:
         metadata = loadingContext.metadata
+
+    # Make a shallow copy.  If we do a version update later, metadata
+    # will be updated, we don't want to write through and change the
+    # original object.
+    metadata = copy.copy(metadata)
 
     if not isinstance(metadata, CommentedMap):
         raise ValidationException(

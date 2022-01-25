@@ -31,6 +31,8 @@ def get_version() -> str:
         ).strip()
         if _SINGULARITY_VERSION.startswith("singularity version "):
             _SINGULARITY_VERSION = _SINGULARITY_VERSION[20:]
+        if _SINGULARITY_VERSION.startswith("singularity-ce version "):
+            _SINGULARITY_VERSION = _SINGULARITY_VERSION[23:]
         _logger.debug(f"Singularity version: {_SINGULARITY_VERSION}.")
     return _SINGULARITY_VERSION
 
@@ -431,6 +433,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 runtime.extend(["--net", "--network", runtime_context.custom_net])
         else:
             runtime.extend(["--net", "--network", "none"])
+
+        cuda_req, _ = self.builder.get_requirement(
+            "http://commonwl.org/cwltool#CUDARequirement"
+        )
+        if cuda_req:
+            # Checked earlier that the device count is non-zero in _setup
+            runtime.append("--nv")
 
         for name, value in self.environment.items():
             env[f"SINGULARITYENV_{name}"] = str(value)
