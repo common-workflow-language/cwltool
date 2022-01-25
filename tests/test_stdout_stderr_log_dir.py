@@ -17,7 +17,13 @@ def test_log_dir_echo_output() -> None:
 
 def test_log_dir_echo_no_output() -> None:
     _, stdout, stderr = get_main_output(
-        ["--log-dir", "logs", get_data("tests/echo-stdout-log-dir.cwl"), "--inp", "hello"]
+        [
+            "--log-dir",
+            "logs",
+            get_data("tests/echo-stdout-log-dir.cwl"),
+            "--inp",
+            "hello",
+        ]
     )
     for dir in os.listdir("logs"):
         for file in os.listdir(f"logs/{dir}"):
