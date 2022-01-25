@@ -316,7 +316,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     stdin_path = rmap[1]
 
             def stderr_stdout_log_path(
-                base_path_logs, stderr_or_stdout
+                base_path_logs: str, stderr_or_stdout: Optional[str]
             ) -> Optional[str]:
                 if stderr_or_stdout is not None:
                     abserr = os.path.join(base_path_logs, stderr_or_stdout)
