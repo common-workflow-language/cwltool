@@ -31,7 +31,6 @@ from typing import (
     Union,
     cast,
 )
-
 import psutil
 import shellescape
 from prov.model import PROV
@@ -393,19 +392,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                         "'listing' in self.generatefiles but no "
                         "generatemapper was setup."
                     )
-            # Move logs from log location to final output
-            if self.outdir != self.base_path_logs:
-                if stdout_path:
-                    new_stdout_path = stdout_path.replace(
-                        self.base_path_logs, self.outdir
-                    )
-                    shutil.copy2(stdout_path, new_stdout_path)
-                if stderr_path:
-                    new_stderr_path = stderr_path.replace(
-                        self.base_path_logs, self.outdir
-                    )
-                    shutil.copy2(stderr_path, new_stderr_path)
-
+            runtimeContext.log_dir_handler(
+                self.outdir, self.base_path_logs, stdout_path, stderr_path
+            )
             outputs = self.collect_outputs(self.outdir, rcode)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
         except OSError as e:
