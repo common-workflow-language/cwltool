@@ -1,6 +1,7 @@
 """Shared context objects that replace use of kwargs."""
 import copy
 import os
+import shutil
 import tempfile
 import threading
 from typing import (
@@ -54,6 +55,21 @@ def make_tool_notimpl(
 
 
 default_make_tool = make_tool_notimpl
+
+# Move logs from log location to final output
+def log_handler(
+    outdir: str,
+    base_path_logs: str,
+    stdout_path: Optional[str],
+    stderr_path: Optional[str],
+) -> None:
+    if outdir != base_path_logs:
+        if stdout_path:
+            new_stdout_path = stdout_path.replace(base_path_logs, outdir)
+            shutil.copy2(stdout_path, new_stdout_path)
+        if stderr_path:
+            new_stderr_path = stderr_path.replace(base_path_logs, outdir)
+            shutil.copy2(stderr_path, new_stderr_path)
 
 
 class LoadingContext(ContextBase):
@@ -119,6 +135,7 @@ class RuntimeContext(ContextBase):
         self.rm_container = True  # type: bool
         self.move_outputs = "move"  # type: str
         self.log_dir = ""  # type: str
+        self.log_dir_handler = log_handler
         self.streaming_allowed: bool = False
 
         self.singularity = False  # type: bool
