@@ -70,6 +70,16 @@ def log_handler(
         if stderr_path:
             new_stderr_path = stderr_path.replace(base_path_logs, outdir)
             shutil.copy2(stderr_path, new_stderr_path)
+# Default handler for setting the log directory
+def set_log_dir(
+    outdir: str,
+    log_dir: str,
+    subdir_name: str
+) -> str:
+    if log_dir == "":
+         return outdir
+    else:        
+        return log_dir + "/" + subdir_name
 
 
 class LoadingContext(ContextBase):
@@ -135,6 +145,7 @@ class RuntimeContext(ContextBase):
         self.rm_container = True  # type: bool
         self.move_outputs = "move"  # type: str
         self.log_dir = ""  # type: str
+        self.set_log_dir = set_log_dir
         self.log_dir_handler = log_handler
         self.streaming_allowed: bool = False
 
