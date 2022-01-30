@@ -1,0 +1,2 @@
+flake8-bugbear
+black ~= 22.0
