@@ -216,10 +216,10 @@ def get_step(
 
     for inport in cast(List[CWLObjectType], step["in"]):
         name = "#" + cast(str, inport["id"]).split("#")[-1].split("/")[-1]
-        input = {"id": name, "type": "Any"}
+        inp: CWLObjectType = {"id": name, "type": "Any"}
         if "default" in inport:
-            input["default"] = inport["default"]
-        extracted["inputs"].append(CommentedMap(input))
+            inp["default"] = inport["default"]
+        extracted["inputs"].append(CommentedMap(inp))
         inport["source"] = name
         if "linkMerge" in inport:
             del inport["linkMerge"]
