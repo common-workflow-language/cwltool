@@ -275,6 +275,19 @@ def test_single_step_packed_subwf_step() -> None:
     )
 
 
+def test_single_with_step_level_default_value() -> None:
+    """Inherit step-level defaults with --single-step."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-step",
+            "task2",
+            get_data("tests/wf/cache_test_workflow.cwl"),
+        ]
+    )
+    assert err_code == 0
+    assert "two" in stderr
+
+
 def test_print_targets_embedded_step() -> None:
     """Confirm that --print-targets works when a Workflow has embedded Processes."""
     err_code, stdout, stderr = get_main_output(
