@@ -140,6 +140,22 @@ def test_single_process_inherit_reqs_collision() -> None:
     )
 
 
+def test_single_process_inherit_reqs_step_collision() -> None:
+    """Inherit reqs and hints --single-process reqs collision."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-process",
+            "step1",
+            get_data("tests/subgraph/steplevel-resreq.cwl"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["output"]["checksum"]
+        == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
+    )
+
+
 def test_single_process_inherit_reqs_hints_collision() -> None:
     """Inherit reqs and hints --single-process reqs + hints collision."""
     err_code, stdout, stderr = get_main_output(
@@ -215,6 +231,23 @@ def test_single_step_subwf_step() -> None:
             "--single-step",
             "sub_wf/step1",
             get_data("tests/subgraph/env-wf2_subwf.cwl"),
+            get_data("tests/subgraph/env-job.json"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["out"]["checksum"]
+        == "sha1$7608e5669ba454c61fab01c9b133b52a9a7de68c"
+    )
+
+
+def test_single_step_wfstep_long_out() -> None:
+    """Support long form of step.out with --single-step."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-step",
+            "sub_wf/step1",
+            get_data("tests/subgraph/env-wf2_subwf_b.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
     )
