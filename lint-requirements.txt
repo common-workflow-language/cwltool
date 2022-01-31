@@ -1,2 +1,2 @@
 flake8-bugbear
-black ~= 22.0
+black ~= 22.1
