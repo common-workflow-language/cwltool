@@ -224,6 +224,23 @@ def test_single_process_packed_subwf_step() -> None:
     )
 
 
+def test_single_process_subwf_subwf_inline_step() -> None:
+    """Test --single-process on an inline sub-sub-workflow step."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--single-process",
+            "step1/stepX/stepY",
+            get_data("tests/subgraph/count-lines17-wf.cwl.json"),
+            get_data("tests/wf/wc-job.json"),
+        ]
+    )
+    assert err_code == 0
+    assert (
+        json.loads(stdout)["output"]["checksum"]
+        == "sha1$3596ea087bfdaf52380eae441077572ed289d657"
+    )
+
+
 def test_single_step_subwf_step() -> None:
     """Inherit reqs and hints --single-step on sub-workflow step."""
     err_code, stdout, stderr = get_main_output(
@@ -308,3 +325,15 @@ def test_print_targets_embedded_reqsinherit() -> None:
         ]
     )
     assert err_code == 0
+
+
+def test_print_targets_embedded_sub_subwfs() -> None:
+    """Confirm that --print-targets works with inline sub-sub-workflows."""
+    err_code, stdout, stderr = get_main_output(
+        [
+            "--print-targets",
+            get_data("tests/subgraph/count-lines17-wf.cwl.json"),
+        ]
+    )
+    assert err_code == 0
+    assert "step1/stepX/stepY" in stdout
