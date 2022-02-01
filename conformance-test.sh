@@ -66,12 +66,11 @@ fi
 find . -name '.coverage*' -print0 | xargs -0 rm -f
 rm -f coverage.xml
 
-source=$(realpath ../cwltool)
 COVERAGE_RC=${PWD}/.coveragerc
 cat > "${COVERAGE_RC}" <<EOF
 [run]
 branch = True
-source = ${source}
+source_pkgs = cwltool
 
 [report]
 exclude_lines =
