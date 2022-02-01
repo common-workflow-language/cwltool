@@ -959,7 +959,9 @@ def print_targets(
                 process = make_tool(cast(CommentedMap, cmap(run)), loading_context)
             else:
                 process = run
-            print_targets(process, stdout, loading_context, shortname(t["id"]) + "/")
+            print_targets(
+                process, stdout, loading_context, f"{prefix}{shortname(t['id'])}/"
+            )
 
 
 def main(
