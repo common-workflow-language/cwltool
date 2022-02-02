@@ -56,6 +56,7 @@ def make_tool_notimpl(
 
 default_make_tool = make_tool_notimpl
 
+
 def log_handler(
     outdir: str,
     base_path_logs: str,
@@ -72,15 +73,11 @@ def log_handler(
             shutil.copy2(stderr_path, new_stderr_path)
 
 
-def set_log_dir(
-    outdir: str,
-    log_dir: str,
-    subdir_name: str
-) -> str:
+def set_log_dir(outdir: str, log_dir: str, subdir_name: str) -> str:
     """Default handler for setting the log directory."""
     if log_dir == "":
-         return outdir
-    else:        
+        return outdir
+    else:
         return log_dir + "/" + subdir_name
 
 

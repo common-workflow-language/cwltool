@@ -44,7 +44,8 @@ def arg_parser() -> argparse.ArgumentParser:
         "--log-dir",
         type=str,
         default="",
-        help="Log your tools stdout/stderr to this location outside of container",
+        help="Log your tools stdout/stderr to this location outside of container "
+        "This will only log stdout/stderr if you specify stdout/stderr in their respective fields or capture it as an output",
     )
 
     parser.add_argument(
