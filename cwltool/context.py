@@ -70,12 +70,14 @@ def log_handler(
         if stderr_path:
             new_stderr_path = stderr_path.replace(base_path_logs, outdir)
             shutil.copy2(stderr_path, new_stderr_path)
-# Default handler for setting the log directory
+
+
 def set_log_dir(
     outdir: str,
     log_dir: str,
     subdir_name: str
 ) -> str:
+    """Default handler for setting the log directory."""
     if log_dir == "":
          return outdir
     else:        
