@@ -17,16 +17,18 @@ def test_log_dir_echo_output(tmp_path: Path) -> None:
     # should there be an empty stderr log, though?
 
 
-def test_log_dir_echo_no_output() -> None:
+def test_log_dir_echo_no_output(tmp_path: Path) -> None:
     _, stdout, stderr = get_main_output(
         [
             "--log-dir",
-            "logs",
+            str(tmp_path),
             get_data("tests/echo-stdout-log-dir.cwl"),
             "--inp",
             "hello",
         ]
     )
-    for dir in os.listdir("logs"):
-        for file in os.listdir(f"logs/{dir}"):
+    for dir in os.listdir(tmp_path):
+        for file in os.listdir(f"{tmp_path}/{dir}"):
             assert file == "out.txt"
+            output = open(f"{tmp_path}/{dir}/{file}",'r').read()
+            assert 'hello' in output
