@@ -5,6 +5,7 @@ import os
 from typing import (
     Any,
     AnyStr,
+    Callable,
     Dict,
     List,
     MutableMapping,
@@ -14,6 +15,7 @@ from typing import (
     Union,
     cast,
 )
+import urllib
 
 from schema_salad.ref_resolver import file_uri
 
@@ -716,11 +718,19 @@ class FSAction(argparse.Action):
     objclass = None  # type: str
 
     def __init__(
-        self, option_strings: List[str], dest: str, nargs: Any = None, **kwargs: Any
+        self,
+        option_strings: List[str],
+        dest: str,
+        nargs: Any = None,
+        urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
+        base_uri: str = "",
+        **kwargs: Any,
     ) -> None:
         """Fail if nargs is used."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
+        self.urljoin = urljoin
+        self.base_uri = base_uri
         super().__init__(option_strings, dest, **kwargs)
 
     def __call__(
@@ -735,7 +745,7 @@ class FSAction(argparse.Action):
             self.dest,
             {
                 "class": self.objclass,
-                "location": file_uri(str(os.path.abspath(cast(AnyStr, values)))),
+                "location": self.urljoin(self.base_uri, cast(AnyStr, values)),
             },
         )
 
@@ -744,11 +754,19 @@ class FSAppendAction(argparse.Action):
     objclass = None  # type: str
 
     def __init__(
-        self, option_strings: List[str], dest: str, nargs: Any = None, **kwargs: Any
+        self,
+        option_strings: List[str],
+        dest: str,
+        nargs: Any = None,
+        urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
+        base_uri: str = "",
+        **kwargs: Any,
     ) -> None:
         """Initialize."""
         if nargs is not None:
             raise ValueError("nargs not allowed")
+        self.urljoin = urljoin
+        self.base_uri = base_uri
         super().__init__(option_strings, dest, **kwargs)
 
     def __call__(
@@ -765,7 +783,7 @@ class FSAppendAction(argparse.Action):
         g.append(
             {
                 "class": self.objclass,
-                "location": file_uri(str(os.path.abspath(cast(AnyStr, values)))),
+                "location": self.urljoin(self.base_uri, cast(AnyStr, values)),
             }
         )
 
@@ -794,6 +812,8 @@ def add_argument(
     description: str = "",
     default: Any = None,
     input_required: bool = True,
+    urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
+    base_uri: str = "",
 ) -> None:
     if len(name) == 1:
         flag = "-"
@@ -804,17 +824,22 @@ def add_argument(
     # parameter required.
     required = default is None and input_required
     if isinstance(inptype, MutableSequence):
-        if inptype[0] == "null":
+        if len(inptype) == 1:
+            inptype = inptype[0]
+        elif len(inptype) == 2 and inptype[0] == "null":
             required = False
-            if len(inptype) == 2:
-                inptype = inptype[1]
-            else:
-                _logger.debug("Can't make command line argument from %s", inptype)
-                return None
+            inptype = inptype[1]
+        elif len(inptype) == 2 and inptype[1] == "null":
+            required = False
+            inptype = inptype[0]
+        else:
+            _logger.debug("Can't make command line argument from %s", inptype)
+            return None
 
     ahelp = description.replace("%", "%%")
     action = None  # type: Optional[Union[argparse.Action, str]]
     atype = None  # type: Any
+    typekw = {}
 
     if inptype == "File":
         action = cast(argparse.Action, FileAction)
@@ -851,10 +876,12 @@ def add_argument(
         _logger.debug("Can't make command line argument from %s", inptype)
         return None
 
+    if action in (FileAction, DirectoryAction, FileAppendAction, DirectoryAppendAction):
+        typekw["urljoin"] = urljoin
+        typekw["base_uri"] = base_uri
+
     if inptype != "boolean":
-        typekw = {"type": atype}
-    else:
-        typekw = {}
+        typekw["type"] = atype
 
     toolparser.add_argument(
         flag + name,
@@ -862,7 +889,7 @@ def add_argument(
         help=ahelp,
         action=action,  # type: ignore
         default=default,
-        **typekw
+        **typekw,
     )
 
 
@@ -872,6 +899,8 @@ def generate_parser(
     namemap: Dict[str, str],
     records: List[str],
     input_required: bool = True,
+    urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
+    base_uri: str = "",
 ) -> argparse.ArgumentParser:
     toolparser.description = tool.tool.get("doc", None)
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
@@ -884,7 +913,15 @@ def generate_parser(
         description = inp.get("doc", "")
         default = inp.get("default", None)
         add_argument(
-            toolparser, name, inptype, records, description, default, input_required
+            toolparser,
+            name,
+            inptype,
+            records,
+            description,
+            default,
+            input_required,
+            urljoin,
+            base_uri,
         )
 
     return toolparser
