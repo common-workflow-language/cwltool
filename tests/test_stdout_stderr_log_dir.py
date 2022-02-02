@@ -30,5 +30,5 @@ def test_log_dir_echo_no_output(tmp_path: Path) -> None:
     for dir in os.listdir(tmp_path):
         for file in os.listdir(f"{tmp_path}/{dir}"):
             assert file == "out.txt"
-            output = open(f"{tmp_path}/{dir}/{file}",'r').read()
-            assert 'hello' in output
+            output = open(f"{tmp_path}/{dir}/{file}", "r").read()
+            assert "hello" in output
