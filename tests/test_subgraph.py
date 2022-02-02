@@ -9,7 +9,7 @@ from cwltool.load_tool import load_tool
 from cwltool.subgraph import get_step, get_subgraph
 from cwltool.workflow import Workflow, default_make_tool
 
-from .util import get_data, get_main_output
+from .util import get_data, get_main_output, needs_docker
 
 
 def clean(val: Any, path: str) -> Any:
@@ -292,6 +292,7 @@ def test_single_step_packed_subwf_step() -> None:
     )
 
 
+@needs_docker
 def test_single_with_step_level_default_value() -> None:
     """Inherit step-level defaults with --single-step."""
     err_code, stdout, stderr = get_main_output(
