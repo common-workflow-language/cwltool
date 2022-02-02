@@ -827,6 +827,26 @@ def test_format_expr_error() -> None:
     )
 
 
+def test_format_expr_error2() -> None:
+    """Better format expression error, for a list of formats."""
+    error_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/bad_formattest2.cwl"),
+            get_data("tests/wf/formattest-job.json"),
+        ]
+    )
+    assert error_code != 0
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "bad_formattest2.cwl:14:9: For inputs, 'format' field can either contain "
+        "a single CWL Expression or CWL Parameter Reference, a single format string, "
+        "or a list of format strings. But the list cannot contain CWL Expressions "
+        "or CWL Parameter References. List entry number 1 contains the following "
+        "unallowed CWL Parameter Reference or Expression: '${ return "
+        '["http://edamontology.org/format_2330", 42];}' in stderr
+    )
+
+
 def test_static_checker() -> None:
     # check that the static checker raises exception when a source type
     # mismatches its sink type.
