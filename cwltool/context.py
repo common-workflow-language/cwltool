@@ -56,13 +56,13 @@ def make_tool_notimpl(
 
 default_make_tool = make_tool_notimpl
 
-# Move logs from log location to final output
 def log_handler(
     outdir: str,
     base_path_logs: str,
     stdout_path: Optional[str],
     stderr_path: Optional[str],
 ) -> None:
+    """Move logs from log location to final output."""
     if outdir != base_path_logs:
         if stdout_path:
             new_stdout_path = stdout_path.replace(base_path_logs, outdir)
