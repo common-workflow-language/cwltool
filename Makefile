@@ -25,9 +25,9 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=diff_cover black pylint pep257 pydocstyle flake8 tox tox-pyenv \
-	isort wheel autoflake flake8-bugbear pyupgrade bandit \
-	-rtest-requirements.txt -rmypy_requirements.txt
+DEVPKGS=diff_cover pylint pep257 pydocstyle tox tox-pyenv \
+	isort wheel autoflake pyupgrade bandit -rlint-requirements.txt\
+	-rtest-requirements.txt -rmypy-requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 
@@ -49,6 +49,9 @@ install-dep: install-dependencies
 install-dependencies: FORCE
 	pip install --upgrade $(DEVPKGS)
 	pip install -r requirements.txt
+
+install-doc-dep:
+	pip install -r docs/requirements.txt
 
 ## install-deb-dep: install most of the dev dependencies via apt-get
 install-deb-dep:
@@ -148,11 +151,11 @@ diff-cover.html: coverage.xml
 
 ## test        : run the ${MODULE} test suite
 test: check-python3 $(PYSOURCES)
-	python -m pytest ${PYTEST_EXTRA}
+	python -m pytest -rs ${PYTEST_EXTRA}
 
 ## testcov     : run the ${MODULE} test suite and collect coverage
 testcov: check-python3 $(PYSOURCES)
-	python -m pytest --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
+	python -m pytest -rs --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
 
 sloccount.sc: $(PYSOURCES) Makefile
 	sloccount --duplicates --wide --details $^ > $@
@@ -177,14 +180,14 @@ mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
 
 mypyc: $(PYSOURCES)
 	MYPYPATH=typeshed CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
-		 && pytest -vv ${PYTEST_EXTRA}
+		 && pytest -rs -vv ${PYTEST_EXTRA}
 
 shellcheck: FORCE
 	shellcheck build-cwltool-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
 		cwltool-in-docker.sh
 
 pyupgrade: $(PYSOURCES)
-	pyupgrade --exit-zero-even-if-changed --py36-plus $^
+	pyupgrade --exit-zero-even-if-changed --py37-plus $^
 
 release-test: check-python3 FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommited changes, please commit them and try again; false )

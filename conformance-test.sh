@@ -44,7 +44,11 @@ if [ ! -d "${repo}-${spec_branch}" ]; then
 fi
 
 if [ "${container}" == "docker" ]; then
-    docker pull node:slim
+    docker pull docker.io/node:slim
+fi
+
+if [ "${container}" == "podman" ]; then
+    podman pull docker.io/node:slim
 fi
 
 venv cwltool-venv3
@@ -62,12 +66,11 @@ fi
 find . -name '.coverage*' -print0 | xargs -0 rm -f
 rm -f coverage.xml
 
-source=$(realpath ../cwltool)
 COVERAGE_RC=${PWD}/.coveragerc
 cat > "${COVERAGE_RC}" <<EOF
 [run]
 branch = True
-source = ${source}
+source_pkgs = cwltool
 
 [report]
 exclude_lines =
@@ -109,6 +112,8 @@ if [[ "$container" = "singularity" ]]; then
         # See issue #1440
         exclusions+=(stdin_shorcut)
     fi
+elif [[ "$container" = "podman" ]]; then
+    EXTRA+=" --podman"
 fi
 
 if [ -n "$EXTRA" ]

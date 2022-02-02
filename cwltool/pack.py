@@ -172,8 +172,15 @@ def pack(
             raise Exception("loader should not be None")
         return lr_loadingContext.loader.resolve_ref(lr_uri, base_url=base)[0]
 
-    ids = set()  # type: Set[str]
-    find_ids(processobj, ids)
+    input_ids: Set[str] = set()
+    output_ids: Set[str] = set()
+
+    if isinstance(processobj, MutableSequence):
+        mainobj = processobj[0]
+    else:
+        mainobj = processobj
+    find_ids(cast(Dict[str, Any], mainobj)["inputs"], input_ids)
+    find_ids(cast(Dict[str, Any], mainobj)["outputs"], output_ids)
 
     runs = {uri}
     find_run(processobj, loadref, runs)
@@ -186,17 +193,19 @@ def pack(
     update_to_version = ORDERED_VERSIONS[m]
 
     for f in runs:
-        find_ids(document_loader.resolve_ref(f)[0], ids)
+        find_ids(document_loader.resolve_ref(f)[0], input_ids)
 
-    names = set()  # type: Set[str]
-    if rewrite_out is None:
-        rewrite = {}  # type: Dict[str, str]
-    else:
-        rewrite = rewrite_out
+    input_names: Set[str] = set()
+    output_names: Set[str] = set()
+
+    rewrite_inputs: Dict[str, str] = {}
+    rewrite_outputs: Dict[str, str] = {}
 
     mainpath, _ = urllib.parse.urldefrag(uri)
 
-    def rewrite_id(r: str, mainuri: str) -> None:
+    def rewrite_id(
+        r: str, mainuri: str, rewrite: Dict[str, str], names: Set[str]
+    ) -> None:
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
@@ -212,17 +221,20 @@ def pack(
                 if path not in rewrite:
                     rewrite[path] = "#" + uniquename(shortname(path), names)
 
-    sortedids = sorted(ids)
+    sorted_input_ids = sorted(input_ids)
+    sorted_output_ids = sorted(output_ids)
 
-    for r in sortedids:
-        rewrite_id(r, uri)
+    for r in sorted_input_ids:
+        rewrite_id(r, uri, rewrite_inputs, input_names)
+    for r in sorted_output_ids:
+        rewrite_id(r, uri, rewrite_outputs, output_names)
 
     packed = CommentedMap(
         (("$graph", CommentedSeq()), ("cwlVersion", update_to_version))
     )
     namespaces = metadata.get("$namespaces", None)
 
-    schemas = set()  # type: Set[str]
+    schemas: Set[str] = set()
     if "$schemas" in metadata:
         for each_schema in metadata["$schemas"]:
             schemas.add(each_schema)
@@ -259,7 +271,7 @@ def pack(
         ):
             continue
         dc = cast(Dict[str, Any], copy.deepcopy(dcr))
-        v = rewrite[r]
+        v = rewrite_inputs[r]
         dc["id"] = v
         for n in ("name", "cwlVersion", "$namespaces", "$schemas"):
             if n in dc:
@@ -271,11 +283,28 @@ def pack(
     if namespaces:
         packed["$namespaces"] = namespaces
 
-    for r in list(rewrite.keys()):
-        v = rewrite[r]
-        replace_refs(packed, rewrite, r + "/" if "#" in r else r + "#", v + "/")
+    save_outputs = packed["$graph"][0].pop("outputs")
+    for r in list(rewrite_inputs.keys()):
+        v = rewrite_inputs[r]
+        replace_refs(packed, rewrite_inputs, r + "/" if "#" in r else r + "#", v + "/")
 
     import_embed(packed, set())
+
+    packed["$graph"][0]["outputs"] = save_outputs
+    for r in list(rewrite_outputs.keys()):
+        v = rewrite_outputs[r]
+        replace_refs(
+            packed["$graph"][0]["outputs"],
+            rewrite_outputs,
+            r + "/" if "#" in r else r + "#",
+            v + "/",
+        )
+
+    for r in list(
+        rewrite_inputs.keys()
+    ):  # again, to process the outputSource references
+        v = rewrite_inputs[r]
+        replace_refs(packed, rewrite_inputs, r + "/" if "#" in r else r + "#", v + "/")
 
     if len(packed["$graph"]) == 1:
         # duplicate 'cwlVersion', '$schemas', and '$namespaces' inside '$graph'
@@ -286,5 +315,9 @@ def pack(
             packed["$graph"][0]["$schemas"] = list(schemas)
         if namespaces:
             packed["$graph"][0]["$namespaces"] = namespaces
+
+    if rewrite_out is not None:
+        rewrite_out.update(rewrite_inputs)
+        rewrite_out.update(rewrite_outputs)
 
     return packed

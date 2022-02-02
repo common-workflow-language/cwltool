@@ -6,14 +6,7 @@ import os.path
 import re
 import shutil
 import sys
-from subprocess import (  # nosec
-    DEVNULL,
-    PIPE,
-    Popen,
-    TimeoutExpired,
-    check_call,
-    check_output,
-)
+from subprocess import check_call, check_output  # nosec
 from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, cast
 
 from schema_salad.sourceline import SourceLine
@@ -24,31 +17,10 @@ from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
+from .singularity_utils import singularity_supports_userns
 from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_writable
 
-_USERNS = None  # type: Optional[bool]
 _SINGULARITY_VERSION = ""
-
-
-def _singularity_supports_userns() -> bool:
-    global _USERNS  # pylint: disable=global-statement
-    if _USERNS is None:
-        try:
-            hello_image = os.path.join(os.path.dirname(__file__), "hello.simg")
-            result = Popen(  # nosec
-                ["singularity", "exec", "--userns", hello_image, "true"],
-                stderr=PIPE,
-                stdout=DEVNULL,
-                universal_newlines=True,
-            ).communicate(timeout=60)[1]
-            _USERNS = (
-                "No valid /bin/sh" in result
-                or "/bin/sh doesn't exist in container" in result
-                or "executable file not found in" in result
-            )
-        except TimeoutExpired:
-            _USERNS = False
-    return _USERNS
 
 
 def get_version() -> str:
@@ -59,6 +31,8 @@ def get_version() -> str:
         ).strip()
         if _SINGULARITY_VERSION.startswith("singularity version "):
             _SINGULARITY_VERSION = _SINGULARITY_VERSION[20:]
+        if _SINGULARITY_VERSION.startswith("singularity-ce version "):
+            _SINGULARITY_VERSION = _SINGULARITY_VERSION[23:]
         _logger.debug(f"Singularity version: {_SINGULARITY_VERSION}.")
     return _SINGULARITY_VERSION
 
@@ -242,12 +216,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     check_call(cmd, stdout=sys.stderr)  # nosec
                     found = True
                     dockerRequirement["dockerImageId"] = name
-                raise SourceLine(
-                    dockerRequirement, "dockerLoad", WorkflowException, debug
-                ).makeError(
-                    "dockerLoad is not currently supported when using the "
-                    "Singularity runtime (version less than 3.1) for Docker containers."
-                )
+                else:
+                    raise SourceLine(
+                        dockerRequirement, "dockerLoad", WorkflowException, debug
+                    ).makeError(
+                        "dockerLoad is not currently supported when using the "
+                        "Singularity runtime (version less than 3.1) for Docker containers."
+                    )
             elif "dockerImport" in dockerRequirement:
                 raise SourceLine(
                     dockerRequirement, "dockerImport", WorkflowException, debug
@@ -406,7 +381,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             "--ipc",
             "--cleanenv",
         ]
-        if _singularity_supports_userns():
+        if singularity_supports_userns():
             runtime.append("--userns")
         else:
             runtime.append("--pid")
@@ -458,6 +433,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 runtime.extend(["--net", "--network", runtime_context.custom_net])
         else:
             runtime.extend(["--net", "--network", "none"])
+
+        cuda_req, _ = self.builder.get_requirement(
+            "http://commonwl.org/cwltool#CUDARequirement"
+        )
+        if cuda_req:
+            # Checked earlier that the device count is non-zero in _setup
+            runtime.append("--nv")
 
         for name, value in self.environment.items():
             env[f"SINGULARITYENV_{name}"] = str(value)

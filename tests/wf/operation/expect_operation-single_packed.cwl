@@ -4,7 +4,7 @@
             "class": "Operation",
             "requirements": [
                 {
-                    "dockerPull": "tsenit/cosifer:b4d5af45d2fc54b6bff2a9153a8e9054e560302e",
+                    "dockerPull": "docker.io/tsenit/cosifer:b4d5af45d2fc54b6bff2a9153a8e9054e560302e",
                     "class": "DockerRequirement"
                 }
             ],
@@ -50,13 +50,13 @@
                     "id": "#abstract-cosifer.cwl/separator"
                 }
             ],
+            "id": "#abstract-cosifer.cwl",
             "outputs": [
                 {
                     "type": "Directory",
                     "id": "#abstract-cosifer.cwl/resdir"
                 }
-            ],
-            "id": "#abstract-cosifer.cwl"
+            ]
         },
         {
             "class": "Workflow",
@@ -66,7 +66,7 @@
                 {
                     "type": "File",
                     "doc": "Gene expression data matrix",
-                    "id": "#data_matrix"
+                    "id": "#main/data_matrix"
                 },
                 {
                     "type": [
@@ -74,7 +74,7 @@
                         "File"
                     ],
                     "doc": "Optional GMT file to perform inference on multiple gene sets",
-                    "id": "#gmt_filepath"
+                    "id": "#main/gmt_filepath"
                 },
                 {
                     "type": [
@@ -82,12 +82,12 @@
                         "int"
                     ],
                     "doc": "Column index in the data. Defaults to None, a.k.a., no index",
-                    "id": "#index_col"
+                    "id": "#main/index_col"
                 },
                 {
                     "type": "string",
                     "doc": "Path to the output directory",
-                    "id": "#outdir"
+                    "id": "#main/outdir"
                 },
                 {
                     "type": [
@@ -95,7 +95,7 @@
                         "boolean"
                     ],
                     "doc": "Flag that indicates that data contain the samples on rows. Defaults to False.",
-                    "id": "#samples_on_rows"
+                    "id": "#main/samples_on_rows"
                 },
                 {
                     "type": [
@@ -103,14 +103,14 @@
                         "string"
                     ],
                     "doc": "Separator for the data. Defaults to .",
-                    "id": "#separator"
+                    "id": "#main/separator"
                 }
             ],
             "outputs": [
                 {
                     "type": "Directory",
-                    "outputSource": "#/abstract_cosifer/resdir",
-                    "id": "#resdir"
+                    "outputSource": "#main/abstract_cosifer/resdir",
+                    "id": "#main/resdir"
                 }
             ],
             "steps": [
@@ -118,34 +118,34 @@
                     "run": "#abstract-cosifer.cwl",
                     "in": [
                         {
-                            "source": "#data_matrix",
-                            "id": "#abstract_cosifer/data_matrix"
+                            "source": "#main/data_matrix",
+                            "id": "#main/abstract_cosifer/data_matrix"
                         },
                         {
-                            "source": "#gmt_filepath",
-                            "id": "#abstract_cosifer/gmt_filepath"
+                            "source": "#main/gmt_filepath",
+                            "id": "#main/abstract_cosifer/gmt_filepath"
                         },
                         {
-                            "source": "#index_col",
-                            "id": "#abstract_cosifer/index_col"
+                            "source": "#main/index_col",
+                            "id": "#main/abstract_cosifer/index_col"
                         },
                         {
-                            "source": "#outdir",
-                            "id": "#abstract_cosifer/outdir"
+                            "source": "#main/outdir",
+                            "id": "#main/abstract_cosifer/outdir"
                         },
                         {
-                            "source": "#samples_on_rows",
-                            "id": "#abstract_cosifer/samples_on_rows"
+                            "source": "#main/samples_on_rows",
+                            "id": "#main/abstract_cosifer/samples_on_rows"
                         },
                         {
-                            "source": "#separator",
-                            "id": "#abstract_cosifer/separator"
+                            "source": "#main/separator",
+                            "id": "#main/abstract_cosifer/separator"
                         }
                     ],
                     "out": [
-                        "#/abstract_cosifer/resdir"
+                        "#main/abstract_cosifer/resdir"
                     ],
-                    "id": "#abstract_cosifer"
+                    "id": "#main/abstract_cosifer"
                 }
             ]
         }

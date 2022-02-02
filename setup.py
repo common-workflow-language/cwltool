@@ -73,7 +73,7 @@ if USE_MYPYC:
         "cwltool/secrets.py",
         "cwltool/singularity.py",
         "cwltool/software_requirements.py",
-        "cwltool/stdfsaccess.py",
+        # "cwltool/stdfsaccess.py",  # StdFsAccess needs to be subclassable
         "cwltool/subgraph.py",
         "cwltool/update.py",
         "cwltool/utils.py",
@@ -108,12 +108,10 @@ setup(
         "setuptools",
         "requests >= 2.6.1",  # >= 2.6.1 to workaround
         # https://github.com/ionrock/cachecontrol/issues/137
-        "ruamel.yaml >= 0.15, < 0.17.17",
-        "rdflib >= 4.2.2, < 6.1.0",
+        "ruamel.yaml >= 0.15, < 0.17.21",
+        "rdflib >= 4.2.2, < 6.2.0",
         "shellescape >= 3.4.1, < 3.9",
-        # 7.1.20210518142926 or later required due to
-        # https://github.com/common-workflow-language/schema_salad/issues/385
-        "schema-salad >= 8.2, < 9",
+        "schema-salad >= 8.2.20211104054942, < 9",
         "mypy-extensions",
         "psutil >= 5.6.6",
         "prov == 1.5.1",
@@ -121,19 +119,13 @@ setup(
         "typing-extensions",
         "coloredlogs",
         "pydot >= 1.4.1",
+        "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
         "argcomplete",
     ],
     extras_require={
         "deps": ["galaxy-tool-util >= 21.1.0"],
-        "docs": [
-            "sphinx >= 2.2",
-            "sphinx-rtd-theme",
-            "sphinx-autoapi",
-            "sphinx-autodoc-typehints",
-            "typed_ast;python_version<'3.8'",
-        ],
     },
-    python_requires=">=3.6, <4",
+    python_requires=">=3.7, <4",
     setup_requires=PYTEST_RUNNER,
     test_suite="tests",
     tests_require=[
@@ -158,10 +150,10 @@ setup(
         "Operating System :: POSIX",
         "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Topic :: Scientific/Engineering :: Astronomy",

@@ -89,14 +89,51 @@ if TYPE_CHECKING:
 
 
 class PathCheckingMode(Enum):
-    """What characters are allowed in path names.
+    """
+    What characters are allowed in path names.
 
-    We have the strict, default mode and the relaxed mode.
+    We have the strict (default) mode and the relaxed mode.
     """
 
-    STRICT = re.compile(
-        r"^[\w.+\-\u2600-\u26FF\U0001f600-\U0001f64f]+$"
-    )  # accept unicode word characters and emojis
+    STRICT = re.compile(r"^[\w.+\,\-:@\]^\u2600-\u26FF\U0001f600-\U0001f64f]+$")
+    # accepts names that contain one or more of the following:
+    # "\w"                  unicode word characters; this includes most characters
+    #                            that can be part of a word in any language, as well
+    #                            as numbers and the underscore
+    # "."                    a literal period
+    # "+"                    a literal plus sign
+    # "\,"                  a literal comma
+    # "\-"                  a literal minus sign
+    # ":"                    a literal colon
+    # "@"                    a literal at-symbol
+    # "\]"                  a literal end-square-bracket
+    # "^"                    a literal caret symbol
+    # \u2600-\u26FF                  matches a single character in the range between
+    #                       ☀ (index 9728) and ⛿ (index 9983)
+    # \U0001f600-\U0001f64f matches a single character in the range between
+    #                       😀 (index 128512) and 🙏 (index 128591)
+
+    # Note: the following characters are intentionally not included:
+    #
+    # 1. reserved words in POSIX:
+    # ! { }
+    #
+    # 2. POSIX metacharacters listed in the CWL standard as okay to reject
+    # | & ; < > ( ) $ ` " ' <space> <tab> <newline>
+    # (In accordance with
+    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path" )
+    #
+    # 3. POSIX path separator
+    # \
+    # (also listed at
+    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path")
+    #
+    # 4. Additional POSIX metacharacters
+    # * ? [ # ˜ = %
+
+    # TODO: switch to https://pypi.org/project/regex/ and use
+    # `\p{Extended_Pictographic}` instead of the manual emoji ranges
+
     RELAXED = re.compile(r".*")  # Accept anything
 
 
@@ -200,12 +237,16 @@ def revmap_file(
     outside the container. Recognizes files in the pathmapper or remaps
     internal output directories to the external directory.
     """
-    split = urllib.parse.urlsplit(outdir)
-    if not split.scheme:
-        outdir = file_uri(str(outdir))
 
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
+
+    if outdir.startswith("/"):
+        # local file path, turn it into a file:// URI
+        outdir = file_uri(outdir)
+
+    # note: outer outdir should already be a URI and should not be URI
+    # quoted any further.
 
     if "location" in f and "path" not in f:
         location = cast(str, f["location"])
@@ -240,17 +281,16 @@ def revmap_file(
             or uripath.startswith(outdir + os.sep)
             or uripath.startswith(outdir + "/")
         ):
-            f["location"] = file_uri(path)
+            f["location"] = uripath
         elif (
             path == builder.outdir
             or path.startswith(builder.outdir + os.sep)
             or path.startswith(builder.outdir + "/")
         ):
-            f["location"] = builder.fs_access.join(
-                outdir, path[len(builder.outdir) + 1 :]
+            joined_path = builder.fs_access.join(
+                outdir, urllib.parse.quote(path[len(builder.outdir) + 1 :])
             )
-        elif not os.path.isabs(path):
-            f["location"] = builder.fs_access.join(outdir, path)
+            f["location"] = joined_path
         else:
             raise WorkflowException(
                 "Output file path %s must be within designated output directory (%s) or an input "
@@ -468,9 +508,9 @@ class CommandLineTool(Process):
             return
         debug = _logger.isEnabledFor(logging.DEBUG)
         cwl_version = cast(Optional[str], self.metadata.get(ORIGINAL_CWLVERSION, None))
-        classic_dirent = cwl_version and ORDERED_VERSIONS.index(
-            cwl_version
-        ) < ORDERED_VERSIONS.index("v1.2.0-dev2")
+        classic_dirent: bool = cwl_version is not None and (
+            ORDERED_VERSIONS.index(cwl_version) < ORDERED_VERSIONS.index("v1.2.0-dev2")
+        )
         classic_listing = cwl_version and ORDERED_VERSIONS.index(
             cwl_version
         ) < ORDERED_VERSIONS.index("v1.1.0-dev1")
@@ -486,8 +526,19 @@ class CommandLineTool(Process):
             if not isinstance(ls_evaluated, MutableSequence):
                 fail = ls_evaluated
             else:
-                for entry in ls_evaluated:
-                    if isinstance(entry, MutableSequence):
+                ls_evaluated2 = cast(
+                    MutableSequence[Union[None, CWLOutputType]], ls_evaluated
+                )
+                for entry in ls_evaluated2:
+                    if entry == None:  # noqa
+                        if classic_dirent:
+                            fail = entry
+                            fail_suffix = (
+                                " Dirent.entry cannot return 'null' before CWL "
+                                "v1.2. Please consider using 'cwl-upgrader' to "
+                                "upgrade your document to CWL version v1.2."
+                            )
+                    elif isinstance(entry, MutableSequence):
                         if classic_listing:
                             raise SourceLine(
                                 initialWorkdir, "listing", WorkflowException, debug
@@ -513,24 +564,14 @@ class CommandLineTool(Process):
                                         "not a File nor a Directory object."
                                     )
                     elif not (
-                        (
-                            isinstance(entry, MutableMapping)
-                            and (
-                                "class" in entry
-                                and (entry["class"] == "File" or "Directory")
-                                or "entry" in "entry"
-                            )
+                        isinstance(entry, MutableMapping)
+                        and (
+                            "class" in entry
+                            and (entry["class"] == "File" or "Directory")
+                            or "entry" in entry
                         )
                     ):
                         fail = entry
-                    elif entry is None:
-                        if classic_dirent:
-                            fail = entry
-                            fail_suffix = (
-                                " Dirent.entry cannot return 'null' before CWL "
-                                "v1.2. Please consider using 'cwl-upgrader' to "
-                                "upgrade your document to CWL version v1.2."
-                            )
             if fail is not False:
                 message = (
                     "Expression in a 'InitialWorkdirRequirement.listing' field "
@@ -602,7 +643,7 @@ class CommandLineTool(Process):
                         "File",
                         "Directory",
                     ):
-                        et["entry"] = entry
+                        et["entry"] = cast(CWLOutputType, entry)
                     else:
                         if isinstance(entry, str):
                             et["entry"] = entry
@@ -732,8 +773,10 @@ class CommandLineTool(Process):
                         initialWorkdir, "listing", WorkflowException, debug
                     ).makeError(
                         f"Name '{basename}' at index {i} of listing is invalid, "
-                        "paths starting with '/' only permitted in CWL 1.2 "
-                        "and later."
+                        "paths starting with '/' are only permitted in CWL 1.2 "
+                        "and later. Consider changing the absolute path to a relative "
+                        "path, or upgrade the CWL description to CWL v1.2 using "
+                        "https://pypi.org/project/cwl-upgrader/"
                     )
 
                 req, is_req = self.get_requirement("DockerRequirement")
@@ -1332,6 +1375,15 @@ class CommandLineTool(Process):
                             )
                         try:
                             prefix = fs_access.glob(outdir)
+                            sorted_glob_result = sorted(
+                                fs_access.glob(fs_access.join(outdir, gb)),
+                                key=cmp_to_key(
+                                    cast(
+                                        Callable[[str, str], int],
+                                        locale.strcoll,
+                                    )
+                                ),
+                            )
                             r.extend(
                                 [
                                     {
@@ -1342,24 +1394,24 @@ class CommandLineTool(Process):
                                                 g[len(prefix[0]) + 1 :]
                                             ),
                                         ),
-                                        "basename": os.path.basename(g),
-                                        "nameroot": os.path.splitext(
-                                            os.path.basename(g)
-                                        )[0],
-                                        "nameext": os.path.splitext(
-                                            os.path.basename(g)
-                                        )[1],
+                                        "basename": decoded_basename,
+                                        "nameroot": os.path.splitext(decoded_basename)[
+                                            0
+                                        ],
+                                        "nameext": os.path.splitext(decoded_basename)[
+                                            1
+                                        ],
                                         "class": "File"
                                         if fs_access.isfile(g)
                                         else "Directory",
                                     }
-                                    for g in sorted(
-                                        fs_access.glob(fs_access.join(outdir, gb)),
-                                        key=cmp_to_key(
-                                            cast(
-                                                Callable[[str, str], int],
-                                                locale.strcoll,
-                                            )
+                                    for g, decoded_basename in zip(
+                                        sorted_glob_result,
+                                        map(
+                                            lambda x: os.path.basename(
+                                                urllib.parse.unquote(x)
+                                            ),
+                                            sorted_glob_result,
                                         ),
                                     )
                                 ]

@@ -247,24 +247,22 @@ Annotation = TypedDict(
         "oa:motivatedBy": Dict[str, str],
     },
 )
-Aggregate = TypedDict(
-    "Aggregate",
-    {
-        "uri": Optional[str],
-        "bundledAs": Optional[Dict[str, Any]],
-        "mediatype": Optional[str],
-        "conformsTo": Optional[Union[str, List[str]]],
-        "createdOn": Optional[str],
-        "createdBy": Optional[Dict[str, str]],
-    },
-    total=False,
-)
+
+
+class Aggregate(TypedDict, total=False):
+    uri: Optional[str]
+    bundledAs: Optional[Dict[str, Any]]
+    mediatype: Optional[str]
+    conformsTo: Optional[Union[str, List[str]]]
+    createdOn: Optional[str]
+    createdBy: Optional[Dict[str, str]]
+
+
 # Aggregate.bundledAs is actually type Aggregate, but cyclic definitions are not suported
-AuthoredBy = TypedDict(
-    "AuthoredBy",
-    {"orcid": Optional[str], "name": Optional[str], "uri": Optional[str]},
-    total=False,
-)
+class AuthoredBy(TypedDict, total=False):
+    orcid: Optional[str]
+    name: Optional[str]
+    uri: Optional[str]
 
 
 class ResearchObject:
@@ -959,13 +957,8 @@ class ResearchObject:
                         relative_path = self.add_data_file(fp)
                         checksum = PurePosixPath(relative_path).name
                         structure["checksum"] = f"{SHA1}${checksum}"
-                if relative_path is not None:
-                    # RO-relative path as new location
-                    structure["location"] = str(PurePosixPath("..") / relative_path)
-                else:
-                    _logger.warning(
-                        "Could not determine RO path for file %s", structure
-                    )
+                # RO-relative path as new location
+                structure["location"] = str(PurePosixPath("..") / relative_path)
                 if "path" in structure:
                     del structure["path"]
 

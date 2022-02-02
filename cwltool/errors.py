@@ -9,4 +9,6 @@ class UnsupportedRequirement(WorkflowException):
 class ArgumentException(Exception):
     """Mismatched command line arguments provided."""
 
-    pass
+
+class GraphTargetMissingException(WorkflowException):
+    """When a $graph is encountered and there is no target and no main/#main."""

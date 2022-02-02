@@ -1,0 +1,183 @@
+{
+  "class": "Workflow",
+  "cwlVersion": "v1.2",
+  "id": "count-lines17-wf",
+  "inputs": [
+    {
+      "id": "file1",
+      "type": "File"
+    }
+  ],
+  "outputs": [
+    {
+      "id": "count_output",
+      "outputSource": "step1/count_output",
+      "type": "int"
+    }
+  ],
+  "requirements": [
+    {
+      "class": "SubworkflowFeatureRequirement"
+    },
+    {
+      "class": "InlineJavascriptRequirement"
+    }
+  ],
+  "steps": [
+    {
+      "id": "step1",
+      "in": [
+        {
+          "id": "file1",
+          "source": "file1"
+        }
+      ],
+      "out": [
+        "count_output"
+      ],
+      "run": {
+        "class": "Workflow",
+        "id": "count-lines17-wf.cwl@step_step1@run",
+        "inputs": [
+          {
+            "id": "file1",
+            "type": "File"
+          }
+        ],
+        "outputs": [
+          {
+            "id": "count_output",
+            "outputSource": "stepZ/output",
+            "type": "int"
+          }
+        ],
+        "requirements": [
+          {
+            "class": "SubworkflowFeatureRequirement"
+          },
+          {
+            "class": "InlineJavascriptRequirement"
+          }
+        ],
+        "steps": [
+          {
+            "id": "stepX",
+            "in": [
+              {
+                "id": "file1",
+                "source": "file1"
+              }
+            ],
+            "out": [
+              "wc_output"
+            ],
+            "run": {
+              "class": "Workflow",
+              "id": "count-lines17-wf.cwl@step_step1@run@step_stepX@run",
+              "inputs": [
+                {
+                  "id": "file1",
+                  "type": "File"
+                }
+              ],
+              "outputs": [
+                {
+                  "id": "wc_output",
+                  "outputSource": "stepY/output",
+                  "type": "File"
+                }
+              ],
+              "requirements": [
+                {
+                  "class": "SubworkflowFeatureRequirement"
+                },
+                {
+                  "class": "InlineJavascriptRequirement"
+                }
+              ],
+              "steps": [
+                {
+                  "id": "stepY",
+                  "in": [
+                    {
+                      "id": "file1",
+                      "source": "file1"
+                    }
+                  ],
+                  "out": [
+                    "output"
+                  ],
+                  "run": {
+                    "baseCommand": [
+                      "wc",
+                      "-l"
+                    ],
+                    "class": "CommandLineTool",
+                    "id": "count-lines17-wf.cwl@step_step1@run@step_stepX@run@step_stepY@run",
+                    "inputs": [
+                      {
+                        "id": "file1",
+                        "type": "File"
+                      }
+                    ],
+                    "outputs": [
+                      {
+                        "id": "output",
+                        "outputBinding": {
+                          "glob": "output"
+                        },
+                        "type": "File"
+                      }
+                    ],
+                    "requirements": [
+                      {
+                        "class": "InlineJavascriptRequirement"
+                      }
+                    ],
+                    "stdin": "$(inputs.file1.path)",
+                    "stdout": "output"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "id": "stepZ",
+            "in": [
+              {
+                "id": "file1",
+                "source": "stepX/wc_output"
+              }
+            ],
+            "out": [
+              "output"
+            ],
+            "run": {
+              "class": "ExpressionTool",
+              "expression": "$({'output': parseInt(inputs.file1.contents)})",
+              "id": "count-lines17-wf.cwl@step_step1@run@step_stepZ@run",
+              "inputs": [
+                {
+                  "id": "file1",
+                  "loadContents": true,
+                  "type": "File"
+                }
+              ],
+              "outputs": [
+                {
+                  "id": "output",
+                  "type": "int"
+                }
+              ],
+              "requirements": [
+                {
+                  "class": "InlineJavascriptRequirement"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

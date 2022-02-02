@@ -1,0 +1,4 @@
+mypy==0.931
+types-requests
+types-setuptools
+types-psutil

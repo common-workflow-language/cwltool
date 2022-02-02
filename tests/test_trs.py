@@ -2,6 +2,7 @@ from typing import Any, Optional
 from unittest import mock
 from unittest.mock import MagicMock
 
+from cwltool.loghandler import _logger
 from cwltool.main import main
 
 from .util import get_data
@@ -21,8 +22,7 @@ class MockResponse1:
         return self.json_data
 
 
-def mocked_requests_head(*args: Any) -> MockResponse1:
-
+def mocked_requests_head(*args: Any, **kwargs: Any) -> MockResponse1:
     return MockResponse1(None, 200)
 
 
@@ -87,14 +87,18 @@ def mocked_requests_get(*args: Any, **kwargs: Any) -> MockResponse2:
             200,
         )
 
-    print("A mocked call to TRS missed, target was %s", args[0])
+    _logger.debug("A mocked call to TRS missed, target was %s", args[0])
     return MockResponse2(None, 404)
 
 
 @mock.patch("requests.Session.head", side_effect=mocked_requests_head)
 @mock.patch("requests.Session.get", side_effect=mocked_requests_get)
 def test_tool_trs_template(mock_head: MagicMock, mock_get: MagicMock) -> None:
-    params = ["--make-template", r"quay.io/briandoconnor/dockstore-tool-md5sum:1.0.4"]
+    params = [
+        "--debug",
+        "--make-template",
+        r"quay.io/briandoconnor/dockstore-tool-md5sum:1.0.4",
+    ]
     return_value = main(params)
     mock_head.assert_called()
     mock_get.assert_called()
@@ -105,6 +109,7 @@ def test_tool_trs_template(mock_head: MagicMock, mock_get: MagicMock) -> None:
 @mock.patch("requests.Session.get", side_effect=mocked_requests_get)
 def test_workflow_trs_template(mock_head: MagicMock, mock_get: MagicMock) -> None:
     params = [
+        "--debug",
         "--make-template",
         r"#workflow/github.com/dockstore-testing/md5sum-checker:develop",
     ]

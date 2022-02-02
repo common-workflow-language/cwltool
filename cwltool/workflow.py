@@ -20,7 +20,7 @@ from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
 
 from . import command_line_tool, context, procgenerator
-from .checker import static_checker
+from .checker import circular_dependency_checker, static_checker
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import WorkflowException
 from .load_tool import load_tool
@@ -139,6 +139,7 @@ class Workflow(Process):
                 step_outputs,
                 param_to_step,
             )
+            circular_dependency_checker(step_inputs)
 
     def make_workflow_step(
         self,
@@ -206,11 +207,19 @@ class WorkflowStep(Process):
 
         loadingContext = loadingContext.copy()
 
+        parent_requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
         loadingContext.requirements = copy.deepcopy(
-            getdefault(loadingContext.requirements, [])
+            toolpath_object.get("requirements", [])
         )
         assert loadingContext.requirements is not None  # nosec
-        loadingContext.requirements.extend(toolpath_object.get("requirements", []))
+        for parent_req in parent_requirements:
+            found_in_step = False
+            for step_req in loadingContext.requirements:
+                if parent_req["class"] == step_req["class"]:
+                    found_in_step = True
+                    break
+            if not found_in_step:
+                loadingContext.requirements.append(parent_req)
         loadingContext.requirements.extend(
             cast(
                 List[CWLObjectType],

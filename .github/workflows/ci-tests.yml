@@ -7,8 +7,12 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+concurrency:
+  group: build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
-  singularity_version: 3.6.4
+  singularity_version: 3.8.3
 
 jobs:
 
@@ -20,7 +24,7 @@ jobs:
     strategy:
       matrix:
         py-ver-major: [3]
-        py-ver-minor: [6, 7, 8, 9]
+        py-ver-minor: [7, 8, 9, 10]
         step: [lint, unit, bandit, mypy]
 
     env:
@@ -34,7 +38,7 @@ jobs:
 
       - name: Set up Singularity
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
-        uses: eWaterCycle/setup-singularity@v6
+        uses: eWaterCycle/setup-singularity@v7
         with:
           singularity-version: ${{ env.singularity_version }}
 
@@ -46,12 +50,10 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.py-semver }}
-
-      - name: Cache for pip
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.step }}-${{ hashFiles('requirements.txt', 'tox.ini') }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tox.ini
 
       - name: Upgrade setuptools and install tox
         run: |
@@ -70,7 +72,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: ${{ matrix.step == 'unit' }}
-        uses: codecov/codecov-action@v2.0.3
+        uses: codecov/codecov-action@v2.1.0
         with:
           fail_ci_if_error: true
 
@@ -84,8 +86,8 @@ jobs:
         step: [lintreadme, shellcheck, pydocstyle]
 
     env:
-      py-semver: 3.9
-      TOXENV: ${{ format('py39-{0}', matrix.step) }}
+      py-semver: "3.10"
+      TOXENV: ${{ format('py310-{0}', matrix.step) }}
 
     steps:
       - uses: actions/checkout@v2
@@ -96,12 +98,7 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ env.py-semver }}
-
-      - name: Cache for pip
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.step }}-${{ hashFiles('requirements.txt') }}
+          cache: pip
 
       - name: Upgrade setuptools and install tox
         run: |
@@ -123,13 +120,13 @@ jobs:
     strategy:
       matrix:
         cwl-version: [v1.0, v1.1, v1.2]
-        container: [docker, singularity]
+        container: [docker, singularity, podman]
 
     steps:
       - uses: actions/checkout@v2
 
       - name: Set up Singularity
-        uses: eWaterCycle/setup-singularity@v6
+        uses: eWaterCycle/setup-singularity@v7
         with:
           singularity-version: ${{ env.singularity_version }}
 
@@ -137,12 +134,7 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.9
-
-      - name: Cache for pip
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-conformance-${{ matrix.step }}-${{ hashFiles('requirements.txt') }}
+          cache: pip
 
       - name: Run CWL conformance tests ${{ matrix.cwl-version }}
         env:
@@ -160,23 +152,21 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Set up Singularity
-        uses: eWaterCycle/setup-singularity@v6
+        uses: eWaterCycle/setup-singularity@v7
         with:
           singularity-version: ${{ env.singularity_version }}
 
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.9
+          python-version: "3.10"  # quoted, otherwise that turns into the number 3.1
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            test-requirements.txt
 
       - name: Give the test runner user a name to make provenance happy.
         run: sudo usermod -c 'CI Runner' $(whoami)
-
-      - name: Cache for pip
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-release-${{ hashFiles('requirements.txt', 'test-requirements.txt') }}
 
       - name: Install packages
         run: |
