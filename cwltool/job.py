@@ -226,7 +226,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                         indent=4,
                     ),
                 )
-        self.base_path_logs = runtimeContext.set_log_dir(self.outdir, runtimeContext.log_dir, self.name)
+        self.base_path_logs = runtimeContext.set_log_dir(
+            self.outdir, runtimeContext.log_dir, self.name
+        )
 
     def _execute(
         self,
