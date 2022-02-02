@@ -549,7 +549,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             _logger.info(
                 "[job %s] Max memory used: %iMiB",
                 self.name,
-                round(memory_usage[0] / (2 ** 20)),
+                round(memory_usage[0] / (2**20)),
             )
         else:
             _logger.debug(
@@ -937,7 +937,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         _logger.info(
             "[job %s] Max memory used: %iMiB",
             self.name,
-            int((max_mem_percent / 100 * max_mem) / (2 ** 20)),
+            int((max_mem_percent / 100 * max_mem) / (2**20)),
         )
         if cleanup_cidfile:
             os.remove(cidfile)
