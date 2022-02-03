@@ -427,6 +427,8 @@ def init_job_order(
             namemap,
             records,
             input_required,
+            loader.fetcher.urljoin,
+            file_uri(os.getcwd()) + "/",
         )
         if args.tool_help:
             toolparser.print_help(cast(IO[str], stdout))

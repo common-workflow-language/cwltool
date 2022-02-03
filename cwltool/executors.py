@@ -221,6 +221,7 @@ class SingleJobExecutor(JobExecutor):
                 fsaccess=runtime_context.make_fs_access(""),
             )
             process.parent_wf = process.provenance_object
+
         jobiter = process.job(job_order_object, self.output_callback, runtime_context)
 
         try:
