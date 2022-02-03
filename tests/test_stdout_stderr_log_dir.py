@@ -13,8 +13,14 @@ def test_log_dir_echo_output(tmp_path: Path) -> None:
     )
     assert "completed success" in stderr, stderr
     assert json.loads(stdout)["out"].strip("\n") == "hello"
-    # and then check in `tmp_path` that there is no stdout log file, since `echo.cwl` uses `stdout` itself.
-    # should there be an empty stderr log, though?
+    assert len(list(tmp_path.iterdir())) == 1
+    subdir = next(tmp_path.iterdir())
+    assert subdir.is_dir()
+    assert len(list(subdir.iterdir())) == 1
+    result = next(subdir.iterdir())
+    assert result.name == "out.txt"
+    output = open(result).read()
+    assert output == "hello\n"
 
 
 def test_log_dir_echo_no_output(tmp_path: Path) -> None:
@@ -27,8 +33,33 @@ def test_log_dir_echo_no_output(tmp_path: Path) -> None:
             "hello",
         ]
     )
-    for dir in os.listdir(tmp_path):
-        for file in os.listdir(f"{tmp_path}/{dir}"):
-            assert file == "out.txt"
-            output = open(f"{tmp_path}/{dir}/{file}", "r").read()
-            assert "hello" in output
+    assert len(list(tmp_path.iterdir())) == 1
+    subdir = next(tmp_path.iterdir())
+    assert subdir.name == "echo"
+    assert subdir.is_dir()
+    assert len(list(subdir.iterdir())) == 1
+    result = next(subdir.iterdir())
+    assert result.name == "out.txt"
+    output = open(result).read()
+    assert output == "hello\n"
+
+
+def test_log_dir_echo_stderr(tmp_path: Path) -> None:
+    _, stdout, stderr = get_main_output(
+        [
+            "--log-dir",
+            str(tmp_path),
+            get_data("tests/echo-stderr.cwl"),
+            "--message",
+            "hello",
+        ]
+    )
+    assert len(list(tmp_path.iterdir())) == 1
+    subdir = next(tmp_path.iterdir())
+    assert subdir.name == "echo-stderr.cwl"
+    assert subdir.is_dir()
+    assert len(list(subdir.iterdir())) == 1
+    result = next(subdir.iterdir())
+    assert result.name == "out.txt"
+    output = open(result).read()
+    assert output == "hello\n"
