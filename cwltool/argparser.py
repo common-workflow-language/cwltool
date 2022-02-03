@@ -12,6 +12,7 @@ from typing import (
     MutableSequence,
     Optional,
     Sequence,
+    Type,
     Union,
     cast,
 )
@@ -737,7 +738,7 @@ class FSAction(argparse.Action):
         self,
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
-        values: Union[AnyStr, Sequence[Any], None],
+        values: Union[str, Sequence[Any], None],
         option_string: Optional[str] = None,
     ) -> None:
         setattr(
@@ -745,7 +746,7 @@ class FSAction(argparse.Action):
             self.dest,
             {
                 "class": self.objclass,
-                "location": self.urljoin(self.base_uri, cast(AnyStr, values)),
+                "location": self.urljoin(self.base_uri, cast(str, values)),
             },
         )
 
@@ -773,7 +774,7 @@ class FSAppendAction(argparse.Action):
         self,
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
-        values: Union[AnyStr, Sequence[Any], None],
+        values: Union[str, Sequence[Any], None],
         option_string: Optional[str] = None,
     ) -> None:
         g = getattr(namespace, self.dest)
@@ -783,7 +784,7 @@ class FSAppendAction(argparse.Action):
         g.append(
             {
                 "class": self.objclass,
-                "location": self.urljoin(self.base_uri, cast(AnyStr, values)),
+                "location": self.urljoin(self.base_uri, cast(str, values)),
             }
         )
 
@@ -837,19 +838,19 @@ def add_argument(
             return None
 
     ahelp = description.replace("%", "%%")
-    action = None  # type: Optional[Union[argparse.Action, str]]
+    action = None  # type: Optional[Union[Type[argparse.Action], str]]
     atype = None  # type: Any
-    typekw = {}
+    typekw = {}  # type: Dict[str, Any]
 
     if inptype == "File":
-        action = cast(argparse.Action, FileAction)
+        action = FileAction
     elif inptype == "Directory":
-        action = cast(argparse.Action, DirectoryAction)
+        action = DirectoryAction
     elif isinstance(inptype, MutableMapping) and inptype["type"] == "array":
         if inptype["items"] == "File":
-            action = cast(argparse.Action, FileAppendAction)
+            action = FileAppendAction
         elif inptype["items"] == "Directory":
-            action = cast(argparse.Action, DirectoryAppendAction)
+            action = DirectoryAppendAction
         else:
             action = "append"
     elif isinstance(inptype, MutableMapping) and inptype["type"] == "enum":
