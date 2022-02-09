@@ -1104,42 +1104,28 @@ def nestdir(base: str, deps: CWLObjectType) -> CWLObjectType:
         sp = s2.split("/")
         sp.pop()
         while sp:
+            loc = dirname+"/".join(sp)
             nx = sp.pop()
-            deps = {"class": "Directory", "basename": nx, "listing": [deps]}
+            deps = {"class": "Directory", "basename": nx, "listing": [deps], "location": loc}
     return deps
 
 
 def mergedirs(listing: List[CWLObjectType]) -> List[CWLObjectType]:
     r = []  # type: List[CWLObjectType]
     ents = {}  # type: Dict[str, CWLObjectType]
-    collided = set()  # type: Set[str]
     for e in listing:
         basename = cast(str, e["basename"])
         if basename not in ents:
             ents[basename] = e
+        elif e["location"] != ents[basename]["location"]:
+            raise Exception("Conflict between %s and %s", e["location"], ents[basename]["location"])
         elif e["class"] == "Directory":
             if e.get("listing"):
+                # name already in entries
+                # merge it into the existing listing
                 cast(
                     List[CWLObjectType], ents[basename].setdefault("listing", [])
                 ).extend(cast(List[CWLObjectType], e["listing"]))
-            if cast(str, ents[basename]["location"]).startswith("_:"):
-                ents[basename]["location"] = e["location"]
-        elif e["location"] != ents[basename]["location"]:
-            # same basename, different location, collision,
-            # rename both.
-            collided.add(basename)
-            e2 = ents[basename]
-
-            e["basename"] = urllib.parse.quote(cast(str, e["location"]), safe="")
-            e2["basename"] = urllib.parse.quote(cast(str, e2["location"]), safe="")
-
-            e["nameroot"], e["nameext"] = os.path.splitext(cast(str, e["basename"]))
-            e2["nameroot"], e2["nameext"] = os.path.splitext(cast(str, e2["basename"]))
-
-            ents[cast(str, e["basename"])] = e
-            ents[cast(str, e2["basename"])] = e2
-    for c in collided:
-        del ents[c]
     for e in ents.values():
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = cast(
@@ -1268,8 +1254,7 @@ def scandeps(
                         )
                         if sf:
                             deps2["secondaryFiles"] = cast(
-                                MutableSequence[CWLOutputAtomType], sf
-                            )
+                                MutableSequence[CWLOutputAtomType], mergedirs(sf))
                         if nestdirs:
                             deps2 = nestdir(base, deps2)
                         r.append(deps2)
@@ -1313,7 +1298,6 @@ def scandeps(
 
     if r:
         normalizeFilesDirs(r)
-        r = mergedirs(cast(List[CWLObjectType], r))
 
     return r
 
