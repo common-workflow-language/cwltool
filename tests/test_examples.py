@@ -546,6 +546,14 @@ def test_scandeps_samedirname() -> None:
 
     assert scanned_deps == expected_deps
 
+def test_scandeps_collision() -> None:
+    stream = StringIO()
+
+    assert main(
+        ["--print-deps", "--debug", get_data("tests/wf/dir_deps.json")],
+        stdout=stream,
+    ) == 1
+
 
 def test_trick_scandeps() -> None:
     stream = StringIO()
