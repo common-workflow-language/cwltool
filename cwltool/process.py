@@ -1104,42 +1104,38 @@ def nestdir(base: str, deps: CWLObjectType) -> CWLObjectType:
         sp = s2.split("/")
         sp.pop()
         while sp:
+            loc = dirname + "/".join(sp)
             nx = sp.pop()
-            deps = {"class": "Directory", "basename": nx, "listing": [deps]}
+            deps = {
+                "class": "Directory",
+                "basename": nx,
+                "listing": [deps],
+                "location": loc,
+            }
     return deps
 
 
-def mergedirs(listing: List[CWLObjectType]) -> List[CWLObjectType]:
+def mergedirs(
+    listing: MutableSequence[CWLObjectType],
+) -> MutableSequence[CWLObjectType]:
     r = []  # type: List[CWLObjectType]
     ents = {}  # type: Dict[str, CWLObjectType]
-    collided = set()  # type: Set[str]
     for e in listing:
         basename = cast(str, e["basename"])
         if basename not in ents:
             ents[basename] = e
+        elif e["location"] != ents[basename]["location"]:
+            raise ValidationException(
+                "Conflicting basename in listing or secondaryFiles, '%s' used by both '%s' and '%s'"
+                % (basename, e["location"], ents[basename]["location"])
+            )
         elif e["class"] == "Directory":
             if e.get("listing"):
+                # name already in entries
+                # merge it into the existing listing
                 cast(
                     List[CWLObjectType], ents[basename].setdefault("listing", [])
                 ).extend(cast(List[CWLObjectType], e["listing"]))
-            if cast(str, ents[basename]["location"]).startswith("_:"):
-                ents[basename]["location"] = e["location"]
-        elif e["location"] != ents[basename]["location"]:
-            # same basename, different location, collision,
-            # rename both.
-            collided.add(basename)
-            e2 = ents[basename]
-
-            e["basename"] = urllib.parse.quote(cast(str, e["location"]), safe="")
-            e2["basename"] = urllib.parse.quote(cast(str, e2["location"]), safe="")
-
-            e["nameroot"], e["nameext"] = os.path.splitext(cast(str, e["basename"]))
-            e2["nameroot"], e2["nameext"] = os.path.splitext(cast(str, e2["basename"]))
-
-            ents[cast(str, e["basename"])] = e
-            ents[cast(str, e2["basename"])] = e2
-    for c in collided:
-        del ents[c]
     for e in ents.values():
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = cast(
@@ -1162,6 +1158,30 @@ def scandeps(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,
 ) -> MutableSequence[CWLObjectType]:
+
+    """Given a CWL document or input object, search for dependencies
+    (references to external files) of 'doc' and return them as a list
+    of File or Directory objects.
+
+    The 'base' is the base URL for relative references.
+
+    Looks for objects with 'class: File' or 'class: Directory' and
+    adds them to the list of dependencies.
+
+    Anything in 'urlfields' is also added as a File dependency.
+
+    Anything in 'reffields' (such as workflow step 'run') will be
+    added as a dependency and also loaded (using the 'loadref'
+    function) and recursively scanned for dependencies.  Those
+    dependencies will be added as secondary files to the primary file.
+
+    If "nestdirs" is true, create intermediate directory objects when
+    a file is located in a subdirectory under the starting directory.
+    This is so that if the dependencies are materialized, they will
+    produce the same relative file system locations.
+
+    """
+
     r: MutableSequence[CWLObjectType] = []
     if isinstance(doc, MutableMapping):
         if "id" in doc:
@@ -1268,7 +1288,7 @@ def scandeps(
                         )
                         if sf:
                             deps2["secondaryFiles"] = cast(
-                                MutableSequence[CWLOutputAtomType], sf
+                                MutableSequence[CWLOutputAtomType], mergedirs(sf)
                             )
                         if nestdirs:
                             deps2 = nestdir(base, deps2)
@@ -1313,7 +1333,6 @@ def scandeps(
 
     if r:
         normalizeFilesDirs(r)
-        r = mergedirs(cast(List[CWLObjectType], r))
 
     return r
 

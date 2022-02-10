@@ -512,6 +512,53 @@ def test_scandeps() -> None:
     assert scanned_deps2 == expected_deps
 
 
+def test_scandeps_samedirname() -> None:
+    obj: CWLObjectType = {
+        "dir1": {"class": "Directory", "location": "tests/wf/dir1/foo"},
+        "dir2": {"class": "Directory", "location": "tests/wf/dir2/foo"},
+    }
+
+    def loadref(
+        base: str, p: Union[CommentedMap, CommentedSeq, str, None]
+    ) -> Union[CommentedMap, CommentedSeq, str, None]:
+        if isinstance(p, dict):
+            return p
+        raise Exception("test case can't load things")
+
+    scanned_deps = cast(
+        List[Dict[str, Any]],
+        cwltool.process.scandeps(
+            "",
+            obj,
+            {"$import", "run"},
+            {"$include", "$schemas", "location"},
+            loadref,
+            nestdirs=False,
+        ),
+    )
+
+    scanned_deps.sort(key=lambda k: cast(str, k["basename"]))
+
+    expected_deps = [
+        {"basename": "foo", "class": "Directory", "location": "tests/wf/dir1/foo"},
+        {"basename": "foo", "class": "Directory", "location": "tests/wf/dir2/foo"},
+    ]
+
+    assert scanned_deps == expected_deps
+
+
+def test_scandeps_collision() -> None:
+    stream = StringIO()
+
+    assert (
+        main(
+            ["--print-deps", "--debug", get_data("tests/wf/dir_deps.json")],
+            stdout=stream,
+        )
+        == 1
+    )
+
+
 def test_trick_scandeps() -> None:
     stream = StringIO()
 

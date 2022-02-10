@@ -73,6 +73,7 @@ from .process import (
     CWL_IANA,
     Process,
     add_sizes,
+    mergedirs,
     scandeps,
     shortname,
     use_custom_schema,
@@ -620,7 +621,9 @@ def find_deps(
         nestdirs=nestdirs,
     )
     if sfs is not None:
-        deps["secondaryFiles"] = cast(MutableSequence[CWLOutputAtomType], sfs)
+        deps["secondaryFiles"] = cast(
+            MutableSequence[CWLOutputAtomType], mergedirs(sfs)
+        )
 
     return deps
 
