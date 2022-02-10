@@ -1148,6 +1148,30 @@ def scandeps(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,
 ) -> MutableSequence[CWLObjectType]:
+
+    """Given a CWL document or input object, search for dependencies
+    (references to external files) of 'doc' and return them as a list
+    of File or Directory objects.
+
+    The 'base' is the base URL for relative references.
+
+    Looks for objects with 'class: File' or 'class: Directory' and
+    adds them to the list of dependencies.
+
+    Anything in 'urlfields' is also added as a File dependency.
+
+    Anything in 'reffields' (such as workflow step 'run') will be
+    added as a dependency and also loaded (using the 'loadref'
+    function) and recursively scanned for dependencies.  Those
+    dependencies will be added as secondary files to the primary file.
+
+    If "nestdirs" is true, create intermediate directory objects when
+    a file is located in a subdirectory under the starting directory.
+    This is so that if the dependencies are materialized, they will
+    produce the same relative file system locations.
+
+    """
+
     r: MutableSequence[CWLObjectType] = []
     if isinstance(doc, MutableMapping):
         if "id" in doc:
