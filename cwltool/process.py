@@ -1126,7 +1126,8 @@ def mergedirs(
             ents[basename] = e
         elif e["location"] != ents[basename]["location"]:
             raise ValidationException(
-                "Conflicting basename in listing or secondaryFiles, '%s' used by both '%s' and '%s'" % (basename, e["location"], ents[basename]["location"])
+                "Conflicting basename in listing or secondaryFiles, '%s' used by both '%s' and '%s'"
+                % (basename, e["location"], ents[basename]["location"])
             )
         elif e["class"] == "Directory":
             if e.get("listing"):
