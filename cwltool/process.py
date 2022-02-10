@@ -1104,13 +1104,20 @@ def nestdir(base: str, deps: CWLObjectType) -> CWLObjectType:
         sp = s2.split("/")
         sp.pop()
         while sp:
-            loc = dirname+"/".join(sp)
+            loc = dirname + "/".join(sp)
             nx = sp.pop()
-            deps = {"class": "Directory", "basename": nx, "listing": [deps], "location": loc}
+            deps = {
+                "class": "Directory",
+                "basename": nx,
+                "listing": [deps],
+                "location": loc,
+            }
     return deps
 
 
-def mergedirs(listing: List[CWLObjectType]) -> List[CWLObjectType]:
+def mergedirs(
+    listing: MutableSequence[CWLObjectType],
+) -> MutableSequence[CWLObjectType]:
     r = []  # type: List[CWLObjectType]
     ents = {}  # type: Dict[str, CWLObjectType]
     for e in listing:
@@ -1118,7 +1125,9 @@ def mergedirs(listing: List[CWLObjectType]) -> List[CWLObjectType]:
         if basename not in ents:
             ents[basename] = e
         elif e["location"] != ents[basename]["location"]:
-            raise Exception("Conflict between %s and %s", e["location"], ents[basename]["location"])
+            raise Exception(
+                "Conflict between %s and %s", e["location"], ents[basename]["location"]
+            )
         elif e["class"] == "Directory":
             if e.get("listing"):
                 # name already in entries
@@ -1278,7 +1287,8 @@ def scandeps(
                         )
                         if sf:
                             deps2["secondaryFiles"] = cast(
-                                MutableSequence[CWLOutputAtomType], mergedirs(sf))
+                                MutableSequence[CWLOutputAtomType], mergedirs(sf)
+                            )
                         if nestdirs:
                             deps2 = nestdir(base, deps2)
                         r.append(deps2)

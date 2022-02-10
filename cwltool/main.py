@@ -621,7 +621,9 @@ def find_deps(
         nestdirs=nestdirs,
     )
     if sfs is not None:
-        deps["secondaryFiles"] = cast(MutableSequence[CWLOutputAtomType], mergedirs(sfs))
+        deps["secondaryFiles"] = cast(
+            MutableSequence[CWLOutputAtomType], mergedirs(sfs)
+        )
 
     return deps
 
