@@ -1,9 +1,9 @@
 import subprocess  # nosec
 import xml.dom.minidom  # nosec
-from typing import Tuple, cast
-
 from .loghandler import _logger
 from .utils import CWLObjectType
+
+from typing import Tuple, cast
 
 
 def cuda_version_and_device_count() -> Tuple[str, int]:
