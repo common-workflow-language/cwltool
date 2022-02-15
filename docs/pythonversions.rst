@@ -37,3 +37,11 @@ Python Linux distros where it is the default version
 3.9    Debian 11
 3.10   None
 ====== =============================================
+
+If there is a conflict between an essential dependency which has
+dropped support for a Python version that cwltool should still
+support, the all available options (such pinning the dependency,
+removing the dependency, or dropping Python version support) will be
+discussed with cwltool maintainers in consultation with downstream
+users before making the decision to drop support for a Python version
+earlier than outlined in this policy.
