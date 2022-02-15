@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import urllib
 from typing import (
     Any,
     AnyStr,
@@ -16,7 +17,6 @@ from typing import (
     Union,
     cast,
 )
-import urllib
 
 from schema_salad.ref_resolver import file_uri
 

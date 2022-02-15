@@ -31,6 +31,7 @@ from typing import (
     Union,
     cast,
 )
+
 import psutil
 import shellescape
 from prov.model import PROV
@@ -50,8 +51,8 @@ from .secrets import SecretStore
 from .utils import (
     CWLObjectType,
     CWLOutputType,
-    HasReqsHints,
     DirectoryType,
+    HasReqsHints,
     OutputCallbackType,
     bytes2str_in_dicts,
     create_tmp_dir,
