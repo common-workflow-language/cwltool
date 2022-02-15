@@ -221,6 +221,7 @@ class SingleJobExecutor(JobExecutor):
                 fsaccess=runtime_context.make_fs_access(""),
             )
             process.parent_wf = process.provenance_object
+
         jobiter = process.job(job_order_object, self.output_callback, runtime_context)
 
         try:
@@ -277,7 +278,7 @@ class MultithreadedJobExecutor(JobExecutor):
         self.pending_jobs = []  # type: List[JobsType]
         self.pending_jobs_lock = threading.Lock()
 
-        self.max_ram = int(psutil.virtual_memory().available / 2 ** 20)  # type: ignore[no-untyped-call]
+        self.max_ram = int(psutil.virtual_memory().available / 2**20)  # type: ignore[no-untyped-call]
         self.max_cores = float(psutil.cpu_count())
         self.allocated_ram = float(0)
         self.allocated_cores = float(0)
