@@ -13,12 +13,23 @@ following major Linux distributions:
 * Ubuntu (`LTS release standard support <https://wiki.ubuntu.com/Releases>`_)
 * Centos 7 (`while in maintenance <https://wiki.centos.org/About/Product>`_)
 
-As of Feburary 2022, here are approximate support periods for various
-Python versions:
+If there is a conflict between a third party package dependency which
+has dropped support for a Python version that cwltool should support
+according to this policy, then possible options (such as pinning the
+dependency, eliminating the dependency, or changing Python version
+support of cwltool) should be discussed among the cwltool maintainers
+and downstream users before making the decision to drop support for a
+Python version before the date outlined in this policy.  The reasoning
+for dropping support for a Python version should be outlined here.
+
+As of Feburary 2022, here are approximate cwltool support periods for
+across Python versions:
 
 ====== ======================
 Python cwltool end of support
 ====== ======================
+2.7    ended January 2020
+3.5    ended October 2020
 3.6    June 2024 (Centos 7 EOL)
 3.7    June 2023 (upstream EOL)
 3.8    April 2025 (Ubuntu 20.04 EOL)
@@ -26,7 +37,8 @@ Python cwltool end of support
 3.10   October 2026 (upstream EOL)
 ====== ======================
 
-For reference (as of Feburary 2022)
+Default Python version of supported Linux distributions, for reference
+(as of Feburary 2022)
 
 ====== =============================================
 Python Linux distros where it is the default version
@@ -37,11 +49,3 @@ Python Linux distros where it is the default version
 3.9    Debian 11
 3.10   None
 ====== =============================================
-
-If there is a conflict between an essential dependency which has
-dropped support for a Python version that cwltool should still
-support, the all available options (such pinning the dependency,
-removing the dependency, or dropping Python version support) will be
-discussed with cwltool maintainers in consultation with downstream
-users before making the decision to drop support for a Python version
-earlier than outlined in this policy.
