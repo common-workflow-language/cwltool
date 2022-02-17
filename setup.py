@@ -120,12 +120,13 @@ setup(
         "coloredlogs",
         "pydot >= 1.4.1",
         "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
+        "pyparsing < 3 ;python_version<='3.6'",  # breaks --print-dot (pydot)
         "argcomplete",
     ],
     extras_require={
         "deps": ["galaxy-tool-util >= 21.1.0"],
     },
-    python_requires=">=3.7, <4",
+    python_requires=">=3.6, <4",
     setup_requires=PYTEST_RUNNER,
     test_suite="tests",
     tests_require=[
@@ -150,6 +151,7 @@ setup(
         "Operating System :: POSIX",
         "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
