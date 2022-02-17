@@ -869,11 +869,23 @@ def add_argument(
             fieldname = name + "." + shortname(field["name"])
             fieldtype = field["type"]
             fielddescription = field.get("doc", "")
-            add_argument(toolparser, fieldname, fieldtype, records, fielddescription)
+            add_argument(
+                toolparser,
+                fieldname,
+                fieldtype,
+                records,
+                fielddescription,
+                default=default.get(shortname(field["name"]), None)
+                if default
+                else None,
+                input_required=required,
+            )
         return
     elif inptype == "string":
         atype = str
     elif inptype == "int":
+        atype = int
+    elif inptype == "long":
         atype = int
     elif inptype == "double":
         atype = float

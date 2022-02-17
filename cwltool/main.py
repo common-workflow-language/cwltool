@@ -1303,7 +1303,6 @@ def main(
                 tool, job_order_object = tool.result(tfjob_order, tfout, runtimeContext)
                 if not job_order_object:
                     job_order_object = None
-
             try:
                 initialized_job_order_object = init_job_order(
                     job_order_object,

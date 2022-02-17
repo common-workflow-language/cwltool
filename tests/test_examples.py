@@ -1685,3 +1685,22 @@ def test_command_line_tool_class() -> None:
     tool_path = get_data("tests/echo.cwl")
     expression_tool = factory.make(tool_path).t
     assert str(expression_tool) == f"CommandLineTool: file://{tool_path}"
+
+
+def test_record_default_with_long() -> None:
+    """Confirm that record defaults are respected."""
+    tool_path = get_data("tests/wf/paramref_arguments_roundtrip.cwl")
+    err_code, stdout, stderr = get_main_output([tool_path])
+    assert err_code == 0
+    result = json.loads(stdout)["same_record"]
+    assert result["first"] == "y"
+    assert result["second"] == 23
+    assert result["third"] == 2.3
+    assert result["fourth"] == 4242424242
+    assert result["fifth"] == 4200000000000000000000000000000000000000000
+    assert result["sixth"]["class"] == "File"
+    assert result["sixth"]["basename"] == "whale.txt"
+    assert result["sixth"]["size"] == 1111
+    assert (
+        result["sixth"]["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
+    )
