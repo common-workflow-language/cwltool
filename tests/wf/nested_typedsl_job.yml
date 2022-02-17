@@ -1,0 +1,5 @@
+cat_in: 
+ - - class: File
+     location: echo.cwl
+   - class: File
+     location: cat.cwl

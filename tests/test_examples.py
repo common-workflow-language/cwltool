@@ -1663,6 +1663,17 @@ def test_custom_type_in_step_process() -> None:
     assert err_code == 0
 
 
+@pytest.mark.parametrize("version", ["1_0", "1_1", "1_2"])
+def test_array_items_typedsl(version: str) -> None:
+    """Demonstrate that 'type: array, items: SomeType[]' works."""
+    err_code, _, stderr = get_main_output(
+        [
+            get_data(f"tests/wf/nested_typedsl_v{version}.cwl"),
+            get_data("tests/wf/nested_typedsl_job.yml"),
+        ]
+    )
+    assert err_code == 0
+
 def test_expression_tool_class() -> None:
     """Confirm properties of the ExpressionTool class."""
     factory = cwltool.factory.Factory()
