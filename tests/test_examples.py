@@ -1731,3 +1731,13 @@ def test_record_outputeval() -> None:
         == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
     )
     assert result["annotation_gtf"]["size"] == 0
+
+
+def tests_outputsource_valid_identifier_invalid_source() -> None:
+    """Confirm error for invalid source that was also a valid identifier."""
+    tool_path = get_data("tests/checker_wf/broken-wf4.cwl")
+    err_code, stdout, stderr = get_main_output([tool_path])
+    assert err_code == 1
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "tests/checker_wf/broken-wf4.cwl:12:5: outputSource not found" in stderr
+    assert "tests/checker_wf/broken-wf4.cwl#echo_w" in stderr
