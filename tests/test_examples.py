@@ -1704,3 +1704,30 @@ def test_record_default_with_long() -> None:
     assert (
         result["sixth"]["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
     )
+
+
+def test_record_outputeval() -> None:
+    """Confirm that record types can be populated from outputEval."""
+    tool_path = get_data("tests/wf/record_outputeval.cwl")
+    err_code, stdout, stderr = get_main_output([tool_path])
+    assert err_code == 0
+    result = json.loads(stdout)["references"]
+    assert "genome_fa" in result
+    assert result["genome_fa"]["class"] == "File"
+    assert result["genome_fa"]["basename"] == "GRCm38.primary_assembly.genome.fa"
+    assert (
+        result["genome_fa"]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
+    assert result["genome_fa"]["size"] == 0
+    assert "annotation_gtf" in result
+    assert result["annotation_gtf"]["class"] == "File"
+    assert (
+        result["annotation_gtf"]["basename"]
+        == "gencode.vM21.primary_assembly.annotation.gtf"
+    )
+    assert (
+        result["annotation_gtf"]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
+    assert result["annotation_gtf"]["size"] == 0
