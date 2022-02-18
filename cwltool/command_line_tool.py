@@ -1581,7 +1581,8 @@ class CommandLineTool(Process):
                     return None
 
         if (
-            not empty_and_optional
+            not result
+            and not empty_and_optional
             and isinstance(schema["type"], MutableMapping)
             and schema["type"]["type"] == "record"
         ):
