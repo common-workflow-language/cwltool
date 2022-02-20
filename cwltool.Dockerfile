@@ -1,4 +1,4 @@
-FROM python:3.10-alpine as builder
+FROM python:3.11.0a5-alpine as builder
 
 RUN apk add --no-cache git gcc python3-dev libxml2-dev libxslt-dev libc-dev linux-headers
 
@@ -17,13 +17,13 @@ RUN SCHEMA_SALAD_USE_MYPYC=1 MYPYPATH=typeshed pip wheel --no-binary schema-sala
 RUN pip install --force-reinstall --no-index --no-warn-script-location --root=/pythonroot/ /wheels/*.whl
 # --force-reinstall to install our new mypyc compiled schema-salad package
 
-FROM python:3.10-alpine as module
+FROM python:3.11.0a5-alpine as module
 LABEL maintainer peter.amstutz@curri.com
 
 RUN apk add --no-cache docker nodejs graphviz libxml2 libxslt
 COPY --from=builder /pythonroot/ /
 
-FROM python:3.10-alpine
+FROM python:3.11.0a5-alpine
 LABEL maintainer peter.amstutz@curri.com
 
 RUN apk add --no-cache docker nodejs graphviz libxml2 libxslt
