@@ -1016,14 +1016,14 @@ hints:
                 mn = cast(
                     Union[int, float],
                     eval_resource(
-                        builder, cast(Union[str, int, float], resourceReq[a + "Min"])
+                        builder, cast(Union[str, int, float], rsc[a + "Min"])
                     ),
                 )
             if rsc.get(a + "Max"):
                 mx = cast(
                     Union[int, float],
                     eval_resource(
-                        builder, cast(Union[str, int, float], resourceReq[a + "Max"])
+                        builder, cast(Union[str, int, float], rsc[a + "Max"])
                     ),
                 )
             if mn is None:
