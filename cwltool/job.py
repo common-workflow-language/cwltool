@@ -180,7 +180,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             "http://commonwl.org/cwltool#CUDARequirement"
         )
         if cuda_req:
-            count = cuda_check(cuda_req)
+            count = cuda_check(cuda_req, self.builder.resources.get("cudaDeviceCount"))
             if count == 0:
                 raise WorkflowException("Could not satisfy CUDARequirement")
 

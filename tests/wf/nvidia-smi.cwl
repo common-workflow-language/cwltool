@@ -5,7 +5,7 @@ $namespaces:
 requirements:
   cwltool:CUDARequirement:
     cudaVersionMin: "1.0"
-    cudaComputeCapabilityMin: "1.0"
+    cudaComputeCapability: "1.0"
 inputs: []
 outputs: []
 # Assume this will exit non-zero (resulting in a failing test case) if
