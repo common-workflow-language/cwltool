@@ -2,6 +2,7 @@ import datetime
 import functools
 import itertools
 import logging
+import math
 import os
 import re
 import shutil
@@ -180,7 +181,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             "http://commonwl.org/cwltool#CUDARequirement"
         )
         if cuda_req:
-            count = cuda_check(cuda_req, self.builder.resources.get("cudaDeviceCount"))
+            count = cuda_check(
+                cuda_req, math.ceil(self.builder.resources["cudaDeviceCount"])
+            )
             if count == 0:
                 raise WorkflowException("Could not satisfy CUDARequirement")
 

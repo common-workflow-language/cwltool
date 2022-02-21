@@ -1002,11 +1002,13 @@ hints:
             request["cudaDeviceCountMin"] = 1
             request["cudaDeviceCountMax"] = 1
 
-        for rsc, a in ((resourceReq, "cores"),
-                       (resourceReq, "ram"),
-                       (resourceReq, "tmpdir"),
-                       (resourceReq, "outdir"),
-                       (cudaReq, "cudaDeviceCount")):
+        for rsc, a in (
+            (resourceReq, "cores"),
+            (resourceReq, "ram"),
+            (resourceReq, "tmpdir"),
+            (resourceReq, "outdir"),
+            (cudaReq, "cudaDeviceCount"),
+        ):
             if rsc is None:
                 continue
             mn = mx = None  # type: Optional[Union[int, float]]
@@ -1045,7 +1047,7 @@ hints:
             "outdirSize": math.ceil(request_evaluated["outdirMin"]),
         }
         if cudaReq:
-            defaultReq["cudaDeviceCount"] = cudaReq["cudaDeviceCountMin"]
+            defaultReq["cudaDeviceCount"] = request_evaluated["cudaDeviceCountMin"]
         return defaultReq
 
     def validate_hints(
