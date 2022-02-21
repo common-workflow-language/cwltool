@@ -478,14 +478,18 @@ def arg_parser() -> argparse.ArgumentParser:
     conda_dependencies = argparse.SUPPRESS
 
     if SOFTWARE_REQUIREMENTS_ENABLED:
-        dependency_resolvers_configuration_help = "Dependency resolver "
-        "configuration file describing how to adapt 'SoftwareRequirement' "
-        "packages to current system."
-        dependencies_directory_help = (
-            "Defaut root directory used by dependency resolvers configuration."
+        dependency_resolvers_configuration_help = (
+            "Dependency resolver "
+            "configuration file describing how to adapt 'SoftwareRequirement' "
+            "packages to current system."
         )
-        use_biocontainers_help = "Use biocontainers for tools without an "
-        "explicitly annotated Docker container."
+        dependencies_directory_help = (
+            "Default root directory used by dependency resolvers configuration."
+        )
+        use_biocontainers_help = (
+            "Use biocontainers for tools without an "
+            "explicitly annotated Docker container."
+        )
         conda_dependencies = (
             "Short cut to use Conda to resolve 'SoftwareRequirement' packages."
         )
