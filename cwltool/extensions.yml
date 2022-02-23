@@ -220,7 +220,12 @@ $graph:
     cudaDeviceCountMin:
       type: ['null', int, cwl:Expression]
       default: 1
-      doc: Minimum number of GPU devices to request, default 1.
+      doc: |
+        Minimum number of GPU devices to request.  If not specified,
+        same as `cudaDeviceCountMax`.  If neither are specified,
+        default 1.
     cudaDeviceCountMax:
       type: ['null', int, cwl:Expression]
-      doc: Maximum number of GPU devices to request.  If not specified, same as `deviceCountMin`.
+      doc: |
+        Maximum number of GPU devices to request.  If not specified,
+        same as `cudaDeviceCountMin`.
