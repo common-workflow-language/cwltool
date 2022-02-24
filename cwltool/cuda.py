@@ -18,7 +18,7 @@ def cuda_version_and_device_count() -> Tuple[str, int]:
     return (cv.data, int(ag.data))
 
 
-def cuda_check(cuda_req: CWLObjectType) -> int:
+def cuda_check(cuda_req: CWLObjectType, requestCount: int) -> int:
     try:
         vmin = float(str(cuda_req["cudaVersionMin"]))
         version, devices = cuda_version_and_device_count()
@@ -31,14 +31,12 @@ def cuda_check(cuda_req: CWLObjectType) -> int:
                 "CUDA version '%s' is less than minimum version '%s'", version, vmin
             )
             return 0
-        dmin = cast(int, cuda_req.get("deviceCountMin", 1))
-        dmax = cast(int, cuda_req.get("deviceCountMax", dmin))
-        if devices < dmin:
+        if requestCount > devices:
             _logger.warning(
-                "Requested at least %d GPU devices but only %d available", dmin, devices
+                "Requested %d GPU devices but only %d available", requestCount, devices
             )
             return 0
-        return min(dmax, devices)
+        return requestCount
     except Exception as e:
         _logger.warning("Error checking CUDA requirements: %s", e)
         return 0

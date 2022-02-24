@@ -397,13 +397,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if runtimeContext.rm_container:
             runtime.append("--rm")
 
-        cuda_req, _ = self.builder.get_requirement(
-            "http://commonwl.org/cwltool#CUDARequirement"
-        )
-        if cuda_req:
-            # Checked earlier that the device count is non-zero in _setup
-            count = cuda_check(cuda_req)
-            runtime.append("--gpus=" + str(count))
+        if self.builder.resources.get("cudaDeviceCount"):
+            runtime.append("--gpus=" + str(self.builder.resources["cudaDeviceCount"]))
 
         cidfile_path = None  # type: Optional[str]
         # add parameters to docker to write a container ID file
