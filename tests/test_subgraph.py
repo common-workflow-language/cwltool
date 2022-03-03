@@ -89,12 +89,14 @@ def test_get_step() -> None:
             assert json.load(f) == clean(convert_to_dict(extracted), sg)
 
 
-def test_single_process_inherit_reqshints() -> None:
+def test_single_process_inherit_reqshints(tmp_path: Path) -> None:
     """Inherit reqs and hints from parent(s) with --single-process."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-process",
             "step1",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/subgraph/env-wf2.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
@@ -106,12 +108,14 @@ def test_single_process_inherit_reqshints() -> None:
     )
 
 
-def test_single_process_inherit_hints_collision() -> None:
+def test_single_process_inherit_hints_collision(tmp_path: Path) -> None:
     """Inherit reqs and hints --single-process hints collision."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-process",
             "step1",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/subgraph/env-wf2_hint_collision.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
@@ -123,12 +127,14 @@ def test_single_process_inherit_hints_collision() -> None:
     )
 
 
-def test_single_process_inherit_reqs_collision() -> None:
+def test_single_process_inherit_reqs_collision(tmp_path: Path) -> None:
     """Inherit reqs and hints --single-process reqs collision."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-process",
             "step1",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/subgraph/env-wf2_req_collision.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
@@ -140,12 +146,14 @@ def test_single_process_inherit_reqs_collision() -> None:
     )
 
 
-def test_single_process_inherit_reqs_step_collision() -> None:
+def test_single_process_inherit_reqs_step_collision(tmp_path: Path) -> None:
     """Inherit reqs and hints --single-process reqs collision."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-process",
             "step1",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/subgraph/steplevel-resreq.cwl"),
         ]
     )
@@ -156,12 +164,14 @@ def test_single_process_inherit_reqs_step_collision() -> None:
     )
 
 
-def test_single_process_inherit_reqs_hints_collision() -> None:
+def test_single_process_inherit_reqs_hints_collision(tmp_path: Path) -> None:
     """Inherit reqs and hints --single-process reqs + hints collision."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-process",
             "step1",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/subgraph/env-wf2_hint_req_collision.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
@@ -173,12 +183,14 @@ def test_single_process_inherit_reqs_hints_collision() -> None:
     )
 
 
-def test_single_process_inherit_only_hints() -> None:
+def test_single_process_inherit_only_hints(tmp_path: Path) -> None:
     """Inherit reqs and hints --single-process only hints."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-process",
             "step1",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/subgraph/env-wf2_only_hint.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
@@ -190,12 +202,14 @@ def test_single_process_inherit_only_hints() -> None:
     )
 
 
-def test_single_process_subwf_step() -> None:
+def test_single_process_subwf_step(tmp_path: Path) -> None:
     """Inherit reqs and hints --single-process on sub-workflow step."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-process",
             "sub_wf/step1",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/subgraph/env-wf2_subwf.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
@@ -207,12 +221,14 @@ def test_single_process_subwf_step() -> None:
     )
 
 
-def test_single_process_packed_subwf_step() -> None:
+def test_single_process_packed_subwf_step(tmp_path: Path) -> None:
     """Inherit reqs and hints --single-process on packed sub-workflow step."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-process",
             "sub_wf/step1",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/subgraph/env-wf2_subwf-packed.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
@@ -241,12 +257,14 @@ def test_single_process_subwf_subwf_inline_step() -> None:
     )
 
 
-def test_single_step_subwf_step() -> None:
+def test_single_step_subwf_step(tmp_path: Path) -> None:
     """Inherit reqs and hints --single-step on sub-workflow step."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-step",
             "sub_wf/step1",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/subgraph/env-wf2_subwf.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
@@ -258,12 +276,14 @@ def test_single_step_subwf_step() -> None:
     )
 
 
-def test_single_step_wfstep_long_out() -> None:
+def test_single_step_wfstep_long_out(tmp_path: Path) -> None:
     """Support long form of step.out with --single-step."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-step",
             "sub_wf/step1",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/subgraph/env-wf2_subwf_b.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
@@ -275,12 +295,14 @@ def test_single_step_wfstep_long_out() -> None:
     )
 
 
-def test_single_step_packed_subwf_step() -> None:
+def test_single_step_packed_subwf_step(tmp_path: Path) -> None:
     """Inherit reqs and hints --single-step on packed sub-workflow step."""
     err_code, stdout, stderr = get_main_output(
         [
             "--single-step",
             "sub_wf/step1",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/subgraph/env-wf2_subwf-packed.cwl"),
             get_data("tests/subgraph/env-job.json"),
         ]
