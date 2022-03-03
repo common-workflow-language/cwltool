@@ -377,7 +377,10 @@ def relocateOutputs(
                     shutil.move(src, dst)
                 except (PermissionError, OSError, shutil.Error):
                     # handle filesystems that don't support mode/attr changes
-                    shutil.move(src, dst, copy_function=shutil.copyfile)
+                    try:
+                        shutil.move(src, dst, copy_function=shutil.copyfile)
+                    except:
+                        pass
 
         elif _action == "copy":
             _logger.debug("Copying %s to %s", src, dst)
@@ -395,7 +398,10 @@ def relocateOutputs(
                     if os.path.isdir(dst):
                         shutil.copyfile(src, os.path.join(dst, os.path.basename(src)))
                     else:
-                        shutil.copyfile(src, dst)
+                        try:
+                            shutil.copyfile(src, dst)
+                        except:
+                            pass
 
     def _realpath(
         ob: CWLObjectType,
