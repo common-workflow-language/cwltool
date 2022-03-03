@@ -1685,3 +1685,59 @@ def test_command_line_tool_class() -> None:
     tool_path = get_data("tests/echo.cwl")
     expression_tool = factory.make(tool_path).t
     assert str(expression_tool) == f"CommandLineTool: file://{tool_path}"
+
+
+def test_record_default_with_long() -> None:
+    """Confirm that record defaults are respected."""
+    tool_path = get_data("tests/wf/paramref_arguments_roundtrip.cwl")
+    err_code, stdout, stderr = get_main_output([tool_path])
+    assert err_code == 0
+    result = json.loads(stdout)["same_record"]
+    assert result["first"] == "y"
+    assert result["second"] == 23
+    assert result["third"] == 2.3
+    assert result["fourth"] == 4242424242
+    assert result["fifth"] == 4200000000000000000000000000000000000000000
+    assert result["sixth"]["class"] == "File"
+    assert result["sixth"]["basename"] == "whale.txt"
+    assert result["sixth"]["size"] == 1111
+    assert (
+        result["sixth"]["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
+    )
+
+
+def test_record_outputeval() -> None:
+    """Confirm that record types can be populated from outputEval."""
+    tool_path = get_data("tests/wf/record_outputeval.cwl")
+    err_code, stdout, stderr = get_main_output([tool_path])
+    assert err_code == 0
+    result = json.loads(stdout)["references"]
+    assert "genome_fa" in result
+    assert result["genome_fa"]["class"] == "File"
+    assert result["genome_fa"]["basename"] == "GRCm38.primary_assembly.genome.fa"
+    assert (
+        result["genome_fa"]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
+    assert result["genome_fa"]["size"] == 0
+    assert "annotation_gtf" in result
+    assert result["annotation_gtf"]["class"] == "File"
+    assert (
+        result["annotation_gtf"]["basename"]
+        == "gencode.vM21.primary_assembly.annotation.gtf"
+    )
+    assert (
+        result["annotation_gtf"]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
+    assert result["annotation_gtf"]["size"] == 0
+
+
+def tests_outputsource_valid_identifier_invalid_source() -> None:
+    """Confirm error for invalid source that was also a valid identifier."""
+    tool_path = get_data("tests/checker_wf/broken-wf4.cwl")
+    err_code, stdout, stderr = get_main_output([tool_path])
+    assert err_code == 1
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "tests/checker_wf/broken-wf4.cwl:12:5: outputSource not found" in stderr
+    assert "tests/checker_wf/broken-wf4.cwl#echo_w" in stderr

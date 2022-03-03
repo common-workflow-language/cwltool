@@ -5,8 +5,12 @@ $namespaces:
 requirements:
   cwltool:CUDARequirement:
     cudaVersionMin: "1.0"
-    cudaComputeCapabilityMin: "1.0"
-inputs: []
+    cudaComputeCapability: "1.0"
+    cudaDeviceCountMin: $(inputs.gpus)
+inputs:
+  gpus:
+    type: int
+    default: 1
 outputs: []
 # Assume this will exit non-zero (resulting in a failing test case) if
 # nvidia-smi doesn't detect any devices.

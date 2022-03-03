@@ -24,7 +24,7 @@ jobs:
     strategy:
       matrix:
         py-ver-major: [3]
-        py-ver-minor: [7, 8, 9, 10]
+        py-ver-minor: [6, 7, 8, 9, 10]
         step: [lint, unit, bandit, mypy]
 
     env:
@@ -47,7 +47,7 @@ jobs:
         run: sudo usermod -c 'CI Runner' $(whoami)
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ env.py-semver }}
           cache: pip
@@ -95,7 +95,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ env.py-semver }}
           cache: pip
@@ -131,7 +131,7 @@ jobs:
           singularity-version: ${{ env.singularity_version }}
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: 3.9
           cache: pip
@@ -157,7 +157,7 @@ jobs:
           singularity-version: ${{ env.singularity_version }}
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: "3.10"  # quoted, otherwise that turns into the number 3.1
           cache: pip

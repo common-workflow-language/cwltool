@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import urllib
 from typing import (
     Any,
     AnyStr,
@@ -16,7 +17,6 @@ from typing import (
     Union,
     cast,
 )
-import urllib
 
 from schema_salad.ref_resolver import file_uri
 
@@ -478,14 +478,18 @@ def arg_parser() -> argparse.ArgumentParser:
     conda_dependencies = argparse.SUPPRESS
 
     if SOFTWARE_REQUIREMENTS_ENABLED:
-        dependency_resolvers_configuration_help = "Dependency resolver "
-        "configuration file describing how to adapt 'SoftwareRequirement' "
-        "packages to current system."
-        dependencies_directory_help = (
-            "Defaut root directory used by dependency resolvers configuration."
+        dependency_resolvers_configuration_help = (
+            "Dependency resolver "
+            "configuration file describing how to adapt 'SoftwareRequirement' "
+            "packages to current system."
         )
-        use_biocontainers_help = "Use biocontainers for tools without an "
-        "explicitly annotated Docker container."
+        dependencies_directory_help = (
+            "Default root directory used by dependency resolvers configuration."
+        )
+        use_biocontainers_help = (
+            "Use biocontainers for tools without an "
+            "explicitly annotated Docker container."
+        )
         conda_dependencies = (
             "Short cut to use Conda to resolve 'SoftwareRequirement' packages."
         )
@@ -869,11 +873,23 @@ def add_argument(
             fieldname = name + "." + shortname(field["name"])
             fieldtype = field["type"]
             fielddescription = field.get("doc", "")
-            add_argument(toolparser, fieldname, fieldtype, records, fielddescription)
+            add_argument(
+                toolparser,
+                fieldname,
+                fieldtype,
+                records,
+                fielddescription,
+                default=default.get(shortname(field["name"]), None)
+                if default
+                else None,
+                input_required=required,
+            )
         return
     elif inptype == "string":
         atype = str
     elif inptype == "int":
+        atype = int
+    elif inptype == "long":
         atype = int
     elif inptype == "double":
         atype = float

@@ -434,11 +434,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         else:
             runtime.extend(["--net", "--network", "none"])
 
-        cuda_req, _ = self.builder.get_requirement(
-            "http://commonwl.org/cwltool#CUDARequirement"
-        )
-        if cuda_req:
-            # Checked earlier that the device count is non-zero in _setup
+        if self.builder.resources.get("cudaDeviceCount"):
             runtime.append("--nv")
 
         for name, value in self.environment.items():

@@ -389,6 +389,11 @@ def check_all_types(
                         )
             else:
                 parm_id = cast(str, sink[sourceField])
+                if parm_id not in src_dict:
+                    raise SourceLine(sink, sourceField, ValidationException).makeError(
+                        f"{sourceField} not found: {parm_id}"
+                    )
+
                 srcs_of_sink = [src_dict[parm_id]]
                 linkMerge = None
 

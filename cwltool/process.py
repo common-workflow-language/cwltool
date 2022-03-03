@@ -997,6 +997,7 @@ hints:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
+
         cwl_version = self.metadata.get(ORIGINAL_CWLVERSION, None)
         if cwl_version == "v1.0":
             ram = 1024
@@ -1012,20 +1013,34 @@ hints:
             "outdirMin": 1024,
             "outdirMax": 1024,
         }
-        for a in ("cores", "ram", "tmpdir", "outdir"):
+
+        cudaReq, _ = self.get_requirement("http://commonwl.org/cwltool#CUDARequirement")
+        if cudaReq:
+            request["cudaDeviceCountMin"] = 1
+            request["cudaDeviceCountMax"] = 1
+
+        for rsc, a in (
+            (resourceReq, "cores"),
+            (resourceReq, "ram"),
+            (resourceReq, "tmpdir"),
+            (resourceReq, "outdir"),
+            (cudaReq, "cudaDeviceCount"),
+        ):
+            if rsc is None:
+                continue
             mn = mx = None  # type: Optional[Union[int, float]]
-            if resourceReq.get(a + "Min"):
+            if rsc.get(a + "Min"):
                 mn = cast(
                     Union[int, float],
                     eval_resource(
-                        builder, cast(Union[str, int, float], resourceReq[a + "Min"])
+                        builder, cast(Union[str, int, float], rsc[a + "Min"])
                     ),
                 )
-            if resourceReq.get(a + "Max"):
+            if rsc.get(a + "Max"):
                 mx = cast(
                     Union[int, float],
                     eval_resource(
-                        builder, cast(Union[str, int, float], resourceReq[a + "Max"])
+                        builder, cast(Union[str, int, float], rsc[a + "Max"])
                     ),
                 )
             if mn is None:
@@ -1039,13 +1054,18 @@ hints:
 
         request_evaluated = cast(Dict[str, Union[int, float]], request)
         if runtimeContext.select_resources is not None:
+            # Call select resources hook
             return runtimeContext.select_resources(request_evaluated, runtimeContext)
-        return {
+
+        defaultReq = {
             "cores": request_evaluated["coresMin"],
             "ram": math.ceil(request_evaluated["ramMin"]),
             "tmpdirSize": math.ceil(request_evaluated["tmpdirMin"]),
             "outdirSize": math.ceil(request_evaluated["outdirMin"]),
         }
+        if cudaReq:
+            defaultReq["cudaDeviceCount"] = request_evaluated["cudaDeviceCountMin"]
+        return defaultReq
 
     def validate_hints(
         self, avsc_names: Names, hints: List[CWLObjectType], strict: bool

@@ -9,4 +9,5 @@ CWL_CONTENT_TYPES = [
     "text/yaml",
     "text/x-yaml",
     "application/x-yaml",
+    "application/octet-stream",
 ]

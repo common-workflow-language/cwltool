@@ -305,6 +305,9 @@ class MultithreadedJobExecutor(JobExecutor):
         result["tmpdirSize"] = math.ceil(request["tmpdirMin"])
         result["outdirSize"] = math.ceil(request["outdirMin"])
 
+        if "cudaDeviceCount" in request:
+            result["cudaDeviceCount"] = request["cudaDeviceCount"]
+
         return result
 
     def _runner(self, job, runtime_context, TMPDIR_LOCK):

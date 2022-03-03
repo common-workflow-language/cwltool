@@ -101,13 +101,14 @@ JSONAtomType = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
 JSONType = Union[
     Dict[str, JSONAtomType], List[JSONAtomType], str, int, float, bool, None
 ]
-
-
-class WorkflowStateItem(NamedTuple):
-    parameter: CWLObjectType
-    value: Optional[CWLOutputType]
-    success: str
-
+WorkflowStateItem = NamedTuple(
+    "WorkflowStateItem",
+    [
+        ("parameter", CWLObjectType),
+        ("value", Optional[CWLOutputType]),
+        ("success", str),
+    ],
+)
 
 ParametersType = List[CWLObjectType]
 StepType = CWLObjectType  # WorkflowStep
