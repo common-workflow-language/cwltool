@@ -78,7 +78,7 @@ def _check_docker_machine_path(path: Optional[str]) -> None:
 
 
 class DockerCommandLineJob(ContainerCommandLineJob):
-    """Runs a CommandLineJob in a sofware container using the Docker engine."""
+    """Runs a CommandLineJob in a software container using the Docker engine."""
 
     def __init__(
         self,

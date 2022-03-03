@@ -206,7 +206,7 @@ def _valid_orcid(orcid: Optional[str]) -> str:
     # Liberal in what we consume, e.g. ORCID.org/0000-0002-1825-009x
     orcid = orcid.lower()
     match = re.match(
-        # Note: concatinated r"" r"" below so we can add comments to pattern
+        # Note: concatenated r"" r"" below so we can add comments to pattern
         # Optional hostname, with or without protocol
         r"(http://orcid\.org/|https://orcid\.org/|orcid\.org/)?"
         # alternative pattern, but probably messier
@@ -259,7 +259,7 @@ Aggregate = TypedDict(
     },
     total=False,
 )
-# Aggregate.bundledAs is actually type Aggregate, but cyclic definitions are not suported
+# Aggregate.bundledAs is actually type Aggregate, but cyclic definitions are not supported
 AuthoredBy = TypedDict(
     "AuthoredBy",
     {"orcid": Optional[str], "name": Optional[str], "uri": Optional[str]},
@@ -307,7 +307,7 @@ class ResearchObject:
         if self.closed:
             raise ValueError(
                 "This ResearchObject has already been closed and is not "
-                "available for futher manipulation."
+                "available for further manipulation."
             )
 
     def __str__(self) -> str:
