@@ -107,6 +107,10 @@ pydocstyle_report.txt: $(PYSOURCES)
 diff_pydocstyle_report: pydocstyle_report.txt
 	diff-quality --compare-branch=main --violations=pydocstyle --fail-under=100 $^
 
+## codespell   : check for common mispellings
+codespell:
+	codespell -w $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v typeshed)
+
 ## format      : check/fix all code indentation and formatting (runs black)
 format:
 	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests
