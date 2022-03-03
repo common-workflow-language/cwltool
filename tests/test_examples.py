@@ -1282,7 +1282,7 @@ def test_wf_without_container(tmp_path: Path, factor: str) -> None:
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
-    """Confirm that re-running a particular workflow with caching suceeds."""
+    """Confirm that re-running a particular workflow with caching succeeds."""
     test_file = "cache_test_workflow.cwl"
     cache_dir = str(tmp_path / "cwltool_cache")
     commands = factor.split()
@@ -1600,7 +1600,7 @@ def test_arguments_self() -> None:
             factory.loading_context.singularity = True
         elif not shutil.which("jq"):
             pytest.skip(
-                "Need a container engine (docker, podman, or signularity) or jq to run this test."
+                "Need a container engine (docker, podman, or singularity) or jq to run this test."
             )
         else:
             factory.runtime_context.use_container = False

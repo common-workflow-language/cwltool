@@ -341,7 +341,7 @@ class MultithreadedJobExecutor(JobExecutor):
         job: Optional[JobsType],
         runtime_context: RuntimeContext,
     ) -> None:
-        """Execute a single Job in a seperate thread."""
+        """Execute a single Job in a separate thread."""
         if job is not None:
             with self.pending_jobs_lock:
                 self.pending_jobs.append(job)

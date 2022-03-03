@@ -394,7 +394,7 @@ def load_job_order(
     ):
         _logger.error(
             "CWL input object at %s is not formatted correctly, it should be a "
-            "JSON/YAML dictionay, not %s.\n"
+            "JSON/YAML dictionary, not %s.\n"
             "Raw input object:\n%s",
             job_order_file or "stdin",
             type(job_order_object),

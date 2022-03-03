@@ -191,10 +191,9 @@ def static_checker(
     # sink parameters: step_inputs and workflow_outputs
 
     # make a dictionary of source parameters, indexed by the "id" field
-    src_parms = workflow_inputs + step_outputs
-    src_dict = {}  # type: Dict[str, CWLObjectType]
-    for parm in src_parms:
-        src_dict[cast(str, parm["id"])] = parm
+    src_dict: Dict[str, CWLObjectType] = {}
+    for param in workflow_inputs + step_outputs:
+        src_dict[cast(str, param["id"])] = param
 
     step_inputs_val = check_all_types(src_dict, step_inputs, "source", param_to_step)
     workflow_outputs_val = check_all_types(
@@ -343,7 +342,7 @@ def check_all_types(
     """
     Given a list of sinks, check if their types match with the types of their sources.
 
-    sourceField is either "soure" or "outputSource"
+    sourceField is either "source" or "outputSource"
     """
     validation = {"warning": [], "exception": []}  # type: Dict[str, List[SrcSink]]
     for sink in sinks:

@@ -193,19 +193,19 @@ def get_subgraph(
             for i in tool.tool[f]:
                 if i["id"] in visited:
                     if f == "steps":
-                        for inport in i["in"]:
-                            if "source" not in inport:
+                        for in_port in i["in"]:
+                            if "source" not in in_port:
                                 continue
-                            if isinstance(inport["source"], MutableSequence):
-                                inport["source"] = CommentedSeq(
+                            if isinstance(in_port["source"], MutableSequence):
+                                in_port["source"] = CommentedSeq(
                                     [
                                         rewire[s][0]
-                                        for s in inport["source"]
+                                        for s in in_port["source"]
                                         if s in rewire
                                     ]
                                 )
-                            elif inport["source"] in rewire:
-                                inport["source"] = rewire[inport["source"]][0]
+                            elif in_port["source"] in rewire:
+                                in_port["source"] = rewire[in_port["source"]][0]
                     extracted[f].append(i)
         else:
             extracted[f] = tool.tool[f]
@@ -232,15 +232,15 @@ def get_step(
     extracted["inputs"] = CommentedSeq()
     extracted["outputs"] = CommentedSeq()
 
-    for inport in cast(List[CWLObjectType], step["in"]):
-        name = "#" + cast(str, inport["id"]).split("#")[-1].split("/")[-1]
+    for in_port in cast(List[CWLObjectType], step["in"]):
+        name = "#" + cast(str, in_port["id"]).split("#")[-1].split("/")[-1]
         inp: CWLObjectType = {"id": name, "type": "Any"}
-        if "default" in inport:
-            inp["default"] = inport["default"]
+        if "default" in in_port:
+            inp["default"] = in_port["default"]
         extracted["inputs"].append(CommentedMap(inp))
-        inport["source"] = name
-        if "linkMerge" in inport:
-            del inport["linkMerge"]
+        in_port["source"] = name
+        if "linkMerge" in in_port:
+            del in_port["linkMerge"]
 
     for outport in cast(List[Union[str, Mapping[str, Any]]], step["out"]):
         if isinstance(outport, Mapping):
