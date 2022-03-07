@@ -1188,7 +1188,7 @@ def test_cid_file_w_prefix(tmp_path: Path, factor: str) -> None:
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_secondary_files_v1_1(factor: str) -> None:
+def test_secondary_files_v1_1(factor: str, tmp_path: Path) -> None:
     test_file = "secondary-files.cwl"
     test_job_file = "secondary-files-job.yml"
     try:
@@ -1197,6 +1197,8 @@ def test_secondary_files_v1_1(factor: str) -> None:
         commands.extend(
             [
                 "--debug",
+                "--outdir",
+                str(tmp_path),
                 get_data(os.path.join("tests", test_file)),
                 get_data(os.path.join("tests", test_job_file)),
             ]
@@ -1204,7 +1206,7 @@ def test_secondary_files_v1_1(factor: str) -> None:
         error_code, _, stderr = get_main_output(commands)
     finally:
         # 664 in octal, '-rw-rw-r--'
-        assert stat.S_IMODE(os.stat("lsout").st_mode) == 436
+        assert stat.S_IMODE(os.stat(tmp_path / "lsout").st_mode) == 436
         os.umask(old_umask)  # revert back to original umask
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
@@ -1213,13 +1215,15 @@ def test_secondary_files_v1_1(factor: str) -> None:
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_secondary_files_bad_v1_1(factor: str) -> None:
+def test_secondary_files_bad_v1_1(factor: str, tmp_path: Path) -> None:
     """Affirm the correct error message for a bad secondaryFiles expression."""
     test_file = "secondary-files-bad.cwl"
     test_job_file = "secondary-files-job.yml"
     commands = factor.split()
     commands.extend(
         [
+            "--outdir",
+            str(tmp_path),
             get_data(os.path.join("tests", test_file)),
             get_data(os.path.join("tests", test_job_file)),
         ]
@@ -1282,7 +1286,7 @@ def test_wf_without_container(tmp_path: Path, factor: str) -> None:
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
-    """Confirm that re-running a particular workflow with caching suceeds."""
+    """Confirm that re-running a particular workflow with caching succeeds."""
     test_file = "cache_test_workflow.cwl"
     cache_dir = str(tmp_path / "cwltool_cache")
     commands = factor.split()
@@ -1600,7 +1604,7 @@ def test_arguments_self() -> None:
             factory.loading_context.singularity = True
         elif not shutil.which("jq"):
             pytest.skip(
-                "Need a container engine (docker, podman, or signularity) or jq to run this test."
+                "Need a container engine (docker, podman, or singularity) or jq to run this test."
             )
         else:
             factory.runtime_context.use_container = False
@@ -1706,10 +1710,10 @@ def test_record_default_with_long() -> None:
     )
 
 
-def test_record_outputeval() -> None:
+def test_record_outputeval(tmp_path: Path) -> None:
     """Confirm that record types can be populated from outputEval."""
     tool_path = get_data("tests/wf/record_outputeval.cwl")
-    err_code, stdout, stderr = get_main_output([tool_path])
+    err_code, stdout, stderr = get_main_output(["--outdir", str(tmp_path), tool_path])
     assert err_code == 0
     result = json.loads(stdout)["references"]
     assert "genome_fa" in result

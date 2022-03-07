@@ -73,12 +73,14 @@ def test_docker_file_mount() -> None:
 
 
 @needs_docker
-def test_docker_strict_cpu_limit() -> None:
+def test_docker_strict_cpu_limit(tmp_path: Path) -> None:
     result_code, stdout, stderr = get_main_output(
         [
             "--strict-cpu-limit",
             "--default-container",
             "docker.io/debian:stable-slim",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/wf/cores_float.cwl"),
         ]
     )
@@ -88,12 +90,14 @@ def test_docker_strict_cpu_limit() -> None:
 
 
 @needs_docker
-def test_docker_strict_memory_limit() -> None:
+def test_docker_strict_memory_limit(tmp_path: Path) -> None:
     result_code, stdout, stderr = get_main_output(
         [
             "--strict-memory-limit",
             "--default-container",
             "docker.io/debian:stable-slim",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/wf/storage_float.cwl"),
         ]
     )
@@ -103,11 +107,13 @@ def test_docker_strict_memory_limit() -> None:
 
 
 @needs_docker
-def test_docker_strict_cpu_limit_warning() -> None:
+def test_docker_strict_cpu_limit_warning(tmp_path: Path) -> None:
     result_code, stdout, stderr = get_main_output(
         [
             "--default-container",
             "docker.io/debian:stable-slim",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/wf/cores_float.cwl"),
         ]
     )
@@ -117,11 +123,13 @@ def test_docker_strict_cpu_limit_warning() -> None:
 
 
 @needs_docker
-def test_docker_strict_memory_limit_warning() -> None:
+def test_docker_strict_memory_limit_warning(tmp_path: Path) -> None:
     result_code, stdout, stderr = get_main_output(
         [
             "--default-container",
             "docker.io/debian:stable-slim",
+            "--outdir",
+            str(tmp_path),
             get_data("tests/wf/storage_float.cwl"),
         ]
     )

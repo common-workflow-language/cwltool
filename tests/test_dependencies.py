@@ -18,20 +18,22 @@ except ImportError:
 
 @needs_docker
 @pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
-def test_biocontainers() -> None:
+def test_biocontainers(tmp_path: Path) -> None:
     wflow = get_data("tests/seqtk_seq.cwl")
     job = get_data("tests/seqtk_seq_job.json")
-    error_code, _, _ = get_main_output(["--beta-use-biocontainers", wflow, job])
+    error_code, _, _ = get_main_output(
+        ["--outdir", str(tmp_path), "--beta-use-biocontainers", wflow, job]
+    )
 
     assert error_code == 0
 
 
 @pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
-def test_bioconda() -> None:
+def test_bioconda(tmp_path: Path) -> None:
     wflow = get_data("tests/seqtk_seq.cwl")
     job = get_data("tests/seqtk_seq_job.json")
     error_code, _, stderr = get_main_output(
-        ["--beta-conda-dependencies", "--debug", wflow, job]
+        ["--outdir", str(tmp_path), "--beta-conda-dependencies", "--debug", wflow, job]
     )
 
     assert error_code == 0, stderr

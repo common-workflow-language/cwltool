@@ -598,7 +598,7 @@ class CommandLineTool(Process):
                 if isinstance(t, Mapping) and "entry" in t:
                     # Dirent
                     entry_field = cast(str, t["entry"])
-                    # the schema guarentees that 'entry' is a string, so the cast is safe
+                    # the schema guarantees that 'entry' is a string, so the cast is safe
                     entry = builder.do_eval(entry_field, strip_whitespace=False)
                     if entry is None:
                         continue
@@ -634,7 +634,7 @@ class CommandLineTool(Process):
                                 )
                             for e in entry:
                                 ec = cast(CWLObjectType, e)
-                                ec["writeable"] = t.get("writable", False)
+                                ec["writable"] = t.get("writable", False)
                             ls.extend(cast(List[CWLObjectType], entry))
                             continue
 

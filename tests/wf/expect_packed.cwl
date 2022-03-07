@@ -13,7 +13,7 @@
                 {
                     "type": "boolean",
                     "default": true,
-                    "doc": "If true, reverse (decending) sort",
+                    "doc": "If true, reverse (descending) sort",
                     "id": "#main/reverse_sort"
                 },
                 {
