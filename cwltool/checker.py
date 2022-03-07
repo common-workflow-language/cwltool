@@ -407,27 +407,6 @@ def check_all_types(
                         )
                     )
 
-                if is_conditional_step(param_to_step, parm_id):
-                    src_typ = aslist(srcs_of_sink[0]["type"])
-                    snk_typ = sink["type"]
-
-                    if "null" not in src_typ:
-                        src_typ = ["null"] + cast(List[Any], src_typ)
-
-                    if "null" not in cast(
-                        Union[List[str], CWLObjectType], snk_typ
-                    ):  # Given our type names this works even if not a list
-                        validation["warning"].append(
-                            SrcSink(
-                                src_dict[parm_id],
-                                sink,
-                                linkMerge,
-                                message="Source is from conditional step and may produce `null`",
-                            )
-                        )
-
-                    srcs_of_sink[0]["type"] = src_typ
-
             for src in srcs_of_sink:
                 check_result = check_types(src, sink, linkMerge, valueFrom)
                 if check_result == "warning":
