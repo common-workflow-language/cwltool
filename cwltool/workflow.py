@@ -403,7 +403,9 @@ class WorkflowStep(Process):
             for n in range(0, nesting):
                 for oparam in outputparms:
                     if conditional and n == 0:
-                        oparam["type"] = ["null"] + aslist(oparam["type"])
+                        oparam["type"] = ["null"] + cast(
+                            List[str], aslist(oparam["type"])
+                        )
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
@@ -411,7 +413,7 @@ class WorkflowStep(Process):
             # No scatter, but conditional
             outputparms = copy.deepcopy(self.tool["outputs"])
             for oparam in outputparms:
-                oparam["type"] = ["null"] + aslist(oparam["type"])
+                oparam["type"] = ["null"] + cast(List[str], aslist(oparam["type"]))
             self.tool["outputs"] = outputparms
 
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
