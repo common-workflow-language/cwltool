@@ -121,6 +121,7 @@ supportedProcessRequirements = [
     "http://commonwl.org/cwltool#LoadListingRequirement",
     "http://commonwl.org/cwltool#InplaceUpdateRequirement",
     "http://commonwl.org/cwltool#CUDARequirement",
+    "http://commonwl.org/cwltool#Loop",
 ]
 
 cwl_files = (

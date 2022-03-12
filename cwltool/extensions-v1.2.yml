@@ -127,15 +127,11 @@ $graph:
       type: string?
       jsonldPredicate: "@id"
       doc: "It must reference the `id` of one of the elements in the `in` field of the step."
-    source:
+    loop_source:
       doc: |
         Specifies one or more of the step output parameters that will
         provide input to the loop iterations after the first one (inputs
         of the first iteration are the step input parameters).
-      jsonldPredicate:
-        "_id": "cwl:source"
-        "_type": "@id"
-        refScope: 2
       type:
         - string?
         - string[]?
@@ -231,7 +227,7 @@ $graph:
       jsonldPredicate:
         _id: "cwltool:loop"
         mapSubject: id
-        mapPredicate: source
+        mapPredicate: loop_source
       doc: |
         Defines the input parameters of the loop iterations after the first one
         (inputs of the first iteration are the step input parameters). If no
