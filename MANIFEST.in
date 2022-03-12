@@ -57,6 +57,7 @@ include cwltool/cwlNodeEngineJSConsole.js
 include cwltool/cwlNodeEngineWithContext.js
 include cwltool/extensions.yml
 include cwltool/extensions-v1.1.yml
+include cwltool/extensions-v1.2.yml
 include cwltool/jshint/jshint_wrapper.js
 include cwltool/jshint/jshint.js
 include cwltool/hello.simg
