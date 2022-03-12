@@ -132,6 +132,10 @@ $graph:
         Specifies one or more of the step output parameters that will
         provide input to the loop iterations after the first one (inputs
         of the first iteration are the step input parameters).
+      jsonldPredicate:
+        "_id": "cwl:source"
+        "_type": "@id"
+        refScope: 2
       type:
         - string?
         - string[]?
