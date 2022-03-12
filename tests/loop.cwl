@@ -15,7 +15,7 @@ inputs:
   i1: boolean
 outputs:
   o1:
-    type: Any
+    type: int
     outputSource: subworkflow/o1
 steps:
   A:
