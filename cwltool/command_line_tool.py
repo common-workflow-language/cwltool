@@ -1377,12 +1377,7 @@ class CommandLineTool(Process):
                             prefix = fs_access.glob(outdir)
                             sorted_glob_result = sorted(
                                 fs_access.glob(fs_access.join(outdir, gb)),
-                                key=cmp_to_key(
-                                    cast(
-                                        Callable[[str, str], int],
-                                        locale.strcoll,
-                                    )
-                                ),
+                                key=cmp_to_key(locale.strcoll),
                             )
                             r.extend(
                                 [
