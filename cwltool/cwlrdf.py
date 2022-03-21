@@ -194,4 +194,4 @@ def printdot(
     stdout: Union[TextIO, StreamWriter],
 ) -> None:
     cwl_viewer = CWLViewer(printrdf(wf, ctx, "n3"))  # type: CWLViewer
-    stdout.write(cwl_viewer.dot())
+    stdout.write(cwl_viewer.dot().replace(f"{wf.metadata['id']}#", ""))
