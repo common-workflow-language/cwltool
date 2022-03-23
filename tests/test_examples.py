@@ -1009,7 +1009,6 @@ def test_var_spool_cwl_checker3() -> None:
 def test_print_dot() -> None:
     # print Workflow
     cwl_path = get_data("tests/wf/revsort.cwl")
-    cwl_posix_path = Path(cwl_path).as_posix()
     expected_dot = pydot.graph_from_dot_data(
         """
     digraph {{
@@ -1023,10 +1022,10 @@ def test_print_dot() -> None:
                         rank=same,
                         style=dashed
                 ];
-                "file://{cwl_posix_path}#workflow_input"      [fillcolor="#94DDF4",
+                "workflow_input"      [fillcolor="#94DDF4",
                         label=workflow_input,
                         style=filled];
-                "file://{cwl_posix_path}#reverse_sort"        [fillcolor="#94DDF4",
+                "reverse_sort"        [fillcolor="#94DDF4",
                         label=reverse_sort,
                         style=filled];
         }}
@@ -1036,24 +1035,22 @@ def test_print_dot() -> None:
                         rank=same,
                         style=dashed
                 ];
-                "file://{cwl_posix_path}#sorted_output"       [fillcolor="#94DDF4",
+                "sorted_output"       [fillcolor="#94DDF4",
                         label=sorted_output,
                         style=filled];
         }}
-        "file://{cwl_posix_path}#rev" [fillcolor=lightgoldenrodyellow,
+        "rev" [fillcolor=lightgoldenrodyellow,
                 label=rev,
                 style=filled];
-        "file://{cwl_posix_path}#sorted"      [fillcolor=lightgoldenrodyellow,
+        "sorted"      [fillcolor=lightgoldenrodyellow,
                 label=sorted,
                 style=filled];
-        "file://{cwl_posix_path}#rev" -> "file://{cwl_posix_path}#sorted";
-        "file://{cwl_posix_path}#sorted" -> "file://{cwl_posix_path}#sorted_output";
-        "file://{cwl_posix_path}#workflow_input" -> "file://{cwl_posix_path}#rev";
-        "file://{cwl_posix_path}#reverse_sort" -> "file://{cwl_posix_path}#sorted";
+        "rev" -> "sorted";
+        "sorted" -> "sorted_output";
+        "workflow_input" -> "rev";
+        "reverse_sort" -> "sorted";
 }}
-    """.format(
-            cwl_posix_path=cwl_posix_path
-        )
+    """
     )[0]
     stdout = StringIO()
     assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 0
