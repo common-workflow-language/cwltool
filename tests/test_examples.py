@@ -1055,18 +1055,10 @@ def test_print_dot() -> None:
     stdout = StringIO()
     assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
-    # computed_edges = sorted(
-    #     (urlparse(source).fragment, urlparse(target).fragment)
-    #     for source, target in computed_dot.obj_dict["edges"]
-    # )
     computed_edges = sorted(
         (source, target)
         for source, target in computed_dot.obj_dict["edges"]
     )
-    # expected_edges = sorted(
-    #     (urlparse(source).fragment, urlparse(target).fragment)
-    #     for source, target in expected_dot.obj_dict["edges"]
-    # )
     expected_edges = sorted(
         (source, target) 
         for source, target in expected_dot.obj_dict["edges"]
