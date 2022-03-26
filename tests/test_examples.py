@@ -1060,7 +1060,7 @@ def test_print_dot() -> None:
         for source, target in computed_dot.obj_dict["edges"]
     )
     expected_edges = sorted(
-        (source, target) 
+        (source, target)
         for source, target in expected_dot.obj_dict["edges"]
     )
     assert computed_edges == expected_edges
