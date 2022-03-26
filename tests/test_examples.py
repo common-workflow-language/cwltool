@@ -1056,15 +1056,12 @@ def test_print_dot() -> None:
     assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
     computed_edges = sorted(
-        (source, target)
-        for source, target in computed_dot.obj_dict["edges"]
+        (source, target) for source, target in computed_dot.obj_dict["edges"]
     )
     expected_edges = sorted(
-        (source, target) 
-        for source, target in expected_dot.obj_dict["edges"]
+        (source, target) for source, target in expected_dot.obj_dict["edges"]
     )
     assert computed_edges == expected_edges
-
 
     # print CommandLineTool
     cwl_path = get_data("tests/wf/echo.cwl")
