@@ -443,9 +443,9 @@ class WorkflowStep(Process):
         for inp in job_order:
             field = shortname(inp)
             step_input[field] = job_order[inp]
-            # if not inp.get("not_connected"):
-            #    step_input[field] = job_order[field]
-
+            if hasattr(inp, "get"):
+                if not inp.get("not_connected"):
+                    step_input[field] = job_order[field]
         try:
             yield from self.embedded_tool.job(
                 step_input,

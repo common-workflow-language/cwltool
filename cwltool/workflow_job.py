@@ -387,7 +387,8 @@ def object_from_state(
 ) -> Optional[CWLObjectType]:
     inputobj = {}  # type: CWLObjectType
     for s in state.keys():
-        inputobj[s] = state[s].value
+        if hasattr(state[s], "value"):
+            inputobj[s] = state[s].value
     for inp in parms:
         iid = original_id = cast(str, inp["id"])
         if frag_only:
@@ -553,6 +554,23 @@ class WorkflowJob:
             _logger.debug("[%s] outputs %s", self.name, json_dumps(wo, indent=4))
 
         self.did_callback = True
+        paramskey=[]
+        paramskeys=[]
+
+        if self.tool["outputs"] is not None:
+            for inp in self.tool["outputs"]:
+                for k,v in inp.items():
+                    if k == 'id':
+                        paramskey.append(v)
+                        paramskeys.append(shortname(v))
+
+        newwo={}
+        for k,v in wo.items():
+            if k in paramskey:
+                newwo[k]=v
+            elif k in paramskeys:
+                newwo[k]=v
+        wo = newwo
 
         final_output_callback(wo, self.processStatus)
 
