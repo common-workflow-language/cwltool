@@ -2,9 +2,11 @@ import datetime
 import functools
 import itertools
 import logging
+import math
 import os
 import re
 import shutil
+import signal
 import stat
 import subprocess  # nosec
 import sys
@@ -41,6 +43,7 @@ from typing_extensions import TYPE_CHECKING
 from . import env_to_stdout, run_job
 from .builder import Builder
 from .context import RuntimeContext
+from .cuda import cuda_check
 from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
@@ -49,8 +52,8 @@ from .secrets import SecretStore
 from .utils import (
     CWLObjectType,
     CWLOutputType,
-    HasReqsHints,
     DirectoryType,
+    HasReqsHints,
     OutputCallbackType,
     bytes2str_in_dicts,
     create_tmp_dir,
@@ -85,7 +88,7 @@ def relink_initialworkdir(
         ):
             if not vol.target.startswith(container_outdir):
                 # this is an input file written outside of the working
-                # directory, so therefor ineligable for being an output file.
+                # directory, so therefore ineligable for being an output file.
                 # Thus, none of our business
                 continue
             host_outdir_tgt = os.path.join(
@@ -173,6 +176,17 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         pass
 
     def _setup(self, runtimeContext: RuntimeContext) -> None:
+
+        cuda_req, _ = self.builder.get_requirement(
+            "http://commonwl.org/cwltool#CUDARequirement"
+        )
+        if cuda_req:
+            count = cuda_check(
+                cuda_req, math.ceil(self.builder.resources["cudaDeviceCount"])
+            )
+            if count == 0:
+                raise WorkflowException("Could not satisfy CUDARequirement")
+
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
 
@@ -216,6 +230,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                         indent=4,
                     ),
                 )
+        self.base_path_logs = runtimeContext.set_log_dir(
+            self.outdir, runtimeContext.log_dir, self.name
+        )
 
     def _execute(
         self,
@@ -233,7 +250,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         `runtime` is the list of arguments to put at the start of the
         command (e.g. docker run).
 
-        `env` is the enviroment to be set for running the resulting
+        `env` is the environment to be set for running the resulting
         command line.
         """
         scr = self.get_requirement("ShellCommandRequirement")[0]
@@ -267,8 +284,12 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 ]
             ),
             " < %s" % self.stdin if self.stdin else "",
-            " > %s" % os.path.join(self.outdir, self.stdout) if self.stdout else "",
-            " 2> %s" % os.path.join(self.outdir, self.stderr) if self.stderr else "",
+            " > %s" % os.path.join(self.base_path_logs, self.stdout)
+            if self.stdout
+            else "",
+            " 2> %s" % os.path.join(self.base_path_logs, self.stderr)
+            if self.stderr
+            else "",
         )
         if self.joborder is not None and runtimeContext.research_obj is not None:
             job_order = self.joborder
@@ -296,22 +317,19 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 else:
                     stdin_path = rmap[1]
 
-            stderr_path = None
-            if self.stderr is not None:
-                abserr = os.path.join(self.outdir, self.stderr)
-                dnerr = os.path.dirname(abserr)
-                if dnerr and not os.path.exists(dnerr):
-                    os.makedirs(dnerr)
-                stderr_path = abserr
+            def stderr_stdout_log_path(
+                base_path_logs: str, stderr_or_stdout: Optional[str]
+            ) -> Optional[str]:
+                if stderr_or_stdout is not None:
+                    abserr = os.path.join(base_path_logs, stderr_or_stdout)
+                    dnerr = os.path.dirname(abserr)
+                    if dnerr and not os.path.exists(dnerr):
+                        os.makedirs(dnerr)
+                    return abserr
+                return None
 
-            stdout_path = None
-            if self.stdout is not None:
-                absout = os.path.join(self.outdir, self.stdout)
-                dnout = os.path.dirname(absout)
-                if dnout and not os.path.exists(dnout):
-                    os.makedirs(dnout)
-                stdout_path = absout
-
+            stderr_path = stderr_stdout_log_path(self.base_path_logs, self.stderr)
+            stdout_path = stderr_stdout_log_path(self.base_path_logs, self.stdout)
             commands = [str(x) for x in runtime + self.command_line]
             if runtimeContext.secret_store is not None:
                 commands = cast(
@@ -324,7 +342,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 )
 
             job_script_contents = None  # type: Optional[str]
-            builder = getattr(self, "builder", None)  # type: Builder
+            builder: Optional[Builder] = getattr(self, "builder", None)
             if builder is not None:
                 job_script_contents = builder.build_job_script(commands)
             rcode = _job_popen(
@@ -354,6 +372,16 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             else:
                 processStatus = "permanentFail"
 
+            if processStatus != "success":
+                if rcode < 0:
+                    _logger.warning(
+                        "[job %s] was terminated by signal: %s",
+                        self.name,
+                        signal.Signals(-rcode).name,
+                    )
+                else:
+                    _logger.warning("[job %s] exited with status: %d", self.name, rcode)
+
             if "listing" in self.generatefiles:
                 if self.generatemapper:
                     relink_initialworkdir(
@@ -367,7 +395,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                         "'listing' in self.generatefiles but no "
                         "generatemapper was setup."
                     )
-
+            runtimeContext.log_dir_handler(
+                self.outdir, self.base_path_logs, stdout_path, stderr_path
+            )
             outputs = self.collect_outputs(self.outdir, rcode)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
         except OSError as e:
@@ -504,14 +534,17 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 
         def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
             children = monitor.children()
-            rss = monitor.memory_info().rss
-            while len(children):
-                rss += sum(process.memory_info().rss for process in children)
-                children = list(
-                    itertools.chain(*(process.children() for process in children))
-                )
-            if memory_usage[0] is None or rss > memory_usage[0]:
-                memory_usage[0] = rss
+            try:
+                rss = monitor.memory_info().rss
+                while len(children):
+                    rss += sum(process.memory_info().rss for process in children)
+                    children = list(
+                        itertools.chain(*(process.children() for process in children))
+                    )
+                if memory_usage[0] is None or rss > memory_usage[0]:
+                    memory_usage[0] = rss
+            except psutil.NoSuchProcess:
+                mem_tm.cancel()
 
         mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
         mem_tm.daemon = True
@@ -522,7 +555,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             _logger.info(
                 "[job %s] Max memory used: %iMiB",
                 self.name,
-                round(memory_usage[0] / (2 ** 20)),
+                round(memory_usage[0] / (2**20)),
             )
         else:
             _logger.debug(
@@ -674,8 +707,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         dirname = os.path.dirname(host_outdir_tgt or new_file)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
-        with open(host_outdir_tgt or new_file, "wb") as file_literal:
-            file_literal.write(contents.encode("utf-8"))
+        with open(host_outdir_tgt or new_file, "w") as file_literal:
+            file_literal.write(contents)
         if not host_outdir_tgt:
             self.append_volume(runtime, new_file, volume.target, writable=writable)
         if writable:
@@ -876,7 +909,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     cid = cidhandle.readline().strip()
             except (OSError):
                 cid = None
-        max_mem = psutil.virtual_memory().total
+        max_mem = psutil.virtual_memory().total  # type: ignore[no-untyped-call]
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
         stats_file_name = stats_file.name
@@ -910,7 +943,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         _logger.info(
             "[job %s] Max memory used: %iMiB",
             self.name,
-            int((max_mem_percent / 100 * max_mem) / (2 ** 20)),
+            int((max_mem_percent / 100 * max_mem) / (2**20)),
         )
         if cleanup_cidfile:
             os.remove(cidfile)
@@ -1020,8 +1053,8 @@ def _job_popen(
             ) as job_file:
                 json_dump(job_description, job_file, ensure_ascii=False)
             job_script = os.path.join(job_dir, "run_job.bash")
-            with open(job_script, "wb") as _:
-                _.write(job_script_contents.encode("utf-8"))
+            with open(job_script, "w") as _:
+                _.write(job_script_contents)
 
             job_run = os.path.join(job_dir, "run_job.py")
             shutil.copyfile(run_job.__file__, job_run)
@@ -1030,7 +1063,7 @@ def _job_popen(
             shutil.copyfile(env_to_stdout.__file__, env_getter)
 
             sproc = subprocess.Popen(  # nosec
-                ["bash", job_script.encode("utf-8")],
+                ["bash", job_script],
                 shell=False,  # nosec
                 cwd=job_dir,
                 # The nested script will output the paths to the correct files if they need

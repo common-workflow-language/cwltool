@@ -39,9 +39,9 @@ seg_symbol = r"""\w+"""
 seg_single = r"""\['([^']|\\')+'\]"""
 seg_double = r"""\["([^"]|\\")+"\]"""
 seg_index = r"""\[[0-9]+\]"""
-segments = fr"(\.{seg_symbol}|{seg_single}|{seg_double}|{seg_index})"
+segments = rf"(\.{seg_symbol}|{seg_single}|{seg_double}|{seg_index})"
 segment_re = re.compile(segments, flags=re.UNICODE)
-param_str = fr"\(({seg_symbol}){segments}*\)$"
+param_str = rf"\(({seg_symbol}){segments}*\)$"
 param_re = re.compile(param_str, flags=re.UNICODE)
 
 

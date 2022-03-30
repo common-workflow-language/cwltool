@@ -235,7 +235,7 @@ Note that the `arcp <https://tools.ietf.org/id/draft-soilandreyes-arcp-03.html>`
 Account who launched cwltool
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If `--enable-user-provenance` was used, the local machine acccount (e.g. Windows or UNIX user name) who started ``cwltool`` is tracked::
+If `--enable-user-provenance` was used, the local machine account (e.g. Windows or UNIX user name) who started ``cwltool`` is tracked::
 
     agent(id:855c6823-bbe7-48a5-be37-b0f07f20c495, [foaf:accountName="stain", prov:type='foaf:OnlineAccount', prov:label="stain"])
 

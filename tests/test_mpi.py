@@ -46,7 +46,7 @@ def fake_mpi_conf(tmp_path_factory: Any) -> Generator[str, None, None]:
 
     It just runs the command multiple times (in serial).
 
-    Then create a plaform MPI config YAML file that should make it work
+    Then create a platform MPI config YAML file that should make it work
     for the testing examples.
     """
     mpirun_text = """#!{interpreter}

@@ -1,6 +1,7 @@
 """Shared context objects that replace use of kwargs."""
 import copy
 import os
+import shutil
 import tempfile
 import threading
 from typing import IO, Any, Callable, Dict, Iterable, List, Optional, TextIO, Union
@@ -45,6 +46,30 @@ def make_tool_notimpl(
 
 
 default_make_tool = make_tool_notimpl
+
+
+def log_handler(
+    outdir: str,
+    base_path_logs: str,
+    stdout_path: Optional[str],
+    stderr_path: Optional[str],
+) -> None:
+    """Move logs from log location to final output."""
+    if outdir != base_path_logs:
+        if stdout_path:
+            new_stdout_path = stdout_path.replace(base_path_logs, outdir)
+            shutil.copy2(stdout_path, new_stdout_path)
+        if stderr_path:
+            new_stderr_path = stderr_path.replace(base_path_logs, outdir)
+            shutil.copy2(stderr_path, new_stderr_path)
+
+
+def set_log_dir(outdir: str, log_dir: str, subdir_name: str) -> str:
+    """Default handler for setting the log directory."""
+    if log_dir == "":
+        return outdir
+    else:
+        return log_dir + "/" + subdir_name
 
 
 class LoadingContext(ContextBase):
@@ -109,6 +134,9 @@ class RuntimeContext(ContextBase):
         self.pull_image = True  # type: bool
         self.rm_container = True  # type: bool
         self.move_outputs = "move"  # type: str
+        self.log_dir = ""  # type: str
+        self.set_log_dir = set_log_dir
+        self.log_dir_handler = log_handler
         self.streaming_allowed: bool = False
 
         self.singularity = False  # type: bool
@@ -127,7 +155,7 @@ class RuntimeContext(ContextBase):
         self.basedir = ""  # type: str
         self.toplevel = False  # type: bool
         self.mutation_manager = None  # type: Optional[MutationManager]
-        self.make_fs_access = StdFsAccess  # type: Callable[[str], StdFsAccess]
+        self.make_fs_access = StdFsAccess
         self.path_mapper = PathMapper
         self.builder = None  # type: Optional[Builder]
         self.docker_outdir = ""  # type: str
@@ -142,7 +170,7 @@ class RuntimeContext(ContextBase):
         )  # type: Optional[Callable[[CWLObjectType], Optional[CWLObjectType]]]
         self.on_error = "stop"  # type: str
         self.strict_memory_limit = False  # type: bool
-
+        self.strict_cpu_limit = False  # type: bool
         self.cidfile_dir = None  # type: Optional[str]
         self.cidfile_prefix = None  # type: Optional[str]
 

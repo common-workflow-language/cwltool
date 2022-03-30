@@ -434,6 +434,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         else:
             runtime.extend(["--net", "--network", "none"])
 
+        if self.builder.resources.get("cudaDeviceCount"):
+            runtime.append("--nv")
+
         for name, value in self.environment.items():
             env[f"SINGULARITYENV_{name}"] = str(value)
 

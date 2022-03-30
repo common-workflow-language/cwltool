@@ -1,4 +1,4 @@
-name: Continous integration tests
+name: Continuous integration tests
 
 on:
   push:
@@ -32,7 +32,7 @@ jobs:
       TOXENV: ${{ format('py{0}{1}-{2}', matrix.py-ver-major, matrix.py-ver-minor, matrix.step) }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -47,15 +47,13 @@ jobs:
         run: sudo usermod -c 'CI Runner' $(whoami)
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ env.py-semver }}
-
-      - name: Cache for pip
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.step }}-${{ hashFiles('requirements.txt', 'tox.ini') }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tox.ini
 
       - name: Upgrade setuptools and install tox
         run: |
@@ -64,7 +62,7 @@ jobs:
 
       - name: MyPy cache
         if: ${{ matrix.step == 'mypy' }}
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: .mypy_cache/${{ env.py-semver }}
           key: mypy-${{ env.py-semver }}
@@ -92,20 +90,15 @@ jobs:
       TOXENV: ${{ format('py310-{0}', matrix.step) }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ env.py-semver }}
-
-      - name: Cache for pip
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.step }}-${{ hashFiles('requirements.txt') }}
+          cache: pip
 
       - name: Upgrade setuptools and install tox
         run: |
@@ -130,7 +123,7 @@ jobs:
         container: [docker, singularity, podman]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up Singularity
         uses: eWaterCycle/setup-singularity@v7
@@ -138,15 +131,10 @@ jobs:
           singularity-version: ${{ env.singularity_version }}
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: 3.9
-
-      - name: Cache for pip
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-conformance-${{ matrix.step }}-${{ hashFiles('requirements.txt') }}
+          cache: pip
 
       - name: Run CWL conformance tests ${{ matrix.cwl-version }}
         env:
@@ -161,7 +149,7 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up Singularity
         uses: eWaterCycle/setup-singularity@v7
@@ -169,18 +157,16 @@ jobs:
           singularity-version: ${{ env.singularity_version }}
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v3
         with:
           python-version: "3.10"  # quoted, otherwise that turns into the number 3.1
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            test-requirements.txt
 
       - name: Give the test runner user a name to make provenance happy.
         run: sudo usermod -c 'CI Runner' $(whoami)
-
-      - name: Cache for pip
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-release-${{ hashFiles('requirements.txt', 'test-requirements.txt') }}
 
       - name: Install packages
         run: |

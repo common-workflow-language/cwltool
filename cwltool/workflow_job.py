@@ -379,7 +379,7 @@ def match_types(
 
 def object_from_state(
     state: Dict[str, Optional[WorkflowStateItem]],
-    parms: ParametersType,
+    params: ParametersType,
     frag_only: bool,
     supportsMultipleInput: bool,
     sourceField: str,
@@ -389,7 +389,7 @@ def object_from_state(
     for s in state.keys():
         if hasattr(state[s], "value"):
             inputobj[s] = state[s].value
-    for inp in parms:
+    for inp in params:
         iid = original_id = cast(str, inp["id"])
         if frag_only:
             iid = shortname(iid)
@@ -645,8 +645,6 @@ class WorkflowJob:
                 _logger.debug("[%s] job step %s not ready", self.name, step.id)
                 return
 
-            if step.submitted:
-                return
             _logger.info("[%s] starting %s", self.name, step.name)
 
             callback = functools.partial(
@@ -714,7 +712,6 @@ class WorkflowJob:
                         None,
                         None,
                         {},
-                        context=cast(Optional[CWLObjectType], v),
                         debug=runtimeContext.debug,
                         js_console=runtimeContext.js_console,
                         timeout=runtimeContext.eval_timeout,

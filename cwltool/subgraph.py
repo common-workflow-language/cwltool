@@ -17,7 +17,7 @@ from typing import (
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .context import LoadingContext
-from .load_tool import load_tool
+from .load_tool import load_tool, make_tool
 from .process import Process
 from .utils import CWLObjectType, aslist
 from .workflow import Workflow, WorkflowStep
@@ -64,16 +64,34 @@ def find_step(
 ) -> Tuple[Optional[CWLObjectType], Optional[WorkflowStep]]:
     """Find the step (raw dictionary and WorkflowStep) for a given step id."""
     for st in steps:
-        if st.tool["id"] == stepid:
+        st_tool_id = st.tool["id"]
+        if st_tool_id == stepid:
             return st.tool, st
-        if stepid.startswith(st.tool["id"]):
-            run: Union[str, Process] = st.tool["run"]
+        if stepid.startswith(st_tool_id):
+            run: Union[str, Process, CWLObjectType] = st.tool["run"]
             if isinstance(run, Workflow):
                 result, st2 = find_step(
                     run.steps, stepid[len(st.tool["id"]) + 1 :], loading_context
                 )
                 if result:
                     return result, st2
+            elif isinstance(run, CommentedMap) and run["class"] == "Workflow":
+                process = make_tool(run, loading_context)
+                if isinstance(process, Workflow):
+                    suffix = stepid[len(st.tool["id"]) + 1 :]
+                    prefix = process.tool["id"]
+                    if "#" in prefix:
+                        sep = "/"
+                    else:
+                        sep = "#"
+                    adj_stepid = f"{prefix}{sep}{suffix}"
+                    result2, st3 = find_step(
+                        process.steps,
+                        adj_stepid,
+                        loading_context,
+                    )
+                    if result2:
+                        return result2, st3
             elif isinstance(run, str):
                 process = load_tool(run, loading_context)
                 if isinstance(process, Workflow):
@@ -84,9 +102,9 @@ def find_step(
                     else:
                         sep = "#"
                     adj_stepid = f"{prefix}{sep}{suffix}"
-                    result2, st3 = find_step(process.steps, adj_stepid, loading_context)
-                    if result2:
-                        return result2, st3
+                    result3, st4 = find_step(process.steps, adj_stepid, loading_context)
+                    if result3:
+                        return result3, st4
     return None, None
 
 
@@ -175,19 +193,19 @@ def get_subgraph(
             for i in tool.tool[f]:
                 if i["id"] in visited:
                     if f == "steps":
-                        for inport in i["in"]:
-                            if "source" not in inport:
+                        for in_port in i["in"]:
+                            if "source" not in in_port:
                                 continue
-                            if isinstance(inport["source"], MutableSequence):
-                                inport["source"] = CommentedSeq(
+                            if isinstance(in_port["source"], MutableSequence):
+                                in_port["source"] = CommentedSeq(
                                     [
                                         rewire[s][0]
-                                        for s in inport["source"]
+                                        for s in in_port["source"]
                                         if s in rewire
                                     ]
                                 )
-                            elif inport["source"] in rewire:
-                                inport["source"] = rewire[inport["source"]][0]
+                            elif in_port["source"] in rewire:
+                                in_port["source"] = rewire[in_port["source"]][0]
                     extracted[f].append(i)
         else:
             extracted[f] = tool.tool[f]
@@ -214,15 +232,22 @@ def get_step(
     extracted["inputs"] = CommentedSeq()
     extracted["outputs"] = CommentedSeq()
 
-    for inport in cast(List[CWLObjectType], step["in"]):
-        name = "#" + cast(str, inport["id"]).split("#")[-1].split("/")[-1]
-        extracted["inputs"].append(CommentedMap({"id": name, "type": "Any"}))
-        inport["source"] = name
-        if "linkMerge" in inport:
-            del inport["linkMerge"]
+    for in_port in cast(List[CWLObjectType], step["in"]):
+        name = "#" + cast(str, in_port["id"]).split("#")[-1].split("/")[-1]
+        inp: CWLObjectType = {"id": name, "type": "Any"}
+        if "default" in in_port:
+            inp["default"] = in_port["default"]
+        extracted["inputs"].append(CommentedMap(inp))
+        in_port["source"] = name
+        if "linkMerge" in in_port:
+            del in_port["linkMerge"]
 
-    for outport in cast(List[str], step["out"]):
-        name = outport.split("#")[-1].split("/")[-1]
+    for outport in cast(List[Union[str, Mapping[str, Any]]], step["out"]):
+        if isinstance(outport, Mapping):
+            outport_id = cast(str, outport["id"])
+        else:
+            outport_id = outport
+        name = outport_id.split("#")[-1].split("/")[-1]
         extracted["outputs"].append(
             {
                 "id": name,

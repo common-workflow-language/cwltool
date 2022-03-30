@@ -1,0 +1,7 @@
+"dir1": {
+    "class": "Directory",
+    "listing": [
+        {"class": "File", "basename": "foo", "location": "tests/wf/foo1"},
+        {"class": "File", "basename": "foo", "location": "tests/wf/foo2"}
+    ]
+}

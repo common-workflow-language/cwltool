@@ -2,6 +2,7 @@
 
 import csv
 import datetime
+import math
 import os
 import re
 import shutil
@@ -15,6 +16,7 @@ import requests
 
 from .builder import Builder
 from .context import RuntimeContext
+from .cuda import cuda_check
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
@@ -76,7 +78,7 @@ def _check_docker_machine_path(path: Optional[str]) -> None:
 
 
 class DockerCommandLineJob(ContainerCommandLineJob):
-    """Runs a CommandLineJob in a sofware container using the Docker engine."""
+    """Runs a CommandLineJob in a software container using the Docker engine."""
 
     def __init__(
         self,
@@ -156,8 +158,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 found = True
             elif "dockerFile" in docker_requirement:
                 dockerfile_dir = create_tmp_dir(tmp_outdir_prefix)
-                with open(os.path.join(dockerfile_dir, "Dockerfile"), "wb") as dfile:
-                    dfile.write(docker_requirement["dockerFile"].encode("utf-8"))
+                with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as dfile:
+                    dfile.write(docker_requirement["dockerFile"])
                 cmd = [
                     "docker",
                     "build",
@@ -395,6 +397,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if runtimeContext.rm_container:
             runtime.append("--rm")
 
+        if self.builder.resources.get("cudaDeviceCount"):
+            runtime.append("--gpus=" + str(self.builder.resources["cudaDeviceCount"]))
+
         cidfile_path = None  # type: Optional[str]
         # add parameters to docker to write a container ID file
         if runtimeContext.user_space_docker_cmd is None:
@@ -425,17 +430,31 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         for key, value in self.environment.items():
             runtime.append(f"--env={key}={value}")
 
+        res_req, _ = self.builder.get_requirement("ResourceRequirement")
+
         if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
             ram = self.builder.resources["ram"]
             runtime.append("--memory=%dm" % ram)
         elif not user_space_docker_cmd:
-            res_req, _ = self.builder.get_requirement("ResourceRequirement")
             if res_req and ("ramMin" in res_req or "ramMax" in res_req):
                 _logger.warning(
                     "[job %s] Skipping Docker software container '--memory' limit "
                     "despite presence of ResourceRequirement with ramMin "
                     "and/or ramMax setting. Consider running with "
                     "--strict-memory-limit for increased portability "
+                    "assurance.",
+                    self.name,
+                )
+        if runtimeContext.strict_cpu_limit and not user_space_docker_cmd:
+            cpus = math.ceil(self.builder.resources["cores"])
+            runtime.append(f"--cpus={cpus}")
+        elif not user_space_docker_cmd:
+            if res_req and ("coresMin" in res_req or "coresMax" in res_req):
+                _logger.warning(
+                    "[job %s] Skipping Docker software container '--cpus' limit "
+                    "despite presence of ResourceRequirement with coresMin "
+                    "and/or coresMax setting. Consider running with "
+                    "--strict-cpu-limit for increased portability "
                     "assurance.",
                     self.name,
                 )

@@ -31,7 +31,7 @@ inputs:
   reverse_sort:
     type: boolean
     default: true
-    doc: "If true, reverse (decending) sort"
+    doc: "If true, reverse (descending) sort"
   name:
     type: string
     doc: "Here to test for a bug in --pack"

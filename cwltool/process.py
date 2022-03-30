@@ -1,4 +1,4 @@
-"""Classes and methods relevant for all CWL Proccess types."""
+"""Classes and methods relevant for all CWL Process types."""
 import abc
 import copy
 import functools
@@ -120,6 +120,7 @@ supportedProcessRequirements = [
     "http://commonwl.org/cwltool#NetworkAccess",
     "http://commonwl.org/cwltool#LoadListingRequirement",
     "http://commonwl.org/cwltool#InplaceUpdateRequirement",
+    "http://commonwl.org/cwltool#CUDARequirement",
 ]
 
 cwl_files = (
@@ -312,13 +313,11 @@ def stage_files(
                 shutil.copytree(entry.resolved, entry.target)
                 ensure_writable(entry.target, include_root=True)
         elif entry.type == "CreateFile" or entry.type == "CreateWritableFile":
-            with open(entry.target, "wb") as new:
+            with open(entry.target, "w") as new:
                 if secret_store is not None:
-                    new.write(
-                        cast(str, secret_store.retrieve(entry.resolved)).encode("utf-8")
-                    )
+                    new.write(cast(str, secret_store.retrieve(entry.resolved)))
                 else:
-                    new.write(entry.resolved.encode("utf-8"))
+                    new.write(entry.resolved)
             if entry.type == "CreateFile":
                 os.chmod(entry.target, stat.S_IRUSR)  # Read only
             else:  # it is a "CreateWritableFile"
@@ -981,6 +980,7 @@ hints:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
+
         cwl_version = self.metadata.get(ORIGINAL_CWLVERSION, None)
         if cwl_version == "v1.0":
             ram = 1024
@@ -996,20 +996,34 @@ hints:
             "outdirMin": 1024,
             "outdirMax": 1024,
         }
-        for a in ("cores", "ram", "tmpdir", "outdir"):
+
+        cudaReq, _ = self.get_requirement("http://commonwl.org/cwltool#CUDARequirement")
+        if cudaReq:
+            request["cudaDeviceCountMin"] = 1
+            request["cudaDeviceCountMax"] = 1
+
+        for rsc, a in (
+            (resourceReq, "cores"),
+            (resourceReq, "ram"),
+            (resourceReq, "tmpdir"),
+            (resourceReq, "outdir"),
+            (cudaReq, "cudaDeviceCount"),
+        ):
+            if rsc is None:
+                continue
             mn = mx = None  # type: Optional[Union[int, float]]
-            if resourceReq.get(a + "Min"):
+            if rsc.get(a + "Min"):
                 mn = cast(
                     Union[int, float],
                     eval_resource(
-                        builder, cast(Union[str, int, float], resourceReq[a + "Min"])
+                        builder, cast(Union[str, int, float], rsc[a + "Min"])
                     ),
                 )
-            if resourceReq.get(a + "Max"):
+            if rsc.get(a + "Max"):
                 mx = cast(
                     Union[int, float],
                     eval_resource(
-                        builder, cast(Union[str, int, float], resourceReq[a + "Max"])
+                        builder, cast(Union[str, int, float], rsc[a + "Max"])
                     ),
                 )
             if mn is None:
@@ -1023,13 +1037,18 @@ hints:
 
         request_evaluated = cast(Dict[str, Union[int, float]], request)
         if runtimeContext.select_resources is not None:
+            # Call select resources hook
             return runtimeContext.select_resources(request_evaluated, runtimeContext)
-        return {
+
+        defaultReq = {
             "cores": request_evaluated["coresMin"],
             "ram": math.ceil(request_evaluated["ramMin"]),
             "tmpdirSize": math.ceil(request_evaluated["tmpdirMin"]),
             "outdirSize": math.ceil(request_evaluated["outdirMin"]),
         }
+        if cudaReq:
+            defaultReq["cudaDeviceCount"] = request_evaluated["cudaDeviceCountMin"]
+        return defaultReq
 
     def validate_hints(
         self, avsc_names: Names, hints: List[CWLObjectType], strict: bool
@@ -1076,6 +1095,10 @@ hints:
     ) -> JobsGeneratorType:
         pass
 
+    def __str__(self) -> str:
+        """Return the id of this CWL process."""
+        return f"{type(self).__name__}: {self.tool['id']}"
+
 
 _names = set()  # type: Set[str]
 
@@ -1101,42 +1124,38 @@ def nestdir(base: str, deps: CWLObjectType) -> CWLObjectType:
         sp = s2.split("/")
         sp.pop()
         while sp:
+            loc = dirname + "/".join(sp)
             nx = sp.pop()
-            deps = {"class": "Directory", "basename": nx, "listing": [deps]}
+            deps = {
+                "class": "Directory",
+                "basename": nx,
+                "listing": [deps],
+                "location": loc,
+            }
     return deps
 
 
-def mergedirs(listing: List[CWLObjectType]) -> List[CWLObjectType]:
+def mergedirs(
+    listing: MutableSequence[CWLObjectType],
+) -> MutableSequence[CWLObjectType]:
     r = []  # type: List[CWLObjectType]
     ents = {}  # type: Dict[str, CWLObjectType]
-    collided = set()  # type: Set[str]
     for e in listing:
         basename = cast(str, e["basename"])
         if basename not in ents:
             ents[basename] = e
+        elif e["location"] != ents[basename]["location"]:
+            raise ValidationException(
+                "Conflicting basename in listing or secondaryFiles, '%s' used by both '%s' and '%s'"
+                % (basename, e["location"], ents[basename]["location"])
+            )
         elif e["class"] == "Directory":
             if e.get("listing"):
+                # name already in entries
+                # merge it into the existing listing
                 cast(
                     List[CWLObjectType], ents[basename].setdefault("listing", [])
                 ).extend(cast(List[CWLObjectType], e["listing"]))
-            if cast(str, ents[basename]["location"]).startswith("_:"):
-                ents[basename]["location"] = e["location"]
-        elif e["location"] != ents[basename]["location"]:
-            # same basename, different location, collision,
-            # rename both.
-            collided.add(basename)
-            e2 = ents[basename]
-
-            e["basename"] = urllib.parse.quote(cast(str, e["location"]), safe="")
-            e2["basename"] = urllib.parse.quote(cast(str, e2["location"]), safe="")
-
-            e["nameroot"], e["nameext"] = os.path.splitext(cast(str, e["basename"]))
-            e2["nameroot"], e2["nameext"] = os.path.splitext(cast(str, e2["basename"]))
-
-            ents[cast(str, e["basename"])] = e
-            ents[cast(str, e2["basename"])] = e2
-    for c in collided:
-        del ents[c]
     for e in ents.values():
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = cast(
@@ -1159,6 +1178,30 @@ def scandeps(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,
 ) -> MutableSequence[CWLObjectType]:
+
+    """Given a CWL document or input object, search for dependencies
+    (references to external files) of 'doc' and return them as a list
+    of File or Directory objects.
+
+    The 'base' is the base URL for relative references.
+
+    Looks for objects with 'class: File' or 'class: Directory' and
+    adds them to the list of dependencies.
+
+    Anything in 'urlfields' is also added as a File dependency.
+
+    Anything in 'reffields' (such as workflow step 'run') will be
+    added as a dependency and also loaded (using the 'loadref'
+    function) and recursively scanned for dependencies.  Those
+    dependencies will be added as secondary files to the primary file.
+
+    If "nestdirs" is true, create intermediate directory objects when
+    a file is located in a subdirectory under the starting directory.
+    This is so that if the dependencies are materialized, they will
+    produce the same relative file system locations.
+
+    """
+
     r: MutableSequence[CWLObjectType] = []
     if isinstance(doc, MutableMapping):
         if "id" in doc:
@@ -1265,7 +1308,7 @@ def scandeps(
                         )
                         if sf:
                             deps2["secondaryFiles"] = cast(
-                                MutableSequence[CWLOutputAtomType], sf
+                                MutableSequence[CWLOutputAtomType], mergedirs(sf)
                             )
                         if nestdirs:
                             deps2 = nestdir(base, deps2)
@@ -1310,7 +1353,6 @@ def scandeps(
 
     if r:
         normalizeFilesDirs(r)
-        r = mergedirs(cast(List[CWLObjectType], r))
 
     return r
 

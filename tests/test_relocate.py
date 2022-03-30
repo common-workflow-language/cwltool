@@ -1,12 +1,8 @@
 import json
 import sys
 from pathlib import Path
-import tempfile
 
 from cwltool.main import main
-from cwltool.process import relocateOutputs
-from cwltool.stdfsaccess import StdFsAccess
-from cwltool.pathmapper import PathMapper
 
 from .util import get_data, needs_docker
 
@@ -17,9 +13,9 @@ else:
 
 
 @needs_docker
-def test_for_910() -> None:
-    assert main([get_data("tests/wf/910.cwl")]) == 0
-    assert main([get_data("tests/wf/910.cwl")]) == 0
+def test_for_910(tmp_path: Path) -> None:
+    assert main(["--outdir", str(tmp_path), get_data("tests/wf/910.cwl")]) == 0
+    assert main(["--outdir", str(tmp_path), get_data("tests/wf/910.cwl")]) == 0
 
 
 @needs_docker

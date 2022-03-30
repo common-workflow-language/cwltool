@@ -207,11 +207,19 @@ class WorkflowStep(Process):
 
         loadingContext = loadingContext.copy()
 
+        parent_requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
         loadingContext.requirements = copy.deepcopy(
-            getdefault(loadingContext.requirements, [])
+            toolpath_object.get("requirements", [])
         )
         assert loadingContext.requirements is not None  # nosec
-        loadingContext.requirements.extend(toolpath_object.get("requirements", []))
+        for parent_req in parent_requirements:
+            found_in_step = False
+            for step_req in loadingContext.requirements:
+                if parent_req["class"] == step_req["class"]:
+                    found_in_step = True
+                    break
+            if not found_in_step:
+                loadingContext.requirements.append(parent_req)
         loadingContext.requirements.extend(
             cast(
                 List[CWLObjectType],

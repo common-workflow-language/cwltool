@@ -89,14 +89,51 @@ if TYPE_CHECKING:
 
 
 class PathCheckingMode(Enum):
-    """What characters are allowed in path names.
+    """
+    What characters are allowed in path names.
 
-    We have the strict, default mode and the relaxed mode.
+    We have the strict (default) mode and the relaxed mode.
     """
 
-    STRICT = re.compile(
-        r"^[\w.+\-\u2600-\u26FF\U0001f600-\U0001f64f]+$"
-    )  # accept unicode word characters and emojis
+    STRICT = re.compile(r"^[\w.+\,\-:@\]^\u2600-\u26FF\U0001f600-\U0001f64f]+$")
+    # accepts names that contain one or more of the following:
+    # "\w"                  unicode word characters; this includes most characters
+    #                            that can be part of a word in any language, as well
+    #                            as numbers and the underscore
+    # "."                    a literal period
+    # "+"                    a literal plus sign
+    # "\,"                  a literal comma
+    # "\-"                  a literal minus sign
+    # ":"                    a literal colon
+    # "@"                    a literal at-symbol
+    # "\]"                  a literal end-square-bracket
+    # "^"                    a literal caret symbol
+    # \u2600-\u26FF                  matches a single character in the range between
+    #                       ☀ (index 9728) and ⛿ (index 9983)
+    # \U0001f600-\U0001f64f matches a single character in the range between
+    #                       😀 (index 128512) and 🙏 (index 128591)
+
+    # Note: the following characters are intentionally not included:
+    #
+    # 1. reserved words in POSIX:
+    # ! { }
+    #
+    # 2. POSIX metacharacters listed in the CWL standard as okay to reject
+    # | & ; < > ( ) $ ` " ' <space> <tab> <newline>
+    # (In accordance with
+    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path" )
+    #
+    # 3. POSIX path separator
+    # \
+    # (also listed at
+    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path")
+    #
+    # 4. Additional POSIX metacharacters
+    # * ? [ # ˜ = %
+
+    # TODO: switch to https://pypi.org/project/regex/ and use
+    # `\p{Extended_Pictographic}` instead of the manual emoji ranges
+
     RELAXED = re.compile(r".*")  # Accept anything
 
 
@@ -561,7 +598,7 @@ class CommandLineTool(Process):
                 if isinstance(t, Mapping) and "entry" in t:
                     # Dirent
                     entry_field = cast(str, t["entry"])
-                    # the schema guarentees that 'entry' is a string, so the cast is safe
+                    # the schema guarantees that 'entry' is a string, so the cast is safe
                     entry = builder.do_eval(entry_field, strip_whitespace=False)
                     if entry is None:
                         continue
@@ -597,7 +634,7 @@ class CommandLineTool(Process):
                                 )
                             for e in entry:
                                 ec = cast(CWLObjectType, e)
-                                ec["writeable"] = t.get("writable", False)
+                                ec["writable"] = t.get("writable", False)
                             ls.extend(cast(List[CWLObjectType], entry))
                             continue
 
@@ -1340,12 +1377,7 @@ class CommandLineTool(Process):
                             prefix = fs_access.glob(outdir)
                             sorted_glob_result = sorted(
                                 fs_access.glob(fs_access.join(outdir, gb)),
-                                key=cmp_to_key(
-                                    cast(
-                                        Callable[[str, str], int],
-                                        locale.strcoll,
-                                    )
-                                ),
+                                key=cmp_to_key(locale.strcoll),
                             )
                             r.extend(
                                 [
@@ -1544,7 +1576,8 @@ class CommandLineTool(Process):
                     return None
 
         if (
-            not empty_and_optional
+            not result
+            and not empty_and_optional
             and isinstance(schema["type"], MutableMapping)
             and schema["type"]["type"] == "record"
         ):

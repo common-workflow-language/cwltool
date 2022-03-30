@@ -1,3 +1,5 @@
-mypy==0.910
+mypy==0.942
 types-requests
 types-setuptools
+types-psutil
+types-mock

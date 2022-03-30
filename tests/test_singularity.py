@@ -46,7 +46,7 @@ def test_singularity_workflow(tmp_path: Path) -> None:
             [
                 "--singularity",
                 "--default-container",
-                "debian",
+                "docker.io/debian:stable-slim",
                 "--debug",
                 get_data("tests/wf/hello-workflow.cwl"),
                 "--usermessage",
@@ -62,7 +62,7 @@ def test_singularity_iwdr() -> None:
         [
             "--singularity",
             "--default-container",
-            "debian",
+            "docker.io/debian:stable-slim",
             get_data("tests/wf/iwdr-entry.cwl"),
             "--message",
             "hello",
