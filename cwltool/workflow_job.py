@@ -554,22 +554,22 @@ class WorkflowJob:
             _logger.debug("[%s] outputs %s", self.name, json_dumps(wo, indent=4))
 
         self.did_callback = True
-        paramskey=[]
-        paramskeys=[]
+        paramskey = []
+        paramskeys = []
 
         if self.tool["outputs"] is not None:
             for inp in self.tool["outputs"]:
-                for k,v in inp.items():
-                    if k == 'id':
+                for k, v in inp.items():
+                    if k == "id":
                         paramskey.append(v)
                         paramskeys.append(shortname(v))
 
-        newwo={}
-        for k,v in wo.items():
+        newwo = {}
+        for k, v in wo.items():
             if k in paramskey:
-                newwo[k]=v
+                newwo[k] = v
             elif k in paramskeys:
-                newwo[k]=v
+                newwo[k] = v
         wo = newwo
 
         final_output_callback(wo, self.processStatus)
