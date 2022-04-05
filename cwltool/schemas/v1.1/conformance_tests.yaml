@@ -2598,6 +2598,17 @@
   doc: Test an anonymous enum inside an array inside a record, SchemaDefRequirement
   tags: [command_line_tool, schema_def]
 
+
+- job: tests/empty.json
+  tool: tests/fail-unconnected-expressiontool.cwl
+  label: wf_step_access_undeclared_param_expressiontool
+  id: 198
+  doc: >-
+    Test that parameters that don't appear in the `run` process
+    inputs are not present in the input object used to run the expressiontool.
+  should_fail: true
+  tags: [ required, workflow ]
+
 # New tests for v1.1
 
 - job: tests/wc-job.json
