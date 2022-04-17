@@ -51,7 +51,7 @@ from .utils import CWLObjectType, JobsType, get_listing, posix_path, versionstri
 from .workflow_job import WorkflowJob
 
 if TYPE_CHECKING:
-    from .provenance import ResearchObject
+    from .cwlprov.ro import ResearchObject
 
 
 def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectType) -> CWLObjectType:

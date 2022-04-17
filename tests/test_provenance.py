@@ -15,7 +15,7 @@ from rdflib.term import Literal
 
 from cwltool import provenance, provenance_constants
 from cwltool.main import main
-from cwltool.provenance import ResearchObject
+from cwltool.cwlprov.ro import ResearchObject
 from cwltool.stdfsaccess import StdFsAccess
 
 from .util import get_data, needs_docker, working_directory

@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from .builder import Builder
     from .mutation import MutationManager
     from .process import Process
-    from .provenance import ResearchObject
+    from .cwlprov.ro import ResearchObject
     from .provenance_profile import ProvenanceProfile
     from .secrets import SecretStore
     from .software_requirements import DependenciesConfiguration
