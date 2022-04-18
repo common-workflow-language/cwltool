@@ -13,9 +13,9 @@ from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DC, DCTERMS, RDF
 from rdflib.term import Literal
 
-# from cwltool import provenance, provenance_constants
+
+import cwltool.cwlprov as provenance
 from cwltool.cwlprov import provenance_constants
-from cwltool import provenance # change this later
 from cwltool.main import main
 from cwltool.cwlprov.ro import ResearchObject
 from cwltool.stdfsaccess import StdFsAccess

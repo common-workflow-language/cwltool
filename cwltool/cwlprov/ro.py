@@ -68,7 +68,7 @@ from ..utils import (
     versionstring,
 )
 
-from ..provenance import Annotation, Aggregate, AuthoredBy, _valid_orcid, _whoami, checksum_copy
+from . import Annotation, Aggregate, AuthoredBy, _valid_orcid, _whoami, checksum_copy
 
 
 class WritableBagFile(FileIO):
