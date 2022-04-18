@@ -24,10 +24,10 @@ from prov.identifier import Identifier, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
 
-from .errors import WorkflowException
-from .job import CommandLineJob, JobBase
-from .loghandler import _logger
-from .process import Process, shortname
+from ..errors import WorkflowException
+from ..job import CommandLineJob, JobBase
+from ..loghandler import _logger
+from ..process import Process, shortname
 from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV,
@@ -46,12 +46,12 @@ from .provenance_constants import (
     WFDESC,
     WFPROV,
 )
-from .stdfsaccess import StdFsAccess
-from .utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
-from .workflow_job import WorkflowJob
+from ..stdfsaccess import StdFsAccess
+from ..utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
+from ..workflow_job import WorkflowJob
 
 if TYPE_CHECKING:
-    from .cwlprov.ro import ResearchObject
+    from .ro import ResearchObject
 
 
 def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectType) -> CWLObjectType:

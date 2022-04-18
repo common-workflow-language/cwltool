@@ -28,7 +28,7 @@ from prov.model import PROV, ProvDocument
 from typing_extensions import TYPE_CHECKING, TypedDict
 
 from .loghandler import _logger
-from .provenance_constants import (
+from .cwlprov.provenance_constants import (
     Hasher,
 )
 

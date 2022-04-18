@@ -43,7 +43,7 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from .provenance_profile import ProvenanceProfile
+    from .cwlprov.provenance_profile import ProvenanceProfile
     from .workflow import Workflow, WorkflowStep
 
 

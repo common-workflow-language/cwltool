@@ -87,7 +87,7 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
+    from .cwlprov.provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
 
 class PathCheckingMode(Enum):

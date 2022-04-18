@@ -31,7 +31,7 @@ from .job import JobBase
 from .loghandler import _logger
 from .mutation import MutationManager
 from .process import Process, cleanIntermediate, relocateOutputs
-from .provenance_profile import ProvenanceProfile
+from .cwlprov.provenance_profile import ProvenanceProfile
 from .task_queue import TaskQueue
 from .update import ORIGINAL_CWLVERSION
 from .utils import CWLObjectType, JobsType
