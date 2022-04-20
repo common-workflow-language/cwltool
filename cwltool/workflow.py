@@ -30,6 +30,7 @@ from .load_tool import load_tool
 from .loghandler import _logger
 from .process import Process, get_overrides, shortname
 from .cwlprov.provenance_profile import ProvenanceProfile
+from .cwlprov.writablebagfile import create_job
 from .utils import (
     CWLObjectType,
     CWLOutputType,
@@ -163,7 +164,8 @@ class Workflow(Process):
             if runtimeContext.toplevel:
                 # Record primary-job.json
                 runtimeContext.research_obj.fsaccess = runtimeContext.make_fs_access("")
-                runtimeContext.research_obj.create_job(builder.job)
+                # runtimeContext.research_obj.create_job(builder.job)
+                create_job(runtimeContext.research_obj, builder.job)
 
         job = WorkflowJob(self, runtimeContext)
         yield job

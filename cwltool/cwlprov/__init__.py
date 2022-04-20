@@ -229,3 +229,4 @@ def checksum_copy(
     if dst_file is not None:
         dst_file.flush()
     return checksum.hexdigest().lower()
+
