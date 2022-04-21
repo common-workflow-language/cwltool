@@ -27,6 +27,7 @@ _SINGULARITY_VERSION: Optional[Tuple] = None
 # Can be singularity, singularity-ce or apptainer
 _SINGULARITY_FLAVOR: str = ""
 
+
 def get_version() -> Tuple[Tuple, str]:
     """
     Parse the output of 'singularity --version' to determine the singularity flavor /
@@ -54,8 +55,9 @@ def get_version() -> Tuple[Tuple, str]:
         _SINGULARITY_VERSION = tuple([int(i) for i in version_string.split(".")])
         _SINGULARITY_FLAVOR = version_match.group(1)
 
-        _logger.debug(f"Singularity version: {version_string}"
-                      " ({_SINGULARITY_FLAVOR}.")
+        _logger.debug(
+            f"Singularity version: {version_string}" " ({_SINGULARITY_FLAVOR}."
+        )
     return (_SINGULARITY_VERSION, _SINGULARITY_FLAVOR)
 
 
@@ -70,6 +72,7 @@ def is_apptainer_1_or_newer() -> bool:
     if v[1] != "apptainer":
         return False
     return v[0][0] >= 1
+
 
 def is_version_2_6() -> bool:
     """
