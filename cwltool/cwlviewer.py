@@ -66,10 +66,6 @@ class CWLViewer:
                 if inner_edge_row["target_label"] is not None
                 else urlparse(inner_edge_row["target_step"]).fragment
             )
-            if inner_edge_row["target_step_class"].endswith("Workflow"):
-                target_color = "#F3CEA1"
-            else:
-                target_color = "lightgoldenrodyellow"
 
             target_color = (
                 "#F3CEA1"
