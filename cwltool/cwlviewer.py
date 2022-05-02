@@ -41,10 +41,21 @@ class CWLViewer:
                 if inner_edge_row["source_label"] is not None
                 else urlparse(inner_edge_row["source_step"]).fragment
             )
+            # Node color and style depend on class
+            source_color = (
+                "#F3CEA1"
+                if inner_edge_row["source_step_class"].endswith("Workflow")
+                else "lightgoldenrodyellow"
+            )
+            source_style = (
+                "dashed"
+                if inner_edge_row["source_step_class"].endswith("Operation")
+                else "filled"
+            )
             n = pydot.Node(
                 "",
-                fillcolor="lightgoldenrodyellow",
-                style="filled",
+                fillcolor=source_color,
+                style=source_style,
                 label=source_label,
                 shape="record",
             )
@@ -55,10 +66,21 @@ class CWLViewer:
                 if inner_edge_row["target_label"] is not None
                 else urlparse(inner_edge_row["target_step"]).fragment
             )
+
+            target_color = (
+                "#F3CEA1"
+                if inner_edge_row["target_step_class"].endswith("Workflow")
+                else "lightgoldenrodyellow"
+            )
+            target_style = (
+                "dashed"
+                if inner_edge_row["target_step_class"].endswith("Operation")
+                else "filled"
+            )
             n = pydot.Node(
                 "",
-                fillcolor="lightgoldenrodyellow",
-                style="filled",
+                fillcolor=target_color,
+                style=target_style,
                 label=target_label,
                 shape="record",
             )
