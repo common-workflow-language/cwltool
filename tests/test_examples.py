@@ -1008,7 +1008,7 @@ def test_var_spool_cwl_checker3() -> None:
 
 def test_print_dot() -> None:
     # print Workflow
-    cwl_path = get_data("tests/wf/revsort.cwl")
+    cwl_path = get_data("tests/wf/three_step_color.cwl")
     expected_dot = pydot.graph_from_dot_data(
         """
     digraph {{
@@ -1022,11 +1022,8 @@ def test_print_dot() -> None:
                         rank=same,
                         style=dashed
                 ];
-                "workflow_input"      [fillcolor="#94DDF4",
-                        label=workflow_input,
-                        style=filled];
-                "reverse_sort"        [fillcolor="#94DDF4",
-                        label=reverse_sort,
+                "file_input"        [fillcolor="#94DDF4",
+                        label=file_input,
                         style=filled];
         }}
         subgraph cluster_outputs {{
@@ -1035,20 +1032,27 @@ def test_print_dot() -> None:
                         rank=same,
                         style=dashed
                 ];
-                "sorted_output"       [fillcolor="#94DDF4",
-                        label=sorted_output,
+                "file_output"       [fillcolor="#94DDF4",
+                        label=file_output,
+                        style=filled];
+                "string_output"       [fillcolor="#94DDF4",
+                        label=string_output,
                         style=filled];
         }}
-        "rev" [fillcolor=lightgoldenrodyellow,
-                label=rev,
+        "nested_workflow" [fillcolor="#F3CEA1",
+                label=nested_workflow,
                 style=filled];
-        "sorted"      [fillcolor=lightgoldenrodyellow,
-                label=sorted,
+        "operation"      [fillcolor=lightgoldenrodyellow,
+                label=operation,
+                style=dashed];
+        "command_line_tool"      [fillcolor=lightgoldenrodyellow,
+                label=command_line_tool,
                 style=filled];
-        "rev" -> "sorted";
-        "sorted" -> "sorted_output";
-        "workflow_input" -> "rev";
-        "reverse_sort" -> "sorted";
+        "file_input" -> "nested_workflow";
+        "nested_workflow" -> "operation";
+        "operation" -> "command_line_tool";
+        "operation" -> "string_output";
+        "command_line_tool" -> "file_output";
 }}
     """.format()
     )[0]

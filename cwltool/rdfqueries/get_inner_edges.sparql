@@ -31,7 +31,7 @@ PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
 # GET EDGES
-SELECT DISTINCT ?source_label ?target_label ?source_step ?target_step ?target_ref_input ?output_ref ?workflow
+SELECT DISTINCT ?source_label ?target_label ?source_step ?target_step ?target_ref_input ?output_ref ?workflow ?target_step_class ?source_step_class
 WHERE {
     ?workflow Workflow:steps ?step .
     {
@@ -43,6 +43,8 @@ WHERE {
         ?target_step cwl:run ?target_step_node .
         OPTIONAL {?source_step_node rdfs:label ?source_label} .
         OPTIONAL {?target_step_node rdfs:label ?target_label} .
+        ?target_step_node a ?target_step_class .
+        ?source_step_node a ?source_step_class .
     } .
     # root_graph is binded in python
     FILTER(?workflow = ?root_graph) .
