@@ -21,14 +21,25 @@ from .singularity_utils import singularity_supports_userns
 from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_writable
 
 # Cached version number of singularity
-# This is a tuple containing major and minor versions as integer.
-_SINGULARITY_VERSION: Optional[Tuple] = None
+# This is a list containing major and minor versions as integer.
+# (The number of minor version digits can vary among different distributions,
+#  therefore we need a list here.)
+_SINGULARITY_VERSION: Optional[List[int]] = None
 # Cached flavor / distribution of singularity
 # Can be singularity, singularity-ce or apptainer
 _SINGULARITY_FLAVOR: str = ""
 
+def reset_singularity_version_cache():
+    """
+    Needed for resetting the cache for testing.
+    """
+    global _SINGULARITY_VERSION  # pylint: disable=global-statement
+    global _SINGULARITY_FLAVOR  # pylint: disable=global-statement
+    _SINGULARITY_VERSION = None
+    _SINGULARITY_FLAVOR = ""
 
-def get_version() -> Tuple[Tuple, str]:
+
+def get_version() -> Tuple[List[int], str]:
     """
     Parse the output of 'singularity --version' to determine the singularity flavor /
     distribution (singularity, singularity-ce or apptainer) and the singularity version.
@@ -52,7 +63,7 @@ def get_version() -> Tuple[Tuple, str]:
             raise RuntimeError("Output of 'singularity --version' not recognized.")
 
         version_string = version_match.group(2)
-        _SINGULARITY_VERSION = tuple([int(i) for i in version_string.split(".")])
+        _SINGULARITY_VERSION = [int(i) for i in version_string.split(".")]
         _SINGULARITY_FLAVOR = version_match.group(1)
 
         _logger.debug(
@@ -97,7 +108,7 @@ def is_version_3_1_or_newer() -> bool:
     if is_apptainer_1_or_newer():
         return True  # this is equivalent to singularity-ce > 3.9.5
     v = get_version()
-    return v[0] >= 4 or (v[0] == 3 and v[1] >= 1)
+    return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 1)
 
 
 def is_version_3_4_or_newer() -> bool:
@@ -105,7 +116,7 @@ def is_version_3_4_or_newer() -> bool:
     if is_apptainer_1_or_newer():
         return True  # this is equivalent to singularity-ce > 3.9.5
     v = get_version()
-    return v[0] >= 4 or (v[0] == 3 and v[1] >= 4)
+    return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 4)
 
 
 def _normalize_image_id(string: str) -> str:
