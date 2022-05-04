@@ -29,15 +29,6 @@ _SINGULARITY_VERSION: Optional[List[int]] = None
 # Can be singularity, singularity-ce or apptainer
 _SINGULARITY_FLAVOR: str = ""
 
-def reset_singularity_version_cache():
-    """
-    Needed for resetting the cache for testing.
-    """
-    global _SINGULARITY_VERSION  # pylint: disable=global-statement
-    global _SINGULARITY_FLAVOR  # pylint: disable=global-statement
-    _SINGULARITY_VERSION = None
-    _SINGULARITY_FLAVOR = ""
-
 
 def get_version() -> Tuple[List[int], str]:
     """
@@ -74,7 +65,7 @@ def get_version() -> Tuple[List[int], str]:
 
 def is_apptainer_1_or_newer() -> bool:
     """
-    Is this the apptainer singularity distribution in version 1.0 or higher?
+    Check if apptainer singularity distribution is version 1.0 or higher.
 
     Apptainer v1.0.0 is compatible with SingularityCE 3.9.5.
     See: https://github.com/apptainer/apptainer/releases
@@ -87,7 +78,7 @@ def is_apptainer_1_or_newer() -> bool:
 
 def is_version_2_6() -> bool:
     """
-    Is this exactly version 2.6?
+    Check if this singularity version is exactly version 2.6.
 
     Also returns False if the flavor is not singularity or singularity-ce.
     """
@@ -98,6 +89,7 @@ def is_version_2_6() -> bool:
 
 
 def is_version_3_or_newer() -> bool:
+    """Check if this version is singularity version 3 or newer or equivalent."""
     if is_apptainer_1_or_newer():
         return True  # this is equivalent to singularity-ce > 3.9.5
     v = get_version()
@@ -105,6 +97,7 @@ def is_version_3_or_newer() -> bool:
 
 
 def is_version_3_1_or_newer() -> bool:
+    """Check if this version is singularity version 3.1 or newer or equivalent."""
     if is_apptainer_1_or_newer():
         return True  # this is equivalent to singularity-ce > 3.9.5
     v = get_version()

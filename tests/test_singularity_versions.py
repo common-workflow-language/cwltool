@@ -1,27 +1,49 @@
+"""Test singularity{,-ce} & apptainer versions."""
 import cwltool.singularity
-from cwltool.singularity import (reset_singularity_version_cache,
-                                 get_version,
-                                 is_apptainer_1_or_newer,
-                                 is_version_2_6,
-                                 is_version_3_or_newer,
-                                 is_version_3_1_or_newer,
-                                 is_version_3_4_or_newer)
+from cwltool.singularity import (
+    get_version,
+    is_apptainer_1_or_newer,
+    is_version_2_6,
+    is_version_3_or_newer,
+    is_version_3_1_or_newer,
+    is_version_3_4_or_newer,
+)
+
+from subprocess import check_output  # nosec
 
 
-def set_dummy_check_output(name, version):
-    cwltool.singularity.check_output = lambda c, universal_newlines: name + " version " + version
+def reset_singularity_version_cache() -> None:
+    """Reset the cache for testing."""
+    cwltool.singularity._SINGULARITY_VERSION = None
+    cwltool.singularity._SINGULARITY_FLAVOR = ""
 
 
+def set_dummy_check_output(name: str, version: str) -> None:
+    """Mock out subprocess.check_output."""
+    cwltool.singularity.check_output = (  # type: ignore[attr-defined]
+        lambda c, universal_newlines: name + " version " + version
+    )
 
-def test_get_version():
+
+def restore_check_output() -> None:
+    """Undo the mock of subprocess.check_output."""
+    cwltool.singularity.check_output = check_output  # type: ignore[attr-defined]
+
+
+def test_get_version() -> None:
+    """Confirm expected types of singularity.get_version()."""
     set_dummy_check_output("apptainer", "1.0.1")
     reset_singularity_version_cache()
     v = get_version()
     assert isinstance(v, tuple)
     assert isinstance(v[0], list)
     assert isinstance(v[1], str)
-    assert cwltool.singularity._SINGULARITY_VERSION is not None  # pylint: disable=protected-access
-    assert len(cwltool.singularity._SINGULARITY_FLAVOR) > 0  # pylint: disable=protected-access
+    assert (
+        cwltool.singularity._SINGULARITY_VERSION is not None
+    )  # pylint: disable=protected-access
+    assert (
+        len(cwltool.singularity._SINGULARITY_FLAVOR) > 0
+    )  # pylint: disable=protected-access
     v_cached = get_version()
     assert v == v_cached
 
@@ -38,9 +60,11 @@ def test_get_version():
     assert v[0][1] == 8
     assert v[0][2] == 5
     assert v[1] == "singularity"
+    restore_check_output()
 
 
-def test_version_checks():
+def test_version_checks() -> None:
+    """Confirm logic in the various singularity version checks."""
     set_dummy_check_output("apptainer", "1.0.1")
     reset_singularity_version_cache()
     assert is_apptainer_1_or_newer()
@@ -112,3 +136,4 @@ def test_version_checks():
     assert is_version_3_or_newer()
     assert is_version_3_1_or_newer()
     assert is_version_3_4_or_newer()
+    restore_check_output()
