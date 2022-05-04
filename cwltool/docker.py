@@ -2,6 +2,7 @@
 
 import csv
 import datetime
+import math
 import os
 import re
 import shutil
@@ -77,7 +78,7 @@ def _check_docker_machine_path(path: Optional[str]) -> None:
 
 
 class DockerCommandLineJob(ContainerCommandLineJob):
-    """Runs a CommandLineJob in a sofware container using the Docker engine."""
+    """Runs a CommandLineJob in a software container using the Docker engine."""
 
     def __init__(
         self,
@@ -396,13 +397,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if runtimeContext.rm_container:
             runtime.append("--rm")
 
-        cuda_req, _ = self.builder.get_requirement(
-            "http://commonwl.org/cwltool#CUDARequirement"
-        )
-        if cuda_req:
-            # Checked earlier that the device count is non-zero in _setup
-            count = cuda_check(cuda_req)
-            runtime.append("--gpus=" + str(count))
+        if self.builder.resources.get("cudaDeviceCount"):
+            runtime.append("--gpus=" + str(self.builder.resources["cudaDeviceCount"]))
 
         cidfile_path = None  # type: Optional[str]
         # add parameters to docker to write a container ID file
@@ -434,17 +430,31 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         for key, value in self.environment.items():
             runtime.append(f"--env={key}={value}")
 
+        res_req, _ = self.builder.get_requirement("ResourceRequirement")
+
         if runtimeContext.strict_memory_limit and not user_space_docker_cmd:
             ram = self.builder.resources["ram"]
             runtime.append("--memory=%dm" % ram)
         elif not user_space_docker_cmd:
-            res_req, _ = self.builder.get_requirement("ResourceRequirement")
             if res_req and ("ramMin" in res_req or "ramMax" in res_req):
                 _logger.warning(
                     "[job %s] Skipping Docker software container '--memory' limit "
                     "despite presence of ResourceRequirement with ramMin "
                     "and/or ramMax setting. Consider running with "
                     "--strict-memory-limit for increased portability "
+                    "assurance.",
+                    self.name,
+                )
+        if runtimeContext.strict_cpu_limit and not user_space_docker_cmd:
+            cpus = math.ceil(self.builder.resources["cores"])
+            runtime.append(f"--cpus={cpus}")
+        elif not user_space_docker_cmd:
+            if res_req and ("coresMin" in res_req or "coresMax" in res_req):
+                _logger.warning(
+                    "[job %s] Skipping Docker software container '--cpus' limit "
+                    "despite presence of ResourceRequirement with coresMin "
+                    "and/or coresMax setting. Consider running with "
+                    "--strict-cpu-limit for increased portability "
                     "assurance.",
                     self.name,
                 )

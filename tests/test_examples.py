@@ -512,6 +512,53 @@ def test_scandeps() -> None:
     assert scanned_deps2 == expected_deps
 
 
+def test_scandeps_samedirname() -> None:
+    obj: CWLObjectType = {
+        "dir1": {"class": "Directory", "location": "tests/wf/dir1/foo"},
+        "dir2": {"class": "Directory", "location": "tests/wf/dir2/foo"},
+    }
+
+    def loadref(
+        base: str, p: Union[CommentedMap, CommentedSeq, str, None]
+    ) -> Union[CommentedMap, CommentedSeq, str, None]:
+        if isinstance(p, dict):
+            return p
+        raise Exception("test case can't load things")
+
+    scanned_deps = cast(
+        List[Dict[str, Any]],
+        cwltool.process.scandeps(
+            "",
+            obj,
+            {"$import", "run"},
+            {"$include", "$schemas", "location"},
+            loadref,
+            nestdirs=False,
+        ),
+    )
+
+    scanned_deps.sort(key=lambda k: cast(str, k["basename"]))
+
+    expected_deps = [
+        {"basename": "foo", "class": "Directory", "location": "tests/wf/dir1/foo"},
+        {"basename": "foo", "class": "Directory", "location": "tests/wf/dir2/foo"},
+    ]
+
+    assert scanned_deps == expected_deps
+
+
+def test_scandeps_collision() -> None:
+    stream = StringIO()
+
+    assert (
+        main(
+            ["--print-deps", "--debug", get_data("tests/wf/dir_deps.json")],
+            stdout=stream,
+        )
+        == 1
+    )
+
+
 def test_trick_scandeps() -> None:
     stream = StringIO()
 
@@ -827,6 +874,26 @@ def test_format_expr_error() -> None:
     )
 
 
+def test_format_expr_error2() -> None:
+    """Better format expression error, for a list of formats."""
+    error_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/bad_formattest2.cwl"),
+            get_data("tests/wf/formattest-job.json"),
+        ]
+    )
+    assert error_code != 0
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "bad_formattest2.cwl:14:9: For inputs, 'format' field can either contain "
+        "a single CWL Expression or CWL Parameter Reference, a single format string, "
+        "or a list of format strings. But the list cannot contain CWL Expressions "
+        "or CWL Parameter References. List entry number 1 contains the following "
+        "unallowed CWL Parameter Reference or Expression: '${ return "
+        '["http://edamontology.org/format_2330", 42];}' in stderr
+    )
+
+
 def test_static_checker() -> None:
     # check that the static checker raises exception when a source type
     # mismatches its sink type.
@@ -941,8 +1008,7 @@ def test_var_spool_cwl_checker3() -> None:
 
 def test_print_dot() -> None:
     # print Workflow
-    cwl_path = get_data("tests/wf/revsort.cwl")
-    cwl_posix_path = Path(cwl_path).as_posix()
+    cwl_path = get_data("tests/wf/three_step_color.cwl")
     expected_dot = pydot.graph_from_dot_data(
         """
     digraph {{
@@ -956,11 +1022,8 @@ def test_print_dot() -> None:
                         rank=same,
                         style=dashed
                 ];
-                "file://{cwl_posix_path}#workflow_input"      [fillcolor="#94DDF4",
-                        label=workflow_input,
-                        style=filled];
-                "file://{cwl_posix_path}#reverse_sort"        [fillcolor="#94DDF4",
-                        label=reverse_sort,
+                "file_input"        [fillcolor="#94DDF4",
+                        label=file_input,
                         style=filled];
         }}
         subgraph cluster_outputs {{
@@ -969,35 +1032,38 @@ def test_print_dot() -> None:
                         rank=same,
                         style=dashed
                 ];
-                "file://{cwl_posix_path}#sorted_output"       [fillcolor="#94DDF4",
-                        label=sorted_output,
+                "file_output"       [fillcolor="#94DDF4",
+                        label=file_output,
+                        style=filled];
+                "string_output"       [fillcolor="#94DDF4",
+                        label=string_output,
                         style=filled];
         }}
-        "file://{cwl_posix_path}#rev" [fillcolor=lightgoldenrodyellow,
-                label=rev,
+        "nested_workflow" [fillcolor="#F3CEA1",
+                label=nested_workflow,
                 style=filled];
-        "file://{cwl_posix_path}#sorted"      [fillcolor=lightgoldenrodyellow,
-                label=sorted,
+        "operation"      [fillcolor=lightgoldenrodyellow,
+                label=operation,
+                style=dashed];
+        "command_line_tool"      [fillcolor=lightgoldenrodyellow,
+                label=command_line_tool,
                 style=filled];
-        "file://{cwl_posix_path}#rev" -> "file://{cwl_posix_path}#sorted";
-        "file://{cwl_posix_path}#sorted" -> "file://{cwl_posix_path}#sorted_output";
-        "file://{cwl_posix_path}#workflow_input" -> "file://{cwl_posix_path}#rev";
-        "file://{cwl_posix_path}#reverse_sort" -> "file://{cwl_posix_path}#sorted";
+        "file_input" -> "nested_workflow";
+        "nested_workflow" -> "operation";
+        "operation" -> "command_line_tool";
+        "operation" -> "string_output";
+        "command_line_tool" -> "file_output";
 }}
-    """.format(
-            cwl_posix_path=cwl_posix_path
-        )
+    """.format()
     )[0]
     stdout = StringIO()
     assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
     computed_edges = sorted(
-        (urlparse(source).fragment, urlparse(target).fragment)
-        for source, target in computed_dot.obj_dict["edges"]
+        (source, target) for source, target in computed_dot.obj_dict["edges"]
     )
     expected_edges = sorted(
-        (urlparse(source).fragment, urlparse(target).fragment)
-        for source, target in expected_dot.obj_dict["edges"]
+        (source, target) for source, target in expected_dot.obj_dict["edges"]
     )
     assert computed_edges == expected_edges
 
@@ -1121,7 +1187,7 @@ def test_cid_file_w_prefix(tmp_path: Path, factor: str) -> None:
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_secondary_files_v1_1(factor: str) -> None:
+def test_secondary_files_v1_1(factor: str, tmp_path: Path) -> None:
     test_file = "secondary-files.cwl"
     test_job_file = "secondary-files-job.yml"
     try:
@@ -1130,6 +1196,8 @@ def test_secondary_files_v1_1(factor: str) -> None:
         commands.extend(
             [
                 "--debug",
+                "--outdir",
+                str(tmp_path),
                 get_data(os.path.join("tests", test_file)),
                 get_data(os.path.join("tests", test_job_file)),
             ]
@@ -1137,7 +1205,7 @@ def test_secondary_files_v1_1(factor: str) -> None:
         error_code, _, stderr = get_main_output(commands)
     finally:
         # 664 in octal, '-rw-rw-r--'
-        assert stat.S_IMODE(os.stat("lsout").st_mode) == 436
+        assert stat.S_IMODE(os.stat(tmp_path / "lsout").st_mode) == 436
         os.umask(old_umask)  # revert back to original umask
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
@@ -1146,13 +1214,15 @@ def test_secondary_files_v1_1(factor: str) -> None:
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_secondary_files_bad_v1_1(factor: str) -> None:
+def test_secondary_files_bad_v1_1(factor: str, tmp_path: Path) -> None:
     """Affirm the correct error message for a bad secondaryFiles expression."""
     test_file = "secondary-files-bad.cwl"
     test_job_file = "secondary-files-job.yml"
     commands = factor.split()
     commands.extend(
         [
+            "--outdir",
+            str(tmp_path),
             get_data(os.path.join("tests", test_file)),
             get_data(os.path.join("tests", test_job_file)),
         ]
@@ -1215,7 +1285,7 @@ def test_wf_without_container(tmp_path: Path, factor: str) -> None:
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
-    """Confirm that re-running a particular workflow with caching suceeds."""
+    """Confirm that re-running a particular workflow with caching succeeds."""
     test_file = "cache_test_workflow.cwl"
     cache_dir = str(tmp_path / "cwltool_cache")
     commands = factor.split()
@@ -1304,6 +1374,19 @@ def test_bad_stdout_expr_error() -> None:
 
 
 @needs_docker
+def test_stdin_with_id_preset() -> None:
+    """Confirm that a type: stdin with a preset id does not give an error."""
+    error_code, _, stderr = get_main_output(
+        [
+            get_data("tests/wf/1590.cwl"),
+            "--file1",
+            get_data("tests/wf/whale.txt"),
+        ]
+    )
+    assert error_code == 0
+
+
+@needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_no_compute_chcksum(tmp_path: Path, factor: str) -> None:
     test_file = "tests/wf/wc-tool.cwl"
@@ -1333,7 +1416,7 @@ def test_bad_userspace_runtime(factor: str) -> None:
     commands.extend(
         [
             "--user-space-docker-cmd=quaquioN",
-            "--default-container=debian",
+            "--default-container=docker.io/debian:stable-slim",
             get_data(test_file),
             get_data(job_file),
         ]
@@ -1360,7 +1443,14 @@ def test_bad_basecommand(factor: str) -> None:
 def test_bad_basecommand_docker(factor: str) -> None:
     test_file = "tests/wf/missing-tool.cwl"
     commands = factor.split()
-    commands.extend(["--debug", "--default-container", "debian", get_data(test_file)])
+    commands.extend(
+        [
+            "--debug",
+            "--default-container",
+            "docker.io/debian:stable-slim",
+            get_data(test_file),
+        ]
+    )
     error_code, stdout, stderr = get_main_output(commands)
     assert "permanentFail" in stderr, stderr
     assert error_code == 1
@@ -1513,7 +1603,7 @@ def test_arguments_self() -> None:
             factory.loading_context.singularity = True
         elif not shutil.which("jq"):
             pytest.skip(
-                "Need a container engine (docker, podman, or signularity) or jq to run this test."
+                "Need a container engine (docker, podman, or singularity) or jq to run this test."
             )
         else:
             factory.runtime_context.use_container = False
@@ -1598,3 +1688,59 @@ def test_command_line_tool_class() -> None:
     tool_path = get_data("tests/echo.cwl")
     expression_tool = factory.make(tool_path).t
     assert str(expression_tool) == f"CommandLineTool: file://{tool_path}"
+
+
+def test_record_default_with_long() -> None:
+    """Confirm that record defaults are respected."""
+    tool_path = get_data("tests/wf/paramref_arguments_roundtrip.cwl")
+    err_code, stdout, stderr = get_main_output([tool_path])
+    assert err_code == 0
+    result = json.loads(stdout)["same_record"]
+    assert result["first"] == "y"
+    assert result["second"] == 23
+    assert result["third"] == 2.3
+    assert result["fourth"] == 4242424242
+    assert result["fifth"] == 4200000000000000000000000000000000000000000
+    assert result["sixth"]["class"] == "File"
+    assert result["sixth"]["basename"] == "whale.txt"
+    assert result["sixth"]["size"] == 1111
+    assert (
+        result["sixth"]["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
+    )
+
+
+def test_record_outputeval(tmp_path: Path) -> None:
+    """Confirm that record types can be populated from outputEval."""
+    tool_path = get_data("tests/wf/record_outputeval.cwl")
+    err_code, stdout, stderr = get_main_output(["--outdir", str(tmp_path), tool_path])
+    assert err_code == 0
+    result = json.loads(stdout)["references"]
+    assert "genome_fa" in result
+    assert result["genome_fa"]["class"] == "File"
+    assert result["genome_fa"]["basename"] == "GRCm38.primary_assembly.genome.fa"
+    assert (
+        result["genome_fa"]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
+    assert result["genome_fa"]["size"] == 0
+    assert "annotation_gtf" in result
+    assert result["annotation_gtf"]["class"] == "File"
+    assert (
+        result["annotation_gtf"]["basename"]
+        == "gencode.vM21.primary_assembly.annotation.gtf"
+    )
+    assert (
+        result["annotation_gtf"]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
+    assert result["annotation_gtf"]["size"] == 0
+
+
+def tests_outputsource_valid_identifier_invalid_source() -> None:
+    """Confirm error for invalid source that was also a valid identifier."""
+    tool_path = get_data("tests/checker_wf/broken-wf4.cwl")
+    err_code, stdout, stderr = get_main_output([tool_path])
+    assert err_code == 1
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "tests/checker_wf/broken-wf4.cwl:12:5: outputSource not found" in stderr
+    assert "tests/checker_wf/broken-wf4.cwl#echo_w" in stderr

@@ -31,7 +31,7 @@ inputs:
   reverse_sort:
     type: boolean
     default: true
-    doc: "If true, reverse (decending) sort"
+    doc: "If true, reverse (descending) sort"
 
 # The "outputs" array defines the structure of the output object that describes
 # the outputs of the workflow.

@@ -148,7 +148,7 @@
             "class": "CommandLineTool",
             "id": "#bclConvert__3.7.5.cwl",
             "label": "bclConvert v(3.7.5)",
-            "doc": "Runs the BCL Convert application off standard architechture\n",
+            "doc": "Runs the BCL Convert application off standard architecture\n",
             "hints": [
                 {
                     "dockerPull": "docker.io/umccr/bcl-convert:3.7.5",
@@ -536,8 +536,8 @@
                                                     "name": "#settings-by-samples__1.0.0.yaml/settings-by-samples/settings/settings/mask_short_reads"
                                                 },
                                                 {
-                                                    "label": "minumum adapter overlap",
-                                                    "doc": "Do not trim any bases unless the\nadapter matches are greater than\nor equal to the user specified\nnumber of bases. At least one\nAdapterRead1 or\nAdapterRead2 must be specified\nto use\nMinimumAdapterOverlap.\nAllowed characters: 1, 2, 3.\n",
+                                                    "label": "minimum adapter overlap",
+                                                    "doc": "Do not trim any bases unless the\nadapter matches are greater than\nor equal to the user specified\number of bases. At least one\nAdapterRead1 or\nAdapterRead2 must be specified\nto use\nMinimumAdapterOverlap.\nAllowed characters: 1, 2, 3.\n",
                                                     "type": [
                                                         "null",
                                                         "int"
@@ -555,7 +555,7 @@
                                                 },
                                                 {
                                                     "label": "override cycles",
-                                                    "doc": "Specifies the sequencing and\nindexing cycles that should be\nused when processing the data.\nThe following format must be\nused:\n* Must be same number of\nsemicolon delimited fields in\nstring as sequencing and\nindexing reads specified in\nRunInfo.xml\n* Indexing reads are specified\nwith an I.\n* Sequencing reads are specified\nwith a Y. UMI cycles are\nspecified with an U.\n* Trimmed reads are specified\nwith N.\n* The number of cycles specified\nfor each read must sum to the\nnumber of cycles specified for\nthat read in the RunInfo.xml.\n* Only one Y or I sequence can\nbe specified per read.\nExample: Y151;I8;I8;Y151\n",
+                                                    "doc": "Specifies the sequencing and\nindexing cycles that should be\nused when processing the data.\nThe following format must be\nused:\n* Must be same number of\nsemicolon delimited fields in\nstring as sequencing and\nindexing reads specified in\nRunInfo.xml\n* Indexing reads are specified\nwith an I.\n* Sequencing reads are specified\nwith a Y. UMI cycles are\nspecified with an U.\n* Trimmed reads are specified\nwith N.\n* The number of cycles specified\nfor each read must sum to the\number of cycles specified for\nthat read in the RunInfo.xml.\n* Only one Y or I sequence can\nbe specified per read.\nExample: Y151;I8;I8;Y151\n",
                                                     "type": [
                                                         "null",
                                                         "string"
@@ -856,7 +856,7 @@
             "outputs": [
                 {
                     "label": "multiqc output",
-                    "doc": "output dircetory with interop multiQC matrices\n",
+                    "doc": "output directory with interop multiQC matrices\n",
                     "type": "Directory",
                     "outputBinding": {
                         "glob": "$(inputs.output_directory_name)"
@@ -1401,7 +1401,7 @@
                     "id": "#bclconvert_multiqc_out"
                 },
                 {
-                    "label": "Output fastq directores",
+                    "label": "Output fastq directories",
                     "doc": "The outputs from the bclconvert-step\n",
                     "type": {
                         "type": "array",

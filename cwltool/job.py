@@ -2,6 +2,7 @@ import datetime
 import functools
 import itertools
 import logging
+import math
 import os
 import re
 import shutil
@@ -51,8 +52,8 @@ from .secrets import SecretStore
 from .utils import (
     CWLObjectType,
     CWLOutputType,
-    HasReqsHints,
     DirectoryType,
+    HasReqsHints,
     OutputCallbackType,
     bytes2str_in_dicts,
     create_tmp_dir,
@@ -87,7 +88,7 @@ def relink_initialworkdir(
         ):
             if not vol.target.startswith(container_outdir):
                 # this is an input file written outside of the working
-                # directory, so therefor ineligable for being an output file.
+                # directory, so therefore ineligable for being an output file.
                 # Thus, none of our business
                 continue
             host_outdir_tgt = os.path.join(
@@ -180,7 +181,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             "http://commonwl.org/cwltool#CUDARequirement"
         )
         if cuda_req:
-            count = cuda_check(cuda_req)
+            count = cuda_check(
+                cuda_req, math.ceil(self.builder.resources["cudaDeviceCount"])
+            )
             if count == 0:
                 raise WorkflowException("Could not satisfy CUDARequirement")
 
@@ -227,6 +230,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                         indent=4,
                     ),
                 )
+        self.base_path_logs = runtimeContext.set_log_dir(
+            self.outdir, runtimeContext.log_dir, self.name
+        )
 
     def _execute(
         self,
@@ -244,7 +250,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         `runtime` is the list of arguments to put at the start of the
         command (e.g. docker run).
 
-        `env` is the enviroment to be set for running the resulting
+        `env` is the environment to be set for running the resulting
         command line.
         """
         scr = self.get_requirement("ShellCommandRequirement")[0]
@@ -278,8 +284,12 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 ]
             ),
             " < %s" % self.stdin if self.stdin else "",
-            " > %s" % os.path.join(self.outdir, self.stdout) if self.stdout else "",
-            " 2> %s" % os.path.join(self.outdir, self.stderr) if self.stderr else "",
+            " > %s" % os.path.join(self.base_path_logs, self.stdout)
+            if self.stdout
+            else "",
+            " 2> %s" % os.path.join(self.base_path_logs, self.stderr)
+            if self.stderr
+            else "",
         )
         if self.joborder is not None and runtimeContext.research_obj is not None:
             job_order = self.joborder
@@ -307,22 +317,19 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 else:
                     stdin_path = rmap[1]
 
-            stderr_path = None
-            if self.stderr is not None:
-                abserr = os.path.join(self.outdir, self.stderr)
-                dnerr = os.path.dirname(abserr)
-                if dnerr and not os.path.exists(dnerr):
-                    os.makedirs(dnerr)
-                stderr_path = abserr
+            def stderr_stdout_log_path(
+                base_path_logs: str, stderr_or_stdout: Optional[str]
+            ) -> Optional[str]:
+                if stderr_or_stdout is not None:
+                    abserr = os.path.join(base_path_logs, stderr_or_stdout)
+                    dnerr = os.path.dirname(abserr)
+                    if dnerr and not os.path.exists(dnerr):
+                        os.makedirs(dnerr)
+                    return abserr
+                return None
 
-            stdout_path = None
-            if self.stdout is not None:
-                absout = os.path.join(self.outdir, self.stdout)
-                dnout = os.path.dirname(absout)
-                if dnout and not os.path.exists(dnout):
-                    os.makedirs(dnout)
-                stdout_path = absout
-
+            stderr_path = stderr_stdout_log_path(self.base_path_logs, self.stderr)
+            stdout_path = stderr_stdout_log_path(self.base_path_logs, self.stdout)
             commands = [str(x) for x in runtime + self.command_line]
             if runtimeContext.secret_store is not None:
                 commands = cast(
@@ -388,7 +395,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                         "'listing' in self.generatefiles but no "
                         "generatemapper was setup."
                     )
-
+            runtimeContext.log_dir_handler(
+                self.outdir, self.base_path_logs, stdout_path, stderr_path
+            )
             outputs = self.collect_outputs(self.outdir, rcode)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
         except OSError as e:
@@ -546,7 +555,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             _logger.info(
                 "[job %s] Max memory used: %iMiB",
                 self.name,
-                round(memory_usage[0] / (2 ** 20)),
+                round(memory_usage[0] / (2**20)),
             )
         else:
             _logger.debug(
@@ -934,7 +943,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         _logger.info(
             "[job %s] Max memory used: %iMiB",
             self.name,
-            int((max_mem_percent / 100 * max_mem) / (2 ** 20)),
+            int((max_mem_percent / 100 * max_mem) / (2**20)),
         )
         if cleanup_cidfile:
             os.remove(cidfile)

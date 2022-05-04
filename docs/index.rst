@@ -19,6 +19,9 @@ Modules
    :maxdepth: 2
    :caption: Contents:
 
+   pythonversions
+   processgen
+
 Indices and tables
 ==================
 

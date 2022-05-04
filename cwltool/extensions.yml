@@ -87,7 +87,7 @@ $graph:
     For implementations that support reusing output from past work (on
     the assumption that same code and same input produce same
     results), control whether to enable or disable the reuse behavior
-    for a particular tool or step (to accomodate situations where that
+    for a particular tool or step (to accommodate situations where that
     assumption is incorrect).  A reused step is not executed but
     instead returns the same output as the original execution.
 
@@ -123,7 +123,7 @@ $graph:
     may apply their own security policies to restrict what is
     accessible by the tool.
 
-    Enabling network access does not imply a publically routable IP
+    Enabling network access does not imply a publicly routable IP
     address or the ability to accept inbound connections.
 
   fields:
@@ -203,13 +203,29 @@ $graph:
 
         See https://docs.nvidia.com/deploy/cuda-compatibility/ for
         details.
-    cudaComputeCapabilityMin:
-      type: string
-      doc: Minimum CUDA hardware capability required to run the software, in X.Y format.
-    deviceCountMin:
-      type: int?
+    cudaComputeCapability:
+      type:
+        - 'string'
+        - 'string[]'
+      doc: |
+        CUDA hardware capability required to run the software, in X.Y
+        format.
+
+        * If this is a single value, it defines only the minimum
+          compute capability.  GPUs with higher capability are also
+          accepted.
+
+        * If it is an array value, then only select GPUs with compute
+          capabilities that explicitly appear in the array.
+    cudaDeviceCountMin:
+      type: ['null', int, cwl:Expression]
       default: 1
-      doc: Minimum number of GPU devices to request, default 1.
-    deviceCountMax:
-      type: int?
-      doc: Maximum number of GPU devices to request.  If not specified, same as `deviceCountMin`.
+      doc: |
+        Minimum number of GPU devices to request.  If not specified,
+        same as `cudaDeviceCountMax`.  If neither are specified,
+        default 1.
+    cudaDeviceCountMax:
+      type: ['null', int, cwl:Expression]
+      doc: |
+        Maximum number of GPU devices to request.  If not specified,
+        same as `cudaDeviceCountMin`.

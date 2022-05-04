@@ -34,7 +34,7 @@ from schema_salad.utils import (
 
 from . import CWL_CONTENT_TYPES, process, update
 from .context import LoadingContext
-from .errors import WorkflowException
+from .errors import GraphTargetMissingException
 from .loghandler import _logger
 from .process import Process, get_schema, shortname
 from .update import ALLUPDATES
@@ -207,7 +207,7 @@ def _convert_stdstreams_to_files(
                     else:
                         workflowobj["stdin"] = (
                             "$(inputs.%s.path)"
-                            % cast(str, inp["id"]).rpartition("#")[2]
+                            % cast(str, inp["id"]).rpartition("#")[2].split("/")[-1]
                         )
                         inp["type"] = "File"
         else:
@@ -455,7 +455,7 @@ def make_tool(
                 processobj = obj
                 break
         if not processobj:
-            raise WorkflowException(
+            raise GraphTargetMissingException(
                 "Tool file contains graph of multiple objects, must specify "
                 "one of #%s"
                 % ", #".join(

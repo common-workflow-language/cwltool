@@ -1,3 +1,9 @@
+queue_rules:
+  - name: default
+    conditions:
+      - -draft # not a draft
+      - base=main
+
 pull_request_rules:
   - name: Automatic merge on approval and when when GitHub branch protection passes on main
     conditions:
@@ -5,9 +11,9 @@ pull_request_rules:
       - -draft
       - base=main
     actions:
-      merge:
+      queue:
         method: merge
-        strict: smart+fasttrack
+        name: default
         
 pull_request_rules:
   - name: Automatic merge for leadership team members when there are no reviewers and the label is "ready"
@@ -19,6 +25,6 @@ pull_request_rules:
       - author=@leadership
       - label=ready
     actions:
-      merge:
+      queue:
         method: merge
-        strict: smart+fasttrack
+        name: default

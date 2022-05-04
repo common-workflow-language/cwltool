@@ -33,9 +33,9 @@ Quay.io (Docker): |Quay.io Container|
 .. |Total PyPI Downloads| image:: https://static.pepy.tech/personalized-badge/cwltool?period=total&units=international_system&left_color=black&right_color=orange&left_text=Total%20PyPI%20Downloads
    :target: https://pepy.tech/project/cwltool
 
-.. |Conda Version| image:: https://anaconda.org/conda-forge/cwltool/badges/version.svg 
+.. |Conda Version| image:: https://anaconda.org/conda-forge/cwltool/badges/version.svg
    :target: https://anaconda.org/conda-forge/cwltool
-   
+
 .. |Conda Installs| image:: https://anaconda.org/conda-forge/cwltool/badges/downloads.svg
    :target: https://anaconda.org/conda-forge/cwltool
 
@@ -84,7 +84,7 @@ If you encounter an error, first try to update package information by using
    sudo apt-get update
 
 If you are running macOS X or other UNIXes and you want to use packages prepared by the conda-forge project, then
-please follow the install instructions for `conda-forge <https://conda-forge.org/#about>`_ (if you haven't already) and then 
+please follow the install instructions for `conda-forge <https://conda-forge.org/#about>`_ (if you haven't already) and then
 
 .. code:: bash
 
@@ -142,11 +142,11 @@ system link or `another facility <https://wiki.debian.org/DebianAlternatives>`_.
 Recommended Software
 ^^^^^^^^^^^^^^^^^^^^
 
-You may also want to have the following installed: 
+You may also want to have the following installed:
 - `node.js <https://nodejs.org/en/download/>`_
 - Docker, udocker, or Singularity (optional)
 
-Without these, some examples in the CWL tutorials at http://www.commonwl.org/user_guide/ may not work. 
+Without these, some examples in the CWL tutorials at http://www.commonwl.org/user_guide/ may not work.
 
 Run on the command line
 -----------------------
@@ -338,7 +338,7 @@ Environment Variables in cwltool
 This reference implementation supports several ways of setting
 environment variables for tools, in addition to the standard
 ``EnvVarRequirement``. The sequence of steps applied to create the
-enviroment is:
+environment is:
 
 0. If the ``--preserve-entire-environment`` flag is present, then begin with the current
    environment, else begin with an empty environment.
@@ -381,7 +381,7 @@ which your tool runs, for example by loading one or more Environment
 Modules. The environment is constructed as above, then the environment
 may modified by the selected tool resolver.  This currently means that
 you cannot override any environment variables set by the selected tool
-resolver. Note that the enviroment given to the configured dependency
+resolver. Note that the environment given to the configured dependency
 resolver has the variable `_CWLTOOL` set to `1` to allow introspection.
 
 To discuss some of these plugins and how to configure them, first consider the
@@ -691,10 +691,10 @@ the following in the terminal:
 
 List of all environment can be seen using:
 ``tox --listenvs``
-and running a specfic test env using:
+and running a specific test env using:
 ``tox -e <env name>``
 and additionally run a specific test using this format:
-``tox -e py36-unit -- -v tests/test_examples.py::test_scandeps``
+``tox -e py310-unit -- -v tests/test_examples.py::test_scandeps``
 
 -  Running the entire suite of CWL conformance tests:
 

@@ -1,6 +1,6 @@
 [run]
 branch = True
-source = cwltool
+source_pkgs = cwltool
 omit = cwltool/run_job.py
 
 [report]

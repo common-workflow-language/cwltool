@@ -70,6 +70,37 @@ expression: $(inputs.foo.two)
 outputs: []
 """
 
+script_d = """
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+class: ExpressionTool
+
+inputs:
+  foo:
+    type:
+      - type: enum
+        symbols: [cymbal1, cymbal2]
+
+expression: $(inputs.foo)
+
+outputs: []
+"""
+
+script_e = """
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+class: ExpressionTool
+
+inputs:
+  foo: File
+
+expression: '{"bar": $(inputs.foo.location)}'
+
+outputs: []
+"""
+
 scripts_argparse_params = [
     ("help", script_a, lambda x: ["--debug", x, "--input", get_data("tests/echo.cwl")]),
     ("boolean", script_b, lambda x: [x, "--help"]),
@@ -78,6 +109,16 @@ scripts_argparse_params = [
         "foo with c",
         script_c,
         lambda x: [x, "--foo.one", get_data("tests/echo.cwl"), "--foo.two", "test"],
+    ),
+    (
+        "foo with d",
+        script_d,
+        lambda x: [x, "--foo", "cymbal2"],
+    ),
+    (
+        "foo with e",
+        script_e,
+        lambda x: [x, "--foo", "http://example.com"],
     ),
 ]
 
@@ -92,7 +133,7 @@ def test_argparse(
         with script_name.open(mode="w") as script:
             script.write(script_contents)
 
-        my_params = ["--outdir", str(tmp_path / "outdir")]
+        my_params = ["--outdir", str(tmp_path / "outdir"), "--debug"]
         my_params.extend(params(script.name))
         assert main(my_params) == 0, name
 

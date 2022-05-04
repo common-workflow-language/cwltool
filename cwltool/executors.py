@@ -221,6 +221,7 @@ class SingleJobExecutor(JobExecutor):
                 fsaccess=runtime_context.make_fs_access(""),
             )
             process.parent_wf = process.provenance_object
+
         jobiter = process.job(job_order_object, self.output_callback, runtime_context)
 
         try:
@@ -277,7 +278,7 @@ class MultithreadedJobExecutor(JobExecutor):
         self.pending_jobs = []  # type: List[JobsType]
         self.pending_jobs_lock = threading.Lock()
 
-        self.max_ram = int(psutil.virtual_memory().available / 2 ** 20)  # type: ignore[no-untyped-call]
+        self.max_ram = int(psutil.virtual_memory().available / 2**20)  # type: ignore[no-untyped-call]
         self.max_cores = float(psutil.cpu_count())
         self.allocated_ram = float(0)
         self.allocated_cores = float(0)
@@ -303,6 +304,9 @@ class MultithreadedJobExecutor(JobExecutor):
 
         result["tmpdirSize"] = math.ceil(request["tmpdirMin"])
         result["outdirSize"] = math.ceil(request["outdirMin"])
+
+        if "cudaDeviceCount" in request:
+            result["cudaDeviceCount"] = request["cudaDeviceCount"]
 
         return result
 
@@ -337,7 +341,7 @@ class MultithreadedJobExecutor(JobExecutor):
         job: Optional[JobsType],
         runtime_context: RuntimeContext,
     ) -> None:
-        """Execute a single Job in a seperate thread."""
+        """Execute a single Job in a separate thread."""
         if job is not None:
             with self.pending_jobs_lock:
                 self.pending_jobs.append(job)

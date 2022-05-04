@@ -6,7 +6,7 @@ from .docker import DockerCommandLineJob
 
 
 class UDockerCommandLineJob(DockerCommandLineJob):
-    """Runs a CommandLineJob in a sofware container using the udocker engine."""
+    """Runs a CommandLineJob in a software container using the udocker engine."""
 
     @staticmethod
     def append_volume(

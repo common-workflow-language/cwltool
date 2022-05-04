@@ -1,10 +1,9 @@
 """Tests for --print-inputs-deps."""
 
-import os
 import json
-from pathlib import Path
-
+import os
 from io import StringIO
+from pathlib import Path
 
 from cwltool.main import main
 from cwltool.process import CWL_IANA

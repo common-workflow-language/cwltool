@@ -29,7 +29,6 @@ from typing import (
     Sized,
     TextIO,
     Tuple,
-    TypeVar,
     Union,
     cast,
 )
@@ -49,7 +48,12 @@ from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
 from .context import LoadingContext, RuntimeContext, getdefault
 from .cwlrdf import printdot, printrdf
-from .errors import ArgumentException, UnsupportedRequirement, WorkflowException
+from .errors import (
+    ArgumentException,
+    GraphTargetMissingException,
+    UnsupportedRequirement,
+    WorkflowException,
+)
 from .executors import JobExecutor, MultithreadedJobExecutor, SingleJobExecutor
 from .load_tool import (
     default_loader,
@@ -69,6 +73,7 @@ from .process import (
     CWL_IANA,
     Process,
     add_sizes,
+    mergedirs,
     scandeps,
     shortname,
     use_custom_schema,
@@ -230,6 +235,8 @@ def generate_example_input(
             example = ruamel.yaml.comments.CommentedMap()
             if "name" in inptype:
                 comment = '"{}" record type.'.format(inptype["name"])
+            else:
+                comment = "Anonymous record type."
             for field in cast(List[CWLObjectType], inptype["fields"]):
                 value, f_comment = generate_example_input(field["type"], None)
                 example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
@@ -387,7 +394,7 @@ def load_job_order(
     ):
         _logger.error(
             "CWL input object at %s is not formatted correctly, it should be a "
-            "JSON/YAML dictionay, not %s.\n"
+            "JSON/YAML dictionary, not %s.\n"
             "Raw input object:\n%s",
             job_order_file or "stdin",
             type(job_order_object),
@@ -421,9 +428,11 @@ def init_job_order(
             namemap,
             records,
             input_required,
+            loader.fetcher.urljoin,
+            file_uri(os.getcwd()) + "/",
         )
         if args.tool_help:
-            toolparser.print_help()
+            toolparser.print_help(cast(IO[str], stdout))
             exit(0)
         cmd_line = vars(toolparser.parse_args(args.job_order))
         for record_name in records:
@@ -472,17 +481,6 @@ def init_job_order(
             if not job_order_object:
                 job_order_object = {}
             job_order_object[shortname(inp["id"])] = inp["default"]
-
-    if len(job_order_object) == 0:
-        if process.tool["inputs"]:
-            if toolparser is not None:
-                print(f"\nOptions for {args.workflow} ")
-                toolparser.print_help()
-            _logger.error("")
-            _logger.error("Input object required, use --help for details")
-            exit(1)
-        else:
-            job_order_object = {}
 
     def path_to_loc(p: CWLObjectType) -> None:
         if "location" not in p and "path" in p:
@@ -573,7 +571,7 @@ def printdeps(
     elif relative_deps == "cwd":
         base = os.getcwd()
     visit_class(deps, ("File", "Directory"), functools.partial(make_relative, base))
-    stdout.write(json_dumps(deps, indent=4, default=str))
+    print(json_dumps(deps, indent=4, default=str), file=stdout)
 
 
 def prov_deps(
@@ -623,7 +621,9 @@ def find_deps(
         nestdirs=nestdirs,
     )
     if sfs is not None:
-        deps["secondaryFiles"] = cast(MutableSequence[CWLOutputAtomType], sfs)
+        deps["secondaryFiles"] = cast(
+            MutableSequence[CWLOutputAtomType], mergedirs(sfs)
+        )
 
     return deps
 
@@ -945,10 +945,10 @@ def print_targets(
     for f in ("outputs", "inputs"):
         if tool.tool[f]:
             _logger.info("%s %s%s targets:", prefix[:-1], f[0].upper(), f[1:-1])
-            stdout.write(
+            print(
                 "  "
-                + "\n  ".join([f"{prefix}{shortname(t['id'])}" for t in tool.tool[f]])
-                + "\n"
+                + "\n  ".join([f"{prefix}{shortname(t['id'])}" for t in tool.tool[f]]),
+                file=stdout,
             )
     if "steps" in tool.tool:
         loading_context = copy.copy(loading_context)
@@ -956,7 +956,7 @@ def print_targets(
         loading_context.hints = tool.hints
         _logger.info("%s steps targets:", prefix[:-1])
         for t in tool.tool["steps"]:
-            stdout.write(f"  {prefix}{shortname(t['id'])}\n")
+            print(f"  {prefix}{shortname(t['id'])}", file=stdout)
             run: Union[str, Process, Dict[str, Any]] = t["run"]
             if isinstance(run, str):
                 process = make_tool(run, loading_context)
@@ -964,7 +964,9 @@ def print_targets(
                 process = make_tool(cast(CommentedMap, cmap(run)), loading_context)
             else:
                 process = run
-            print_targets(process, stdout, loading_context, shortname(t["id"]) + "/")
+            print_targets(
+                process, stdout, loading_context, f"{prefix}{shortname(t['id'])}/"
+            )
 
 
 def main(
@@ -1002,7 +1004,7 @@ def main(
         coloredlogs.install(logger=_logger, stream=stderr)
         stderr_handler = _logger.handlers[-1]
     workflowobj = None
-    prov_log_handler: Optional[logging.StreamHandler[Any]] = None
+    prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
     try:
         if args is None:
             if argsl is None:
@@ -1039,12 +1041,12 @@ def main(
         )
 
         if args.version:
-            print(versionfunc())
+            print(versionfunc(), file=stdout)
             return 0
         _logger.info(versionfunc())
 
         if args.print_supported_versions:
-            print("\n".join(supported_cwl_versions(args.enable_dev)))
+            print("\n".join(supported_cwl_versions(args.enable_dev)), file=stdout)
             return 0
 
         if not args.workflow:
@@ -1052,7 +1054,7 @@ def main(
                 args.workflow = "CWLFile"
             else:
                 _logger.error("CWL document required, no input file was provided")
-                parser.print_help()
+                parser.print_help(stderr)
                 return 1
 
         if args.ga4gh_tool_registries:
@@ -1125,7 +1127,7 @@ def main(
             processobj, metadata = loadingContext.loader.resolve_ref(uri)
             processobj = cast(Union[CommentedMap, CommentedSeq], processobj)
             if args.pack:
-                stdout.write(print_pack(loadingContext, uri))
+                print(print_pack(loadingContext, uri), file=stdout)
                 return 0
 
             if args.provenance and runtimeContext.research_obj:
@@ -1135,29 +1137,45 @@ def main(
                 )
 
             if args.print_pre:
-                stdout.write(
+                print(
                     json_dumps(
                         processobj,
                         indent=4,
                         sort_keys=True,
                         separators=(",", ": "),
                         default=str,
-                    )
+                    ),
+                    file=stdout,
                 )
                 return 0
 
-            tool = make_tool(uri, loadingContext)
+            try:
+                tool = make_tool(uri, loadingContext)
+            except GraphTargetMissingException as main_missing_exc:
+                if args.validate:
+                    logging.warn(
+                        "File contains $graph of multiple objects and no default "
+                        "process (#main). Validating all objects:"
+                    )
+                    for entry in workflowobj["$graph"]:
+                        entry_id = entry["id"]
+                        make_tool(entry_id, loadingContext)
+                        print(f"{entry_id} is valid CWL.", file=stdout)
+                else:
+                    raise main_missing_exc
+
             if args.make_template:
                 make_template(tool)
                 return 0
 
             if args.validate:
-                print(f"{args.workflow} is valid CWL.")
+                print(f"{args.workflow} is valid CWL.", file=stdout)
                 return 0
 
             if args.print_rdf:
-                stdout.write(
-                    printrdf(tool, loadingContext.loader.ctx, args.rdf_serializer)
+                print(
+                    printrdf(tool, loadingContext.loader.ctx, args.rdf_serializer),
+                    file=stdout,
                 )
                 return 0
 
@@ -1193,14 +1211,15 @@ def main(
             if args.print_subgraph:
                 if "name" in tool.tool:
                     del tool.tool["name"]
-                stdout.write(
+                print(
                     json_dumps(
                         tool.tool,
                         indent=4,
                         sort_keys=True,
                         separators=(",", ": "),
                         default=str,
-                    )
+                    ),
+                    file=stdout,
                 )
                 return 0
 
@@ -1246,6 +1265,8 @@ def main(
                 runtimeContext.move_outputs = "copy"
             runtimeContext.tmp_outdir_prefix = args.cachedir
 
+        runtimeContext.log_dir = args.log_dir
+
         runtimeContext.secret_store = getdefault(
             runtimeContext.secret_store, SecretStore()
         )
@@ -1282,7 +1303,6 @@ def main(
                 tool, job_order_object = tool.result(tfjob_order, tfout, runtimeContext)
                 if not job_order_object:
                     job_order_object = None
-
             try:
                 initialized_job_order_object = init_job_order(
                     job_order_object,
@@ -1360,8 +1380,10 @@ def main(
                 # Unsetting the Generation from final output object
                 visit_class(out, ("File",), MutationManager().unset_generation)
 
-                stdout.write(json_dumps(out, indent=4, ensure_ascii=False, default=str))
-                stdout.write("\n")
+                print(
+                    json_dumps(out, indent=4, ensure_ascii=False, default=str),
+                    file=stdout,
+                )
                 if hasattr(stdout, "flush"):
                     stdout.flush()
 
