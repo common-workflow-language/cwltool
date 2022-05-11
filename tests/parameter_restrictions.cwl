@@ -7,6 +7,7 @@ doc: |
 inputs:
   one: double
   two: string
+  three: int
 
 
 hints:
@@ -24,6 +25,10 @@ hints:
       two:
        - class: cwltool:regex
          rpattern: "foo.*bar"
+      three:
+       - class: cwltool:intInterval
+         low: -10
+         high: -7
 
 
 baseCommand: echo

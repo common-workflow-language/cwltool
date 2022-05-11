@@ -199,8 +199,7 @@ $graph:
 - name: regex
   type: record
   doc: |
-    Regular Expression
-    TODO: what type of regex?
+    ECMAScript 5.1 Regular Expression constraint.
   fields:
     class:
       type:
@@ -213,7 +212,13 @@ $graph:
         _type: "@vocab"
     rpattern:
       type: string
-      
+      doc: |
+        Testing should be the equivalent of calling `/rpattern/.test(value)`
+        where `rpattern` is the value of the `rpattern` field, and `value`
+        is the input object value to be tested. If the result is `true` then the
+        input object value is accepted. If the result if `false` then the
+        input object value does not match this constraint.
+        <https://262.ecma-international.org/5.1/#sec-15.10.6.3>
 
 - name: Restrictions
   type: record
