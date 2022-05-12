@@ -761,7 +761,7 @@ def test_research_object() -> None:
     pass
 
 
-# Reasearch object may need to be pickled (for Toil)
+# Research object may need to be pickled (for Toil)
 
 
 def test_research_object_picklability(research_object: ResearchObject) -> None:

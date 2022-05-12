@@ -8,21 +8,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v3
       - name: Get image tags
         id: image_tags
         run: |
           echo -n ::set-output name=IMAGE_TAGS::${GITHUB_REF#refs/*/}
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
       - name: Login to Quay.io
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: ${{ secrets.REGISTRY_SERVER }}
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
       - name: Build and publish cwltool_module image to Quay
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v3
         with:
           file: cwltool.Dockerfile
           tags: quay.io/commonwl/cwltool_module:${{ steps.image_tags.outputs.IMAGE_TAGS }}
@@ -31,7 +31,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build and publish cwltool image to Quay
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v3
         with:
           file: cwltool.Dockerfile
           tags: quay.io/commonwl/cwltool:${{ steps.image_tags.outputs.IMAGE_TAGS }}

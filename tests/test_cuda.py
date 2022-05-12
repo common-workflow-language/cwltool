@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import mock
 import pytest
 from schema_salad.avro import schema
@@ -16,8 +18,6 @@ from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from cwltool.utils import CWLObjectType
 
 from .util import get_data, needs_docker, needs_singularity_3_or_newer
-
-from unittest.mock import MagicMock
 
 cuda_version = cuda_version_and_device_count()
 

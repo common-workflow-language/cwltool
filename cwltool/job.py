@@ -88,7 +88,7 @@ def relink_initialworkdir(
         ):
             if not vol.target.startswith(container_outdir):
                 # this is an input file written outside of the working
-                # directory, so therefor ineligable for being an output file.
+                # directory, so therefore ineligable for being an output file.
                 # Thus, none of our business
                 continue
             host_outdir_tgt = os.path.join(
@@ -250,7 +250,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         `runtime` is the list of arguments to put at the start of the
         command (e.g. docker run).
 
-        `env` is the enviroment to be set for running the resulting
+        `env` is the environment to be set for running the resulting
         command line.
         """
         scr = self.get_requirement("ShellCommandRequirement")[0]

@@ -147,7 +147,7 @@ def cmp_like_py2(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> int:
     """
     Compare in the same manner as Python2.
 
-    Comparision function to be used in sorting as python3 doesn't allow sorting
+    Comparison function to be used in sorting as python3 doesn't allow sorting
     of different types like str() and int().
     This function re-creates sorting nature in py2 of heterogeneous list of
     `int` and `str`

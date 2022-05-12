@@ -172,7 +172,7 @@ def jshint_js(
     def dump_jshint_error():
         # type: () -> None
         raise RuntimeError(
-            'jshint failed to run succesfully\nreturncode: %d\nstdout: "%s"\nstderr: "%s"'
+            'jshint failed to run successfully\nreturncode: %d\nstdout: "%s"\nstderr: "%s"'
             % (returncode, stdout, stderr)
         )
 

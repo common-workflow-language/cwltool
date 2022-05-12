@@ -120,7 +120,7 @@ class Singularity(CheckHolder):
         def PWD(v: str, env: Env) -> bool:
             return v == env["HOME"]
 
-        ans: EnvChecks = {
+        result: EnvChecks = {
             "HOME": None,
             "LANG": "C",
             "LD_LIBRARY_PATH": None,
@@ -131,10 +131,10 @@ class Singularity(CheckHolder):
         }
 
         # Singularity variables appear to be in flux somewhat.
-        version = get_version().split(".")
-        vmajor = int(version[0])
+        version = get_version()[0]
+        vmajor = version[0]
         assert vmajor == 3, "Tests only work for Singularity 3"
-        vminor = int(version[1])
+        vminor = version[1]
         sing_vars: EnvChecks = {
             "SINGULARITY_CONTAINER": None,
             "SINGULARITY_NAME": None,
@@ -155,7 +155,7 @@ class Singularity(CheckHolder):
 
                 sing_vars["SINGULARITY_BIND"] = BIND
 
-        ans.update(sing_vars)
+        result.update(sing_vars)
 
         # Singularity automatically passes some variables through, if
         # they exist. This seems to be constant from 3.1 but isn't
@@ -170,9 +170,9 @@ class Singularity(CheckHolder):
         )
         for vname in autopass:
             if vname in os.environ:
-                ans[vname] = os.environ[vname]
+                result[vname] = os.environ[vname]
 
-        return ans
+        return result
 
     flags = ["--default-container=docker.io/debian:stable-slim", "--singularity"]
     env_accepts_null = True
@@ -268,5 +268,5 @@ def test_preserve_all(
             if vname == "HOME" or vname == "TMPDIR":
                 # These MUST be OK
                 raise
-            # Other variables can be overriden
+            # Other variables can be overridden
             assert val == os.environ[vname]

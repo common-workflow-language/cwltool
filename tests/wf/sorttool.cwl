@@ -7,7 +7,7 @@ cwlVersion: v1.0
 
 # This example is similar to the previous one, with an additional input
 # parameter called "reverse".  It is a boolean parameter, which is
-# intepreted as a command line flag.  The value of "prefix" is used for
+# interpreted as a command line flag.  The value of "prefix" is used for
 # flag to put on the command line if "reverse" is true, if "reverse" is
 # false, no flag is added.
 #
