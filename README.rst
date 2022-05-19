@@ -185,7 +185,7 @@ with the ``--user-space-docker-cmd`` option.
 
 One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker.
 
-udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-udockertools-tarball
+udocker installation: https://indigo-dc.github.io/udocker/installation_manual.html
 
 Run `cwltool` just as you usually would, but with the new option, e.g., from the conformance tests
 
