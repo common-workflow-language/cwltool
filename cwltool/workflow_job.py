@@ -172,7 +172,7 @@ def nested_crossproduct_scatter(
     runtimeContext: RuntimeContext,
 ) -> JobsGeneratorType:
     scatter_key = scatter_keys[0]
-    jobl = len(cast(Sized, joborder[scatter_key]))
+    jobl = len(cast(Sized, joborder[scatter_key])) if joborder[scatter_key] else 0
     output = {}  # type: ScatterDestinationsType
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * jobl
@@ -252,7 +252,7 @@ def _flat_crossproduct_scatter(
 ) -> Tuple[List[Optional[JobsGeneratorType]], int,]:
     """Inner loop."""
     scatter_key = scatter_keys[0]
-    jobl = len(cast(Sized, joborder[scatter_key]))
+    jobl = len(cast(Sized, joborder[scatter_key])) if joborder[scatter_key] else 0
     steps = []  # type: List[Optional[JobsGeneratorType]]
     put = startindex
     for index in range(0, jobl):
@@ -292,7 +292,7 @@ def dotproduct_scatter(
     jobl = None  # type: Optional[int]
     for key in scatter_keys:
         if jobl is None:
-            jobl = len(cast(Sized, joborder[key]))
+            jobl = len(cast(Sized, joborder[key])) if joborder[key] else 0
         elif jobl != len(cast(Sized, joborder[key])):
             raise WorkflowException(
                 "Length of input arrays must be equal when performing "
@@ -729,7 +729,9 @@ class WorkflowJob:
                 runtimeContext.postScatterEval = postScatterEval
 
                 emptyscatter = [
-                    shortname(s) for s in scatter if len(cast(Sized, inputobj[s])) == 0
+                    shortname(s)
+                    for s in scatter
+                    if not inputobj[s] or len(cast(Sized, inputobj[s])) == 0
                 ]
                 if emptyscatter:
                     _logger.warning(
