@@ -191,6 +191,11 @@ class JobExecutor(metaclass=ABCMeta):
             return (self.final_output[0], self.final_status[0])
         return (None, "permanentFail")
 
+    def message_about_other_runners(self):
+        _logger.info("Need to grow beyond `cwltool` and scale up your workflows on a HPC cluster, or in the cloud?")
+        _logger.info("Many commercial and open source platforms support CWL.  Run your same workflows without having to rewrite anything.")
+        _logger.info("Visit https://www.commonwl.org/implementations/ to learn more.")
+
 
 class SingleJobExecutor(JobExecutor):
     """Default single-threaded CWL reference executor."""
@@ -202,6 +207,8 @@ class SingleJobExecutor(JobExecutor):
         logger: logging.Logger,
         runtime_context: RuntimeContext,
     ) -> None:
+
+        _logger.info("Using default serial job executor.  Use `cwltool --parallel` to run multiple steps at a time.")
 
         process_run_id = None  # type: Optional[str]
 
@@ -252,6 +259,7 @@ class SingleJobExecutor(JobExecutor):
                 else:
                     logger.error("Workflow cannot make any more progress.")
                     break
+            self.message_about_other_runners()
         except (
             ValidationException,
             WorkflowException,
@@ -416,6 +424,8 @@ class MultithreadedJobExecutor(JobExecutor):
         runtime_context: RuntimeContext,
     ) -> None:
 
+        _logger.info("Using parallel job executor.  Multiple steps will run at once as hardware resources permit.")
+
         self.taskqueue = TaskQueue(
             threading.Lock(), psutil.cpu_count()
         )  # type: TaskQueue
@@ -456,6 +466,7 @@ class MultithreadedJobExecutor(JobExecutor):
         finally:
             self.taskqueue.drain()
             self.taskqueue.join()
+        self.message_about_other_runners()
 
 
 class NoopJobExecutor(JobExecutor):
