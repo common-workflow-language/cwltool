@@ -110,6 +110,7 @@ setup(
         # https://github.com/ionrock/cachecontrol/issues/137
         "ruamel.yaml >= 0.15, < 0.17.22",
         "rdflib >= 4.2.2, < 6.2.0",
+        "rdflib >= 4.2.2, < 6.0.0;python_version<='3.6'",
         "shellescape >= 3.4.1, < 3.9",
         "schema-salad >= 8.2.20211104054942, < 9",
         "mypy-extensions",
@@ -134,7 +135,7 @@ setup(
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
         "arcp >= 0.2.0",
-        "rdflib-jsonld >= 0.4.0",
+        "rdflib-jsonld>=0.4.0, <= 0.6.1;python_version<='3.6'",
     ],
     entry_points={"console_scripts": ["cwltool=cwltool.main:run"]},
     zip_safe=True,
