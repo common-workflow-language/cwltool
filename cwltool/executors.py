@@ -191,7 +191,7 @@ class JobExecutor(metaclass=ABCMeta):
             return (self.final_output[0], self.final_status[0])
         return (None, "permanentFail")
 
-    def message_about_other_runners(self):
+    def message_about_other_runners(self) -> None:
         _logger.info(
             "Need to grow beyond `cwltool` and scale up your workflows on a HPC cluster, or in the cloud?"
         )
