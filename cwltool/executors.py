@@ -193,10 +193,10 @@ class JobExecutor(metaclass=ABCMeta):
 
     def message_about_other_runners(self) -> None:
         _logger.info(
-            "Need to grow beyond `cwltool` and scale up your workflows on a HPC cluster, or in the cloud?"
+            "Need to grow beyond `cwltool` and scale up your workflows to run on a multi-node cluster, or in the cloud?"
         )
         _logger.info(
-            "Many commercial and open source platforms support CWL.  Run your same workflows without having to rewrite anything."
+            "CWL workflows are portable and run on many commercial and open source platforms."
         )
         _logger.info("Visit https://www.commonwl.org/implementations/ to learn more.")
 
