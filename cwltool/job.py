@@ -439,7 +439,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             with runtimeContext.workflow_eval_lock:
                 self.output_callback(outputs, processStatus)
 
-        if self.stagedir is not None and os.path.exists(self.stagedir):
+        if runtimeContext.rm_tmpdir and self.stagedir is not None and os.path.exists(self.stagedir):
             _logger.debug(
                 "[job %s] Removing input staging directory %s",
                 self.name,
