@@ -138,7 +138,7 @@ class PathMapper:
                 ):
                     deref = ab
                     if urllib.parse.urlsplit(deref).scheme in ["http", "https"]:
-                        deref = downloadHttpFile(path)
+                        deref, _last_modified = downloadHttpFile(path)
                     else:
                         # Dereference symbolic links
                         st = os.lstat(deref)
