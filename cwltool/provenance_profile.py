@@ -350,6 +350,10 @@ class ProvenanceProfile:
             file_entity.add_attributes({CWLPROV["nameext"]: value["nameext"]})
         self.document.specializationOf(file_entity, entity)
 
+        # Transfer input data annotations to provenance:
+        if "label" in value:
+            file_entity.add_attributes({PROV_LABEL: value["label"]}) 
+
         # Check for secondaries
         for sec in cast(
             MutableSequence[CWLObjectType], value.get("secondaryFiles", [])
