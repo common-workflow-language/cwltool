@@ -135,6 +135,9 @@ $graph:
       type:
         - string?
         - string[]?
+      jsonldPredicate:
+        "_type": "@id"
+        refScope: 1
     linkMerge:
       type: cwl:LinkMergeMethod?
       jsonldPredicate: "cwl:linkMerge"
