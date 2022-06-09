@@ -164,7 +164,7 @@ class RuntimeContext(ContextBase):
         self.js_console = False  # type: bool
         self.job_script_provider = None  # type: Optional[DependenciesConfiguration]
         self.select_resources = None  # type: Optional[select_resources_callable]
-        self.eval_timeout = 20  # type: float
+        self.eval_timeout = 60  # type: float
         self.postScatterEval = (
             None
         )  # type: Optional[Callable[[CWLObjectType], Optional[CWLObjectType]]]
