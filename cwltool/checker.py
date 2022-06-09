@@ -389,6 +389,8 @@ def check_all_types(
                                 message="Source is from conditional step, but pickValue is not used",
                             )
                         )
+                    if is_all_output_method_loop_step(param_to_step, parm_id):
+                        src_dict[parm_id]['type'] = {'type': 'array', 'items': src_dict[parm_id]['type']}
             else:
                 parm_id = cast(str, sink[sourceField])
                 if parm_id not in src_dict:
@@ -429,6 +431,9 @@ def check_all_types(
                         )
 
                     srcs_of_sink[0]["type"] = src_typ
+
+                if is_all_output_method_loop_step(param_to_step, parm_id):
+                    src_dict[parm_id]['type'] = {'type': 'array', 'items': src_dict[parm_id]['type']}
 
             for src in srcs_of_sink:
                 check_result = check_types(src, sink, linkMerge, valueFrom)
@@ -516,4 +521,17 @@ def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -
     if source_step is not None:
         if source_step.get("when") is not None:
             return True
+    return False
+
+
+def is_all_output_method_loop_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -> bool:
+    source_step = param_to_step.get(parm_id)
+    if source_step is not None:
+        requirements = {
+            **{h['class']: h for h in source_step.get('hints', [])},
+            **{r['class']: r for r in source_step.get('requirements', [])}}
+        if 'http://commonwl.org/cwltool#Loop' in requirements:
+            output_method = requirements['http://commonwl.org/cwltool#Loop'].get('outputMethod', 'last')
+            if output_method == 'all':
+                return True
     return False
