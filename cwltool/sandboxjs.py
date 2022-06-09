@@ -285,12 +285,20 @@ def exec_js_process(
                         pipes[1].write(buf)
         except OSError:
             break
-    timer.cancel()
 
     stdin_buf.close()
-    stdoutdata = stdout_buf.getvalue()[: -len(PROCESS_FINISHED_STR) - 1]
-    stderrdata = stderr_buf.getvalue()[: -len(PROCESS_FINISHED_STR) - 1]
+    
+    if not timer.is_alive():
+        _logger.info("Expression Tool stopped because time limit has been exceeded.")
+        _logger.info("Time limit is {} seconds. This can be increased using the --eval-timeout flag.\n".format(timeout))
+        stdoutdata = stdout_buf.getvalue()
+        stderrdata = stderr_buf.getvalue()
+    else:
+        stdoutdata = stdout_buf.getvalue()[: -len(PROCESS_FINISHED_STR) - 1]
+        stderrdata = stderr_buf.getvalue()[: -len(PROCESS_FINISHED_STR) - 1]
 
+    timer.cancel()
+    
     nodejs.poll()
 
     if nodejs.poll() not in (None, 0):
