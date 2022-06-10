@@ -287,10 +287,14 @@ def exec_js_process(
             break
 
     stdin_buf.close()
-    
+
     if not timer.is_alive():
         _logger.info("Expression Tool stopped because time limit has been exceeded.")
-        _logger.info("Time limit is {} seconds. This can be increased using the --eval-timeout flag.\n".format(timeout))
+        _logger.info(
+            "Time limit is {} seconds. This can be increased using the --eval-timeout flag.\n".format(
+                timeout
+            )
+        )
         stdoutdata = stdout_buf.getvalue()
         stderrdata = stderr_buf.getvalue()
     else:
@@ -298,7 +302,7 @@ def exec_js_process(
         stderrdata = stderr_buf.getvalue()[: -len(PROCESS_FINISHED_STR) - 1]
 
     timer.cancel()
-    
+
     nodejs.poll()
 
     if nodejs.poll() not in (None, 0):
