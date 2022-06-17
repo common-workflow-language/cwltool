@@ -817,6 +817,43 @@ class DirectoryAppendAction(FSAppendAction):
     objclass = "Directory"
 
 
+class AppendAction(argparse.Action):
+    """An argparse action that clears the default values if any value is provided.
+
+    Attributes:
+        _called (bool): Initially set to ``False``, changed if any value is appended.
+    """
+
+    def __init__(
+        self,
+        option_strings: List[str],
+        dest: str,
+        nargs: Any = None,
+        **kwargs: Any,
+    ) -> None:
+        """Intialize."""
+        super().__init__(option_strings, dest, **kwargs)
+        self._called = False
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Union[str, Sequence[Any], None],
+        option_string: Optional[str] = None,
+    ) -> None:
+        g = getattr(namespace, self.dest, None)
+        if g is None:
+            g = []
+        if self.default is not None and not self._called:
+            # If any value was specified, we then clear the list of options before appending.
+            # We cannot always clear the ``default`` attribute since it collects the ``values`` appended.
+            self.default.clear()
+            self._called = True
+        g.append(values)
+        setattr(namespace, self.dest, g)
+
+
 def add_argument(
     toolparser: argparse.ArgumentParser,
     name: str,
@@ -864,7 +901,7 @@ def add_argument(
         elif inptype["items"] == "Directory":
             action = DirectoryAppendAction
         else:
-            action = "append"
+            action = AppendAction
     elif isinstance(inptype, MutableMapping) and inptype["type"] == "enum":
         atype = str
     elif isinstance(inptype, MutableMapping) and inptype["type"] == "record":
