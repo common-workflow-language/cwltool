@@ -194,6 +194,7 @@ $graph:
     Prototype to enable workflow-level looping of a step.
 
     Valid only under `requirements` of a https://www.commonwl.org/v1.2/Workflow.html#WorkflowStep.
+    Unlike other CWL requirements, Loop requirement is not propagated to inner steps.
 
     `loop_when` is an expansion of the CWL v1.2 `when` construct which controls
     conditional execution and thus when using `Loop` do not also specify a `when` as
@@ -218,11 +219,6 @@ $graph:
         A skipped step produces a `null` on each output.
 
         The `inputs` value in the expression must be the step input object.
-
-        The `outputs` value in the expression must be the step output object
-        produced by the execution of the last iteration of this step, except
-        for the first execution when the `outputs` object is populated with
-        `null`s for each output declared in this step's `out` section.
 
         It is an error if this expression returns a value other than `true` or `false`.
     loop:
