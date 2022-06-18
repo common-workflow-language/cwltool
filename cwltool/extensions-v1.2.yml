@@ -180,11 +180,8 @@ $graph:
         parameter(s) specified in the `source` field.
 
         The value of `inputs` in the parameter reference or expression must be
-        the input object to the last iteration of the workflow step after
-        assigning the `source` values and then applying `default`.
-
-        The value of `outputs` in the parameter reference or expression
-        must be the output object of the last step execution.
+        the input object to the previous iteration of the workflow step (or the initial
+        inputs for the first iteration).
 
 - name: Loop
   type: record
