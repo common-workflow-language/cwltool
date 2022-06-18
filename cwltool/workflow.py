@@ -218,7 +218,7 @@ class WorkflowStep(Process):
                 if parent_req["class"] == step_req["class"]:
                     found_in_step = True
                     break
-            if not found_in_step:
+            if not found_in_step and parent_req.get('class') != 'http://commonwl.org/cwltool#Loop':
                 loadingContext.requirements.append(parent_req)
         loadingContext.requirements.extend(
             cast(

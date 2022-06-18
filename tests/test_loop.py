@@ -155,3 +155,17 @@ def test_nested_loops_all() -> None:
     main(params, stdout=stream)
     expected = {'o1': [[2], [2, 3], [2, 3, 4]]}
     assert json.loads(stream.getvalue()) == expected
+
+
+def test_multi_source_loop_input() -> None:
+    """Test a loop with two sources, which are selected through a pickValue directive."""
+    stream = StringIO()
+    params = [
+        "--enable-ext",
+        "--validate",
+        get_data("tests/loop/multi-source-loop.cwl"),
+        get_data("tests/loop/single-var-loop-job.yml")
+    ]
+    main(params, stdout=stream)
+    expected = {'o1': [2, 3, 4, 5, 8, 11, 14, 17, 20]}
+    assert json.loads(stream.getvalue()) == expected
