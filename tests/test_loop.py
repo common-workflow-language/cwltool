@@ -169,3 +169,17 @@ def test_multi_source_loop_input() -> None:
     main(params, stdout=stream)
     expected = {'o1': [2, 3, 4, 5, 8, 11, 14, 17, 20]}
     assert json.loads(stream.getvalue()) == expected
+
+
+def test_default_value_loop() -> None:
+    """Test a loop whose source has a defautl value."""
+    stream = StringIO()
+    params = [
+        "--enable-ext",
+        "--validate",
+        get_data("tests/loop/default-value-loop.cwl"),
+        get_data("tests/loop/single-var-loop-job.yml")
+    ]
+    main(params, stdout=stream)
+    expected = {'o1': [8, 11, 14, 17, 20]}
+    assert json.loads(stream.getvalue()) == expected
