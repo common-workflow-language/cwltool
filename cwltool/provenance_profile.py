@@ -350,9 +350,23 @@ class ProvenanceProfile:
             file_entity.add_attributes({CWLPROV["nameext"]: value["nameext"]})
         self.document.specializationOf(file_entity, entity)
 
+        def recursive_function(dataset, e: ProvEntity) -> ProvEntity:
+            for annotation in dataset:
+                if isinstance(dataset[annotation], (str, bool, int, float)): # check if these are all allowed types
+                    e.add_attributes({annotation: dataset[annotation]})
+                else:
+                    nested_id = uuid.uuid4().urn
+                    # e.add_attributes({annotation: nested_id})
+                    nested_entity = self.document.entity(nested_id)
+                    e.add_attributes({annotation: nested_entity.identifier})
+                    nested_entity = recursive_function(dataset[annotation], nested_entity)
+            return e
+
         # Transfer input data annotations to provenance:
-        if "label" in value:
-            file_entity.add_attributes({PROV_LABEL: value["label"]})
+        if SCHEMA["Dataset"].uri in value:
+            entity.add_attributes( {PROV_TYPE: SCHEMA["Dataset"]}) 
+            entity = recursive_function(value[SCHEMA["Dataset"].uri], entity)
+
 
         # Check for secondaries
         for sec in cast(
