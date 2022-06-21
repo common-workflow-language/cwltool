@@ -60,9 +60,9 @@ steps:
     out: [osmall, obig]
     requirements:
       cwltool:Loop:
-        loop_when: $(inputs.i1 < 20)
+        loopWhen: $(inputs.i1 < 20)
         loop:
           i1:
-            loop_source: [osmall, obig]
+            loopSource: [osmall, obig]
             pickValue: the_only_non_null
         outputMethod: all

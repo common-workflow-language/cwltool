@@ -42,7 +42,7 @@ steps:
           out: [o1]
           requirements:
             cwltool:Loop:
-              loop_when: $(inputs.i1 <= inputs.i2)
+              loopWhen: $(inputs.i1 <= inputs.i2)
               loop:
                 i1: o1
               outputMethod: last
@@ -52,7 +52,7 @@ steps:
     out: [o1]
     requirements:
       cwltool:Loop:
-        loop_when: $(inputs.i2 < 4)
+        loopWhen: $(inputs.i2 < 4)
         loop:
           i2:
             valueFrom: $(inputs.i2 + 1)

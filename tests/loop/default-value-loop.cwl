@@ -43,9 +43,9 @@ steps:
     out: [ o1 ]
     requirements:
       cwltool:Loop:
-        loop_when: $(inputs.i1 < 20)
+        loopWhen: $(inputs.i1 < 20)
         loop:
           i1:
-            loop_source: o1
+            loopSource: o1
             default: 5
         outputMethod: all

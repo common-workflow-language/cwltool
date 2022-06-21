@@ -127,7 +127,7 @@ $graph:
       type: string?
       jsonldPredicate: "@id"
       doc: "It must reference the `id` of one of the elements in the `in` field of the step."
-    loop_source:
+    loopSource:
       doc: |
         Specifies one or more of the step output parameters that will
         provide input to the loop iterations after the first one (inputs
@@ -193,9 +193,9 @@ $graph:
     Valid only under `requirements` of a https://www.commonwl.org/v1.2/Workflow.html#WorkflowStep.
     Unlike other CWL requirements, Loop requirement is not propagated to inner steps.
 
-    `loop_when` is an expansion of the CWL v1.2 `when` construct which controls
+    `loopWhen` is an expansion of the CWL v1.2 `when` construct which controls
     conditional execution and thus when using `Loop` do not also specify a `when` as
-    the `loop_when` expanded definition is intended to replace `when` in a
+    the `loopWhen` expanded definition is intended to replace `when` in a
     future version of the CWL standards.
 
     Loops are evaluated after any specified `scatter`ing; the implicit gathering
@@ -207,7 +207,7 @@ $graph:
       jsonldPredicate:
         _id: "@type"
         _type: "@vocab"
-    loop_when:
+    loopWhen:
       type: cwl:Expression
       doc: |
         Only run the step while the expression evaluates to `true`.
@@ -223,7 +223,7 @@ $graph:
       jsonldPredicate:
         _id: "cwltool:loop"
         mapSubject: id
-        mapPredicate: loop_source
+        mapPredicate: loopSource
       doc: |
         Defines the input parameters of the loop iterations after the first one
         (inputs of the first iteration are the step input parameters). If no

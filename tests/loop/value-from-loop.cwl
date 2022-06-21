@@ -29,7 +29,7 @@ steps:
     out: [o1]
     requirements:
       cwltool:Loop:
-        loop_when: $(inputs.i1 < 10)
+        loopWhen: $(inputs.i1 < 10)
         loop:
           i1:
             valueFrom: $(inputs.i1 + 1)
