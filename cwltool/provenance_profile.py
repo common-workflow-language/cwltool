@@ -296,6 +296,25 @@ class ProvenanceProfile:
         self.generate_output_prov(outputs, process_run_id, process_name)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
+
+    
+    # def _add_nested_annotations(dataset, e: ProvEntity) -> ProvEntity:
+    #     for annotation in dataset:
+    #         if isinstance(dataset[annotation], (str, bool, int, float)): # check if these are all allowed types
+    #             e.add_attributes({annotation: dataset[annotation]})
+    #         else:
+    #             nested_id = uuid.uuid4().urn
+    #             # e.add_attributes({annotation: nested_id})
+    #             nested_entity = self.document.entity(nested_id)
+    #             e.add_attributes({annotation: nested_entity.identifier})
+    #             nested_entity = _add_nested_annotations(dataset[annotation], nested_entity)
+    #     return e
+
+    # def _propagate_input_annotations(entity):    
+    #     entity.add_attributes( {PROV_TYPE: SCHEMA["Dataset"]}) 
+    #     entity = _add_nested_annotations(value[SCHEMA["Dataset"].uri], entity)
+    #     return entity 
+
     def declare_file(self, value: CWLObjectType) -> Tuple[ProvEntity, ProvEntity, str]:
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
@@ -350,7 +369,9 @@ class ProvenanceProfile:
             file_entity.add_attributes({CWLPROV["nameext"]: value["nameext"]})
         self.document.specializationOf(file_entity, entity)
 
-        def recursive_function(dataset, e: ProvEntity) -> ProvEntity:
+        
+
+        def _add_nested_annotations(dataset, e: ProvEntity) -> ProvEntity:
             for annotation in dataset:
                 if isinstance(dataset[annotation], (str, bool, int, float)): # check if these are all allowed types
                     e.add_attributes({annotation: dataset[annotation]})
@@ -359,14 +380,17 @@ class ProvenanceProfile:
                     # e.add_attributes({annotation: nested_id})
                     nested_entity = self.document.entity(nested_id)
                     e.add_attributes({annotation: nested_entity.identifier})
-                    nested_entity = recursive_function(dataset[annotation], nested_entity)
+                    nested_entity = _add_nested_annotations(dataset[annotation], nested_entity)
             return e
 
         # Transfer input data annotations to provenance:
-        if SCHEMA["Dataset"].uri in value:
+        if SCHEMA["Dataset"].uri in value: # TODO: modify so both http:/ and https:/ are recognized
             entity.add_attributes( {PROV_TYPE: SCHEMA["Dataset"]}) 
-            entity = recursive_function(value[SCHEMA["Dataset"].uri], entity)
+            entity = _add_nested_annotations(value[SCHEMA["Dataset"].uri], entity)
 
+        # Transfer format annotations to provenance:
+        if "format" in value:
+            entity.add_attributes({SCHEMA["encodingFormat"]: value["format"]})
 
         # Check for secondaries
         for sec in cast(
@@ -413,6 +437,7 @@ class ProvenanceProfile:
                 (PROV_TYPE, RO["Folder"]),
             ],
         )
+
         # ORE description of ro:Folder, saved separately
         coll_b = dir_bundle.entity(
             dir_id,
@@ -473,6 +498,20 @@ class ProvenanceProfile:
         coll.add_attributes(coll_attribs)
         coll_b.add_attributes(coll_b_attribs)
 
+        # Propagate input data annotations
+        if SCHEMA["Dataset"].uri in value:
+            # coll_annotations = [ (PROV_TYPE, SCHEMA["Dataset"]) ]
+            coll.add_attributes([ (PROV_TYPE, SCHEMA["Dataset"]) ])
+            
+            dataset = value[SCHEMA["Dataset"].uri]
+                
+            for annotation in dataset:
+                if isinstance(dataset[annotation], (str, bool, int, float)): # check if these are all allowed types
+                    coll.add_attributes({annotation: dataset[annotation]})
+        
+        if "format" in value:
+            coll.add_attributes({SCHEMA["encodingFormat"]: value["format"]})    
+            
         # Also Save ORE Folder as annotation metadata
         ore_doc = ProvDocument()
         ore_doc.add_namespace(ORE)
