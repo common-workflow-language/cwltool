@@ -102,6 +102,7 @@ class LoadingContext(ContextBase):
         self.relax_path_checks = False  # type: bool
         self.singularity = False  # type: bool
         self.podman = False  # type: bool
+        self.eval_timeout = 60  # type: float
 
         super().__init__(kwargs)
 
@@ -164,7 +165,7 @@ class RuntimeContext(ContextBase):
         self.js_console = False  # type: bool
         self.job_script_provider = None  # type: Optional[DependenciesConfiguration]
         self.select_resources = None  # type: Optional[select_resources_callable]
-        self.eval_timeout = 20  # type: float
+        self.eval_timeout = 60  # type: float
         self.postScatterEval = (
             None
         )  # type: Optional[Callable[[CWLObjectType], Optional[CWLObjectType]]]

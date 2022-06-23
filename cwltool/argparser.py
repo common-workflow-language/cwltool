@@ -226,9 +226,9 @@ def arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--eval-timeout",
         help="Time to wait for a Javascript expression to evaluate before giving "
-        "an error, default 20s.",
+        "an error, default 60s.",
         type=float,
-        default=20,
+        default=60,
     )
 
     provgroup = parser.add_argument_group(

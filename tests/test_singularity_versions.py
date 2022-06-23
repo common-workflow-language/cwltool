@@ -1,15 +1,15 @@
 """Test singularity{,-ce} & apptainer versions."""
+from subprocess import check_output  # nosec
+
 import cwltool.singularity
 from cwltool.singularity import (
     get_version,
     is_apptainer_1_or_newer,
     is_version_2_6,
-    is_version_3_or_newer,
     is_version_3_1_or_newer,
     is_version_3_4_or_newer,
+    is_version_3_or_newer,
 )
-
-from subprocess import check_output  # nosec
 
 
 def reset_singularity_version_cache() -> None:
