@@ -1,7 +1,7 @@
 import argparse
 from io import StringIO
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable, Dict, List
 
 import pytest
 
@@ -195,3 +195,35 @@ def test_argparser_without_doc() -> None:
     p = argparse.ArgumentParser()
     parser = generate_parser(p, tool, {}, [], False)
     assert parser.description is None
+
+
+@pytest.mark.parametrize(
+    "job_order,expected_values",
+    [
+        # no arguments, so we expect the default value
+        ([], ["/home/bart/cwl_test/test1"]),
+        # arguments, provided, one or many, meaning that the default value is not expected
+        (["--file_paths", "/home/bart/cwl_test/test2"], ["/home/bart/cwl_test/test2"]),
+        (
+            [
+                "--file_paths",
+                "/home/bart/cwl_test/test2",
+                "--file_paths",
+                "/home/bart/cwl_test/test3",
+            ],
+            ["/home/bart/cwl_test/test2", "/home/bart/cwl_test/test3"],
+        ),
+    ],
+)
+def test_argparse_append_with_default(
+    job_order: List[str], expected_values: List[str]
+) -> None:
+    """The appended arguments must not include the default. But if no appended argument, then the default is used."""
+    loadingContext = LoadingContext()
+    tool = load_tool(get_data("tests/default_values_list.cwl"), loadingContext)
+    toolparser = generate_parser(
+        argparse.ArgumentParser(prog="test"), tool, {}, [], False
+    )
+    cmd_line = vars(toolparser.parse_args(job_order))
+    file_paths = list(cmd_line["file_paths"])
+    assert expected_values == file_paths
