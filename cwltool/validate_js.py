@@ -134,6 +134,7 @@ def jshint_js(
     globals: Optional[List[str]] = None,
     options: Optional[Dict[str, Union[List[str], str, int]]] = None,
     container_engine: str = "docker",
+    eval_timeout: float,
 ) -> JSHintJSReturn:
     if globals is None:
         globals = []
@@ -164,7 +165,7 @@ def jshint_js(
     returncode, stdout, stderr = exec_js_process(
         "validateJS(%s)"
         % json_dumps({"code": js_text, "options": options, "globals": globals}),
-        timeout=30,
+        timeout=eval_timeout,
         context=jshint_functions_text,
         container_engine=container_engine,
     )
@@ -216,6 +217,7 @@ def validate_js_expressions(
     schema: Schema,
     jshint_options: Optional[Dict[str, Union[List[str], str, int]]] = None,
     container_engine: str = "docker",
+    eval_timeout: float,
 ) -> None:
 
     if tool.get("requirements") is None:
@@ -236,7 +238,8 @@ def validate_js_expressions(
 
     for i, expression_lib_line in enumerate(expression_lib):
         expression_lib_line_errors, expression_lib_line_globals = jshint_js(
-            expression_lib_line, js_globals, jshint_options, container_engine
+            expression_lib_line, js_globals, jshint_options, container_engine,
+            eval_timeout
         )
         js_globals.extend(expression_lib_line_globals)
         print_js_hint_messages(
@@ -262,7 +265,8 @@ def validate_js_expressions(
                 code_fragment = unscanned_str[scan_slice[0] + 1 : scan_slice[1]]
                 code_fragment_js = code_fragment_to_js(code_fragment, "")
                 expression_errors, _ = jshint_js(
-                    code_fragment_js, js_globals, jshint_options, container_engine
+                    code_fragment_js, js_globals, jshint_options, container_engine,
+                    eval_timeout
                 )
                 print_js_hint_messages(expression_errors, source_line)
 

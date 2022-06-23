@@ -731,6 +731,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     self.doc_schema.names[avroname],
                     validate_js_options,
                     self.container_engine,
+                    loadingContext.eval_timeout,
                 )
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")

@@ -102,6 +102,7 @@ class LoadingContext(ContextBase):
         self.relax_path_checks = False  # type: bool
         self.singularity = False  # type: bool
         self.podman = False  # type: bool
+        self.eval_timeout = 60  # type: float
 
         super().__init__(kwargs)
 
