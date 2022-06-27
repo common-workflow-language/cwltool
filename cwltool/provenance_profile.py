@@ -508,9 +508,7 @@ class ProvenanceProfile:
             for annotation in dataset:
                 if isinstance(dataset[annotation], (str, bool, int, float)): # check if these are all allowed types
                     coll.add_attributes({annotation: dataset[annotation]})
-        
-        if "format" in value:
-            coll.add_attributes({SCHEMA["encodingFormat"]: value["format"]})    
+          
             
         # Also Save ORE Folder as annotation metadata
         ore_doc = ProvDocument()
