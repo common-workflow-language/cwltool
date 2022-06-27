@@ -29,8 +29,9 @@ def test_http_path_mapping(tmp_path: Path) -> None:
 
     assert ">Sequence 561 BP; 135 A; 106 C; 98 G; 222 T; 0 other;" in contents
 
+
 def test_modification_date(tmp_path: Path) -> None:
-    input_file_path = "https://ibi.vu.nl/downloads/multi-task-PPI/test_ppi.zip" # replace this with another remote file
+    input_file_path = "https://ibi.vu.nl/downloads/multi-task-PPI/test_ppi.zip"  # replace this with another remote file
     base_file: List[CWLObjectType] = [
         {
             "class": "File",
@@ -38,15 +39,16 @@ def test_modification_date(tmp_path: Path) -> None:
             "basename": "test_ppi.zip",
         }
     ]
-    
-    date_now = datetime.now() # the current datetime
-    
+
+    date_now = datetime.now()  # the current datetime
+
     pathmap = PathMapper(base_file, os.getcwd(), str(tmp_path))._pathmap
-    
+
     assert input_file_path in pathmap
     assert os.path.exists(pathmap[input_file_path].resolved)
 
     last_modified = os.path.getmtime(pathmap[input_file_path].resolved)
 
-    assert date_now.timestamp() > last_modified # remote file should have earlier last modification date
-    
+    assert (
+        date_now.timestamp() > last_modified
+    )  # remote file should have earlier last modification date

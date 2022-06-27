@@ -365,7 +365,7 @@ def downloadHttpFile(httpurl: str) -> Tuple[str, Optional[datetime]]:
                 f.write(chunk)
     r.close()
 
-    date_raw: Optional[str] = r.headers.get('Last-Modified', None)
+    date_raw: Optional[str] = r.headers.get("Last-Modified", None)
     date: Optional[datetime] = parsedate_to_datetime(date_raw) if date_raw else None
     if date:
         date_epoch = date.timestamp()
