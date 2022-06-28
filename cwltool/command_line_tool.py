@@ -895,11 +895,15 @@ class CommandLineTool(Process):
                         return cast(Optional[str], e["checksum"])
                 return None
 
+            def remove_prefix(s: str, prefix: str) -> str:
+                # replace with str.removeprefix when Python 3.9+
+                return s[len(prefix) :] if s.startswith(prefix) else s
+
             for location, fobj in cachebuilder.pathmapper.items():
                 if fobj.type == "File":
                     checksum = calc_checksum(location)
                     fobj_stat = os.stat(fobj.resolved)
-                    path = fobj.resolved.removeprefix(runtimeContext.basedir + "/")
+                    path = remove_prefix(fobj.resolved, runtimeContext.basedir + "/")
                     if checksum is not None:
                         keydict[path] = [fobj_stat.st_size, checksum]
                     else:
@@ -920,6 +924,7 @@ class CommandLineTool(Process):
                     cls = cast(str, r["class"])
                     if cls in interesting and cls not in keydict:
                         keydict[cls] = r
+
             keydictstr = json_dumps(keydict, separators=(",", ":"), sort_keys=True)
             cachekey = hashlib.md5(keydictstr.encode("utf-8")).hexdigest()  # nosec
 
