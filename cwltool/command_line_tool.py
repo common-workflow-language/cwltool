@@ -899,10 +899,11 @@ class CommandLineTool(Process):
                 if fobj.type == "File":
                     checksum = calc_checksum(location)
                     fobj_stat = os.stat(fobj.resolved)
+                    path = fobj.resolved.removeprefix(runtimeContext.basedir + "/")
                     if checksum is not None:
-                        keydict[fobj.resolved] = [fobj_stat.st_size, checksum]
+                        keydict[path] = [fobj_stat.st_size, checksum]
                     else:
-                        keydict[fobj.resolved] = [
+                        keydict[path] = [
                             fobj_stat.st_size,
                             int(fobj_stat.st_mtime * 1000),
                         ]
@@ -919,7 +920,6 @@ class CommandLineTool(Process):
                     cls = cast(str, r["class"])
                     if cls in interesting and cls not in keydict:
                         keydict[cls] = r
-
             keydictstr = json_dumps(keydict, separators=(",", ":"), sort_keys=True)
             cachekey = hashlib.md5(keydictstr.encode("utf-8")).hexdigest()  # nosec
 

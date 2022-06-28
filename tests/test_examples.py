@@ -1306,6 +1306,46 @@ def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
 
 
 @needs_docker
+@pytest.mark.parametrize("factor", test_factors)
+def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
+    """Confirm that re-running a particular workflow with caching succeeds."""
+    test_file = "secondary-files.cwl"
+    test_job_file = "secondary-files-job.yml"
+    cache_dir = str(tmp_path / "cwltool_cache")
+    commands = factor.split()
+    commands.extend(
+        [
+            "--cachedir",
+            cache_dir,
+            get_data(f"tests/{test_file}"),
+            get_data(f"tests/{test_job_file}"),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
+
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "completed success" in stderr
+    assert error_code == 0
+
+    commands = factor.split()
+    commands.extend(
+        [
+            "--cachedir",
+            cache_dir,
+            get_data(f"tests/{test_file}"),
+            get_data(f"tests/{test_job_file}"),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
+
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Output of job will be cached in" not in stderr
+    assert error_code == 0, stderr
+
+    assert (tmp_path / "cwltool_cache" / "ce6a40add01ef5a081b70ead3582170a").exists()
+
+
+@needs_docker
 def test_compute_checksum() -> None:
     runtime_context = RuntimeContext()
     runtime_context.compute_checksum = True
