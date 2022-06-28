@@ -831,7 +831,7 @@ class AppendAction(argparse.Action):
         nargs: Any = None,
         **kwargs: Any,
     ) -> None:
-        """Intialize."""
+        """Initialize."""
         super().__init__(option_strings, dest, **kwargs)
         self._called = False
 

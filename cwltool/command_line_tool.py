@@ -850,10 +850,17 @@ class CommandLineTool(Process):
             _check_adjust = partial(
                 check_adjust, self.path_check_mode.value, cachebuilder
             )
+            _checksum = partial(
+                compute_checksums,
+                runtimeContext.make_fs_access(runtimeContext.basedir),
+            )
             visit_class(
                 [cachebuilder.files, cachebuilder.bindings],
                 ("File", "Directory"),
                 _check_adjust,
+            )
+            visit_class(
+                [cachebuilder.files, cachebuilder.bindings], ("File"), _checksum
             )
 
             cmdline = flatten(
@@ -895,14 +902,19 @@ class CommandLineTool(Process):
                         return cast(Optional[str], e["checksum"])
                 return None
 
+            def remove_prefix(s: str, prefix: str) -> str:
+                # replace with str.removeprefix when Python 3.9+
+                return s[len(prefix) :] if s.startswith(prefix) else s
+
             for location, fobj in cachebuilder.pathmapper.items():
                 if fobj.type == "File":
                     checksum = calc_checksum(location)
                     fobj_stat = os.stat(fobj.resolved)
+                    path = remove_prefix(fobj.resolved, runtimeContext.basedir + "/")
                     if checksum is not None:
-                        keydict[fobj.resolved] = [fobj_stat.st_size, checksum]
+                        keydict[path] = [fobj_stat.st_size, checksum]
                     else:
-                        keydict[fobj.resolved] = [
+                        keydict[path] = [
                             fobj_stat.st_size,
                             int(fobj_stat.st_mtime * 1000),
                         ]

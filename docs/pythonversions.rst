@@ -22,7 +22,7 @@ and downstream users before making the decision to drop support for a
 Python version before the date outlined in this policy.  The reasoning
 for dropping support for a Python version should be outlined here.
 
-As of Feburary 2022, here are approximate cwltool support periods for
+As of February 2022, here are approximate cwltool support periods for
 across Python versions:
 
 ====== ======================
@@ -38,7 +38,7 @@ Python cwltool end of support
 ====== ======================
 
 Default Python version of supported Linux distributions, for reference
-(as of Feburary 2022)
+(as of February 2022)
 
 ====== =============================================
 Python Linux distros where it is the default version
