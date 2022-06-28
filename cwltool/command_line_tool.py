@@ -850,10 +850,17 @@ class CommandLineTool(Process):
             _check_adjust = partial(
                 check_adjust, self.path_check_mode.value, cachebuilder
             )
+            _checksum = partial(
+                compute_checksums,
+                runtimeContext.make_fs_access(runtimeContext.basedir),
+            )
             visit_class(
                 [cachebuilder.files, cachebuilder.bindings],
                 ("File", "Directory"),
                 _check_adjust,
+            )
+            visit_class(
+                [cachebuilder.files, cachebuilder.bindings], ("File"), _checksum
             )
 
             cmdline = flatten(

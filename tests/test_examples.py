@@ -1342,7 +1342,7 @@ def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
     assert "Output of job will be cached in" not in stderr
     assert error_code == 0, stderr
 
-    assert (tmp_path / "cwltool_cache" / "ce6a40add01ef5a081b70ead3582170a").exists()
+    assert (tmp_path / "cwltool_cache" / "27903451fc1ee10c148a0bdeb845b2cf").exists()
 
 
 @needs_docker
