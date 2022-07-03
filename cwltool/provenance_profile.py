@@ -76,6 +76,7 @@ def copy_job_order(
     return customised_job
 
 
+
 class ProvenanceProfile:
     """
     Provenance profile.
@@ -296,24 +297,23 @@ class ProvenanceProfile:
         self.generate_output_prov(outputs, process_run_id, process_name)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
-
-    
-    # def _add_nested_annotations(dataset, e: ProvEntity) -> ProvEntity:
-    #     for annotation in dataset:
-    #         if isinstance(dataset[annotation], (str, bool, int, float)): # check if these are all allowed types
-    #             e.add_attributes({annotation: dataset[annotation]})
-    #         else:
-    #             nested_id = uuid.uuid4().urn
-    #             # e.add_attributes({annotation: nested_id})
-    #             nested_entity = self.document.entity(nested_id)
-    #             e.add_attributes({annotation: nested_entity.identifier})
-    #             nested_entity = _add_nested_annotations(dataset[annotation], nested_entity)
-    #     return e
-
-    # def _propagate_input_annotations(entity):    
-    #     entity.add_attributes( {PROV_TYPE: SCHEMA["Dataset"]}) 
-    #     entity = _add_nested_annotations(value[SCHEMA["Dataset"].uri], entity)
-    #     return entity 
+    def _add_nested_annotations(self, annotation_key, annotation_value, e: ProvEntity) -> ProvEntity:
+        """Propagate input data annotations to provenance."""
+        # Change https:// into http:// first
+        schema2_uri = "https://schema.org/" 
+        if schema2_uri in annotation_key:
+            annotation_key = SCHEMA[annotation_key.replace(schema2_uri, '')].uri 
+        
+        if not isinstance(annotation_value, (MutableSequence, MutableMapping)):            
+            e.add_attributes({annotation_key: str(annotation_value)})
+        else:
+            nested_id = uuid.uuid4().urn
+            nested_entity = self.document.entity(nested_id)
+            e.add_attributes({annotation_key: nested_entity.identifier})
+            for nested_key in annotation_value:
+                nested_value = annotation_value[nested_key]
+                nested_entity = self._add_nested_annotations(nested_key, nested_value, nested_entity)
+        return e
 
     def declare_file(self, value: CWLObjectType) -> Tuple[ProvEntity, ProvEntity, str]:
         if value["class"] != "File":
@@ -369,24 +369,16 @@ class ProvenanceProfile:
             file_entity.add_attributes({CWLPROV["nameext"]: value["nameext"]})
         self.document.specializationOf(file_entity, entity)
 
-        
+        # Identify all schema annotations
+        schema_annotations = dict([(v, value[v]) for v in value.keys() if 'schema.org' in v])
 
-        def _add_nested_annotations(dataset, e: ProvEntity) -> ProvEntity:
-            for annotation in dataset:
-                if isinstance(dataset[annotation], (str, bool, int, float)): # check if these are all allowed types
-                    e.add_attributes({annotation: dataset[annotation]})
-                else:
-                    nested_id = uuid.uuid4().urn
-                    # e.add_attributes({annotation: nested_id})
-                    nested_entity = self.document.entity(nested_id)
-                    e.add_attributes({annotation: nested_entity.identifier})
-                    nested_entity = _add_nested_annotations(dataset[annotation], nested_entity)
-            return e
-
-        # Transfer input data annotations to provenance:
-        if SCHEMA["Dataset"].uri in value: # TODO: modify so both http:/ and https:/ are recognized
-            entity.add_attributes( {PROV_TYPE: SCHEMA["Dataset"]}) 
-            entity = _add_nested_annotations(value[SCHEMA["Dataset"].uri], entity)
+        # Transfer SCHEMA annotations to provenance
+        for s in schema_annotations:
+            if "additionalType" in s:
+                additional_type = schema_annotations[s].split(sep='/')[-1] # find better method?
+                entity.add_attributes( {PROV_TYPE: SCHEMA[additional_type]}) 
+            else:
+                entity = self._add_nested_annotations(s, schema_annotations[s], entity)
 
         # Transfer format annotations to provenance:
         if "format" in value:
