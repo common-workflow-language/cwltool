@@ -29,10 +29,10 @@ from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
 
 from .errors import WorkflowException
-from .expression import SubstitutionError
-from .expression import scanner as scan_expression
+from cwl_utils.errors import SubstitutionError
+from cwl_utils.expression import scanner as scan_expression
 from .loghandler import _logger
-from .sandboxjs import code_fragment_to_js, exec_js_process
+from cwl_utils.sandboxjs import code_fragment_to_js, exec_js_process
 
 
 def is_expression(tool, schema):

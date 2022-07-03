@@ -53,7 +53,6 @@ if USE_MYPYC:
         "cwltool/udocker.py",
         "cwltool/errors.py",
         "cwltool/executors.py",
-        "cwltool/expression.py",
         "cwltool/factory.py",
         "cwltool/flatten.py",
         # "cwltool/__init__.py",
@@ -69,7 +68,6 @@ if USE_MYPYC:
         "cwltool/procgenerator.py",
         # "cwltool/provenance.py",  # WritableBag is having issues
         "cwltool/resolver.py",
-        # "cwltool/sandboxjs.py",  # probably not speed critical, tests need to mock components
         "cwltool/secrets.py",
         "cwltool/singularity.py",
         "cwltool/software_requirements.py",

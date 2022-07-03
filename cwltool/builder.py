@@ -25,7 +25,7 @@ from schema_salad.utils import convert_to_dict, json_dumps
 from schema_salad.validate import validate
 from typing_extensions import TYPE_CHECKING, Type  # pylint: disable=unused-import
 
-from . import expression
+from cwl_utils import expression
 from .errors import WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager

@@ -52,9 +52,6 @@ include cwltool/schemas/v1.2/*.yml
 include cwltool/schemas/v1.2/*.md
 include cwltool/schemas/v1.2/salad/schema_salad/metaschema/*.yml
 include cwltool/schemas/v1.2/salad/schema_salad/metaschema/*.md
-include cwltool/cwlNodeEngine.js
-include cwltool/cwlNodeEngineJSConsole.js
-include cwltool/cwlNodeEngineWithContext.js
 include cwltool/extensions.yml
 include cwltool/extensions-v1.1.yml
 include cwltool/jshint/jshint_wrapper.js

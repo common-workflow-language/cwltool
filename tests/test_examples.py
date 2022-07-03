@@ -9,15 +9,15 @@ import sys
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Union, cast
-from urllib.parse import urlparse
 
+import cwl_utils.expression as expr
 import pydot
 import pytest
+from cwl_utils.errors import JavascriptException
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 
 import cwltool.checker
-import cwltool.expression as expr
 import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
@@ -27,9 +27,7 @@ from cwltool.context import RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.process import CWL_IANA
-from cwltool.sandboxjs import JavascriptException
 from cwltool.utils import CWLObjectType, dedup
-
 from .util import get_data, get_main_output, needs_docker, working_directory
 
 sys.argv = [""]
