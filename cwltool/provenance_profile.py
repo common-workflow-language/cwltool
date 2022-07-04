@@ -311,7 +311,7 @@ class ProvenanceProfile:
             nested_entity = self.document.entity(nested_id)
             e.add_attributes({annotation_key: nested_entity.identifier})
             for nested_key in annotation_value:
-                nested_value = annotation_value[nested_key]
+                nested_value = annotation_value[nested_key] 
                 nested_entity = self._add_nested_annotations(nested_key, nested_value, nested_entity)
         return e
 
@@ -377,7 +377,7 @@ class ProvenanceProfile:
             if "additionalType" in s:
                 additional_type = schema_annotations[s].split(sep='/')[-1] # find better method?
                 entity.add_attributes( {PROV_TYPE: SCHEMA[additional_type]}) 
-            else:
+            else: # add support for CommentedSeq
                 entity = self._add_nested_annotations(s, schema_annotations[s], entity)
 
         # Transfer format annotations to provenance:
@@ -489,18 +489,17 @@ class ProvenanceProfile:
 
         coll.add_attributes(coll_attribs)
         coll_b.add_attributes(coll_b_attribs)
+        
+        # Identify all schema annotations
+        schema_annotations = dict([(v, value[v]) for v in value.keys() if 'schema.org' in v])
 
-        # Propagate input data annotations
-        if SCHEMA["Dataset"].uri in value:
-            # coll_annotations = [ (PROV_TYPE, SCHEMA["Dataset"]) ]
-            coll.add_attributes([ (PROV_TYPE, SCHEMA["Dataset"]) ])
-            
-            dataset = value[SCHEMA["Dataset"].uri]
-                
-            for annotation in dataset:
-                if isinstance(dataset[annotation], (str, bool, int, float)): # check if these are all allowed types
-                    coll.add_attributes({annotation: dataset[annotation]})
-          
+        # Transfer SCHEMA annotations to provenance
+        for s in schema_annotations:
+            if "additionalType" in s:
+                additional_type = schema_annotations[s].split(sep='/')[-1] # find better method?
+                coll.add_attributes( {PROV_TYPE: SCHEMA[additional_type]}) 
+            elif "hasPart" not in s:
+                coll = self._add_nested_annotations(s, schema_annotations[s], coll)
             
         # Also Save ORE Folder as annotation metadata
         ore_doc = ProvDocument()
