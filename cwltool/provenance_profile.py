@@ -391,13 +391,13 @@ class ProvenanceProfile:
         for s in schema_annotations:
             if "additionalType" in s:
                 additional_type = schema_annotations[s].split(sep='/')[-1] # find better method?
-                entity.add_attributes( {PROV_TYPE: SCHEMA[additional_type]}) 
-            else: # add support for CommentedSeq
-                entity = self._add_nested_annotations(s, schema_annotations[s], entity)
+                file_entity.add_attributes( {PROV_TYPE: SCHEMA[additional_type]}) 
+            else: 
+                file_entity = self._add_nested_annotations(s, schema_annotations[s], file_entity)
 
         # Transfer format annotations to provenance:
         if "format" in value:
-            entity.add_attributes({SCHEMA["encodingFormat"]: value["format"]})
+            file_entity.add_attributes({SCHEMA["encodingFormat"]: value["format"]})
 
         # Check for secondaries
         for sec in cast(
