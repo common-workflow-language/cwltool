@@ -248,6 +248,18 @@ class ProvenanceProfile:
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
+            # if CWLPROV['prov'].uri in job_order_object: # maybe move this to another place
+            #     metadata = job_order_object[CWLPROV['prov'].uri] # change uri to CWLPROV['prov'].uri
+            #     for item in metadata:
+            #         # make a new entity with id
+            #         # give it type additionalType value
+            #         # add nested annotations
+            #         # how much of this can we reuse from _add_nested_annotations?
+            #         # how do we identify the correct file to write to? self.workflow_run_uri?
+            #         # 
+            #         pass
+
+
 
     def record_process_start(
         self, process: Process, job: JobsType, process_run_id: Optional[str] = None
@@ -306,6 +318,9 @@ class ProvenanceProfile:
         
         if not isinstance(annotation_value, (MutableSequence, MutableMapping)):            
             e.add_attributes({annotation_key: str(annotation_value)})
+        elif isinstance(annotation_value, MutableSequence):
+            for item_value in annotation_value:
+                e = self._add_nested_annotations(annotation_key, item_value, e)
         else:
             nested_id = uuid.uuid4().urn
             nested_entity = self.document.entity(nested_id)
