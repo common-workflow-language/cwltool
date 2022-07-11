@@ -97,13 +97,14 @@ remove_unused_imports: $(PYSOURCES)
 	autoflake --in-place --remove-all-unused-imports $^
 
 pep257: pydocstyle
-## pydocstyle      : check Python code style
+## pydocstyle      : check Python docstring style
 pydocstyle: $(PYSOURCES)
 	pydocstyle --add-ignore=D100,D101,D102,D103 $^ || true
 
 pydocstyle_report.txt: $(PYSOURCES)
 	pydocstyle setup.py $^ > $@ 2>&1 || true
 
+## diff_pydocstyle_report	: check Python docstring style for changed files only
 diff_pydocstyle_report: pydocstyle_report.txt
 	diff-quality --compare-branch=main --violations=pydocstyle --fail-under=100 $^
 

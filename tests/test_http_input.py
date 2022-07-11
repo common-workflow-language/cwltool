@@ -31,48 +31,43 @@ def test_http_path_mapping(tmp_path: Path) -> None:
 
 
 def test_modification_date(tmp_path: Path) -> None:
-
+    """Local copies of remote files should preserve last modification date."""
     # Initialize the server
     headers = {
-        'Server': 'nginx',
-        'Date': 'Mon, 27 Jun 2022 14:26:17 GMT', 
-        'Content-Type': 'application/zip', 
-        'Content-Length': '123906', 
-        'Connection': 'keep-alive', 
-        'Last-Modified': 'Tue, 14 Dec 2021 14:23:30 GMT', 
-        'ETag': '"1e402-5d31beef49671"', 
-        'Accept-Ranges': 'bytes', 
-        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+        "Server": "nginx",
+        "Date": "Mon, 27 Jun 2022 14:26:17 GMT",
+        "Content-Type": "application/zip",
+        "Content-Length": "123906",
+        "Connection": "keep-alive",
+        "Last-Modified": "Tue, 14 Dec 2021 14:23:30 GMT",
+        "ETag": '"1e402-5d31beef49671"',
+        "Accept-Ranges": "bytes",
+        "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     }
-    """
-    Headers of 'real' response:
-    {'Server': 'nginx', 'Date': 'Mon, 27 Jun 2022 14:26:17 GMT', 'Content-Type': 'application/zip', 'Content-Length': '123906', 'Connection': 'keep-alive', 'Last-Modified': 'Tue, 14 Dec 2021 14:23:30 GMT', 'ETag': '"1e402-5d31beef49671"', 'Accept-Ranges': 'bytes', 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'}
-    """
-    basename = 'testfile.txt' # name of the remote file
+
+    remote_file_name = "testfile.txt"
 
     with HTTPServer() as httpserver:
-        httpserver.expect_request(f"/{basename}").respond_with_data(response_data="Hello World", headers=headers)   
-        location = httpserver.url_for(f"/{basename}")
-    
-    # input_file_path = "https://ibi.vu.nl/downloads/multi-task-PPI/test_ppi.zip"  # replace this with another remote file
-    base_file: List[CWLObjectType] = [
-        {
-            "class": "File",
-            "location": location,
-            "basename": basename,
-        }
-    ]
+        httpserver.expect_request(f"/{remote_file_name}").respond_with_data(
+            response_data="Hello World", headers=headers
+        )
+        location = httpserver.url_for(f"/{remove_file_name}")
 
-    date_now = datetime.now()  # the current datetime
+        base_file: List[CWLObjectType] = [
+            {
+                "class": "File",
+                "location": location,
+                "basename": remote_file_name,
+            }
+        ]
 
-    pathmap = PathMapper(base_file, os.getcwd(), str(tmp_path))._pathmap # it fails here
+        date_now = datetime.now()
 
-    # assert input_file_path in pathmap
-    assert location in pathmap
-    assert os.path.exists(pathmap[location].resolved)
+        pathmap = PathMapper(base_file, os.getcwd(), str(tmp_path))._pathmap
 
-    last_modified = os.path.getmtime(pathmap[location].resolved)
+        assert location in pathmap
+        assert os.path.exists(pathmap[location].resolved)
 
-    assert (
-        date_now.timestamp() > last_modified
-    )  # remote file should have earlier last modification date
+        last_modified = os.path.getmtime(pathmap[location].resolved)
+
+        assert date_now.timestamp() > last_modified
