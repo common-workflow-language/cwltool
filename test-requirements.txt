@@ -1,5 +1,6 @@
 pytest >= 6.2, < 7.2
 pytest-xdist
+pytest-httpserver
 mock >= 2.0.0
 pytest-mock >= 1.10.0
 pytest-cov
