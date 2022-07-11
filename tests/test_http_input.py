@@ -53,6 +53,7 @@ def test_modification_date(tmp_path: Path) -> None:
     with HTTPServer() as httpserver:
         httpserver.expect_request(f"/{basename}").respond_with_data(response_data="Hello World", headers=headers)   
         location = httpserver.url_for(f"/{basename}")
+    
     # input_file_path = "https://ibi.vu.nl/downloads/multi-task-PPI/test_ppi.zip"  # replace this with another remote file
     base_file: List[CWLObjectType] = [
         {
@@ -64,7 +65,7 @@ def test_modification_date(tmp_path: Path) -> None:
 
     date_now = datetime.now()  # the current datetime
 
-    pathmap = PathMapper(base_file, os.getcwd(), str(tmp_path))._pathmap
+    pathmap = PathMapper(base_file, os.getcwd(), str(tmp_path))._pathmap # it fails here
 
     # assert input_file_path in pathmap
     assert location in pathmap
