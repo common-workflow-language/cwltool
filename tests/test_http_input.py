@@ -6,7 +6,7 @@ from datetime import datetime
 from cwltool.pathmapper import PathMapper
 from cwltool.utils import CWLObjectType
 
-from pytest_httpserver import HTTPServer  # type: ignore[import]
+from pytest_httpserver import HTTPServer
 
 
 def test_http_path_mapping(tmp_path: Path) -> None:
