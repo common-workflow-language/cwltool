@@ -6,7 +6,7 @@ from datetime import datetime
 from cwltool.pathmapper import PathMapper
 from cwltool.utils import CWLObjectType
 
-from pytest_httpserver import HTTPServer
+from pytest_httpserver import HTTPServer  # type: ignore[import]
 
 
 def test_http_path_mapping(tmp_path: Path) -> None:
@@ -51,7 +51,7 @@ def test_modification_date(tmp_path: Path) -> None:
         httpserver.expect_request(f"/{remote_file_name}").respond_with_data(
             response_data="Hello World", headers=headers
         )
-        location = httpserver.url_for(f"/{remove_file_name}")
+        location = httpserver.url_for(f"/{remote_file_name}")
 
         base_file: List[CWLObjectType] = [
             {
