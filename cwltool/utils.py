@@ -345,6 +345,13 @@ def trim_listing(obj):  # type: (Dict[str, Any]) -> None
 
 
 def downloadHttpFile(httpurl: str) -> Tuple[str, Optional[datetime]]:
+    """
+    Download a remote file, possibly using a locally cached copy.
+
+    Returns a tuple:
+    - the local path for the downloaded file
+    - the Last-Modified timestamp if received from the remote server.
+    """
     cache_session = None
     if "XDG_CACHE_HOME" in os.environ:
         directory = os.environ["XDG_CACHE_HOME"]
