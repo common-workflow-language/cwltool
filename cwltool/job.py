@@ -79,7 +79,7 @@ def relink_initialworkdir(
     container_outdir: str,
     inplace_update: bool = False,
 ) -> None:
-    for _, vol in pathmapper.items():
+    for _, vol in pathmapper.items_exclude_children():
         if not vol.staged:
             continue
 
