@@ -196,11 +196,10 @@ class PathMapper:
         newitems = {}
         keys = [key for key, entry in self.items()]
         for key, entry in self.items():
-            if entry.type in ("File", "Directory"):
-                parents = Path(key).parents
-                if any([Path(key_) in parents for key_ in keys]):
-                    continue
-                newitems[key] = entry
+            parents = Path(key).parents
+            if any([Path(key_) in parents for key_ in keys]):
+                continue
+            newitems[key] = entry
         return list(newitems.items())
 
     def reversemap(
