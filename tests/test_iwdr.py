@@ -27,8 +27,12 @@ def test_empty_file_creation() -> None:
 
 def test_passthrough_successive(tmp_path: Path) -> None:
     """An empty file can be successively passed through a subdir of InitialWorkingDirectory."""
-    err_code, _, _ = get_main_output(["--outdir", str(tmp_path),
-        get_data("tests/wf/iwdr-passthrough-successive.cwl")]
+    err_code, _, _ = get_main_output(
+        [
+        "--outdir",
+        str(tmp_path),
+        get_data("tests/wf/iwdr-passthrough-successive.cwl")
+        ]
     )
     assert err_code == 0
     children = sorted(
