@@ -1153,7 +1153,7 @@ def main(
                 tool = make_tool(uri, loadingContext)
             except GraphTargetMissingException as main_missing_exc:
                 if args.validate:
-                    logging.warn(
+                    logging.warning(
                         "File contains $graph of multiple objects and no default "
                         "process (#main). Validating all objects:"
                     )
