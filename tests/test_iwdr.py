@@ -31,7 +31,7 @@ def test_passthrough_successive(tmp_path: Path) -> None:
         [
             "--outdir",
             str(tmp_path),
-            get_data("tests/wf/iwdr-passthrough-successive.cwl")
+            get_data("tests/wf/iwdr-passthrough-successive.cwl"),
         ]
     )
     assert err_code == 0
