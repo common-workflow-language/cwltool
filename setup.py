@@ -134,6 +134,7 @@ setup(
         "pytest >= 6.2, < 7.2",
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
+        "pytest-httpserver",
         "arcp >= 0.2.0",
         "rdflib-jsonld>=0.4.0, <= 0.6.1;python_version<='3.6'",
     ],

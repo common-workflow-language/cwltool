@@ -1,5 +1,4 @@
 """Shared functions and other definitions."""
-
 import collections
 import os
 import random
@@ -11,6 +10,8 @@ import sys
 import tempfile
 import urllib
 import uuid
+from datetime import datetime
+from email.utils import parsedate_to_datetime
 from functools import partial
 from itertools import zip_longest
 from pathlib import Path, PurePosixPath
@@ -344,8 +345,14 @@ def trim_listing(obj):  # type: (Dict[str, Any]) -> None
         del obj["listing"]
 
 
-def downloadHttpFile(httpurl):
-    # type: (str) -> str
+def downloadHttpFile(httpurl: str) -> Tuple[str, Optional[datetime]]:
+    """
+    Download a remote file, possibly using a locally cached copy.
+
+    Returns a tuple:
+    - the local path for the downloaded file
+    - the Last-Modified timestamp if received from the remote server.
+    """
     cache_session = None
     if "XDG_CACHE_HOME" in os.environ:
         directory = os.environ["XDG_CACHE_HOME"]
@@ -365,7 +372,14 @@ def downloadHttpFile(httpurl):
             if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
     r.close()
-    return str(f.name)
+
+    date_raw: Optional[str] = r.headers.get("Last-Modified", None)
+    date: Optional[datetime] = parsedate_to_datetime(date_raw) if date_raw else None
+    if date:
+        date_epoch = date.timestamp()
+        os.utime(f.name, (date_epoch, date_epoch))
+
+    return str(f.name), date
 
 
 def ensure_writable(path: str, include_root: bool = False) -> None:
