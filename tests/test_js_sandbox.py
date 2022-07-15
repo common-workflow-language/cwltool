@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any, List
 
 import pytest
-
 from cwl_utils import sandboxjs
+
 from cwltool.factory import Factory
 from cwltool.loghandler import _logger, configure_logging
 
@@ -36,8 +36,8 @@ def test_node_version(version: str, supported: bool, mocker: Any) -> None:
 
 def test_value_from_two_concatenated_expressions() -> None:
     js_engine = sandboxjs.get_js_engine()
-    js_engine.have_node_slim = False
-    js_engine.localdata = threading.local()
+    js_engine.have_node_slim = False  # type: ignore[attr-defined]
+    js_engine.localdata = threading.local()  # type: ignore[attr-defined]
     factory = Factory()
     echo = factory.make(get_data("tests/wf/vf-concat.cwl"))
     file = {"class": "File", "location": get_data("tests/wf/whale.txt")}
@@ -72,8 +72,8 @@ def test_value_from_two_concatenated_expressions_podman(
 ) -> None:
     """Javascript test using podman."""
     js_engine = sandboxjs.get_js_engine()
-    js_engine.have_node_slim = False
-    js_engine.localdata = threading.local()
+    js_engine.have_node_slim = False  # type: ignore[attr-defined]
+    js_engine.localdata = threading.local()  # type: ignore[attr-defined]
     new_paths = hide_nodejs(tmp_path)
     factory = Factory()
     factory.loading_context.podman = True
@@ -92,8 +92,8 @@ def test_value_from_two_concatenated_expressions_singularity(
 ) -> None:
     """Javascript test using Singularity."""
     js_engine = sandboxjs.get_js_engine()
-    js_engine.have_node_slim = False
-    js_engine.localdata = threading.local()
+    js_engine.have_node_slim = False  # type: ignore[attr-defined]
+    js_engine.localdata = threading.local()  # type: ignore[attr-defined]
     new_paths = hide_nodejs(tmp_path)
     factory = Factory()
     factory.loading_context.singularity = True

@@ -14,11 +14,11 @@ from typing import (
     cast,
 )
 
+from cwl_utils import expression
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from typing_extensions import TYPE_CHECKING
 
-from cwl_utils import expression
 from .builder import content_limit_respected_read
 from .checker import can_assign_src_to_sink
 from .context import RuntimeContext, getdefault
