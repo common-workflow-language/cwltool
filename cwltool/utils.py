@@ -1,5 +1,4 @@
 """Shared functions and other definitions."""
-from datetime import datetime
 import collections
 import os
 import random
@@ -11,6 +10,8 @@ import sys
 import tempfile
 import urllib
 import uuid
+from datetime import datetime
+from email.utils import parsedate_to_datetime
 from functools import partial
 from itertools import zip_longest
 from pathlib import Path, PurePosixPath
@@ -33,7 +34,7 @@ from typing import (
     Union,
     cast,
 )
-from email.utils import parsedate_to_datetime
+
 import pkg_resources
 import requests
 from cachecontrol import CacheControl

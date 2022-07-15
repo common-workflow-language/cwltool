@@ -1,12 +1,14 @@
 import os
+import sys
+from datetime import datetime
 from pathlib import Path
 from typing import List
-from datetime import datetime
+
+import pytest
+from pytest_httpserver import HTTPServer
 
 from cwltool.pathmapper import PathMapper
 from cwltool.utils import CWLObjectType
-
-from pytest_httpserver import HTTPServer
 
 
 def test_http_path_mapping(tmp_path: Path) -> None:
@@ -30,6 +32,7 @@ def test_http_path_mapping(tmp_path: Path) -> None:
     assert ">Sequence 561 BP; 135 A; 106 C; 98 G; 222 T; 0 other;" in contents
 
 
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="timesout on CI")
 def test_modification_date(tmp_path: Path) -> None:
     """Local copies of remote files should preserve last modification date."""
     # Initialize the server
