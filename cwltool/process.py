@@ -263,8 +263,9 @@ def stage_files(
     fix_conflicts: bool = False,
 ) -> None:
     """Link or copy files to their targets. Create them as needed."""
+    items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
     targets = {}  # type: Dict[str, MapperEnt]
-    for key, entry in pathmapper.items():
+    for key, entry in items:
         if "File" not in entry.type:
             continue
         if entry.target not in targets:
@@ -287,7 +288,7 @@ def stage_files(
                     % (targets[entry.target].resolved, entry.resolved, entry.target)
                 )
 
-    for key, entry in pathmapper.items():
+    for key, entry in items:
         if not entry.staged:
             continue
         if not os.path.exists(os.path.dirname(entry.target)):
