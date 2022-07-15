@@ -4,6 +4,7 @@ import os
 import stat
 import urllib
 import uuid
+from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple, cast
 
 from schema_salad.exceptions import ValidationException
@@ -190,6 +191,16 @@ class PathMapper:
 
     def items(self) -> List[Tuple[str, MapperEnt]]:
         return list(self._pathmap.items())
+
+    def items_exclude_children(self) -> List[Tuple[str, MapperEnt]]:
+        newitems = {}
+        keys = [key for key, entry in self.items()]
+        for key, entry in self.items():
+            parents = Path(key).parents
+            if any([Path(key_) in parents for key_ in keys]):
+                continue
+            newitems[key] = entry
+        return list(newitems.items())
 
     def reversemap(
         self,
