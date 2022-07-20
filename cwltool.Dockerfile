@@ -9,10 +9,10 @@ RUN pip install toml -rmypy-requirements.txt "$(grep ruamel requirements.txt)" \
 	"$(grep schema.salad requirements.txt)"
 # schema-salad is needed to be installed (this time as pure Python) for
 # cwltool + mypyc
-RUN CWLTOOL_USE_MYPYC=1 MYPYPATH=typeshed pip wheel --no-binary schema-salad --wheel-dir=/wheels .[deps]
+RUN CWLTOOL_USE_MYPYC=1 MYPYPATH=mypy-stubs pip wheel --no-binary schema-salad --wheel-dir=/wheels .[deps]
 RUN rm /wheels/schema_salad*
 RUN pip install black
-RUN SCHEMA_SALAD_USE_MYPYC=1 MYPYPATH=typeshed pip wheel --no-binary schema-salad \
+RUN SCHEMA_SALAD_USE_MYPYC=1 MYPYPATH=mypy-stubs pip wheel --no-binary schema-salad \
 	$(grep schema.salad requirements.txt) black --wheel-dir=/wheels
 RUN pip install --force-reinstall --no-index --no-warn-script-location --root=/pythonroot/ /wheels/*.whl
 # --force-reinstall to install our new mypyc compiled schema-salad package
