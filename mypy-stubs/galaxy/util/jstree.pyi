@@ -1,0 +1,19 @@
+import dictobj
+from _typeshed import Incomplete
+from typing import NamedTuple
+
+class Path(NamedTuple):
+    path: Incomplete
+    id: Incomplete
+    options: Incomplete
+
+class Node(dictobj.DictionaryObject):
+    def __init__(self, path, oid, **kwargs) -> None: ...
+    def jsonData(self): ...
+
+class JSTree(dictobj.DictionaryObject):
+    def __init__(self, paths, **kwargs) -> None: ...
+    def pretty(
+        self, root: Incomplete | None = ..., depth: int = ..., spacing: int = ...
+    ): ...
+    def jsonData(self): ...

@@ -4,4 +4,11 @@
 
 from typing import Any, Optional
 
-def ego_graph(G, n, radius: int = ..., center: bool = ..., undirected: bool = ..., distance: Optional[Any] = ...): ...
+def ego_graph(
+    G,
+    n,
+    radius: int = ...,
+    center: bool = ...,
+    undirected: bool = ...,
+    distance: Optional[Any] = ...,
+): ...

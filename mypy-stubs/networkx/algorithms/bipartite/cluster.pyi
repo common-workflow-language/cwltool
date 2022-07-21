@@ -5,6 +5,7 @@
 from typing import Any, Optional
 
 def latapy_clustering(G, nodes: Optional[Any] = ..., mode: str = ...): ...
+
 clustering = latapy_clustering
 
 def average_clustering(G, nodes: Optional[Any] = ..., mode: str = ...): ...

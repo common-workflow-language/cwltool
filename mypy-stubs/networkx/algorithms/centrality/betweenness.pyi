@@ -4,6 +4,25 @@
 
 from typing import Any, Optional
 
-def betweenness_centrality(G, k: Optional[Any] = ..., normalized: bool = ..., weight: Optional[Any] = ..., endpoints: bool = ..., seed: Optional[Any] = ...): ...
-def edge_betweenness_centrality(G, k: Optional[Any] = ..., normalized: bool = ..., weight: Optional[Any] = ..., seed: Optional[Any] = ...): ...
-def edge_betweenness(G, k: Optional[Any] = ..., normalized: bool = ..., weight: Optional[Any] = ..., seed: Optional[Any] = ...): ...
+def betweenness_centrality(
+    G,
+    k: Optional[Any] = ...,
+    normalized: bool = ...,
+    weight: Optional[Any] = ...,
+    endpoints: bool = ...,
+    seed: Optional[Any] = ...,
+): ...
+def edge_betweenness_centrality(
+    G,
+    k: Optional[Any] = ...,
+    normalized: bool = ...,
+    weight: Optional[Any] = ...,
+    seed: Optional[Any] = ...,
+): ...
+def edge_betweenness(
+    G,
+    k: Optional[Any] = ...,
+    normalized: bool = ...,
+    weight: Optional[Any] = ...,
+    seed: Optional[Any] = ...,
+): ...

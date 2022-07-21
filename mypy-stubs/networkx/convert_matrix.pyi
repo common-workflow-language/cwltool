@@ -4,14 +4,71 @@
 
 from typing import Any, Optional
 
-def to_pandas_adjacency(G, nodelist: Optional[Any] = ..., dtype: Optional[Any] = ..., order: Optional[Any] = ..., multigraph_weight: Any = ..., weight: str = ..., nonedge: float = ...): ...
+def to_pandas_adjacency(
+    G,
+    nodelist: Optional[Any] = ...,
+    dtype: Optional[Any] = ...,
+    order: Optional[Any] = ...,
+    multigraph_weight: Any = ...,
+    weight: str = ...,
+    nonedge: float = ...,
+): ...
 def from_pandas_adjacency(df, create_using: Optional[Any] = ...): ...
-def to_pandas_edgelist(G, source: str = ..., target: str = ..., nodelist: Optional[Any] = ..., dtype: Optional[Any] = ..., order: Optional[Any] = ...): ...
-def from_pandas_edgelist(df, source: str = ..., target: str = ..., edge_attr: Optional[Any] = ..., create_using: Optional[Any] = ...): ...
-def to_numpy_matrix(G, nodelist: Optional[Any] = ..., dtype: Optional[Any] = ..., order: Optional[Any] = ..., multigraph_weight: Any = ..., weight: str = ..., nonedge: float = ...): ...
-def from_numpy_matrix(A, parallel_edges: bool = ..., create_using: Optional[Any] = ...): ...
-def to_numpy_recarray(G, nodelist: Optional[Any] = ..., dtype: Optional[Any] = ..., order: Optional[Any] = ...): ...
-def to_scipy_sparse_matrix(G, nodelist: Optional[Any] = ..., dtype: Optional[Any] = ..., weight: str = ..., format: str = ...): ...
-def from_scipy_sparse_matrix(A, parallel_edges: bool = ..., create_using: Optional[Any] = ..., edge_attribute: str = ...): ...
-def to_numpy_array(G, nodelist: Optional[Any] = ..., dtype: Optional[Any] = ..., order: Optional[Any] = ..., multigraph_weight: Any = ..., weight: str = ..., nonedge: float = ...): ...
-def from_numpy_array(A, parallel_edges: bool = ..., create_using: Optional[Any] = ...): ...
+def to_pandas_edgelist(
+    G,
+    source: str = ...,
+    target: str = ...,
+    nodelist: Optional[Any] = ...,
+    dtype: Optional[Any] = ...,
+    order: Optional[Any] = ...,
+): ...
+def from_pandas_edgelist(
+    df,
+    source: str = ...,
+    target: str = ...,
+    edge_attr: Optional[Any] = ...,
+    create_using: Optional[Any] = ...,
+): ...
+def to_numpy_matrix(
+    G,
+    nodelist: Optional[Any] = ...,
+    dtype: Optional[Any] = ...,
+    order: Optional[Any] = ...,
+    multigraph_weight: Any = ...,
+    weight: str = ...,
+    nonedge: float = ...,
+): ...
+def from_numpy_matrix(
+    A, parallel_edges: bool = ..., create_using: Optional[Any] = ...
+): ...
+def to_numpy_recarray(
+    G,
+    nodelist: Optional[Any] = ...,
+    dtype: Optional[Any] = ...,
+    order: Optional[Any] = ...,
+): ...
+def to_scipy_sparse_matrix(
+    G,
+    nodelist: Optional[Any] = ...,
+    dtype: Optional[Any] = ...,
+    weight: str = ...,
+    format: str = ...,
+): ...
+def from_scipy_sparse_matrix(
+    A,
+    parallel_edges: bool = ...,
+    create_using: Optional[Any] = ...,
+    edge_attribute: str = ...,
+): ...
+def to_numpy_array(
+    G,
+    nodelist: Optional[Any] = ...,
+    dtype: Optional[Any] = ...,
+    order: Optional[Any] = ...,
+    multigraph_weight: Any = ...,
+    weight: str = ...,
+    nonedge: float = ...,
+): ...
+def from_numpy_array(
+    A, parallel_edges: bool = ..., create_using: Optional[Any] = ...
+): ...

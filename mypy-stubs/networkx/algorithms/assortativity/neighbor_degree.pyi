@@ -4,4 +4,10 @@
 
 from typing import Any, Optional
 
-def average_neighbor_degree(G, source: str = ..., target: str = ..., nodes: Optional[Any] = ..., weight: Optional[Any] = ...): ...
+def average_neighbor_degree(
+    G,
+    source: str = ...,
+    target: str = ...,
+    nodes: Optional[Any] = ...,
+    weight: Optional[Any] = ...,
+): ...

@@ -31,7 +31,9 @@ class ValueToolOutputActionConditionalWhen(ToolOutputActionConditionalWhen):
     tag = ...  # type: str
     def is_case(self, output_dataset, other_values): ...
 
-class DatatypeIsInstanceToolOutputActionConditionalWhen(ToolOutputActionConditionalWhen):
+class DatatypeIsInstanceToolOutputActionConditionalWhen(
+    ToolOutputActionConditionalWhen
+):
     tag = ...  # type: str
     value = ...  # type: Any
     def __init__(self, parent, config_elem, value) -> None: ...

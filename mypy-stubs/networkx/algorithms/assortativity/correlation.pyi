@@ -4,7 +4,19 @@
 
 from typing import Any, Optional
 
-def degree_assortativity_coefficient(G, x: str = ..., y: str = ..., weight: Optional[Any] = ..., nodes: Optional[Any] = ...): ...
-def degree_pearson_correlation_coefficient(G, x: str = ..., y: str = ..., weight: Optional[Any] = ..., nodes: Optional[Any] = ...): ...
+def degree_assortativity_coefficient(
+    G,
+    x: str = ...,
+    y: str = ...,
+    weight: Optional[Any] = ...,
+    nodes: Optional[Any] = ...,
+): ...
+def degree_pearson_correlation_coefficient(
+    G,
+    x: str = ...,
+    y: str = ...,
+    weight: Optional[Any] = ...,
+    nodes: Optional[Any] = ...,
+): ...
 def attribute_assortativity_coefficient(G, attribute, nodes: Optional[Any] = ...): ...
 def numeric_assortativity_coefficient(G, attribute, nodes: Optional[Any] = ...): ...

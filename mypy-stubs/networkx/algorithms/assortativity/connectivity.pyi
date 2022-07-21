@@ -4,5 +4,12 @@
 
 from typing import Any, Optional
 
-def average_degree_connectivity(G, source: str = ..., target: str = ..., nodes: Optional[Any] = ..., weight: Optional[Any] = ...): ...
+def average_degree_connectivity(
+    G,
+    source: str = ...,
+    target: str = ...,
+    nodes: Optional[Any] = ...,
+    weight: Optional[Any] = ...,
+): ...
+
 k_nearest_neighbors = average_degree_connectivity

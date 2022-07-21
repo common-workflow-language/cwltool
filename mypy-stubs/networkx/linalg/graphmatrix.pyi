@@ -4,6 +4,13 @@
 
 from typing import Any, Optional
 
-def incidence_matrix(G, nodelist: Optional[Any] = ..., edgelist: Optional[Any] = ..., oriented: bool = ..., weight: Optional[Any] = ...): ...
+def incidence_matrix(
+    G,
+    nodelist: Optional[Any] = ...,
+    edgelist: Optional[Any] = ...,
+    oriented: bool = ...,
+    weight: Optional[Any] = ...,
+): ...
 def adjacency_matrix(G, nodelist: Optional[Any] = ..., weight: str = ...): ...
+
 adj_matrix = adjacency_matrix

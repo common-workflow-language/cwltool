@@ -1,0 +1,3 @@
+from galaxy.util import unicodify as unicodify
+
+def sanitize_html(htmlSource, allow_data_urls: bool = ...): ...

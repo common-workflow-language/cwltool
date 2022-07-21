@@ -4,5 +4,20 @@
 
 from typing import Any, Optional
 
-def attr_matrix(G, edge_attr: Optional[Any] = ..., node_attr: Optional[Any] = ..., normalized: bool = ..., rc_order: Optional[Any] = ..., dtype: Optional[Any] = ..., order: Optional[Any] = ...): ...
-def attr_sparse_matrix(G, edge_attr: Optional[Any] = ..., node_attr: Optional[Any] = ..., normalized: bool = ..., rc_order: Optional[Any] = ..., dtype: Optional[Any] = ...): ...
+def attr_matrix(
+    G,
+    edge_attr: Optional[Any] = ...,
+    node_attr: Optional[Any] = ...,
+    normalized: bool = ...,
+    rc_order: Optional[Any] = ...,
+    dtype: Optional[Any] = ...,
+    order: Optional[Any] = ...,
+): ...
+def attr_sparse_matrix(
+    G,
+    edge_attr: Optional[Any] = ...,
+    node_attr: Optional[Any] = ...,
+    normalized: bool = ...,
+    rc_order: Optional[Any] = ...,
+    dtype: Optional[Any] = ...,
+): ...

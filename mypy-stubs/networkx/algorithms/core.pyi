@@ -5,6 +5,7 @@
 from typing import Any, Optional
 
 def core_number(G): ...
+
 find_cores = core_number
 
 def k_core(G, k: Optional[Any] = ..., core_number: Optional[Any] = ...): ...

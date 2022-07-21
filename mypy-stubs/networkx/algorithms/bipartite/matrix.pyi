@@ -4,5 +4,14 @@
 
 from typing import Any, Optional
 
-def biadjacency_matrix(G, row_order, column_order: Optional[Any] = ..., dtype: Optional[Any] = ..., weight: str = ..., format: str = ...): ...
-def from_biadjacency_matrix(A, create_using: Optional[Any] = ..., edge_attribute: str = ...): ...
+def biadjacency_matrix(
+    G,
+    row_order,
+    column_order: Optional[Any] = ...,
+    dtype: Optional[Any] = ...,
+    weight: str = ...,
+    format: str = ...,
+): ...
+def from_biadjacency_matrix(
+    A, create_using: Optional[Any] = ..., edge_attribute: str = ...
+): ...

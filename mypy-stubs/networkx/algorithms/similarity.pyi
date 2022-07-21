@@ -5,7 +5,56 @@
 from operator import *
 from typing import Any, Optional
 
-def graph_edit_distance(G1, G2, node_match: Optional[Any] = ..., edge_match: Optional[Any] = ..., node_subst_cost: Optional[Any] = ..., node_del_cost: Optional[Any] = ..., node_ins_cost: Optional[Any] = ..., edge_subst_cost: Optional[Any] = ..., edge_del_cost: Optional[Any] = ..., edge_ins_cost: Optional[Any] = ..., upper_bound: Optional[Any] = ...): ...
-def optimal_edit_paths(G1, G2, node_match: Optional[Any] = ..., edge_match: Optional[Any] = ..., node_subst_cost: Optional[Any] = ..., node_del_cost: Optional[Any] = ..., node_ins_cost: Optional[Any] = ..., edge_subst_cost: Optional[Any] = ..., edge_del_cost: Optional[Any] = ..., edge_ins_cost: Optional[Any] = ..., upper_bound: Optional[Any] = ...): ...
-def optimize_graph_edit_distance(G1, G2, node_match: Optional[Any] = ..., edge_match: Optional[Any] = ..., node_subst_cost: Optional[Any] = ..., node_del_cost: Optional[Any] = ..., node_ins_cost: Optional[Any] = ..., edge_subst_cost: Optional[Any] = ..., edge_del_cost: Optional[Any] = ..., edge_ins_cost: Optional[Any] = ..., upper_bound: Optional[Any] = ...): ...
-def optimize_edit_paths(G1, G2, node_match: Optional[Any] = ..., edge_match: Optional[Any] = ..., node_subst_cost: Optional[Any] = ..., node_del_cost: Optional[Any] = ..., node_ins_cost: Optional[Any] = ..., edge_subst_cost: Optional[Any] = ..., edge_del_cost: Optional[Any] = ..., edge_ins_cost: Optional[Any] = ..., upper_bound: Optional[Any] = ..., strictly_decreasing: bool = ...): ...
+def graph_edit_distance(
+    G1,
+    G2,
+    node_match: Optional[Any] = ...,
+    edge_match: Optional[Any] = ...,
+    node_subst_cost: Optional[Any] = ...,
+    node_del_cost: Optional[Any] = ...,
+    node_ins_cost: Optional[Any] = ...,
+    edge_subst_cost: Optional[Any] = ...,
+    edge_del_cost: Optional[Any] = ...,
+    edge_ins_cost: Optional[Any] = ...,
+    upper_bound: Optional[Any] = ...,
+): ...
+def optimal_edit_paths(
+    G1,
+    G2,
+    node_match: Optional[Any] = ...,
+    edge_match: Optional[Any] = ...,
+    node_subst_cost: Optional[Any] = ...,
+    node_del_cost: Optional[Any] = ...,
+    node_ins_cost: Optional[Any] = ...,
+    edge_subst_cost: Optional[Any] = ...,
+    edge_del_cost: Optional[Any] = ...,
+    edge_ins_cost: Optional[Any] = ...,
+    upper_bound: Optional[Any] = ...,
+): ...
+def optimize_graph_edit_distance(
+    G1,
+    G2,
+    node_match: Optional[Any] = ...,
+    edge_match: Optional[Any] = ...,
+    node_subst_cost: Optional[Any] = ...,
+    node_del_cost: Optional[Any] = ...,
+    node_ins_cost: Optional[Any] = ...,
+    edge_subst_cost: Optional[Any] = ...,
+    edge_del_cost: Optional[Any] = ...,
+    edge_ins_cost: Optional[Any] = ...,
+    upper_bound: Optional[Any] = ...,
+): ...
+def optimize_edit_paths(
+    G1,
+    G2,
+    node_match: Optional[Any] = ...,
+    edge_match: Optional[Any] = ...,
+    node_subst_cost: Optional[Any] = ...,
+    node_del_cost: Optional[Any] = ...,
+    node_ins_cost: Optional[Any] = ...,
+    edge_subst_cost: Optional[Any] = ...,
+    edge_del_cost: Optional[Any] = ...,
+    edge_ins_cost: Optional[Any] = ...,
+    upper_bound: Optional[Any] = ...,
+    strictly_decreasing: bool = ...,
+): ...

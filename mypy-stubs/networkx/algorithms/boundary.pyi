@@ -4,5 +4,12 @@
 
 from typing import Any, Optional
 
-def edge_boundary(G, nbunch1, nbunch2: Optional[Any] = ..., data: bool = ..., keys: bool = ..., default: Optional[Any] = ...): ...
+def edge_boundary(
+    G,
+    nbunch1,
+    nbunch2: Optional[Any] = ...,
+    data: bool = ...,
+    keys: bool = ...,
+    default: Optional[Any] = ...,
+): ...
 def node_boundary(G, nbunch1, nbunch2: Optional[Any] = ...): ...

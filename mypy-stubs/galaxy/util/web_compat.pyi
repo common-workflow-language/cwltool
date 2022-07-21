@@ -1,0 +1,1 @@
+from galaxy.web_stack import register_postfork_function as register_postfork_function

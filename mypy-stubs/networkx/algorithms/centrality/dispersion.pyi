@@ -4,4 +4,12 @@
 
 from typing import Any, Optional
 
-def dispersion(G, u: Optional[Any] = ..., v: Optional[Any] = ..., normalized: bool = ..., alpha: float = ..., b: float = ..., c: float = ...): ...
+def dispersion(
+    G,
+    u: Optional[Any] = ...,
+    v: Optional[Any] = ...,
+    normalized: bool = ...,
+    alpha: float = ...,
+    b: float = ...,
+    c: float = ...,
+): ...

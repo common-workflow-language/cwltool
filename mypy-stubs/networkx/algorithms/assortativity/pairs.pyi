@@ -5,4 +5,10 @@
 from typing import Any, Optional
 
 def node_attribute_xy(G, attribute, nodes: Optional[Any] = ...): ...
-def node_degree_xy(G, x: str = ..., y: str = ..., weight: Optional[Any] = ..., nodes: Optional[Any] = ...): ...
+def node_degree_xy(
+    G,
+    x: str = ...,
+    y: str = ...,
+    weight: Optional[Any] = ...,
+    nodes: Optional[Any] = ...,
+): ...

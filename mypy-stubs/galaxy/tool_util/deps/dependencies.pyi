@@ -14,19 +14,44 @@ class AppInfo:
     containers_resolvers_config_file = ...  # type: Any
     involucro_path = ...  # type: Any
     involucro_auto_init = ...  # type: Any
-    def __init__(self, galaxy_root_dir: Optional[Any] = ..., default_file_path: Optional[Any] = ..., outputs_to_working_directory: bool = ..., container_image_cache_path: Optional[Any] = ..., library_import_dir: Optional[Any] = ..., enable_mulled_containers: bool = ..., containers_resolvers_config_file: Optional[Any] = ..., involucro_path: Optional[Any] = ..., involucro_auto_init: bool = ...) -> None: ...
-
-class DependenciesDescription:
-    requirements = ...  # type: Any
-    installed_tool_dependencies = ...  # type: Any
-    def __init__(self, requirements: Any = ..., installed_tool_dependencies: Any = ...) -> None: ...
-    def to_dict(self): ...
-    @staticmethod
-    def from_dict(as_dict): ...
+    def __init__(
+        self,
+        galaxy_root_dir: Optional[Any] = ...,
+        default_file_path: Optional[Any] = ...,
+        outputs_to_working_directory: bool = ...,
+        container_image_cache_path: Optional[Any] = ...,
+        library_import_dir: Optional[Any] = ...,
+        enable_mulled_containers: bool = ...,
+        containers_resolvers_config_file: Optional[Any] = ...,
+        involucro_path: Optional[Any] = ...,
+        involucro_auto_init: bool = ...,
+    ) -> None: ...
 
 class ToolInfo:
     container_descriptions = ...  # type: Any
     requirements = ...  # type: Any
     requires_galaxy_python_environment = ...  # type: Any
     env_pass_through = ...  # type: Any
-    def __init__(self, container_descriptions: Any = ..., requirements: Any = ..., requires_galaxy_python_environment: bool = ...) -> None: ...
+    def __init__(
+        self,
+        container_descriptions: Any = ...,
+        requirements: Any = ...,
+        requires_galaxy_python_environment: bool = ...,
+    ) -> None: ...
+
+class JobInfo:
+    working_directory: str
+    tool_directory: str
+    job_directory: str
+    tmp_directory: str
+    home_directory: str
+    job_directory_type: str
+    def __init__(
+        self,
+        working_directory: str,
+        tool_directory: str,
+        job_directory: str,
+        tmp_directory: str,
+        home_directory: str,
+        job_directory_type: str,
+    ): ...

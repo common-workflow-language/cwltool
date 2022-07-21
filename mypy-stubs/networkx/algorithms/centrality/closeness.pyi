@@ -4,4 +4,10 @@
 
 from typing import Any, Optional
 
-def closeness_centrality(G, u: Optional[Any] = ..., distance: Optional[Any] = ..., wf_improved: bool = ..., reverse: bool = ...): ...
+def closeness_centrality(
+    G,
+    u: Optional[Any] = ...,
+    distance: Optional[Any] = ...,
+    wf_improved: bool = ...,
+    reverse: bool = ...,
+): ...

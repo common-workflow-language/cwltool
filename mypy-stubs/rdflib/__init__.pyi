@@ -1,7 +1,4 @@
-from rdflib import util as util
-from rdflib.container import *
 from rdflib.graph import ConjunctiveGraph as ConjunctiveGraph
-from rdflib.graph import Dataset as Dataset
 from rdflib.graph import Graph as Graph
 from rdflib.namespace import CSVW as CSVW
 from rdflib.namespace import DC as DC

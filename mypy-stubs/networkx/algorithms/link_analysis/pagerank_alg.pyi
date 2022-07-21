@@ -4,7 +4,37 @@
 
 from typing import Any, Optional
 
-def pagerank(G, alpha: float = ..., personalization: Optional[Any] = ..., max_iter: int = ..., tol: float = ..., nstart: Optional[Any] = ..., weight: str = ..., dangling: Optional[Any] = ...): ...
-def google_matrix(G, alpha: float = ..., personalization: Optional[Any] = ..., nodelist: Optional[Any] = ..., weight: str = ..., dangling: Optional[Any] = ...): ...
-def pagerank_numpy(G, alpha: float = ..., personalization: Optional[Any] = ..., weight: str = ..., dangling: Optional[Any] = ...): ...
-def pagerank_scipy(G, alpha: float = ..., personalization: Optional[Any] = ..., max_iter: int = ..., tol: float = ..., weight: str = ..., dangling: Optional[Any] = ...): ...
+def pagerank(
+    G,
+    alpha: float = ...,
+    personalization: Optional[Any] = ...,
+    max_iter: int = ...,
+    tol: float = ...,
+    nstart: Optional[Any] = ...,
+    weight: str = ...,
+    dangling: Optional[Any] = ...,
+): ...
+def google_matrix(
+    G,
+    alpha: float = ...,
+    personalization: Optional[Any] = ...,
+    nodelist: Optional[Any] = ...,
+    weight: str = ...,
+    dangling: Optional[Any] = ...,
+): ...
+def pagerank_numpy(
+    G,
+    alpha: float = ...,
+    personalization: Optional[Any] = ...,
+    weight: str = ...,
+    dangling: Optional[Any] = ...,
+): ...
+def pagerank_scipy(
+    G,
+    alpha: float = ...,
+    personalization: Optional[Any] = ...,
+    max_iter: int = ...,
+    tol: float = ...,
+    weight: str = ...,
+    dangling: Optional[Any] = ...,
+): ...

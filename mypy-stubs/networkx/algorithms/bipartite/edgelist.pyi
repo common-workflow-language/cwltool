@@ -4,7 +4,30 @@
 
 from typing import Any, Optional
 
-def write_edgelist(G, path, comments: str = ..., delimiter: str = ..., data: bool = ..., encoding: str = ...): ...
+def write_edgelist(
+    G,
+    path,
+    comments: str = ...,
+    delimiter: str = ...,
+    data: bool = ...,
+    encoding: str = ...,
+): ...
 def generate_edgelist(G, delimiter: str = ..., data: bool = ...): ...
-def parse_edgelist(lines, comments: str = ..., delimiter: Optional[Any] = ..., create_using: Optional[Any] = ..., nodetype: Optional[Any] = ..., data: bool = ...): ...
-def read_edgelist(path, comments: str = ..., delimiter: Optional[Any] = ..., create_using: Optional[Any] = ..., nodetype: Optional[Any] = ..., data: bool = ..., edgetype: Optional[Any] = ..., encoding: str = ...): ...
+def parse_edgelist(
+    lines,
+    comments: str = ...,
+    delimiter: Optional[Any] = ...,
+    create_using: Optional[Any] = ...,
+    nodetype: Optional[Any] = ...,
+    data: bool = ...,
+): ...
+def read_edgelist(
+    path,
+    comments: str = ...,
+    delimiter: Optional[Any] = ...,
+    create_using: Optional[Any] = ...,
+    nodetype: Optional[Any] = ...,
+    data: bool = ...,
+    edgetype: Optional[Any] = ...,
+    encoding: str = ...,
+): ...

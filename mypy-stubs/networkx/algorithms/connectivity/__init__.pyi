@@ -4,9 +4,9 @@
 
 from .connectivity import *
 from .cuts import *
+from .disjoint_paths import *
 from .edge_augmentation import *
 from .edge_kcomponents import *
-from .disjoint_paths import *
 from .kcomponents import *
 from .kcutsets import *
 from .stoerwagner import *

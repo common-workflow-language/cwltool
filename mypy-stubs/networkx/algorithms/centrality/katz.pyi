@@ -4,5 +4,20 @@
 
 from typing import Any, Optional
 
-def katz_centrality(G, alpha: float = ..., beta: float = ..., max_iter: int = ..., tol: float = ..., nstart: Optional[Any] = ..., normalized: bool = ..., weight: Optional[Any] = ...): ...
-def katz_centrality_numpy(G, alpha: float = ..., beta: float = ..., normalized: bool = ..., weight: Optional[Any] = ...): ...
+def katz_centrality(
+    G,
+    alpha: float = ...,
+    beta: float = ...,
+    max_iter: int = ...,
+    tol: float = ...,
+    nstart: Optional[Any] = ...,
+    normalized: bool = ...,
+    weight: Optional[Any] = ...,
+): ...
+def katz_centrality_numpy(
+    G,
+    alpha: float = ...,
+    beta: float = ...,
+    normalized: bool = ...,
+    weight: Optional[Any] = ...,
+): ...

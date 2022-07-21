@@ -4,4 +4,17 @@
 
 from typing import Any, Optional
 
-def LFR_benchmark_graph(n, tau1, tau2, mu, average_degree: Optional[Any] = ..., min_degree: Optional[Any] = ..., max_degree: Optional[Any] = ..., min_community: Optional[Any] = ..., max_community: Optional[Any] = ..., tol: float = ..., max_iters: int = ..., seed: Optional[Any] = ...): ...
+def LFR_benchmark_graph(
+    n,
+    tau1,
+    tau2,
+    mu,
+    average_degree: Optional[Any] = ...,
+    min_degree: Optional[Any] = ...,
+    max_degree: Optional[Any] = ...,
+    min_community: Optional[Any] = ...,
+    max_community: Optional[Any] = ...,
+    tol: float = ...,
+    max_iters: int = ...,
+    seed: Optional[Any] = ...,
+): ...

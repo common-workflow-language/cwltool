@@ -4,4 +4,9 @@
 
 from typing import Any, Optional
 
-def closeness_vitality(G, node: Optional[Any] = ..., weight: Optional[Any] = ..., wiener_index: Optional[Any] = ...): ...
+def closeness_vitality(
+    G,
+    node: Optional[Any] = ...,
+    weight: Optional[Any] = ...,
+    wiener_index: Optional[Any] = ...,
+): ...

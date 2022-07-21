@@ -5,8 +5,40 @@
 from typing import Any, Optional
 
 def generate_edgelist(G, delimiter: str = ..., data: bool = ...): ...
-def write_edgelist(G, path, comments: str = ..., delimiter: str = ..., data: bool = ..., encoding: str = ...): ...
-def parse_edgelist(lines, comments: str = ..., delimiter: Optional[Any] = ..., create_using: Optional[Any] = ..., nodetype: Optional[Any] = ..., data: bool = ...): ...
-def read_edgelist(path, comments: str = ..., delimiter: Optional[Any] = ..., create_using: Optional[Any] = ..., nodetype: Optional[Any] = ..., data: bool = ..., edgetype: Optional[Any] = ..., encoding: str = ...): ...
-def write_weighted_edgelist(G, path, comments: str = ..., delimiter: str = ..., encoding: str = ...): ...
-def read_weighted_edgelist(path, comments: str = ..., delimiter: Optional[Any] = ..., create_using: Optional[Any] = ..., nodetype: Optional[Any] = ..., encoding: str = ...): ...
+def write_edgelist(
+    G,
+    path,
+    comments: str = ...,
+    delimiter: str = ...,
+    data: bool = ...,
+    encoding: str = ...,
+): ...
+def parse_edgelist(
+    lines,
+    comments: str = ...,
+    delimiter: Optional[Any] = ...,
+    create_using: Optional[Any] = ...,
+    nodetype: Optional[Any] = ...,
+    data: bool = ...,
+): ...
+def read_edgelist(
+    path,
+    comments: str = ...,
+    delimiter: Optional[Any] = ...,
+    create_using: Optional[Any] = ...,
+    nodetype: Optional[Any] = ...,
+    data: bool = ...,
+    edgetype: Optional[Any] = ...,
+    encoding: str = ...,
+): ...
+def write_weighted_edgelist(
+    G, path, comments: str = ..., delimiter: str = ..., encoding: str = ...
+): ...
+def read_weighted_edgelist(
+    path,
+    comments: str = ...,
+    delimiter: Optional[Any] = ...,
+    create_using: Optional[Any] = ...,
+    nodetype: Optional[Any] = ...,
+    encoding: str = ...,
+): ...

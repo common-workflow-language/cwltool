@@ -4,8 +4,17 @@
 
 from typing import Any, Optional
 
-def quotient_graph(G, partition, edge_relation: Optional[Any] = ..., node_data: Optional[Any] = ..., edge_data: Optional[Any] = ..., relabel: bool = ..., create_using: Optional[Any] = ...): ...
+def quotient_graph(
+    G,
+    partition,
+    edge_relation: Optional[Any] = ...,
+    node_data: Optional[Any] = ...,
+    edge_data: Optional[Any] = ...,
+    relabel: bool = ...,
+    create_using: Optional[Any] = ...,
+): ...
 def contracted_nodes(G, u, v, self_loops: bool = ...): ...
+
 identified_nodes = contracted_nodes
 
 def contracted_edge(G, edge, self_loops: bool = ...): ...

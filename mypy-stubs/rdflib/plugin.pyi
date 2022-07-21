@@ -2,24 +2,7 @@ from typing import Any, Type, TypeVar
 
 from rdflib.exceptions import Error
 
-class PluginException(Error): ...
-
-class Plugin:
-    name: Any
-    kind: Any
-    module_path: Any
-    class_name: Any
-    def __init__(self, name, kind, module_path, class_name) -> None: ...
-    def getClass(self): ...
-
-class PKGPlugin(Plugin):
-    name: Any
-    kind: Any
-    ep: Any
-    def __init__(self, name, kind, ep) -> None: ...
-    def getClass(self): ...
-
-def register(name: str, kind, module_path, class_name): ...
+def register(name: str, kind: Any, module_path: str, class_name: str) -> None: ...
 
 PluginT = TypeVar("PluginT")
 

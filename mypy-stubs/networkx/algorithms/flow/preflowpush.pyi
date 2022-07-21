@@ -4,4 +4,12 @@
 
 from typing import Any, Optional
 
-def preflow_push(G, s, t, capacity: str = ..., residual: Optional[Any] = ..., global_relabel_freq: int = ..., value_only: bool = ...): ...
+def preflow_push(
+    G,
+    s,
+    t,
+    capacity: str = ...,
+    residual: Optional[Any] = ...,
+    global_relabel_freq: int = ...,
+    value_only: bool = ...,
+): ...

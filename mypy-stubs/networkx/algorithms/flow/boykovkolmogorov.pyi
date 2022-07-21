@@ -4,4 +4,12 @@
 
 from typing import Any, Optional
 
-def boykov_kolmogorov(G, s, t, capacity: str = ..., residual: Optional[Any] = ..., value_only: bool = ..., cutoff: Optional[Any] = ...): ...
+def boykov_kolmogorov(
+    G,
+    s,
+    t,
+    capacity: str = ...,
+    residual: Optional[Any] = ...,
+    value_only: bool = ...,
+    cutoff: Optional[Any] = ...,
+): ...
