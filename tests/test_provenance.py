@@ -4,7 +4,7 @@ import pickle
 import sys
 import urllib
 from pathlib import Path
-from typing import Any, Generator
+from typing import IO, Any, Generator, cast
 
 import arcp
 import bagit
@@ -286,15 +286,15 @@ def check_bagit(base_path: Path) -> None:
     assert not list(missing_tagfiles), "Some files only in tagmanifest"
     bag.validate()
     # TODO: Check other bag-info attributes
-    assert arcp.is_arcp_uri(bag.info.get("External-Identifier"))
+    assert arcp.is_arcp_uri(cast(str, bag.info.get("External-Identifier")))
 
 
 def find_arcp(base_path: Path) -> str:
     # First try to find External-Identifier
     bag = bagit.Bag(str(base_path))
-    ext_id = bag.info.get("External-Identifier")
+    ext_id = cast(str, bag.info.get("External-Identifier"))
     if arcp.is_arcp_uri(ext_id):
-        return str(ext_id)
+        return ext_id
     raise Exception("Can't find External-Identifier")
 
 
@@ -326,7 +326,7 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
     g.parse(data=jsonld, format="json-ld", publicID=base)
     if os.environ.get("DEBUG"):
         print("Parsed manifest:\n\n")
-        g.serialize(sys.stdout, format="ttl")
+        g.serialize(cast(IO[bytes], sys.stdout), format="ttl")
     _ro = None
 
     for _ro in g.subjects(ORE.isDescribedBy, URIRef(base)):
@@ -338,19 +338,19 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
         profile = dc
         break
     assert profile is not None, "Can't find profile with dct:conformsTo"
-    assert profile == URIRef(provenance_constants.CWLPROV_VERSION), (
-        "Unexpected cwlprov version " + profile
-    )
+    assert profile == URIRef(
+        provenance_constants.CWLPROV_VERSION
+    ), f"Unexpected cwlprov version {profile}"
 
     paths = []
     externals = []
     for aggregate in g.objects(_ro, ORE.aggregates):
-        if not arcp.is_arcp_uri(aggregate):
+        if not arcp.is_arcp_uri(cast(str, aggregate)):
             externals.append(aggregate)
             # Won't check external URIs existence here
             # TODO: Check they are not relative!
             continue
-        lfile = _arcp2file(base_path, aggregate)
+        lfile = _arcp2file(base_path, cast(str, aggregate))
         paths.append(os.path.relpath(lfile, base_path))
         assert os.path.isfile(lfile), f"Can't find aggregated {lfile}"
 
@@ -451,7 +451,7 @@ def check_prov(
         g.parse(file=f, format="nt", publicID=arcp_root)
     if os.environ.get("DEBUG"):
         print("Parsed %s:\n\n" % prov_file)
-        g.serialize(sys.stdout, format="ttl")
+        g.serialize(cast(IO[bytes], sys.stdout), format="ttl")
     runs = set(g.subjects(RDF.type, WFPROV.WorkflowRun))
 
     # main workflow run URI (as urn:uuid:) should correspond to arcp uuid part

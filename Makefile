@@ -90,7 +90,7 @@ clean: check-python3 FORCE
 
 # Linting and code style related targets
 ## sorting imports using isort: https://github.com/timothycrosley/isort
-sort_imports: $(PYSOURCES)
+sort_imports: $(PYSOURCES) mypy-stubs
 	isort $^
 
 remove_unused_imports: $(PYSOURCES)
@@ -110,14 +110,14 @@ diff_pydocstyle_report: pydocstyle_report.txt
 
 ## codespell   : check for common mispellings
 codespell:
-	codespell -w $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v typeshed)
+	codespell -w $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs)
 
 ## format      : check/fix all code indentation and formatting (runs black)
 format:
-	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests
+	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
 format-check:
-	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests
+	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)
@@ -177,14 +177,14 @@ mypy3: mypy
 mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
 	if ! test -f $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
 	then \
-		rm -Rf typeshed/ruamel/yaml ; \
+		rm -Rf mypy-stubs/ruamel/yaml ; \
 		ln -s $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-			typeshed/ruamel/ ; \
+			mypy-stubs/ruamel/ ; \
 	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
-	MYPYPATH=$$MYPYPATH:typeshed mypy $^
+	MYPYPATH=$$MYPYPATH:mypy-stubs mypy $^
 
 mypyc: $(PYSOURCES)
-	MYPYPATH=typeshed CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
+	MYPYPATH=mypy-stubs CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
 		 && pytest -rs -vv ${PYTEST_EXTRA}
 
 shellcheck: FORCE
