@@ -1,4 +1,3 @@
-import types
 from datetime import datetime
 from typing import IO, Any, Dict, Iterable, List, Set, Tuple
 
@@ -225,8 +224,8 @@ class ProvBundle:
     def get_records(
         self,
         class_or_type_or_tuple: type
-        | types.UnionType
-        | Tuple[type | types.UnionType | Tuple[Any, ...], ...]
+        | type[int | str]
+        | Tuple[type | type[int | str] | Tuple[Any, ...], ...]
         | None = ...,
     ) -> List[ProvRecord]: ...
     def get_record(
