@@ -151,7 +151,7 @@ def get_container_from_software_requirements(
             [DOCKER_CONTAINER_TYPE], tool_info
         )
         if container_description:
-            return container_description.identifier
+            return cast(Optional[str], container_description.identifier)
 
     return None
 

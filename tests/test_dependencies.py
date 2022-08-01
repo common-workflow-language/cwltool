@@ -11,7 +11,7 @@ from .util import get_data, get_main_output, get_tool_env, needs_docker
 
 deps = None  # type: Optional[ModuleType]
 try:
-    from galaxy.tool_util import deps
+    from galaxy.tool_util import deps  # type: ignore[no-redef]
 except ImportError:
     pass
 
