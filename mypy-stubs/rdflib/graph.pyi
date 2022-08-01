@@ -1,7 +1,20 @@
-from typing import Any, Iterable, Iterator, List, Optional, Set, Tuple, Union, overload
+import pathlib
+from typing import (
+    IO,
+    Any,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    overload,
+)
 
 from rdflib import query
 from rdflib.collection import Collection
+from rdflib.paths import Path
 from rdflib.resource import Resource
 from rdflib.term import BNode, Identifier, Node
 
@@ -37,6 +50,12 @@ class Graph(Node):
             Optional[Identifier],
         ],
     ) -> Iterator[Tuple[Identifier, Identifier, Identifier]]: ...
+    def __getitem__(
+        self, item: slice | Path | Node
+    ) -> Iterator[
+        Tuple[Identifier, Identifier, Identifier] | Tuple[Identifier, identifier] | Node
+    ]: ...
+    def __contains__(self, triple: Any) -> bool: ...
     def __add__(self, other: Any) -> Graph: ...
     def set(self, triple: Any) -> None: ...
     def subjects(
@@ -47,7 +66,7 @@ class Graph(Node):
     ) -> Iterable[Node]: ...
     def objects(
         self, subject: Optional[Any] = ..., predicate: Optional[Any] = ...
-    ) -> Iterable[Node]: ...
+    ) -> Iterable[Identifier]: ...
     def subject_predicates(self, object: Optional[Any] = ...) -> None: ...
     def subject_objects(self, predicate: Optional[Any] = ...) -> None: ...
     def predicate_objects(self, subject: Optional[Any] = ...) -> None: ...
@@ -87,13 +106,61 @@ class Graph(Node):
     ) -> Any: ...
     def namespaces(self) -> Iterator[Tuple[Any, Any]]: ...
     def absolutize(self, uri: Any, defrag: int = ...) -> Any: ...
+
+    # no destination and non-None positional encoding
+    @overload
     def serialize(
         self,
-        destination: Optional[Any] = ...,
+        destination: None,
+        format: str,
+        base: Optional[str],
+        encoding: str,
+        **args: Any,
+    ) -> bytes: ...
+
+    # no destination and non-None keyword encoding
+    @overload
+    def serialize(
+        self,
+        destination: None = ...,
         format: str = ...,
-        base: Optional[Any] = ...,
-        encoding: Optional[Any] = ...,
-        **args: Any
+        base: Optional[str] = ...,
+        *,
+        encoding: str,
+        **args: Any,
+    ) -> bytes: ...
+
+    # no destination and None encoding
+    @overload
+    def serialize(
+        self,
+        destination: None = ...,
+        format: str = ...,
+        base: Optional[str] = ...,
+        encoding: None = ...,
+        **args: Any,
+    ) -> str: ...
+
+    # non-None destination
+    @overload
+    def serialize(
+        self,
+        destination: Union[str, pathlib.PurePath, IO[bytes]],
+        format: str = ...,
+        base: Optional[str] = ...,
+        encoding: Optional[str] = ...,
+        **args: Any,
+    ) -> "Graph": ...
+
+    # fallback
+    @overload
+    def serialize(
+        self,
+        destination: Optional[Union[str, pathlib.PurePath, IO[bytes]]] = ...,
+        format: str = ...,
+        base: Optional[str] = ...,
+        encoding: Optional[str] = ...,
+        **args: Any,
     ) -> Union[bytes, str, "Graph"]: ...
     def parse(
         self,
@@ -103,7 +170,7 @@ class Graph(Node):
         location: Optional[Any] = ...,
         file: Optional[Any] = ...,
         data: Optional[Any] = ...,
-        **args: Any
+        **args: Any,
     ) -> "Graph": ...
     def load(
         self, source: Any, publicID: Optional[Any] = ..., format: str = ...
@@ -116,7 +183,7 @@ class Graph(Node):
         initNs: Optional[Any] = ...,
         initBindings: Optional[Any] = ...,
         use_store_provided: bool = ...,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> query.Result: ...
     def update(
         self,
@@ -125,7 +192,7 @@ class Graph(Node):
         initNs: Optional[Any] = ...,
         initBindings: Optional[Any] = ...,
         use_store_provided: bool = ...,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Any: ...
     def n3(self) -> str: ...
     def isomorphic(self, other: Any) -> bool: ...
@@ -177,7 +244,7 @@ class ConjunctiveGraph(Graph):
         location: Optional[Any] = ...,
         file: Optional[Any] = ...,
         data: Optional[Any] = ...,
-        **args: Any
+        **args: Any,
     ) -> Graph: ...
 
 class Seq:

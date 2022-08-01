@@ -90,7 +90,7 @@ clean: check-python3 FORCE
 
 # Linting and code style related targets
 ## sorting imports using isort: https://github.com/timothycrosley/isort
-sort_imports: $(PYSOURCES)
+sort_imports: $(PYSOURCES) mypy-stubs
 	isort $^
 
 remove_unused_imports: $(PYSOURCES)
@@ -114,10 +114,10 @@ codespell:
 
 ## format      : check/fix all code indentation and formatting (runs black)
 format:
-	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests
+	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
 format-check:
-	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests
+	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
 ## pylint      : run static code analysis on Python code
 pylint: $(PYSOURCES)

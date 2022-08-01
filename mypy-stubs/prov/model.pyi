@@ -1,11 +1,12 @@
+import types
 from datetime import datetime
-from typing import Any, Dict, List, Set, Tuple
+from typing import IO, Any, Dict, Iterable, List, Set, Tuple
 
 from _typeshed import Incomplete
 from prov.constants import *
+
 # from prov import Error as Error, serializers as serializers
-from prov.identifier import Identifier as Identifier
-from prov.identifier import Namespace as Namespace
+from prov.identifier import Identifier, Namespace, QualifiedName
 
 logger: Incomplete
 
@@ -16,19 +17,24 @@ XSD_DATATYPE_PARSERS: Incomplete
 
 # def first(a_set): ...
 
+_attributes_type = Dict[str | Identifier, Any] | List[Tuple[str | Identifier, Any]]
+
 class ProvRecord:
     FORMAL_ATTRIBUTES: Incomplete
     def __init__(
-        self, bundle: str, identifier: str, attributes: Dict[str, str] | None = ...
+        self,
+        bundle: str,
+        identifier: Identifier | str,
+        attributes: Dict[str, str] | None = ...,
     ) -> None: ...
     def __hash__(self) -> int: ...
     def copy(self) -> ProvRecord: ...
     def get_type(self) -> str: ...
     def get_asserted_types(self) -> Set[str]: ...
-    def add_asserted_type(self, type_identifier: str) -> None: ...
+    def add_asserted_type(self, type_identifier: str | QualifiedName) -> None: ...
     def get_attribute(self, attr_name: str) -> Set[str]: ...
     @property
-    def identifier(self) -> str: ...
+    def identifier(self) -> Identifier: ...
     @property
     def attributes(self) -> List[Tuple[str, str]]: ...
     @property
@@ -43,7 +49,10 @@ class ProvRecord:
     def label(self) -> str: ...
     @property
     def value(self) -> str: ...
-    def add_attributes(self, attributes: Dict[str, str]) -> None: ...
+    def add_attributes(
+        self,
+        attributes: _attributes_type,
+    ) -> None: ...
     def __eq__(self, other: Any) -> bool: ...
     def get_provn(self) -> str: ...
     def is_element(self) -> bool: ...
@@ -54,7 +63,7 @@ class ProvElement(ProvRecord):
         self,
         bundle: "ProvBundle",
         identifier: str,
-        attributes: Dict[str, str] | None = ...,
+        attributes: _attributes_type,
     ) -> None: ...
     def is_element(self) -> bool: ...
 
@@ -66,13 +75,13 @@ class ProvEntity(ProvElement):
         self,
         activity: str,
         time: datetime | str | None = ...,
-        attributes: Dict[str, str] | List[Tuple[str, str]] | None = ...,
+        attributes: _attributes_type | None = None,
     ) -> ProvGeneration: ...
     def wasInvalidatedBy(
         self,
         activity: str,
         time: datetime | str | None = ...,
-        attributes: Dict[str, str] | List[Tuple[str, str]] | None = ...,
+        attributes: _attributes_type | None = None,
     ) -> ProvInvalidation: ...
     def wasDerivedFrom(
         self,
@@ -80,12 +89,12 @@ class ProvEntity(ProvElement):
         activity: str | None = ...,
         generation: Incomplete | None = ...,
         usage: Incomplete | None = ...,
-        attributes: Incomplete | None = ...,
+        attributes: _attributes_type | None = None,
     ) -> ProvDerivation: ...
     def wasAttributedTo(
         self,
         agent: str,
-        attributes: Dict[str, str] | List[Tuple[str, str]] | None = ...,
+        attributes: _attributes_type | None = None,
     ) -> ProvAttribution: ...
     def alternateOf(self, alternate2: str) -> ProvElement: ...
     def specializationOf(self, generalEntity: str) -> ProvSpecialization: ...
@@ -96,29 +105,39 @@ class ProvActivity(ProvElement):
     def set_time(
         self, startTime: Incomplete | None = ..., endTime: Incomplete | None = ...
     ) -> None: ...
-    def get_startTime(self): ...
-    def get_endTime(self): ...
+    def get_startTime(self) -> datetime: ...
+    def get_endTime(self) -> datetime: ...
     def used(
-        self, entity, time: Incomplete | None = ..., attributes: Incomplete | None = ...
-    ): ...
-    def wasInformedBy(self, informant, attributes: Incomplete | None = ...): ...
+        self,
+        entity: str,
+        time: datetime | str | None = ...,
+        attributes: _attributes_type | None = None,
+    ) -> ProvActivity: ...
+    def wasInformedBy(
+        self,
+        informant: str,
+        attributes: _attributes_type | None = None,
+    ) -> ProvActivity: ...
     def wasStartedBy(
         self,
-        trigger,
-        starter: Incomplete | None = ...,
-        time: Incomplete | None = ...,
-        attributes: Incomplete | None = ...,
-    ): ...
+        trigger: str,
+        starter: str | None = ...,
+        time: datetime | str | None = ...,
+        attributes: _attributes_type | None = None,
+    ) -> ProvActivity: ...
     def wasEndedBy(
         self,
-        trigger,
-        ender: Incomplete | None = ...,
-        time: Incomplete | None = ...,
-        attributes: Incomplete | None = ...,
-    ): ...
+        trigger: str,
+        ender: str | None = ...,
+        time: datetime | str | None = ...,
+        attributes: _attributes_type | None = None,
+    ) -> ProvActivity: ...
     def wasAssociatedWith(
-        self, agent, plan: Incomplete | None = ..., attributes: Incomplete | None = ...
-    ): ...
+        self,
+        agent: str,
+        plan: str | None = ...,
+        attributes: _attributes_type | None = None,
+    ) -> ProvActivity: ...
 
 class ProvGeneration(ProvRelation):
     FORMAL_ATTRIBUTES: Incomplete
@@ -144,10 +163,10 @@ class ProvDerivation(ProvRelation):
 class ProvAgent(ProvElement):
     def actedOnBehalfOf(
         self,
-        responsible,
-        activity: Incomplete | None = ...,
-        attributes: Incomplete | None = ...,
-    ): ...
+        responsible: str,
+        activity: str | None = ...,
+        attributes: _attributes_type | None = ...,
+    ) -> ProvAgent: ...
 
 class ProvAttribution(ProvRelation):
     FORMAL_ATTRIBUTES: Incomplete
@@ -176,251 +195,269 @@ class ProvMembership(ProvRelation):
 PROV_REC_CLS: Incomplete
 DEFAULT_NAMESPACES: Incomplete
 
-class NamespaceManager(dict):
-    parent: Incomplete
-    def __init__(
-        self,
-        namespaces: Incomplete | None = ...,
-        default: Incomplete | None = ...,
-        parent: Incomplete | None = ...,
-    ) -> None: ...
-    def get_namespace(self, uri): ...
-    def get_registered_namespaces(self): ...
-    def set_default_namespace(self, uri) -> None: ...
-    def get_default_namespace(self): ...
-    def add_namespace(self, namespace): ...
-    def add_namespaces(self, namespaces) -> None: ...
-    def valid_qualified_name(self, qname): ...
-    def get_anonymous_identifier(self, local_prefix: str = ...): ...
-
 class ProvBundle:
     def __init__(
         self,
-        records: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        namespaces: Incomplete | None = ...,
-        document: Incomplete | None = ...,
+        records: Iterable[ProvRecord] | None = ...,
+        identifier: str | None = ...,
+        namespaces: Iterable[Namespace] | None = ...,
+        document: ProvDocument | None = ...,
     ) -> None: ...
     @property
-    def namespaces(self): ...
+    def namespaces(self) -> Set[Namespace]: ...
     @property
-    def default_ns_uri(self): ...
+    def default_ns_uri(self) -> str | None: ...
     @property
-    def document(self): ...
+    def document(self) -> ProvDocument | None: ...
     @property
-    def identifier(self): ...
+    def identifier(self) -> str | None: ...
     @property
-    def records(self): ...
-    def set_default_namespace(self, uri) -> None: ...
-    def get_default_namespace(self): ...
-    def add_namespace(self, namespace_or_prefix, uri: Incomplete | None = ...): ...
-    def get_registered_namespaces(self): ...
-    def valid_qualified_name(self, identifier): ...
-    def get_records(self, class_or_type_or_tuple: Incomplete | None = ...): ...
-    def get_record(self, identifier): ...
-    def is_document(self): ...
-    def is_bundle(self): ...
-    def has_bundles(self): ...
+    def records(self) -> List[ProvRecord]: ...
+    def set_default_namespace(self, uri: Namespace) -> None: ...
+    def get_default_namespace(self) -> Namespace: ...
+    def add_namespace(
+        self, namespace_or_prefix: Namespace | str, uri: str | None = ...
+    ) -> Namespace: ...
+    def get_registered_namespaces(self) -> Iterable[Namespace]: ...
+    def valid_qualified_name(
+        self, identifier: QualifiedName | Tuple[str, Identifier]
+    ) -> QualifiedName | None: ...
+    def get_records(
+        self,
+        class_or_type_or_tuple: type
+        | types.UnionType
+        | Tuple[type | types.UnionType | Tuple[Any, ...], ...]
+        | None = ...,
+    ) -> List[ProvRecord]: ...
+    def get_record(
+        self, identifier: Identifier | None
+    ) -> ProvRecord | List[ProvRecord] | None: ...
+    def is_document(self) -> bool: ...
+    def is_bundle(self) -> bool: ...
+    def has_bundles(self) -> bool: ...
     @property
-    def bundles(self): ...
-    def get_provn(self, _indent_level: int = ...): ...
-    def __eq__(self, other): ...
-    def __ne__(self, other): ...
-    __hash__: Incomplete
-    def unified(self): ...
-    def update(self, other) -> None: ...
+    def bundles(self) -> Iterable[ProvBundle]: ...
+    def get_provn(self, _indent_level: int = ...) -> str: ...
+    def unified(self) -> ProvBundle: ...
+    def update(self, other: ProvBundle) -> None: ...
     def new_record(
         self,
-        record_type,
-        identifier,
-        attributes: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
-    def add_record(self, record): ...
-    def entity(self, identifier, other_attributes: Incomplete | None = ...): ...
+        record_type: PROV_REC_CLS,
+        identifier: str,
+        attributes: _attributes_type | None = None,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvRecord: ...
+    def add_record(self, record: ProvRecord) -> ProvRecord: ...
+    def entity(
+        self,
+        identifier: str | QualifiedName,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvEntity: ...
     def activity(
         self,
-        identifier,
-        startTime: Incomplete | None = ...,
-        endTime: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        identifier: str | QualifiedName,
+        startTime: datetime | str | None = ...,
+        endTime: datetime | str | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvActivity: ...
     def generation(
         self,
-        entity,
-        activity: Incomplete | None = ...,
-        time: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        entity: ProvEntity | str,
+        activity: ProvActivity | str | None = ...,
+        time: datetime | str | None = ...,
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvGeneration: ...
     def usage(
         self,
-        activity,
-        entity: Incomplete | None = ...,
-        time: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        activity: ProvActivity | str,
+        entity: ProvEntity | str | None = ...,
+        time: datetime | str | None = ...,
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvUsage: ...
     def start(
         self,
-        activity,
-        trigger: Incomplete | None = ...,
-        starter: Incomplete | None = ...,
-        time: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        activity: ProvActivity | ProvAgent | str,
+        trigger: ProvEntity | None = ...,
+        starter: ProvActivity | ProvAgent | str | None = ...,
+        time: datetime | str | None = ...,
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvStart: ...
     def end(
         self,
-        activity,
-        trigger: Incomplete | None = ...,
-        ender: Incomplete | None = ...,
-        time: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        activity: ProvActivity | str,
+        trigger: ProvEntity | None = ...,
+        ender: ProvActivity | str | None = ...,
+        time: datetime | str | None = ...,
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvEnd: ...
     def invalidation(
         self,
-        entity,
-        activity: Incomplete | None = ...,
-        time: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        entity: ProvEntity | str,
+        activity: ProvActivity | str | None = ...,
+        time: datetime | str | None = ...,
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvInvalidation: ...
     def communication(
         self,
-        informed,
-        informant,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
-    def agent(self, identifier, other_attributes: Incomplete | None = ...): ...
+        informed: ProvActivity | str,
+        informant: ProvActivity | str,
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvCommunication: ...
+    def agent(
+        self,
+        identifier: Identifier | str,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvAgent: ...
     def attribution(
         self,
-        entity,
-        agent,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        entity: ProvEntity | str,
+        agent: ProvAgent | str,
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvAttribution: ...
     def association(
         self,
-        activity,
-        agent: Incomplete | None = ...,
-        plan: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        activity: ProvActivity | str,
+        agent: ProvAgent | str | None = ...,
+        plan: ProvEntity | str | None = ...,
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvAssociation: ...
     def delegation(
         self,
-        delegate,
-        responsible,
-        activity: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        delegate: ProvAgent | str,
+        responsible: ProvAgent | str,
+        activity: ProvActivity | str | None = ...,
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvDelegation: ...
     def influence(
         self,
-        influencee,
-        influencer,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        influencee: ProvEntity | ProvActivity | ProvAgent | str,
+        influencer: ProvEntity | ProvActivity | ProvAgent | str,
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvInfluence: ...
     def derivation(
         self,
-        generatedEntity,
-        usedEntity,
-        activity: Incomplete | None = ...,
-        generation: Incomplete | None = ...,
+        generatedEntity: ProvEntity | str,
+        usedEntity: ProvEntity | str,
+        activity: ProvActivity | str | None = ...,
+        generation: ProvActivity | str | None = ...,
         usage: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvDerivation: ...
     def revision(
         self,
-        generatedEntity,
-        usedEntity,
-        activity: Incomplete | None = ...,
-        generation: Incomplete | None = ...,
+        generatedEntity: ProvEntity | str,
+        usedEntity: ProvEntity | str,
+        activity: ProvActivity | str | None = ...,
+        generation: ProvActivity | str | None = ...,
         usage: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvRecord: ...
     def quotation(
         self,
-        generatedEntity,
-        usedEntity,
-        activity: Incomplete | None = ...,
-        generation: Incomplete | None = ...,
+        generatedEntity: ProvEntity | str,
+        usedEntity: ProvEntity | str,
+        activity: ProvActivity | str | None = ...,
+        generation: ProvActivity | str | None = ...,
         usage: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvRecord: ...
     def primary_source(
         self,
-        generatedEntity,
-        usedEntity,
-        activity: Incomplete | None = ...,
-        generation: Incomplete | None = ...,
+        generatedEntity: ProvEntity | str,
+        usedEntity: ProvEntity | str,
+        activity: ProvActivity | str | None = ...,
+        generation: ProvActivity | str | None = ...,
         usage: Incomplete | None = ...,
-        identifier: Incomplete | None = ...,
-        other_attributes: Incomplete | None = ...,
-    ): ...
-    def specialization(self, specificEntity, generalEntity): ...
-    def alternate(self, alternate1, alternate2): ...
-    def mention(self, specificEntity, generalEntity, bundle): ...
-    def collection(self, identifier, other_attributes: Incomplete | None = ...): ...
-    def membership(self, collection, entity): ...
+        identifier: Identifier | None = ...,
+        other_attributes: _attributes_type | None = None,
+    ) -> ProvRecord: ...
+    def specialization(
+        self, specificEntity: ProvEntity | str, generalEntity: ProvEntity | str
+    ) -> ProvRecord: ...
+    def alternate(
+        self, alternate1: ProvEntity | str, alternate2: ProvEntity | str
+    ) -> ProvRecord: ...
+    def mention(
+        self,
+        specificEntity: ProvEntity | str,
+        generalEntity: ProvEntity | str,
+        bundle: Incomplete,
+    ) -> ProvRecord: ...
+    def collection(
+        self,
+        identifier: str,
+        other_attributes: _attributes_type | None,
+    ) -> ProvRecord: ...
+    def membership(
+        self, collection: ProvRecord, entity: ProvEntity | str
+    ) -> ProvRecord: ...
     def plot(
         self,
-        filename: Incomplete | None = ...,
+        filename: str | None = ...,
         show_nary: bool = ...,
         use_labels: bool = ...,
         show_element_attributes: bool = ...,
         show_relation_attributes: bool = ...,
     ) -> None: ...
-    wasGeneratedBy: Incomplete
-    used: Incomplete
-    wasStartedBy: Incomplete
-    wasEndedBy: Incomplete
-    wasInvalidatedBy: Incomplete
-    wasInformedBy: Incomplete
-    wasAttributedTo: Incomplete
-    wasAssociatedWith: Incomplete
-    actedOnBehalfOf: Incomplete
-    wasInfluencedBy: Incomplete
-    wasDerivedFrom: Incomplete
-    wasRevisionOf: Incomplete
-    wasQuotedFrom: Incomplete
-    hadPrimarySource: Incomplete
-    alternateOf: Incomplete
-    specializationOf: Incomplete
-    mentionOf: Incomplete
-    hadMember: Incomplete
+    wasGeneratedBy = generation
+    used = usage
+    wasStartedBy = start
+    wasEndedBy = end
+    wasInvalidatedBy = invalidation
+    wasInformedBy = communication
+    wasAttributedTo = attribution
+    wasAssociatedWith = association
+    actedOnBehalfOf = delegation
+    wasInfluencedBy = influence
+    wasDerivedFrom = derivation
+    wasRevisionOf = revision
+    wasQuotedFrom = quotation
+    hadPrimarySource = primary_source
+    alternateOf = alternate
+    specializationOf = specialization
+    mentionOf = mention
+    hadMember = membership
 
 class ProvDocument(ProvBundle):
     def __init__(
-        self, records: Incomplete | None = ..., namespaces: Incomplete | None = ...
+        self,
+        records: Iterable[ProvRecord] | None = ...,
+        namespaces: Iterable[Namespace] | None = ...,
     ) -> None: ...
-    def __eq__(self, other): ...
-    def is_document(self): ...
-    def is_bundle(self): ...
-    def has_bundles(self): ...
+    def is_document(self) -> bool: ...
+    def is_bundle(self) -> bool: ...
+    def has_bundles(self) -> bool: ...
     @property
-    def bundles(self): ...
-    def flattened(self): ...
-    def unified(self): ...
-    def update(self, other) -> None: ...
-    def add_bundle(self, bundle, identifier: Incomplete | None = ...) -> None: ...
-    def bundle(self, identifier): ...
+    def bundles(self) -> Iterable[ProvBundle]: ...
+    def flattened(self) -> ProvDocument: ...
+    def unified(self) -> ProvDocument: ...
+    def update(self, other: ProvDocument | ProvBundle) -> None: ...
+    def add_bundle(
+        self, bundle: ProvBundle, identifier: Incomplete | None = ...
+    ) -> None: ...
+    def bundle(self, identifier: Identifier) -> ProvBundle: ...
     def serialize(
-        self, destination: Incomplete | None = ..., format: str = ..., **args
-    ): ...
+        self, destination: IO[Any] | None = ..., format: str = ..., **args: Any
+    ) -> str | None: ...
     @staticmethod
     def deserialize(
-        source: Incomplete | None = ...,
-        content: Incomplete | None = ...,
+        source: IO[Any] | str | None = ...,
+        content: str | None = ...,
         format: str = ...,
-        **args
-    ): ...
+        **args: Any
+    ) -> ProvDocument: ...
 
-def sorted_attributes(element, attributes): ...
+def sorted_attributes(element: ProvElement, attributes: List[str]) -> List[str]: ...

@@ -8,17 +8,27 @@ from pathlib import PurePath, PurePosixPath
 from socket import getfqdn
 from typing import (
     Any,
+    Dict,
     List,
     MutableMapping,
     MutableSequence,
     Optional,
+    Sequence,
     Tuple,
     Union,
     cast,
 )
 
-from prov.identifier import Identifier
-from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
+from prov.identifier import Identifier, QualifiedName
+from prov.model import (
+    PROV,
+    PROV_LABEL,
+    PROV_TYPE,
+    PROV_VALUE,
+    ProvDocument,
+    ProvEntity,
+    ProvRecord,
+)
 from schema_salad.sourceline import SourceLine
 from typing_extensions import TYPE_CHECKING
 
@@ -59,7 +69,7 @@ def copy_job_order(
     if not isinstance(job, WorkflowJob):
         # direct command line tool execution
         return job_order_object
-    customised_job = {}  # type: CWLObjectType
+    customised_job: CWLObjectType = {}
     # new job object for RO
     debug = _logger.isEnabledFor(logging.DEBUG)
     for each, i in enumerate(job.tool["inputs"]):
@@ -101,7 +111,7 @@ class ProvenanceProfile:
         self.document = ProvDocument()
         self.host_provenance = host_provenance
         self.user_provenance = user_provenance
-        self.engine_uuid = research_object.engine_uuid  # type: str
+        self.engine_uuid = research_object.engine_uuid
         self.add_to_manifest = self.research_object.add_to_manifest
         if self.orcid:
             _logger.debug("[provenance] Creator ORCID: %s", self.orcid)
@@ -109,7 +119,7 @@ class ProvenanceProfile:
         if self.full_name:
             _logger.debug("[provenance] Creator Full name: %s", self.full_name)
         self.workflow_run_uuid = run_uuid or uuid.uuid4()
-        self.workflow_run_uri = self.workflow_run_uuid.urn  # type: str
+        self.workflow_run_uri = self.workflow_run_uuid.urn
         self.generate_prov_doc()
 
     def __str__(self) -> str:
@@ -181,7 +191,10 @@ class ProvenanceProfile:
         # by a user account, as cwltool is a command line tool
         account = self.document.agent(ACCOUNT_UUID)
         if self.orcid or self.full_name:
-            person = {PROV_TYPE: PROV["Person"], "prov:type": SCHEMA["Person"]}
+            person: Dict[Union[str, Identifier], Any] = {
+                PROV_TYPE: PROV["Person"],
+                "prov:type": SCHEMA["Person"],
+            }
             if self.full_name:
                 person["prov:label"] = self.full_name
                 person["foaf:name"] = self.full_name
@@ -300,7 +313,7 @@ class ProvenanceProfile:
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
-        entity = None  # type: Optional[ProvEntity]
+        entity: Optional[ProvEntity] = None
         checksum = None
         if "checksum" in value:
             csum = cast(str, value["checksum"])
@@ -335,19 +348,25 @@ class ProvenanceProfile:
         # secondaryFiles. Note that multiple uses of a file might thus record
         # different names for the same entity, so we'll
         # make/track a specialized entity by UUID
-        file_id = value.setdefault("@id", uuid.uuid4().urn)
+        file_id = cast(str, value.setdefault("@id", uuid.uuid4().urn))
         # A specialized entity that has just these names
         file_entity = self.document.entity(
             file_id,
             [(PROV_TYPE, WFPROV["Artifact"]), (PROV_TYPE, WF4EVER["File"])],
-        )  # type: ProvEntity
+        )
 
         if "basename" in value:
-            file_entity.add_attributes({CWLPROV["basename"]: value["basename"]})
+            file_entity.add_attributes(
+                {CWLPROV["basename"]: cast(str, value["basename"])}
+            )
         if "nameroot" in value:
-            file_entity.add_attributes({CWLPROV["nameroot"]: value["nameroot"]})
+            file_entity.add_attributes(
+                {CWLPROV["nameroot"]: cast(str, value["nameroot"])}
+            )
         if "nameext" in value:
-            file_entity.add_attributes({CWLPROV["nameext"]: value["nameext"]})
+            file_entity.add_attributes(
+                {CWLPROV["nameext"]: cast(str, value["nameext"])}
+            )
         self.document.specializationOf(file_entity, entity)
 
         # Check for secondaries
@@ -406,8 +425,10 @@ class ProvenanceProfile:
         #     dir_bundle.identifier, {PROV["type"]: ORE["ResourceMap"],
         #                             ORE["describes"]: coll_b.identifier})
 
-        coll_attribs = [(ORE["isDescribedBy"], dir_bundle.identifier)]
-        coll_b_attribs = []  # type: List[Tuple[Identifier, ProvEntity]]
+        coll_attribs: List[Tuple[Union[str, Identifier], Any]] = [
+            (ORE["isDescribedBy"], dir_bundle.identifier)
+        ]
+        coll_b_attribs: List[Tuple[Union[str, Identifier], Any]] = []
 
         # FIXME: .listing might not be populated yet - hopefully
         # a later call to this method will sort that
@@ -433,7 +454,7 @@ class ProvenanceProfile:
 
             m_entity.add_attributes(
                 {
-                    PROV["pairKey"]: entry["basename"],
+                    PROV["pairKey"]: cast(str, entry["basename"]),
                     PROV["pairEntity"]: entity,
                 }
             )
@@ -444,7 +465,7 @@ class ProvenanceProfile:
             m_b.add_asserted_type(ORE["Proxy"])
             m_b.add_attributes(
                 {
-                    RO["entryName"]: entry["basename"],
+                    RO["entryName"]: cast(str, entry["basename"]),
                     ORE["proxyIn"]: coll,
                     ORE["proxyFor"]: entity,
                 }
@@ -485,7 +506,7 @@ class ProvenanceProfile:
         data_id = "data:%s" % PurePosixPath(data_file).stem
         entity = self.document.entity(
             data_id, {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)}
-        )  # type: ProvEntity
+        )
         return entity, checksum
 
     def declare_artefact(self, value: Any) -> ProvEntity:
@@ -525,7 +546,7 @@ class ProvenanceProfile:
                 # Already processed this value, but it might not be in this PROV
                 entities = self.document.get_record(value["@id"])
                 if entities:
-                    return entities[0]
+                    return cast(List[ProvEntity], entities)[0]
                 # else, unknown in PROV, re-add below as if it's fresh
 
             # Base case - we found a File we need to update
@@ -556,7 +577,7 @@ class ProvenanceProfile:
                 coll.add_asserted_type(CWLPROV[value["class"]])
 
             # Let's iterate and recurse
-            coll_attribs = []  # type: List[Tuple[Identifier, ProvEntity]]
+            coll_attribs: List[Tuple[Union[str, Identifier], Any]] = []
             for (key, val) in value.items():
                 v_ent = self.declare_artefact(val)
                 self.document.membership(coll, v_ent)
@@ -709,20 +730,22 @@ class ProvenanceProfile:
             )
         # TODO: Declare roles/parameters as well
 
-    def activity_has_provenance(self, activity, prov_ids):
-        # type: (str, List[Identifier]) -> None
+    def activity_has_provenance(
+        self, activity: str, prov_ids: Sequence[Identifier]
+    ) -> None:
         """Add http://www.w3.org/TR/prov-aq/ relations to nested PROV files."""
         # NOTE: The below will only work if the corresponding metadata/provenance arcp URI
         # is a pre-registered namespace in the PROV Document
-        attribs = [(PROV["has_provenance"], prov_id) for prov_id in prov_ids]
+        attribs: List[Tuple[Union[str, Identifier], Any]] = [
+            (PROV["has_provenance"], prov_id) for prov_id in prov_ids
+        ]
         self.document.activity(activity, other_attributes=attribs)
         # Tip: we can't use https://www.w3.org/TR/prov-links/#term-mention
         # as prov:mentionOf() is only for entities, not activities
         uris = [i.uri for i in prov_ids]
         self.research_object.add_annotation(activity, uris, PROV["has_provenance"].uri)
 
-    def finalize_prov_profile(self, name):
-        # type: (Optional[str]) -> List[Identifier]
+    def finalize_prov_profile(self, name: Optional[str]) -> List[QualifiedName]:
         """Transfer the provenance related files to the RO."""
         # NOTE: Relative posix path
         if name is None:

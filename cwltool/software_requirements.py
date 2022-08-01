@@ -135,10 +135,8 @@ def get_container_from_software_requirements(
 ) -> Optional[str]:
     if use_biocontainers:
         ensure_galaxy_lib_available()
-        from galaxy.tool_util.deps.containers import (
-            DOCKER_CONTAINER_TYPE,
-            ContainerRegistry,
-        )
+        from galaxy.tool_util.deps.container_classes import DOCKER_CONTAINER_TYPE
+        from galaxy.tool_util.deps.containers import ContainerRegistry
         from galaxy.tool_util.deps.dependencies import AppInfo, ToolInfo
 
         app_info = AppInfo(

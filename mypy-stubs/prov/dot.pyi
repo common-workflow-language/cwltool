@@ -1,29 +1,27 @@
 from _typeshed import Incomplete
-from prov.model import (
-    Identifier as Identifier,
-    PROV_ACTIVITY as PROV_ACTIVITY,
-    PROV_AGENT as PROV_AGENT,
-    PROV_ALTERNATE as PROV_ALTERNATE,
-    PROV_ASSOCIATION as PROV_ASSOCIATION,
-    PROV_ATTRIBUTE_QNAMES as PROV_ATTRIBUTE_QNAMES,
-    PROV_ATTRIBUTION as PROV_ATTRIBUTION,
-    PROV_BUNDLE as PROV_BUNDLE,
-    PROV_COMMUNICATION as PROV_COMMUNICATION,
-    PROV_DELEGATION as PROV_DELEGATION,
-    PROV_DERIVATION as PROV_DERIVATION,
-    PROV_END as PROV_END,
-    PROV_ENTITY as PROV_ENTITY,
-    PROV_GENERATION as PROV_GENERATION,
-    PROV_INFLUENCE as PROV_INFLUENCE,
-    PROV_INVALIDATION as PROV_INVALIDATION,
-    PROV_MEMBERSHIP as PROV_MEMBERSHIP,
-    PROV_MENTION as PROV_MENTION,
-    PROV_SPECIALIZATION as PROV_SPECIALIZATION,
-    PROV_START as PROV_START,
-    PROV_USAGE as PROV_USAGE,
-    ProvException as ProvException,
-    sorted_attributes as sorted_attributes,
-)
+from prov.model import PROV_ACTIVITY as PROV_ACTIVITY
+from prov.model import PROV_AGENT as PROV_AGENT
+from prov.model import PROV_ALTERNATE as PROV_ALTERNATE
+from prov.model import PROV_ASSOCIATION as PROV_ASSOCIATION
+from prov.model import PROV_ATTRIBUTE_QNAMES as PROV_ATTRIBUTE_QNAMES
+from prov.model import PROV_ATTRIBUTION as PROV_ATTRIBUTION
+from prov.model import PROV_BUNDLE as PROV_BUNDLE
+from prov.model import PROV_COMMUNICATION as PROV_COMMUNICATION
+from prov.model import PROV_DELEGATION as PROV_DELEGATION
+from prov.model import PROV_DERIVATION as PROV_DERIVATION
+from prov.model import PROV_END as PROV_END
+from prov.model import PROV_ENTITY as PROV_ENTITY
+from prov.model import PROV_GENERATION as PROV_GENERATION
+from prov.model import PROV_INFLUENCE as PROV_INFLUENCE
+from prov.model import PROV_INVALIDATION as PROV_INVALIDATION
+from prov.model import PROV_MEMBERSHIP as PROV_MEMBERSHIP
+from prov.model import PROV_MENTION as PROV_MENTION
+from prov.model import PROV_SPECIALIZATION as PROV_SPECIALIZATION
+from prov.model import PROV_START as PROV_START
+from prov.model import PROV_USAGE as PROV_USAGE
+from prov.model import Identifier as Identifier
+from prov.model import ProvException as ProvException
+from prov.model import sorted_attributes as sorted_attributes
 
 DOT_PROV_STYLE: Incomplete
 ANNOTATION_STYLE: Incomplete

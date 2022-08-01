@@ -1,6 +1,6 @@
 from typing import Any, Tuple, Union
 from urllib.parse import ParseResult
-from uuid import NAMESPACE_URL as NAMESPACE_URL
+from uuid import NAMESPACE_URL, UUID
 
 SCHEME: str
 
@@ -15,7 +15,7 @@ class ARCPParseResult(ParseResult):
     @property
     def name(self) -> str: ...
     @property
-    def uuid(self) -> str: ...
+    def uuid(self) -> UUID: ...
     @property
     def ni(self) -> str | None: ...
     def ni_uri(self, authority: str = ...) -> str | None: ...
