@@ -112,7 +112,7 @@ setup(
         "rdflib >= 4.2.2, < 6.3.0",
         "rdflib >= 4.2.2, < 6.0.0;python_version<='3.6'",
         "shellescape >= 3.4.1, < 3.9",
-        "schema-salad >= 8.2.20211104054942, < 9",
+        "schema-salad @ git+https://github.com/common-workflow-language/schema_salad.git@metaschema-cache-fix",
         "mypy-extensions",
         "psutil >= 5.6.6",
         "prov == 1.5.1",
