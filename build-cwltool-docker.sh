@@ -3,7 +3,7 @@ set -ex
 docker build --file=cwltool.Dockerfile --tag=quay.io/commonwl/cwltool_module --target module .
 docker build --file=cwltool.Dockerfile --tag=quay.io/commonwl/cwltool .
 
-docker run -it -v /var/run/docker.sock:/var/run/docker.sock \
+docker run -v /var/run/docker.sock:/var/run/docker.sock \
 	-v /tmp:/tmp \
 	-v "$PWD":/tmp/cwltool \
 	quay.io/commonwl/cwltool_module /bin/sh -c \

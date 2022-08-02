@@ -177,3 +177,10 @@ jobs:
         env:
           RELEASE_SKIP: head
         run: ./release-test.sh
+
+  build_test_container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: build & test cwltool_module container
+        run: ./build-cwltool-docker.sh
