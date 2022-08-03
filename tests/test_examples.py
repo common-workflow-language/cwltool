@@ -1077,19 +1077,20 @@ test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
 
 
 @pytest.mark.parametrize("factor", test_factors)
-def test_js_console_cmd_line_tool(factor: str) -> None:
+def test_js_console_cmd_line_tool(
+    factor: str, caplog: pytest.LogCaptureFixture
+) -> None:
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
         commands = factor.split()
         commands.extend(
             ["--js-console", "--no-container", get_data("tests/wf/" + test_file)]
         )
-        error_code, _, stderr = get_main_output(commands)
+        error_code, _, _ = get_main_output(commands)
+        logging_output = "\n".join([record.message for record in caplog.records])
+        assert "[log] Log message" in logging_output
+        assert "[err] Error message" in logging_output
 
-        stderr = re.sub(r"\s\s+", " ", stderr)
-        assert "[log] Log message" in stderr
-        assert "[err] Error message" in stderr
-
-        assert error_code == 0, stderr
+        assert error_code == 0, logging_output
 
 
 @pytest.mark.parametrize("factor", test_factors)
