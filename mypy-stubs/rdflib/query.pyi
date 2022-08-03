@@ -1,22 +1,22 @@
-from io import BufferedIOBase
-from typing import Any, Dict, Iterator, List, Optional, Tuple, overload
+from typing import IO, Any, Dict, Iterator, List, Mapping, Optional, Tuple, overload
 
 from rdflib import URIRef, Variable
+from rdflib.term import Identifier
 from typing_extensions import SupportsIndex
 
-class ResultRow:  # Tuple[Variable, URIRef]):
+class ResultRow(Tuple["Identifier", ...]):
     def __new__(
-        cls, values: Dict[Variable, URIRef], labels: List[Variable]
+        cls, values: Mapping[Variable, Identifier], labels: List[Variable]
     ) -> ResultRow: ...
-    def __getattr__(self, name: str) -> Any: ...
+    def __getattr__(self, name: str) -> Identifier: ...
     @overload
-    def __getitem__(self, name: str) -> URIRef: ...
+    def __getitem__(self, name: str) -> Identifier: ...
     @overload
-    def __getitem__(self, __x: SupportsIndex) -> Variable | URIRef: ...
+    def __getitem__(self, __x: SupportsIndex) -> Identifier: ...
     @overload
-    def __getitem__(self, __x: slice) -> Tuple[Variable | URIRef, ...]: ...
-    def get(self, name: str, default: Any | None = ...) -> URIRef: ...
-    def asdict(self) -> Dict[Variable, URIRef]: ...
+    def __getitem__(self, __x: slice) -> Tuple[Identifier, ...]: ...
+    def get(self, name: str, default: Any | None = ...) -> Identifier: ...
+    def asdict(self) -> Dict[str, Identifier]: ...
 
 class Result:
     type: Any
@@ -28,14 +28,14 @@ class Result:
     def __iter__(self) -> Iterator[bool | ResultRow]: ...
     @staticmethod
     def parse(
-        source: str | None = ...,
+        source: IO[Any] | None = ...,
         format: str | None = ...,
         content_type: str | None = ...,
         **kwargs: Any
     ) -> Result: ...
     def serialize(
         self,
-        destination: str | BufferedIOBase | None = ...,
+        destination: str | IO[Any] | None = ...,
         encoding: str = ...,
         format: str = ...,
         **args: Any
