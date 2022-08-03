@@ -157,7 +157,7 @@ class CWLViewer:
                 pydot.Edge(output_edge_row["step"], output_edge_row["output"])
             )
 
-    def _get_root_graph_uri(self) -> rdflib.URIRef:
+    def _get_root_graph_uri(self) -> rdflib.term.Identifier:
         with open(_get_root_query_path) as f:
             get_root_query = f.read()
         root = cast(
@@ -173,7 +173,7 @@ class CWLViewer:
                 "Cannot identify root workflow! Notice that only Workflows can be visualized"
             )
 
-        workflow = root[0]["workflow"]  # type: rdflib.URIRef
+        workflow = root[0]["workflow"]
         return workflow
 
     @classmethod
