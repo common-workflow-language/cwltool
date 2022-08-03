@@ -10,7 +10,7 @@ import os
 import shutil
 import stat
 import textwrap
-import urllib
+import urllib.parse
 import uuid
 from os import scandir
 from typing import (
@@ -31,6 +31,7 @@ from typing import (
     cast,
 )
 
+from cwl_utils import expression
 from pkg_resources import resource_stream
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -48,7 +49,6 @@ from schema_salad.utils import convert_to_dict
 from schema_salad.validate import avro_type_name, validate_ex
 from typing_extensions import TYPE_CHECKING
 
-from . import expression
 from .builder import INPUT_OBJ_VOCAB, Builder
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException

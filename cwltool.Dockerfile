@@ -5,9 +5,7 @@ RUN apk add --no-cache git gcc python3-dev libxml2-dev libxslt-dev libc-dev linu
 WORKDIR /cwltool
 COPY . .
 
-RUN pip install toml -rmypy-requirements.txt "$(grep schema.salad requirements.txt)"
-# schema-salad is needed to be installed (this time as pure Python) for
-# cwltool + mypyc
+RUN pip install toml -rmypy-requirements.txt
 RUN CWLTOOL_USE_MYPYC=1 MYPYPATH=mypy-stubs pip wheel --no-binary schema-salad --wheel-dir=/wheels .[deps]
 RUN rm /wheels/schema_salad*
 RUN pip install black
