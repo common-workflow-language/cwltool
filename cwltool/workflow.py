@@ -35,6 +35,7 @@ from .utils import (
     aslist,
 )
 from .workflow_job import WorkflowJob
+from cwl_utils import expression
 
 
 def default_make_tool(
@@ -156,6 +157,73 @@ class Workflow(Process):
         output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
+        # TODO: This is not very efficient and could be improved.
+        #
+        # See issue #1330. We needed to evaluate the requirements
+        # at the workflow level, so that it was not re-evaluated at
+        # each step level (since a command-line tool, for instance,
+        # won't have the inputs from args, but instead will have the
+        # empty/default inputs of a workflow step).
+        #
+        # The solution below evaluates the requirements and hints for
+        # the workflow (parent), keeping track of the name of the
+        # requirements and hints. For each step of the workflow and of
+        # the embedded tool (command-line or expression tools) it will
+        # then evaluate the requirements or hints that have the same
+        # name - even though they may be re-evaluated at the step
+        # level (e.g. a workflow defines a requirement resource that
+        # uses inputs.threads_max, and a command-line tool of the same
+        # workflow also defines a requirement with the same name, but
+        # using the command-line tool input values).
+        #
+        # This prevents evaluation at the step level (i.e. the values
+        # were already loaded earlier).
+        def _fix_hints_and_requirements(
+            hints_or_requirements: List[CWLObjectType],
+            requirements_or_hints_to_evaluate: List[str],
+        ) -> None:
+            """Fix hints and requirements of a workflow.
+
+            Internal function to iterate the hints or requirements
+            of steps provided and evaluate the ones that exist in
+            the parent process.
+            """
+            for hint_or_requirement in hints_or_requirements:
+                for key, value in hint_or_requirement.items():
+                    if key in requirements_or_hints_to_evaluate:
+                        hint_or_requirement[key] = expression.do_eval(
+                            ex=value,
+                            jobinput=job_order,
+                            requirements=self.requirements,
+                            outdir=runtimeContext.outdir,
+                            tmpdir=runtimeContext.tmpdir,
+                            resources={},
+                            context=None,
+                            timeout=runtimeContext.eval_timeout,
+                        )
+
+        for attr_key in ["hints", "requirements"]:
+            parent_entries = []
+            for hint_or_requirement in getattr(self, attr_key):
+                for key, value in hint_or_requirement.items():
+                    hint_or_requirement[key] = expression.do_eval(
+                        ex=value,
+                        jobinput=job_order,
+                        requirements=self.requirements,
+                        outdir=runtimeContext.outdir,
+                        tmpdir=runtimeContext.tmpdir,
+                        resources={},
+                        context=None,
+                        timeout=runtimeContext.eval_timeout,
+                    )
+                    parent_entries.append(key)
+
+            for step in self.steps:
+                _fix_hints_and_requirements(getattr(step, attr_key), parent_entries)
+                _fix_hints_and_requirements(
+                    getattr(step.embedded_tool, attr_key), parent_entries
+                )
+
         builder = self._init_job(job_order, runtimeContext)
 
         if runtimeContext.research_obj is not None:
