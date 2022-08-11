@@ -390,6 +390,11 @@ class ProvenanceProfile:
             file_entity.add_attributes(
                 {CWLPROV["nameext"]: cast(str, value["nameext"])}
             )
+        if "size" in value:
+            file_entity.add_attributes(
+                {CWLPROV["size"]: cast(int, value["size"])}
+            )
+
         self.document.specializationOf(file_entity, entity)
 
         # Check for secondaries
