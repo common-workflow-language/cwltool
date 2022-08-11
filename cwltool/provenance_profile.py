@@ -272,25 +272,48 @@ class ProvenanceProfile:
             if isinstance(job, (CommandLineJob, JobBase, WorkflowJob)):
                 name = job.name
             process_name = urllib.parse.quote(name, safe=":/,#")
-            process_run_id = self.start_process(process_name, datetime.datetime.now())
+            process_run_id = self.start_process(process, process_name, datetime.datetime.now())
         return process_run_id
 
     def start_process(
         self,
+        process: Process,
         process_name: str,
         when: datetime.datetime,
         process_run_id: Optional[str] = None,
     ) -> str:
         """Record the start of each Process."""
+        print(process.__dict__)
+        logger = logging.getLogger("logger")
+        _logger.error(str(process.__dict__))
         if process_run_id is None:
             process_run_id = uuid.uuid4().urn
         prov_label = "Run of workflow/packed.cwl#main/" + process_name
+        # TESTING to include the Steps URI so linking to --print-rdf becomes possible
+        FILE_PATH = None
+        WORKFLOW_STEP = None
+        # Not sure if steps is always 1 element so a step name check including the # is performed
+        for step in process.steps:
+            # After confirmation create the URI
+            if step.id.endswith("#" + process_name):
+                # Temp import maybe there is another way to create the URI's ?
+                from prov.identifier import Namespace
+                # Looked at --print-rdf for a possible URI
+                WORKFLOW = Namespace('Workflow', 'https://w3id.org/cwl/cwl#Workflow/')
+                WORKFLOW_STEP = WORKFLOW['steps']
+                # Was not sure how to create a URI without a namespace
+                FILE = Namespace('', '')
+                # The entire file://....#step path
+                FILE_PATH = FILE[step.id]
+
+        # Added the WORKFLOW_STEP and FILE_PATH to the object
         self.document.activity(
             process_run_id,
             None,
             None,
-            {PROV_TYPE: WFPROV["ProcessRun"], PROV_LABEL: prov_label},
+            {PROV_TYPE: WFPROV["ProcessRun"], PROV_LABEL: prov_label, WORKFLOW_STEP: FILE_PATH},
         )
+
         self.document.wasAssociatedWith(
             process_run_id, self.engine_uuid, str("wf:main/" + process_name)
         )
