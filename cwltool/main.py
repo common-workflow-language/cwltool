@@ -8,6 +8,7 @@ import functools
 import io
 import logging
 import os
+import shutil
 import signal
 import subprocess  # nosec
 import sys
@@ -1178,12 +1179,17 @@ def main(
                 if args.provenance:
                     # No output variable set... and maybe no args.rdf_serializer?
                     workflow_provenance = args.provenance + "/workflow.ttl"
-                    output = open(workflow_provenance,"w")
+                    # Sets up a turtle file for the workflow information (not yet in the provenance folder as it does
+                    # not exist and creating it will give issues).
+                    output = open("workflow.ttl", "w")
                     print("Writing workflow rdf to " + workflow_provenance)
                 print(
                     printrdf(tool, loadingContext.loader.ctx, args.rdf_serializer),
                     file=output,
                 )
+                # close the output
+                if args.provenance:
+                    output.close()
                 # Only print_rdf exits this way
                 if args.print_rdf:
                     return 0
@@ -1464,6 +1470,9 @@ def main(
                 # public API for logging.StreamHandler
                 prov_log_handler.close()
             research_obj.close(args.provenance)
+            # Copy workflow.ttl to args.provenance
+            if os.path.isfile("workflow.ttl"):
+                shutil.copy("workflow.ttl", args.provenance + "/workflow/workflow.ttl")
 
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
