@@ -909,7 +909,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     cid = cidhandle.readline().strip()
             except (OSError):
                 cid = None
-        max_mem = psutil.virtual_memory().total  # type: ignore[no-untyped-call]
+        max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
         stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
         stats_file_name = stats_file.name
