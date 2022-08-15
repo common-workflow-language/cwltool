@@ -442,6 +442,7 @@ class WorkflowStep(Process):
             self.embedded_tool.parent_wf = self.prov_obj
             process_name = self.tool["id"].split("#")[1]
             self.prov_obj.start_process(
+                self.id,
                 process_name,
                 datetime.datetime.now(),
                 self.embedded_tool.provenance_object.workflow_run_uri,

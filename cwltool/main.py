@@ -710,6 +710,7 @@ def setup_provenance(
         orcid=args.orcid,
         full_name=args.cwl_full_name,
     )
+
     runtimeContext.research_obj = ro
     log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
     prov_log_handler = logging.StreamHandler(log_file_io)
@@ -1172,12 +1173,20 @@ def main(
                 print(f"{args.workflow} is valid CWL.", file=stdout)
                 return 0
 
-            if args.print_rdf:
+            if args.print_rdf or args.provenance:
+                output = stdout
+                if args.provenance:
+                    # No output variable set... and maybe no args.rdf_serializer?
+                    workflow_provenance = args.provenance + "/workflow.ttl"
+                    output = open(workflow_provenance,"w")
+                    print("Writing workflow rdf to " + workflow_provenance)
                 print(
                     printrdf(tool, loadingContext.loader.ctx, args.rdf_serializer),
-                    file=stdout,
+                    file=output,
                 )
-                return 0
+                # Only print_rdf exits this way
+                if args.print_rdf:
+                    return 0
 
             if args.print_dot:
                 printdot(tool, loadingContext.loader.ctx, stdout)
