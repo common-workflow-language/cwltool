@@ -282,7 +282,9 @@ class ProvenanceProfile:
             if step is None:
                 raise Exception("No / wrong step detected...!")
 
-            process_run_id = self.start_process(step.id, process_name, datetime.datetime.now())
+            process_run_id = self.start_process(
+                step.id, process_name, datetime.datetime.now()
+            )
         return process_run_id
 
     def start_process(
@@ -303,10 +305,10 @@ class ProvenanceProfile:
         if step_id.endswith("#" + process_name):
             # Temp import maybe there is another way to create the URI's ?
             # Looked at --print-rdf for a possible URI
-            WORKFLOW = Namespace('Workflow', 'https://w3id.org/cwl/cwl#Workflow/')
-            WORKFLOW_STEP = WORKFLOW['steps']
+            WORKFLOW = Namespace("Workflow", "https://w3id.org/cwl/cwl#Workflow/")
+            WORKFLOW_STEP = WORKFLOW["steps"]
             # Was not sure how to create a URI without a namespace
-            FILE = Namespace('', '')
+            FILE = Namespace("", "")
             # The entire file://....#step path
             FILE_PATH = FILE[step_id]
 
@@ -315,7 +317,11 @@ class ProvenanceProfile:
             process_run_id,
             None,
             None,
-            {PROV_TYPE: WFPROV["ProcessRun"], PROV_LABEL: prov_label, WORKFLOW_STEP: FILE_PATH},
+            {
+                PROV_TYPE: WFPROV["ProcessRun"],
+                PROV_LABEL: prov_label,
+                WORKFLOW_STEP: FILE_PATH,
+            },
         )
 
         self.document.wasAssociatedWith(
@@ -396,9 +402,7 @@ class ProvenanceProfile:
             )
 
         if "size" in value:
-            file_entity.add_attributes(
-                {CWLPROV["size"]: cast(int, value["size"])}
-            )
+            file_entity.add_attributes({CWLPROV["size"]: cast(int, value["size"])})
 
         self.document.specializationOf(file_entity, entity)
 

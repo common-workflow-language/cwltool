@@ -1475,7 +1475,9 @@ def main(
             research_obj.close(args.provenance)
             # Copy workflow.ttl to args.provenance
             if os.path.isfile(workflow_provenance):
-                shutil.copy(workflow_provenance, args.provenance + "/workflow/workflow.ttl")
+                shutil.copy(
+                    workflow_provenance, args.provenance + "/workflow/workflow.ttl"
+                )
                 # Remove temp directory
                 shutil.rmtree(temp_workflow_dir.name)
 
