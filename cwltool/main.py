@@ -1182,7 +1182,7 @@ def main(
                     # Sets up a turtle file for the workflow information (not yet in the provenance folder as it does
                     # not exist and creating it will give issues).
                     output = open("workflow.ttl", "w")
-                    print("Writing workflow rdf to " + workflow_provenance)
+                    _logger.info("Writing workflow rdf to %s", workflow_provenance)
                 print(
                     printrdf(tool, loadingContext.loader.ctx, args.rdf_serializer),
                     file=output,
