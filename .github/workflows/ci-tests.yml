@@ -184,3 +184,43 @@ jobs:
       - uses: actions/checkout@v3
       - name: build & test cwltool_module container
         run: ./build-cwltool-docker.sh
+
+  macos:
+    name: CI test on macos-latest
+    runs-on: macos-latest
+    env:
+      TOXENV: py310-unit
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tox.ini
+      - name: Upgrade setuptools and install tox
+        run: |
+          pip install -U pip setuptools wheel
+          pip install tox tox-gh-actions
+      # # docker for mac install is not currently stable
+      # - name: 'SETUP MacOS: load Homebrew cache'
+      #   uses: actions/cache@v3
+      #   if: runner.os == 'macOS'
+      #   with:
+      #      path: |
+      #        ~/Library/Caches/Homebrew/downloads/*--Docker.dmg
+      #      key: brew-actions-setup-docker-1.0.11
+      #      restore-keys: brew-actions-setup-docker-
+      # - name: setup docker on macos (default stable version)
+      #   uses: docker-practice/actions-setup-docker@master
+      - name: Test with tox
+        run: tox
+      - name: Upload coverage to Codecov
+        if: ${{ matrix.step == 'unit' }}
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
