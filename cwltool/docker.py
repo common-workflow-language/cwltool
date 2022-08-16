@@ -16,7 +16,6 @@ import requests
 
 from .builder import Builder
 from .context import RuntimeContext
-from .cuda import cuda_check
 from .docker_id import docker_vm_id
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob

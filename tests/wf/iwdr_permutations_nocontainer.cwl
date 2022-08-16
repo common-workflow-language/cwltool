@@ -38,6 +38,6 @@ outputs:
 baseCommand: [bash, -c]
 arguments:
   - |
-    find .
+    find . | grep -v '\.docker' | sort
     echo "a" > first_writable_file
     touch fifth_writable_directory/c
