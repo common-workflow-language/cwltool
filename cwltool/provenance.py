@@ -426,14 +426,14 @@ class ResearchObject:
             # adding checksums after closing.
             # Below probably OK for now as metadata files
             # are not too large..?
-
-            checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
-
-            tag_file.seek(0)
-            checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
+            _logger.info("Performing checksum calculations")
+            checksums[SHA1] = checksum_only(tag_file, hasher=hashlib.sha1)
 
             tag_file.seek(0)
-            checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
+            checksums[SHA256] = checksum_only(tag_file, hasher=hashlib.sha256)
+
+            tag_file.seek(0)
+            checksums[SHA512] = checksum_only(tag_file, hasher=hashlib.sha512)
 
         rel_path = posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
@@ -799,7 +799,7 @@ class ResearchObject:
         with tempfile.NamedTemporaryFile(
             prefix=tmp_prefix, dir=tmp_dir, delete=False
         ) as tmp:
-            checksum = checksum_copy(from_fp, tmp)
+            checksum = checksum_only(from_fp, tmp)
 
         # Calculate hash-based file path
         folder = os.path.join(self.folder, DATA, checksum[0:2])
@@ -887,7 +887,7 @@ class ResearchObject:
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
+                checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
 
         self.add_to_manifest(rel_path, checksums)
 
@@ -1036,6 +1036,45 @@ def checksum_copy(
             os.rename(temp_location, dst_file.name)  # type: ignore
     while contents != b"":
         if dst_file is not None:
+            dst_file.write(contents)
+        checksum.update(contents)
+        contents = src_file.read(buffersize)
+    if dst_file is not None:
+        dst_file.flush()
+    return checksum.hexdigest().lower()
+
+
+def checksum_only(
+    src_file: IO[Any],
+    dst_file: Optional[IO[Any]] = None,
+    hasher=Hasher,  # type: Callable[[], hashlib._Hash]
+    buffersize: int = 1024 * 1024,
+) -> str:
+    # TODO, one level up with a provenance -no-data option?
+    # First step, force dst_file to be none so it computes the checksum but does not write it to its destination
+    _logger.error("Hard force for dst_file to be None")
+    dst_file = None
+
+    """Compute checksums while copying a file."""
+    # TODO: Use hashlib.new(Hasher_str) instead?
+    checksum = hasher()
+    contents = src_file.read(buffersize)
+    if dst_file and hasattr(dst_file, "name") and hasattr(src_file, "name"):
+        temp_location = os.path.join(os.path.dirname(dst_file.name), str(uuid.uuid4()))
+        _logger.warning("Is it now writing to...: %s", temp_location)
+        try:
+            os.rename(dst_file.name, temp_location)
+            os.link(src_file.name, dst_file.name)
+            dst_file = None
+            os.unlink(temp_location)
+        except OSError:
+            pass
+        if os.path.exists(temp_location):
+            pass # os.rename(temp_location, dst_file.name)  # type: ignore
+
+    while contents != b"":
+        if dst_file is not None:
+            _logger.error("WRITING!!! %s", dst_file)
             dst_file.write(contents)
         checksum.update(contents)
         contents = src_file.read(buffersize)
