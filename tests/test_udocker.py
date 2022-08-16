@@ -50,8 +50,8 @@ def test_udocker_usage_should_not_write_cid_file(udocker: str, tmp_path: Path) -
     """Confirm that no cidfile is made when udocker is used."""
 
     with working_directory(tmp_path):
-        test_file = "tests/wf/wc-tool.cwl"
-        job_file = "tests/wf/wc-job.json"
+        test_file = "tests/echo-position-expr.cwl"
+        job_file = "tests/echo-position-echo-position-expr-job.yml"
         error_code, stdout, stderr = get_main_output(
             [
                 "--debug",

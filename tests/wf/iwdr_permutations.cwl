@@ -74,13 +74,13 @@ stdout: log.txt
 baseCommand: [bash, -c]
 arguments:
   - |
-    find . | sort
+    find . | grep -v '\.docker' | sort
     find /my_path | sort
     find /my_other_path | sort
     echo "a" > first_writable_file
     echo "b" > /my_path/third_writable_file
     touch fifth_writable_directory/c
     touch /my_path/seventh_writable_directory/d
-    find . | sort
+    find . | grep -v '\.docker' | sort
     find /my_path | sort
     find /my_other_path | sort

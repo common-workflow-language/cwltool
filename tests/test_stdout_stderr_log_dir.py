@@ -1,10 +1,7 @@
 import json
-import os
 from pathlib import Path
 
-from cwltool.main import main
-
-from .util import get_data, get_main_output, needs_docker
+from .util import get_data, get_main_output
 
 
 def test_log_dir_echo_output(tmp_path: Path) -> None:

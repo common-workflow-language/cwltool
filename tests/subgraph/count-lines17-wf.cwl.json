@@ -113,6 +113,11 @@
                       "-l"
                     ],
                     "class": "CommandLineTool",
+                    "hints": {
+                      "DockerRequirement": {
+                        "dockerPull": "docker.io/debian:stable-slim"
+                      }
+                    },
                     "id": "count-lines17-wf.cwl@step_step1@run@step_stepX@run@step_stepY@run",
                     "inputs": [
                       {
