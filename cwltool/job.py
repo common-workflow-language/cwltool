@@ -107,14 +107,22 @@ def relink_initialworkdir(
                 | stat.S_IWGRP
                 | stat.S_IWOTH
             )
+            mode = 0o664  # Doesn't work for my code
+            mode = 0o777  # works for my code
             if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
-                os.chmod(host_outdir_tgt, mode)
-                os.remove(host_outdir_tgt)
+                try:
+                    os.chmod(host_outdir_tgt, mode)
+                    os.remove(host_outdir_tgt)
+                except PermissionError:
+                    pass
             elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
                 os.chmod(host_outdir_tgt, mode)
                 shutil.rmtree(host_outdir_tgt)
             if not vol.resolved.startswith("_:"):
-                os.symlink(vol.resolved, host_outdir_tgt)
+                try:
+                    os.symlink(vol.resolved, host_outdir_tgt)
+                except FileExistsError:
+                    pass
 
 
 def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Optional[Match[str]]:
