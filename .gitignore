@@ -52,3 +52,6 @@ time.txt
 value
 
 .python-version
+
+# Folder created when using make
+cwltool_deps
