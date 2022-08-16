@@ -98,15 +98,24 @@ def relink_initialworkdir(
                 # directory, so therefore ineligable for being an output file.
                 # Thus, none of our business
                 continue
-            host_outdir_tgt = os.path.join(host_outdir, vol.target[len(container_outdir) + 1 :])
+            host_outdir_tgt = os.path.join(
+                host_outdir, vol.target[len(container_outdir) + 1 :]
+            )
+            mode = (
+                os.stat(host_outdir_tgt).st_mode
+                | stat.S_IWUSR
+                | stat.S_IWGRP
+                | stat.S_IWOTH
+            )
             if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
-                subprocess.run(["chmod", "777", host_outdir_tgt], check=True)
+                os.chmod(host_outdir_tgt, mode)
                 os.remove(host_outdir_tgt)
             elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
-                subprocess.run(["chmod", "777", host_outdir_tgt], check=True)
+                os.chmod(host_outdir_tgt, mode)
                 shutil.rmtree(host_outdir_tgt)
             if not vol.resolved.startswith("_:"):
                 os.symlink(vol.resolved, host_outdir_tgt)
+
 
 def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Optional[Match[str]]:
     return None
