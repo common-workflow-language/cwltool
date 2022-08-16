@@ -314,18 +314,17 @@ class ProvenanceProfile:
             # The entire file://....#step path
             FILE_PATH = FILE[step_id]
 
-        # Added the WORKFLOW_STEP and FILE_PATH to the object
-        self.document.activity(
-            process_run_id,
-            None,
-            None,
-            {
-                PROV_TYPE: WFPROV["ProcessRun"],
-                PROV_LABEL: prov_label,
-                WORKFLOW_STEP: FILE_PATH,  # type: ignore[dict-item]
-                # TODO fix type for the activity function
-            },
-        )
+            # Added the WORKFLOW_STEP and FILE_PATH to the object
+            self.document.activity(
+                process_run_id,
+                None,
+                None,
+                {
+                    PROV_TYPE: WFPROV["ProcessRun"],
+                    PROV_LABEL: prov_label,
+                    WORKFLOW_STEP: FILE_PATH,
+                },
+            )
 
         self.document.wasAssociatedWith(
             process_run_id, self.engine_uuid, str("wf:main/" + process_name)
