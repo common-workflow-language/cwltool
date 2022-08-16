@@ -12,6 +12,7 @@ import shutil
 import signal
 import subprocess  # nosec
 import sys
+import tempfile
 import time
 import urllib
 import warnings
@@ -1177,11 +1178,13 @@ def main(
             if args.print_rdf or args.provenance:
                 output = stdout
                 if args.provenance:
-                    # No output variable set... and maybe no args.rdf_serializer?
-                    workflow_provenance = args.provenance + "/workflow.ttl"
+                    # Write workflow to temp directory
+                    temp_workflow_dir = tempfile.TemporaryDirectory()
+                    os.makedirs(temp_workflow_dir.name, exist_ok=True)
+                    workflow_provenance = temp_workflow_dir.name + "/workflow.ttl"
                     # Sets up a turtle file for the workflow information (not yet in the provenance folder as it does
                     # not exist and creating it will give issues).
-                    output = open("workflow.ttl", "w")
+                    output = open(workflow_provenance, "w")
                     _logger.info("Writing workflow rdf to %s", workflow_provenance)
                 print(
                     printrdf(tool, loadingContext.loader.ctx, args.rdf_serializer),
@@ -1471,8 +1474,10 @@ def main(
                 prov_log_handler.close()
             research_obj.close(args.provenance)
             # Copy workflow.ttl to args.provenance
-            if os.path.isfile("workflow.ttl"):
-                shutil.copy("workflow.ttl", args.provenance + "/workflow/workflow.ttl")
+            if os.path.isfile(workflow_provenance):
+                shutil.copy(workflow_provenance, args.provenance + "/workflow/workflow.ttl")
+                # Remove temp directory
+                shutil.rmtree(temp_workflow_dir.name)
 
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)
