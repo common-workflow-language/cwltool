@@ -100,18 +100,13 @@ def relink_initialworkdir(
                 continue
             host_outdir_tgt = os.path.join(host_outdir, vol.target[len(container_outdir) + 1 :])
             if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
-                try:
-                    os.remove(host_outdir_tgt)
-                except PermissionError:
-                    pass
+                subprocess.run(["chmod", "777", host_outdir_tgt], check=True)
+                os.remove(host_outdir_tgt)
             elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
+                subprocess.run(["chmod", "777", host_outdir_tgt], check=True)
                 shutil.rmtree(host_outdir_tgt)
             if not vol.resolved.startswith("_:"):
-                try:
-                    os.symlink(vol.resolved, host_outdir_tgt)
-                except FileExistsError:
-                    pass
-
+                os.symlink(vol.resolved, host_outdir_tgt)
 
 def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Optional[Match[str]]:
     return None
