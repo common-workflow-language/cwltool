@@ -19,8 +19,7 @@ from typing import (
     cast,
 )
 
-from prov.identifier import Identifier, QualifiedName, Namespace
-
+from prov.identifier import Identifier, Namespace, QualifiedName
 from prov.model import (
     PROV,
     PROV_LABEL,
@@ -34,6 +33,7 @@ from schema_salad.sourceline import SourceLine
 from typing_extensions import TYPE_CHECKING
 
 import cwltool.workflow
+
 from .errors import WorkflowException
 from .job import CommandLineJob, JobBase
 from .loghandler import _logger
@@ -268,7 +268,9 @@ class ProvenanceProfile:
     ) -> Optional[str]:
         if not hasattr(process, "steps"):
             process_run_id = self.workflow_run_uri
-        elif not hasattr(job, "workflow"):
+        elif not hasattr(job, "workflow") and isinstance(
+            process, cwltool.workflow.Workflow
+        ):
             # commandline tool execution as part of workflow
             name = ""
             if isinstance(job, (CommandLineJob, JobBase, WorkflowJob)):
@@ -320,7 +322,8 @@ class ProvenanceProfile:
             {
                 PROV_TYPE: WFPROV["ProcessRun"],
                 PROV_LABEL: prov_label,
-                WORKFLOW_STEP: FILE_PATH,
+                WORKFLOW_STEP: FILE_PATH,  # type: ignore[dict-item]
+                # TODO fix type for the activity function
             },
         )
 
