@@ -53,9 +53,9 @@ Useful `make` commands:
 The `make` commands below can help you to install the dependencies, format and test your code
 
 - `make help` to show the list of commands that can be used with the make function
-- `make install-dep` will install the dependencies needed by cwltools
+- `make install-dep` will install the dependencies needed by `cwltool`
 - `make format` will clean up your code according to the accepted python standard
-- `make test` will perform the tests of cwltools (can take a while to run all tests)
+- `make test` will perform the tests of `cwltool` (can take a while to run all tests)
 - `make sort_imports` will clean up and sort your import statements
 - `make remove_unused_imports` will remove any unneeded `import` statements
 - `make flake8` will catch format issues that `make format` cannot fix automatically
