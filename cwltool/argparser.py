@@ -250,6 +250,13 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="user_provenance",
     )
     provgroup.add_argument(
+        "--no-data",
+        default=False,
+        action="store_true",
+        help="Disables the storage of input and output data files of the workflow in the provenance data folder",
+        dest="no_data",
+    )
+    provgroup.add_argument(
         "--disable-user-provenance",
         default=False,
         action="store_false",
