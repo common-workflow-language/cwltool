@@ -3,7 +3,6 @@ from typing import IO, Any, Dict, Iterable, List, Set, Tuple
 
 from _typeshed import Incomplete
 from prov.constants import *
-
 # from prov import Error as Error, serializers as serializers
 from prov.identifier import Identifier, Namespace, QualifiedName
 

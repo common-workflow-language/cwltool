@@ -1070,7 +1070,7 @@ def checksum_only(
         except OSError:
             pass
         if os.path.exists(temp_location):
-            pass # os.rename(temp_location, dst_file.name)  # type: ignore
+            pass  # os.rename(temp_location, dst_file.name)  # type: ignore
 
     while contents != b"":
         if dst_file is not None:

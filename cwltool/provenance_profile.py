@@ -409,7 +409,9 @@ class ProvenanceProfile:
         # TODO check is there a URI for a checksum? and a base uri for checksum?
         #  e.g. <item> <http://checksum.com> <sha1:checksum_of_the_file>
         if "checksum" in value:
-            file_entity.add_attributes({CWLPROV["checksum"]: cast(str, value["checksum"])})
+            file_entity.add_attributes(
+                {CWLPROV["checksum"]: cast(str, value["checksum"])}
+            )
 
         self.document.specializationOf(file_entity, entity)
 
