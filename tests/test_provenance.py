@@ -30,11 +30,14 @@ SCHEMA = Namespace("http://schema.org/")
 CWLPROV = Namespace("https://w3id.org/cwl/prov#")
 OA = Namespace("http://www.w3.org/ns/oa#")
 
+NO_DATA = True
 
 def cwltool(tmp_path: Path, *args: Any) -> Path:
     prov_folder = tmp_path / "provenance"
     prov_folder.mkdir()
-    new_args = ["--no-data", "--provenance", str(prov_folder)]
+    new_args = ["--provenance", str(prov_folder)]
+    if NO_DATA:
+        new_args = ["--no-data"] + new_args
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
     tmp_dir = tmp_path / "cwltool-run"
@@ -266,6 +269,9 @@ def check_folders(base_path: Path) -> None:
 
 
 def check_bagit(base_path: Path) -> None:
+    if NO_DATA:
+        return
+
     # check bagit structure
     required_files = [
         "bagit.txt",
@@ -525,7 +531,8 @@ def check_prov(
             g2.parse(file=f, format="nt", publicID=nt_uri)
         # TODO: Check g2 statements that it's the same UUID activity inside
         # as in the outer step
-    if directory:
+    # TODO check with NO_DATA being true is this then false?...
+    if directory and not NO_DATA:
         directories = set(g.subjects(RDF.type, RO.Folder))
         assert directories
 
