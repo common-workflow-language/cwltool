@@ -36,6 +36,7 @@ from prov.model import PROV, ProvDocument
 from schema_salad.utils import json_dumps
 from typing_extensions import TYPE_CHECKING, TypedDict
 
+import cwltool
 from .loghandler import _logger
 from .provenance_constants import (
     ACCOUNT_UUID,
@@ -411,7 +412,10 @@ class ResearchObject:
         return bag_file
 
     def add_tagfile(
-        self, path: str, timestamp: Optional[datetime.datetime] = None
+            self,
+            path: str,
+            no_data: bool = False,
+            timestamp: Optional[datetime.datetime] = None,
     ) -> None:
         """Add tag files to our research object."""
         self.self_check()
@@ -421,19 +425,28 @@ class ResearchObject:
             return
             # FIXME: do the right thing for directories
         with open(path, "rb") as tag_file:
+            _logger.error("Path: %s", path)
             # FIXME: Should have more efficient open_tagfile() that
             # does all checksums in one go while writing through,
             # adding checksums after closing.
             # Below probably OK for now as metadata files
             # are not too large..?
-            _logger.info("Performing checksum calculations")
-            checksums[SHA1] = checksum_only(tag_file, hasher=hashlib.sha1)
 
-            tag_file.seek(0)
-            checksums[SHA256] = checksum_only(tag_file, hasher=hashlib.sha256)
+            _logger.info("Performing checksum calculations with no_data %s", no_data)
+            if no_data:
+                checksums[SHA1] = checksum_only(tag_file, hasher=hashlib.sha1)
+                tag_file.seek(0)
+                checksums[SHA256] = checksum_only(tag_file, hasher=hashlib.sha256)
+                tag_file.seek(0)
+                checksums[SHA512] = checksum_only(tag_file, hasher=hashlib.sha512)
+            else:
+                checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
+                tag_file.seek(0)
+                checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
+                tag_file.seek(0)
+                checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
 
-            tag_file.seek(0)
-            checksums[SHA512] = checksum_only(tag_file, hasher=hashlib.sha512)
+
 
         rel_path = posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
@@ -738,7 +751,7 @@ class ResearchObject:
             info_file.write("Payload-Oxum: %d.%d\n" % (total_size, num_files))
         _logger.debug("[provenance] Generated bagit metadata: %s", self.folder)
 
-    def generate_snapshot(self, prov_dep: CWLObjectType) -> None:
+    def generate_snapshot(self, prov_dep: CWLObjectType, no_data: bool) -> None:
         """Copy all of the CWL files to the snapshot/ directory."""
         self.self_check()
         for key, value in prov_dep.items():
@@ -754,6 +767,7 @@ class ResearchObject:
 
                 # FIXME: What if destination path already exists?
                 if os.path.exists(filepath):
+                    _logger.error("Filepath: %s", filepath)
                     try:
                         if os.path.isdir(filepath):
                             shutil.copytree(filepath, path)
@@ -762,13 +776,13 @@ class ResearchObject:
                         timestamp = datetime.datetime.fromtimestamp(
                             os.path.getmtime(filepath)
                         )
-                        self.add_tagfile(path, timestamp)
+                        self.add_tagfile(path, no_data, timestamp)
                     except PermissionError:
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
             elif key in ("secondaryFiles", "listing"):
                 for files in cast(MutableSequence[CWLObjectType], value):
                     if isinstance(files, MutableMapping):
-                        self.generate_snapshot(files)
+                        self.generate_snapshot(files, no_data)
             else:
                 pass
 
@@ -1023,17 +1037,17 @@ def checksum_copy(
     # TODO: Use hashlib.new(Hasher_str) instead?
     checksum = hasher()
     contents = src_file.read(buffersize)
-    if dst_file and hasattr(dst_file, "name") and hasattr(src_file, "name"):
-        temp_location = os.path.join(os.path.dirname(dst_file.name), str(uuid.uuid4()))
-        try:
-            os.rename(dst_file.name, temp_location)
-            os.link(src_file.name, dst_file.name)
-            dst_file = None
-            os.unlink(temp_location)
-        except OSError:
-            pass
-        if os.path.exists(temp_location):
-            os.rename(temp_location, dst_file.name)  # type: ignore
+    # if dst_file and hasattr(dst_file, "name") and hasattr(src_file, "name"):
+    #     temp_location = os.path.join(os.path.dirname(dst_file.name), str(uuid.uuid4()))
+    #     try:
+    #         os.rename(dst_file.name, temp_location)
+    #         os.link(src_file.name, dst_file.name)
+    #         dst_file = None
+    #         os.unlink(temp_location)
+    #     except OSError:
+    #         pass
+    #     if os.path.exists(temp_location):
+    #         os.rename(temp_location, dst_file.name)  # type: ignore
     while contents != b"":
         if dst_file is not None:
             dst_file.write(contents)
@@ -1053,25 +1067,15 @@ def checksum_only(
     # TODO, one level up with a provenance -no-data option?
     # First step, force dst_file to be none so it computes the checksum but does not write it to its destination
     _logger.error("Hard force for dst_file to be None")
+    _logger.error("src_file: %s", src_file)
     dst_file = None
 
     """Compute checksums while copying a file."""
     # TODO: Use hashlib.new(Hasher_str) instead?
     checksum = hasher()
     contents = src_file.read(buffersize)
-    if dst_file and hasattr(dst_file, "name") and hasattr(src_file, "name"):
-        temp_location = os.path.join(os.path.dirname(dst_file.name), str(uuid.uuid4()))
-        _logger.warning("Is it now writing to...: %s", temp_location)
-        try:
-            os.rename(dst_file.name, temp_location)
-            os.link(src_file.name, dst_file.name)
-            dst_file = None
-            os.unlink(temp_location)
-        except OSError:
-            pass
-        if os.path.exists(temp_location):
-            pass  # os.rename(temp_location, dst_file.name)  # type: ignore
 
+    # TODO Could be a function for both checksum_only and checksum_copy?
     while contents != b"":
         if dst_file is not None:
             _logger.error("WRITING!!! %s", dst_file)

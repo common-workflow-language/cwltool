@@ -8,6 +8,7 @@ import functools
 import io
 import logging
 import os
+import parser
 import shutil
 import signal
 import subprocess  # nosec
@@ -1451,7 +1452,7 @@ def main(
             research_obj = runtimeContext.research_obj
             if loadingContext.loader is not None:
                 research_obj.generate_snapshot(
-                    prov_deps(workflowobj, loadingContext.loader, uri)
+                    prov_deps(workflowobj, loadingContext.loader, uri), args.no_data
                 )
             else:
                 _logger.warning(
