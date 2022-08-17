@@ -30,3 +30,14 @@ For the more traditional workflow:
 - After you're done working on ``cwltool``, you can deactivate the virtual environment: ``deactivate``
 
 When tests are passing, you can simply commit and create a PR on ``cwltool`` repo
+
+Useful commands:
+When using the repository from a clean slate and before you commit your code it is adviced to use the make option.
+The make commands can help you to install the dependencies, format and test your code
+
+- `make install-dep` will install the dependencies needed by cwltools
+- `make format` will clean up your code according to the accepted python standard
+- `make test` will perform the tests of cwltools (can take a while to run all tests)
+- `make sort_imports` will clean up and sort your import statements
+- `make help` to show the list of commands that can be used with the make function
+ 
