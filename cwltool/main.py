@@ -973,6 +973,9 @@ def print_targets(
             )
 
 
+NO_DATA = None
+
+
 def main(
     argsl: Optional[List[str]] = None,
     args: Optional[argparse.Namespace] = None,
@@ -1048,6 +1051,11 @@ def main(
             print(versionfunc(), file=stdout)
             return 0
         _logger.info(versionfunc())
+
+        # TODO How can we access args.no_data from other places in a nice way?...
+        _logger.error("No data status %s", args.no_data)
+        global NO_DATA
+        NO_DATA = args.no_data
 
         if args.print_supported_versions:
             print("\n".join(supported_cwl_versions(args.enable_dev)), file=stdout)
