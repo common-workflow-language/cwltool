@@ -32,6 +32,7 @@ OA = Namespace("http://www.w3.org/ns/oa#")
 
 NO_DATA = True
 
+
 def cwltool(tmp_path: Path, *args: Any) -> Path:
     prov_folder = tmp_path / "provenance"
     prov_folder.mkdir()
