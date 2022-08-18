@@ -412,10 +412,10 @@ class ResearchObject:
         return bag_file
 
     def add_tagfile(
-            self,
-            path: str,
-            no_data: bool = False,
-            timestamp: Optional[datetime.datetime] = None,
+        self,
+        path: str,
+        no_data: bool = False,
+        timestamp: Optional[datetime.datetime] = None,
     ) -> None:
         """Add tag files to our research object."""
         self.self_check()
@@ -425,15 +425,12 @@ class ResearchObject:
             return
             # FIXME: do the right thing for directories
         with open(path, "rb") as tag_file:
-            _logger.error("Path: %s", path)
             # FIXME: Should have more efficient open_tagfile() that
             # does all checksums in one go while writing through,
             # adding checksums after closing.
             # Below probably OK for now as metadata files
             # are not too large..?
-
-            _logger.info("Performing checksum calculations with no_data %s", no_data)
-            if no_data:
+            if cwltool.main.NO_DATA:
                 checksums[SHA1] = checksum_only(tag_file, hasher=hashlib.sha1)
                 tag_file.seek(0)
                 checksums[SHA256] = checksum_only(tag_file, hasher=hashlib.sha256)
@@ -445,8 +442,6 @@ class ResearchObject:
                 checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
                 tag_file.seek(0)
                 checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
-
-
 
         rel_path = posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
@@ -767,7 +762,6 @@ class ResearchObject:
 
                 # FIXME: What if destination path already exists?
                 if os.path.exists(filepath):
-                    _logger.error("Filepath: %s", filepath)
                     try:
                         if os.path.isdir(filepath):
                             shutil.copytree(filepath, path)
@@ -807,13 +801,18 @@ class ResearchObject:
         timestamp: Optional[datetime.datetime] = None,
         content_type: Optional[str] = None,
     ) -> str:
+        # TODO only when --no-data is not used!
         """Copy inputs to data/ folder."""
         self.self_check()
         tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
         with tempfile.NamedTemporaryFile(
             prefix=tmp_prefix, dir=tmp_dir, delete=False
         ) as tmp:
-            checksum = checksum_only(from_fp, tmp)
+            # TODO this should depend on the arguments
+            if cwltool.main.NO_DATA:
+                checksum = checksum_only(from_fp)
+            else:
+                checksum = checksum_copy(from_fp, tmp)
 
         # Calculate hash-based file path
         folder = os.path.join(self.folder, DATA, checksum[0:2])
@@ -825,6 +824,7 @@ class ResearchObject:
         os.rename(tmp.name, path)
 
         # Relative posix path
+        # TODO only when no-data is False?...
         rel_path = posix_path(os.path.relpath(path, self.folder))
 
         # Register in bagit checksum
@@ -901,7 +901,10 @@ class ResearchObject:
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
+                if cwltool.main.NO_DATA:
+                    checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
+                else:
+                    checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
 
         self.add_to_manifest(rel_path, checksums)
 
@@ -1037,17 +1040,22 @@ def checksum_copy(
     # TODO: Use hashlib.new(Hasher_str) instead?
     checksum = hasher()
     contents = src_file.read(buffersize)
-    # if dst_file and hasattr(dst_file, "name") and hasattr(src_file, "name"):
-    #     temp_location = os.path.join(os.path.dirname(dst_file.name), str(uuid.uuid4()))
-    #     try:
-    #         os.rename(dst_file.name, temp_location)
-    #         os.link(src_file.name, dst_file.name)
-    #         dst_file = None
-    #         os.unlink(temp_location)
-    #     except OSError:
-    #         pass
-    #     if os.path.exists(temp_location):
-    #         os.rename(temp_location, dst_file.name)  # type: ignore
+    if dst_file and hasattr(dst_file, "name") and hasattr(src_file, "name"):
+        temp_location = os.path.join(os.path.dirname(dst_file.name), str(uuid.uuid4()))
+        try:
+            os.rename(dst_file.name, temp_location)
+            os.link(src_file.name, dst_file.name)
+            dst_file = None
+            os.unlink(temp_location)
+        except OSError:
+            pass
+        if os.path.exists(temp_location):
+            os.rename(temp_location, dst_file.name)  # type: ignore
+
+    return content_processor(contents, src_file, dst_file, checksum, buffersize)
+
+
+def content_processor(contents, src_file, dst_file, checksum, buffersize):
     while contents != b"":
         if dst_file is not None:
             dst_file.write(contents)
@@ -1064,11 +1072,9 @@ def checksum_only(
     hasher=Hasher,  # type: Callable[[], hashlib._Hash]
     buffersize: int = 1024 * 1024,
 ) -> str:
-    # TODO, one level up with a provenance -no-data option?
-    # First step, force dst_file to be none so it computes the checksum but does not write it to its destination
-    _logger.error("Hard force for dst_file to be None")
-    _logger.error("src_file: %s", src_file)
-    dst_file = None
+
+    if dst_file != None:
+        _logger.error("Destination file should be None but it is %s", dst_file)
 
     """Compute checksums while copying a file."""
     # TODO: Use hashlib.new(Hasher_str) instead?
@@ -1076,12 +1082,12 @@ def checksum_only(
     contents = src_file.read(buffersize)
 
     # TODO Could be a function for both checksum_only and checksum_copy?
-    while contents != b"":
-        if dst_file is not None:
-            _logger.error("WRITING!!! %s", dst_file)
-            dst_file.write(contents)
-        checksum.update(contents)
-        contents = src_file.read(buffersize)
-    if dst_file is not None:
-        dst_file.flush()
-    return checksum.hexdigest().lower()
+    return content_processor(contents, src_file, dst_file, checksum, buffersize)
+    # while contents != b"":
+    #     if dst_file is not None:
+    #         dst_file.write(contents)
+    #     checksum.update(contents)
+    #     contents = src_file.read(buffersize)
+    # if dst_file is not None:
+    #     dst_file.flush()
+    # return checksum.hexdigest().lower()
