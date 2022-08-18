@@ -57,7 +57,7 @@ Reporting
 If you are being harassed by a member of the CWL Project, notice that someone
 else is being harassed, or have any other concerns, please contact the CWL
 Leadership Team at leadership@commonwl.org. If person who is harassing
-you is on the team, they will recuse themselves from handling your incident. We
+you is on the team, they will recurse themselves from handling your incident. We
 will respond as promptly as we can.
 
 This code of conduct applies to CWL Project spaces, but if you are being
