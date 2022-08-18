@@ -200,7 +200,7 @@ $graph:
       jsonldPredicate:
         "_id": "cwl:outputSource"
         "_type": "@id"
-        refScope: 0
+        refScope: 1
       type:
         - string?
         - string[]?
