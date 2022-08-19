@@ -10,14 +10,13 @@ from typing import (
     MutableMapping,
     MutableSequence,
     Optional,
-    Set,
     Union,
     cast,
 )
 
 from cwl_utils import expression
-from rdflib import Graph, URIRef
-from rdflib.namespace import OWL, RDFS
+from cwl_utils.file_formats import check_format
+from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names, Schema, make_avsc_object
 from schema_salad.exceptions import ValidationException
@@ -74,64 +73,6 @@ def substitute(value, replace):  # type: (str, str) -> str
             # No extension to remove
             return value + replace.lstrip("^")
     return value + replace
-
-
-def formatSubclassOf(
-    fmt: str, cls: str, ontology: Optional[Graph], visited: Set[str]
-) -> bool:
-    """Determine if `fmt` is a subclass of `cls`."""
-    if URIRef(fmt) == URIRef(cls):
-        return True
-
-    if ontology is None:
-        return False
-
-    if fmt in visited:
-        return False
-
-    visited.add(fmt)
-
-    uriRefFmt = URIRef(fmt)
-
-    for _s, _p, o in ontology.triples((uriRefFmt, RDFS.subClassOf, None)):
-        # Find parent classes of `fmt` and search upward
-        if formatSubclassOf(o, cls, ontology, visited):
-            return True
-
-    for _s, _p, o in ontology.triples((uriRefFmt, OWL.equivalentClass, None)):
-        # Find equivalent classes of `fmt` and search horizontally
-        if formatSubclassOf(o, cls, ontology, visited):
-            return True
-
-    for s, _p, _o in ontology.triples((None, OWL.equivalentClass, uriRefFmt)):
-        # Find equivalent classes of `fmt` and search horizontally
-        if formatSubclassOf(s, cls, ontology, visited):
-            return True
-
-    return False
-
-
-def check_format(
-    actual_file: Union[CWLObjectType, List[CWLObjectType]],
-    input_formats: Union[List[str], str],
-    ontology: Optional[Graph],
-) -> None:
-    """Confirm that the format present is valid for the allowed formats."""
-    for afile in aslist(actual_file):
-        if not afile:
-            continue
-        if "format" not in afile:
-            raise ValidationException(
-                f"File has no 'format' defined: {json_dumps(afile, indent=4)}"
-            )
-        for inpf in aslist(input_formats):
-            if afile["format"] == inpf or formatSubclassOf(
-                afile["format"], inpf, ontology, set()
-            ):
-                return
-        raise ValidationException(
-            f"File has an incompatible format: {json_dumps(afile, indent=4)}"
-        )
 
 
 class Builder(HasReqsHints):
