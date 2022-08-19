@@ -45,7 +45,7 @@ def test_docker_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
                     "requirements": [
                         {
                             "class": "DockerRequirement",
-                            "dockerPull": "docker.io/debian:stable",
+                            "dockerPull": "docker.io/debian:stable-slim",
                         }
                     ],
                 }
@@ -120,7 +120,7 @@ def test_dockerfile_tmpdir_prefix(
     assert DockerCommandLineJob.get_image(
         {
             "class": "DockerRequirement",
-            "dockerFile": "FROM debian:stable",
+            "dockerFile": "FROM debian:stable-slim",
             "dockerImageId": sys._getframe().f_code.co_name,
         },
         pull_image=True,
