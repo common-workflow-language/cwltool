@@ -1181,8 +1181,7 @@ def test_cid_file_w_prefix(tmp_path: Path, factor: str) -> None:
             error_code, stdout, stderr = get_main_output(commands)
         finally:
             listing = tmp_path.iterdir()
-            cidfiles = tmp_path.glob("**/pytestcid*")
-            cidfiles_count = sum(1 for _ in cidfiles)
+            cidfiles_count = sum(1 for _ in tmp_path.glob("**/pytestcid*"))
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0

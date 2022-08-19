@@ -131,7 +131,9 @@ def test_iwdr_permutations(tmp_path_factory: Any) -> None:
     )
     assert err_code == 0
     log = json.loads(stdout)["log"]
-    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log
+    with open(log["path"]) as log_h:
+        log_text = log_h.read()
+    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log_text
 
 
 def test_iwdr_permutations_readonly(tmp_path_factory: Any) -> None:
@@ -240,7 +242,9 @@ def test_iwdr_permutations_inplace(tmp_path_factory: Any) -> None:
     )
     assert err_code == 0
     log = json.loads(stdout)["log"]
-    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log
+    with open(log["path"]) as log_h:
+        log_text = log_h.read()
+    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log_text
 
 
 @needs_singularity
@@ -298,7 +302,9 @@ def test_iwdr_permutations_singularity(tmp_path_factory: Any) -> None:
     )
     assert err_code == 0
     log = json.loads(stdout)["log"]
-    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log
+    with open(log["path"]) as log_h:
+        log_text = log_h.read()
+    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log_text
 
 
 @needs_singularity
