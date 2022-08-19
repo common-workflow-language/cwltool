@@ -4,7 +4,7 @@ class: CommandLineTool
 
 hints:
   DockerRequirement:
-    dockerPull: docker.io/debian
+    dockerPull: docker.io/debian:stable-slim
     dockerOutputDirectory: /var/spool/cwl
   InitialWorkDirRequirement:
     listing:

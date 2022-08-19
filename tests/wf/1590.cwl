@@ -23,7 +23,7 @@
   "requirements": [
     {
       "class": "DockerRequirement",
-      "dockerPull": "debian:stretch-slim"
+      "dockerPull": "debian:stable-slim"
     }
   ],
   "stdout": "output"

@@ -184,7 +184,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             candidates.append(dockerRequirement["dockerImageId"])
             candidates.append(_normalize_image_id(dockerRequirement["dockerImageId"]))
             if is_version_3_or_newer():
-                candidates.append(_normalize_sif_id(dockerRequirement["dockerPull"]))
+                candidates.append(_normalize_sif_id(dockerRequirement["dockerImageId"]))
 
         targets = [os.getcwd()]
         if "CWL_SINGULARITY_CACHE" in os.environ:
