@@ -62,7 +62,7 @@
             "hints": [
                 {
                     "class": "DockerRequirement",
-                    "dockerPull": "docker.io/debian:8"
+                    "dockerPull": "docker.io/debian:stable-slim"
                 }
             ],
             "inputs": [

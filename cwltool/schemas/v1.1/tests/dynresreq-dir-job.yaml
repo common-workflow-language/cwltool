@@ -1,6 +1,0 @@
-dir:
-  class: Directory
-  basename: test
-  listing:
-    - class: File
-      path: special_file

@@ -4,7 +4,7 @@ class: CommandLineTool
 
 requirements:
   DockerRequirement:
-    dockerPull: docker.io/debian
+    dockerPull: docker.io/debian:stable-slim
   InitialWorkDirRequirement:
     listing:
       - class: File

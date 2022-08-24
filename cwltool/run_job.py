@@ -42,7 +42,7 @@ def main(argv: List[str]) -> int:
       "stdout_path": a string (or a null) giving the path that should receive the STDOUT
       "stderr_path": a string (or a null) giving the path that should receive the STDERR
 
-    The second argument is optional, it specifes a shell script to execute prior,
+    The second argument is optional, it specifies a shell script to execute prior,
       and the environment variables it sets will be combined with the environment
       variables from the "env" key in the JSON dictionary from the first argument.
     """

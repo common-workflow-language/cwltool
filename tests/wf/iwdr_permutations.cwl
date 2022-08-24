@@ -6,7 +6,7 @@ requirements:
     envDef:
       LC_ALL: C
   DockerRequirement:
-    dockerPull: docker.io/debian
+    dockerPull: docker.io/debian:stable-slim
   InitialWorkDirRequirement:
     listing:
       - entry: $(inputs.first)
