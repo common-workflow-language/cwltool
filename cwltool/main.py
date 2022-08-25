@@ -8,7 +8,6 @@ import functools
 import io
 import logging
 import os
-import parser
 import shutil
 import signal
 import subprocess  # nosec
@@ -18,7 +17,6 @@ import time
 import urllib
 import warnings
 from codecs import StreamWriter, getwriter
-from collections.abc import MutableMapping, MutableSequence
 from typing import (
     IO,
     Any,
