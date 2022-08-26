@@ -103,6 +103,8 @@ class LoadingContext(ContextBase):
         self.singularity = False  # type: bool
         self.podman = False  # type: bool
         self.eval_timeout = 60  # type: float
+        self.codegen_idx = {}
+        self.fast_validator = False
 
         super().__init__(kwargs)
 

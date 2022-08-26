@@ -40,6 +40,9 @@ from .process import Process, get_schema, shortname
 from .update import ALLUPDATES
 from .utils import CWLObjectType, ResolverType, visit_class
 
+import cwl_utils.parser.cwl_v1_2
+import cwl_utils.parser.cwl_v1_2_utils
+
 jobloaderctx = {
     "cwl": "https://w3id.org/cwl/cwl#",
     "cwltool": "http://commonwl.org/cwltool#",
@@ -263,6 +266,45 @@ def _add_blank_ids(
                 )
             )
 
+def _fast_validator_convert_stdstreams_to_files(processobj) -> None:
+    if isinstance(processobj, cwl_utils.parser.cwl_v1_2.CommandLineTool):
+        cwl_utils.parser.cwl_v1_2_utils.convert_stdstreams_to_files(processobj)
+    elif isinstance(processobj, cwl_utils.parser.cwl_v1_2.Workflow):
+        for st in processobj.steps:
+            _fast_validator_convert_stdstreams_to_files(st.run)
+    elif isinstance(processobj, MutableSequence):
+        for p in processobj:
+            _fast_validator_convert_stdstreams_to_files(p)
+
+
+def fast_validator(workflowobj, fileuri, uri, loadingContext: LoadingContext):
+    lopt = cwl_utils.parser.cwl_v1_2.LoadingOptions(idx=loadingContext.codegen_idx, fileuri=fileuri)
+
+    if uri not in loadingContext.codegen_idx:
+        cwl_utils.parser.cwl_v1_2.load_document_with_metadata(workflowobj, fileuri, loadingOptions=lopt, addl_metadata_fields=("id", "cwlVersion"))
+
+    objects, loadopt = loadingContext.codegen_idx[uri]
+
+    _fast_validator_convert_stdstreams_to_files(objects)
+
+    processobj = cwl_utils.parser.cwl_v1_2.save(objects, relative_uris=False)
+
+    metadata = {}
+    metadata["id"] = loadopt.fileuri
+
+    if loadopt.namespaces:
+        metadata["$namespaces"] = loadopt.namespaces
+    if loadopt.schemas:
+        metadata["$schemas"] = loadopt.schemas
+    if loadopt.baseuri:
+        metadata["$base"] = loadopt.baseuri
+    for k,v in loadopt.addl_metadata.items():
+        if isinstance(processobj, MutableMapping) and k in processobj:
+            metadata[k] = processobj[k]
+        else:
+            metadata[k] = v
+
+    return cmap(processobj), cmap(metadata)
 
 def resolve_and_validate_document(
     loadingContext: LoadingContext,
@@ -381,8 +423,15 @@ def resolve_and_validate_document(
     if cwlVersion == "v1.0":
         _add_blank_ids(workflowobj)
 
-    document_loader.resolve_all(workflowobj, fileuri)
-    processobj, metadata = document_loader.resolve_ref(uri)
+    if cwlVersion != "v1.2":
+        loadingContext.fast_validator = False
+
+    if loadingContext.fast_validator:
+        processobj, metadata = fast_validator(workflowobj, fileuri, uri, loadingContext)
+    else:
+        document_loader.resolve_all(workflowobj, fileuri)
+        processobj, metadata = document_loader.resolve_ref(uri)
+
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a CommentedMap or CommentedSeq.")
 
@@ -405,7 +454,8 @@ def resolve_and_validate_document(
     if isinstance(processobj, CommentedMap):
         uri = processobj["id"]
 
-    _convert_stdstreams_to_files(workflowobj)
+    if not loadingContext.fast_validator:
+        _convert_stdstreams_to_files(workflowobj)
 
     if isinstance(jobobj, CommentedMap):
         loadingContext.jobdefaults = jobobj

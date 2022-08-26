@@ -579,6 +579,13 @@ def arg_parser() -> argparse.ArgumentParser:
         default=True,
         help=argparse.SUPPRESS,
     )
+    parser.add_argument(
+        "--fast-validator",
+        dest="fast_validator",
+        action="store_true",
+        default=False,
+        help=argparse.SUPPRESS,
+    )
 
     reggroup = parser.add_mutually_exclusive_group()
     reggroup.add_argument(
