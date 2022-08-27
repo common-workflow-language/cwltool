@@ -304,6 +304,8 @@ def fast_validator(workflowobj, fileuri, uri, loadingContext: LoadingContext):
         else:
             metadata[k] = v
 
+    loadingContext.loader.graph += loadopt.graph
+
     return cmap(processobj), cmap(metadata)
 
 def resolve_and_validate_document(
@@ -420,6 +422,8 @@ def resolve_and_validate_document(
         doc_cache=loadingContext.doc_cache,
     )
 
+    loadingContext.loader = document_loader
+
     if cwlVersion == "v1.0":
         _add_blank_ids(workflowobj)
 
@@ -460,7 +464,6 @@ def resolve_and_validate_document(
     if isinstance(jobobj, CommentedMap):
         loadingContext.jobdefaults = jobobj
 
-    loadingContext.loader = document_loader
     loadingContext.avsc_names = avsc_names
     loadingContext.metadata = metadata
 
@@ -496,7 +499,11 @@ def make_tool(
     """Make a Python CWL object."""
     if loadingContext.loader is None:
         raise ValueError("loadingContext must have a loader")
-    resolveduri, metadata = loadingContext.loader.resolve_ref(uri)
+
+    if loadingContext.fast_validator:
+        resolveduri, metadata = fast_validator(None, None, uri, loadingContext)
+    else:
+        resolveduri, metadata = loadingContext.loader.resolve_ref(uri)
 
     processobj = None
     if isinstance(resolveduri, MutableSequence):
