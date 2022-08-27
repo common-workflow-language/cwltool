@@ -25,7 +25,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           file: cwltool.Dockerfile
-          tags: quay.io/commonwl/cwltool_module:${{ steps.image_tags.outputs.IMAGE_TAGS }}
+          tags: quay.io/commonwl/cwltool_module:${{ steps.image_tags.outputs.IMAGE_TAGS }},quay.io/commonwl/cwltool_module:latest
           target: module
           push: true
           cache-from: type=gha
@@ -34,7 +34,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           file: cwltool.Dockerfile
-          tags: quay.io/commonwl/cwltool:${{ steps.image_tags.outputs.IMAGE_TAGS }}
+          tags: quay.io/commonwl/cwltool:${{ steps.image_tags.outputs.IMAGE_TAGS }},quay.io/commonwl/cwltool:latest
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
