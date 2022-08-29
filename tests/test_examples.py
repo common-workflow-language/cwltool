@@ -1788,3 +1788,22 @@ def tests_outputsource_valid_identifier_invalid_source() -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "tests/checker_wf/broken-wf4.cwl:12:5: outputSource not found" in stderr
     assert "tests/checker_wf/broken-wf4.cwl#echo_w" in stderr
+
+
+def test_mismatched_optional_arrays() -> None:
+    """Ignore 'null' when comparing array types."""
+    factory = cwltool.factory.Factory()
+
+    with pytest.raises(ValidationException):
+        factory.make(get_data("tests/checker_wf/optional_array_mismatch.cwl"))
+
+
+def test_validate_optional_src_with_mandatory_sink() -> None:
+    """Confirm expected warning with an optional File connected to a mandatory File."""
+    exit_code, stdout, stderr = get_main_output(
+        ["--validate", get_data("tests/wf/optional_src_mandatory_sink.cwl")]
+    )
+    assert exit_code == 0
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert 'Source \'opt_file\' of type ["null", "File"] may be incompatible' in stderr
+    assert "with sink 'r' of type \"File\"" in stderr
