@@ -31,6 +31,7 @@ For the more traditional workflow:
 - To begin using the virtual environment, it needs to be activated: `source venv/bin/activate`
 - To check if you have the virtual environment set up: `which python`
   and it should point to python executable in your virtualenv
+- Install the latest versions of `pip` and `wheel` with `pip install --upgrade pip wheel`
 - Install cwltool in development mode, along with development tools:
   `make install-dep dev`
 - Check the `cwltool` version which might be different from the version installed in
