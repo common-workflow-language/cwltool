@@ -298,6 +298,7 @@ class ResearchObject:
         self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
         ##
         self.relativised_input_object = {}  # type: CWLObjectType
+        self.has_manifest = False
 
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
@@ -355,6 +356,8 @@ class ResearchObject:
     def _finalize(self) -> None:
         self._write_ro_manifest()
         self._write_bag_info()
+        if not self.has_manifest:
+            (Path(self.folder) / "manifest-sha1.txt").touch()
 
     def user_provenance(self, document: ProvDocument) -> None:
         """Add the user provenance."""
@@ -853,6 +856,7 @@ class ResearchObject:
         if os.path.commonprefix(["data/", rel_path]) == "data/":
             # payload file, go to manifest
             manifest = "manifest"
+            self.has_manifest = True
         else:
             # metadata file, go to tag manifest
             manifest = "tagmanifest"

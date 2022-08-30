@@ -192,6 +192,15 @@ def test_directory_workflow(tmp_path: Path) -> None:
         assert p.is_file(), f"Could not find {l} as {p}"
 
 
+@needs_docker
+def test_no_data_files(tmp_path: Path) -> None:
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/conditional_step_no_inputs.cwl"),
+    )
+    check_bagit(folder)
+
+
 def check_output_object(base_path: Path) -> None:
     output_obj = base_path / "workflow" / "primary-output.json"
     compare_checksum = "sha1$b9214658cc453331b62c2282b772a5c063dbd284"
