@@ -19,6 +19,7 @@ from typing import (
     cast,
 )
 
+from cwl_utils.parser import cwl_v1_2, cwl_v1_2_utils
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri
@@ -39,9 +40,6 @@ from .loghandler import _logger
 from .process import Process, get_schema, shortname
 from .update import ALLUPDATES
 from .utils import CWLObjectType, ResolverType, visit_class
-
-import cwl_utils.parser.cwl_v1_2
-import cwl_utils.parser.cwl_v1_2_utils
 
 jobloaderctx = {
     "cwl": "https://w3id.org/cwl/cwl#",
@@ -266,10 +264,13 @@ def _add_blank_ids(
                 )
             )
 
-def _fast_validator_convert_stdstreams_to_files(processobj) -> None:
-    if isinstance(processobj, cwl_utils.parser.cwl_v1_2.CommandLineTool):
-        cwl_utils.parser.cwl_v1_2_utils.convert_stdstreams_to_files(processobj)
-    elif isinstance(processobj, cwl_utils.parser.cwl_v1_2.Workflow):
+
+def _fast_validator_convert_stdstreams_to_files(
+    processobj: Union[cwl_v1_2.Process, MutableSequence[cwl_v1_2.Process]]
+) -> None:
+    if isinstance(processobj, cwl_v1_2.CommandLineTool):
+        cwl_v1_2_utils.convert_stdstreams_to_files(processobj)
+    elif isinstance(processobj, cwl_v1_2.Workflow):
         for st in processobj.steps:
             _fast_validator_convert_stdstreams_to_files(st.run)
     elif isinstance(processobj, MutableSequence):
@@ -277,19 +278,29 @@ def _fast_validator_convert_stdstreams_to_files(processobj) -> None:
             _fast_validator_convert_stdstreams_to_files(p)
 
 
-def fast_validator(workflowobj, fileuri, uri, loadingContext: LoadingContext):
-    lopt = cwl_utils.parser.cwl_v1_2.LoadingOptions(idx=loadingContext.codegen_idx, fileuri=fileuri)
+def fast_validator(
+    workflowobj: Union[CommentedMap, CommentedSeq, None],
+    fileuri: Optional[str],
+    uri: str,
+    loadingContext: LoadingContext,
+) -> Tuple[Union[CommentedMap, CommentedSeq], CommentedMap]:
+    lopt = cwl_v1_2.LoadingOptions(idx=loadingContext.codegen_idx, fileuri=fileuri)
 
     if uri not in loadingContext.codegen_idx:
-        cwl_utils.parser.cwl_v1_2.load_document_with_metadata(workflowobj, fileuri, loadingOptions=lopt, addl_metadata_fields=("id", "cwlVersion"))
+        cwl_v1_2.load_document_with_metadata(
+            workflowobj,
+            fileuri,
+            loadingOptions=lopt,
+            addl_metadata_fields=["id", "cwlVersion"],
+        )
 
     objects, loadopt = loadingContext.codegen_idx[uri]
 
     _fast_validator_convert_stdstreams_to_files(objects)
 
-    processobj = cwl_utils.parser.cwl_v1_2.save(objects, relative_uris=False)
+    processobj = cwl_v1_2.save(objects, relative_uris=False)
 
-    metadata = {}
+    metadata: Dict[str, Any] = {}
     metadata["id"] = loadopt.fileuri
 
     if loadopt.namespaces:
@@ -298,15 +309,19 @@ def fast_validator(workflowobj, fileuri, uri, loadingContext: LoadingContext):
         metadata["$schemas"] = loadopt.schemas
     if loadopt.baseuri:
         metadata["$base"] = loadopt.baseuri
-    for k,v in loadopt.addl_metadata.items():
+    for k, v in loadopt.addl_metadata.items():
         if isinstance(processobj, MutableMapping) and k in processobj:
             metadata[k] = processobj[k]
         else:
             metadata[k] = v
 
-    loadingContext.loader.graph += loadopt.graph
+    if loadingContext.loader:
+        loadingContext.loader.graph += loadopt.graph
 
-    return cmap(processobj), cmap(metadata)
+    return cast(Union[CommentedMap, CommentedSeq], cmap(processobj)), cast(
+        CommentedMap, cmap(metadata)
+    )
+
 
 def resolve_and_validate_document(
     loadingContext: LoadingContext,
@@ -500,7 +515,7 @@ def make_tool(
     if loadingContext.loader is None:
         raise ValueError("loadingContext must have a loader")
 
-    if loadingContext.fast_validator:
+    if loadingContext.fast_validator and isinstance(uri, str):
         resolveduri, metadata = fast_validator(None, None, uri, loadingContext)
     else:
         resolveduri, metadata = loadingContext.loader.resolve_ref(uri)

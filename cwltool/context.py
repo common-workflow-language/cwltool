@@ -4,7 +4,18 @@ import os
 import shutil
 import tempfile
 import threading
-from typing import IO, Any, Callable, Dict, Iterable, List, Optional, TextIO, Union
+from typing import (
+    IO,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    TextIO,
+    Tuple,
+    Union,
+)
 
 # move to a regular typing import when Python 3.3-3.6 is no longer supported
 from ruamel.yaml.comments import CommentedMap
@@ -23,6 +34,8 @@ from .stdfsaccess import StdFsAccess
 from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, HasReqsHints, ResolverType
 
 if TYPE_CHECKING:
+    from cwl_utils.parser.cwl_v1_2 import LoadingOptions
+
     from .process import Process
     from .provenance import ResearchObject  # pylint: disable=unused-import
     from .provenance_profile import ProvenanceProfile
@@ -102,8 +115,8 @@ class LoadingContext(ContextBase):
         self.relax_path_checks = False  # type: bool
         self.singularity = False  # type: bool
         self.podman = False  # type: bool
-        self.eval_timeout = 60  # type: float
-        self.codegen_idx = {}
+        self.eval_timeout: float = 60
+        self.codegen_idx: Dict[str, Tuple[Any, "LoadingOptions"]] = {}
         self.fast_validator = False
 
         super().__init__(kwargs)
