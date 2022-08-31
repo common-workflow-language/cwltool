@@ -121,7 +121,7 @@ setup(
         "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
         "pyparsing < 3 ;python_version<='3.6'",  # breaks --print-dot (pydot)
         "argcomplete",
-        "cwl-utils >= 0.15",
+        "cwl-utils @ https://github.com/common-workflow-language/cwl-utils/archive/codegen-fixes.zip",
     ],
     extras_require={
         "deps": ["galaxy-tool-util >= 21.1.0"],
