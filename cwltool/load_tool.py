@@ -298,6 +298,8 @@ def fast_validator(
 
     _fast_validator_convert_stdstreams_to_files(objects)
 
+    processobj: Union[MutableMapping[str, Any], MutableSequence[Any], float, str, None]
+
     processobj = cwl_v1_2.save(objects, relative_uris=False)
 
     metadata: Dict[str, Any] = {}
@@ -318,9 +320,10 @@ def fast_validator(
     if loadingContext.loader:
         loadingContext.loader.graph += loadopt.graph
 
-    return cast(Union[CommentedMap, CommentedSeq], cmap(processobj)), cast(
-        CommentedMap, cmap(metadata)
-    )
+    return cast(
+        Union[CommentedMap, CommentedSeq],
+        cmap(cast(Union[Dict[str, Any], List[Any]], processobj)),
+    ), cast(CommentedMap, cmap(metadata))
 
 
 def resolve_and_validate_document(
@@ -353,6 +356,8 @@ def resolve_and_validate_document(
         workflowobj = fetch_document(uri, loadingContext)[1]
 
     fileuri = urllib.parse.urldefrag(uri)[0]
+
+    metadata: CWLObjectType
 
     cwlVersion = loadingContext.metadata.get("cwlVersion")
     if not cwlVersion:
@@ -426,7 +431,7 @@ def resolve_and_validate_document(
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    processobj = None  # type: Optional[ResolveType]
+    processobj: Union[CommentedMap, CommentedSeq, int, float, str, None]
     document_loader = Loader(
         sch_document_loader.ctx,
         schemagraph=sch_document_loader.graph,
@@ -514,6 +519,9 @@ def make_tool(
     """Make a Python CWL object."""
     if loadingContext.loader is None:
         raise ValueError("loadingContext must have a loader")
+
+    resolveduri: Union[float, str, CommentedMap, CommentedSeq, None]
+    metadata: CWLObjectType
 
     if loadingContext.fast_validator and isinstance(uri, str):
         resolveduri, metadata = fast_validator(None, None, uri, loadingContext)
