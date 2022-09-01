@@ -3,6 +3,10 @@
 class: CommandLineTool
 cwlVersion: v1.0
 
+hints:
+  DockerRequirement:
+   dockerPull: docker.io/debian:stable-slim
+
 inputs:
   file1: File
 

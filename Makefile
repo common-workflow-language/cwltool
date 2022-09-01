@@ -157,11 +157,11 @@ diff-cover: coverage.xml
 diff-cover.html: coverage.xml
 	diff-cover --compare-branch=main $^ --html-report $@
 
-## test                   : run the ${MODULE} test suite
+## test                   : run the cwltool test suite
 test: check-python3 $(PYSOURCES)
 	python -m pytest -rs ${PYTEST_EXTRA}
 
-## testcov                : run the ${MODULE} test suite and collect coverage
+## testcov                : run the cwltool test suite and collect coverage
 testcov: check-python3 $(PYSOURCES)
 	python -m pytest -rs --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
 

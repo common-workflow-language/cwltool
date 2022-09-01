@@ -11,10 +11,10 @@ from cwltool.errors import WorkflowException
 from cwltool.job import CommandLineJob
 from cwltool.load_tool import load_tool
 from cwltool.main import main
-from cwltool.pathmapper import MapperEnt, PathMapper
-from cwltool.process import use_custom_schema, use_standard_schema
+from cwltool.pathmapper import PathMapper
+from cwltool.process import use_custom_schema
 from cwltool.stdfsaccess import StdFsAccess
-from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
+from cwltool.update import INTERNAL_VERSION
 from cwltool.utils import CWLObjectType
 
 from .util import get_data, needs_docker, needs_singularity_3_or_newer
