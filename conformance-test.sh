@@ -92,15 +92,15 @@ chmod a+x "${CWLTOOL_WITH_COV}"
 unset exclusions
 declare -a exclusions
 
-EXTRA="--parallel"
+CWLTOOL_OPTIONS+=" --parallel"
 # shellcheck disable=SC2154
 if [[ "$version" = *dev* ]]
 then
-    EXTRA+=" --enable-dev"
+    CWLTOOL_OPTIONS+=" --enable-dev"
 fi
 
 if [[ "$container" = "singularity" ]]; then
-    EXTRA+=" --singularity"
+    CWLTOOL_OPTIONS+=" --singularity"
     # This test fails because Singularity and Docker have
     # different views on how to deal with this.
     exclusions+=(docker_entrypoint)
@@ -113,13 +113,9 @@ if [[ "$container" = "singularity" ]]; then
         exclusions+=(stdin_shorcut)
     fi
 elif [[ "$container" = "podman" ]]; then
-    EXTRA+=" --podman"
+    CWLTOOL_OPTIONS+=" --podman"
 fi
 
-if [ -n "$EXTRA" ]
-then
-    EXTRA="EXTRA=${EXTRA}"
-fi
 if [ "$GIT_BRANCH" = "origin/main" ] && [[ "$version" = "v1.0" ]] && [[ "$container" = "docker" ]]
 then
     rm -Rf conformance
@@ -148,10 +144,11 @@ if (( "${#exclusions[*]}" > 0 )); then
 else
     EXCLUDE=""
 fi
+export CWLTOOL_OPTIONS
 # shellcheck disable=SC2086
 LC_ALL=C.UTF-8 ./run_test.sh --junit-xml=result3.xml ${EXCLUDE} \
       RUNNER=${CWLTOOL_WITH_COV} "-j$(nproc)" ${BADGE} \
-      ${DRAFT} "${EXTRA}" \
+      ${DRAFT} \
       "--classname=py3_${container}"
 # LC_ALL=C is to work around junit-xml ASCII only bug
 
