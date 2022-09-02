@@ -1011,7 +1011,8 @@ def main(
                 argsl = sys.argv[1:]
             addl = []  # type: List[str]
             if "CWLTOOL_OPTIONS" in os.environ:
-                addl = os.environ["CWLTOOL_OPTIONS"].split(" ")
+                c_opts = os.environ["CWLTOOL_OPTIONS"].split(" ")
+                addl = [x for x in c_opts if x != ""]
             parser = arg_parser()
             argcomplete.autocomplete(parser)
             args = parser.parse_args(addl + argsl)
