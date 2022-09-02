@@ -62,7 +62,6 @@ if USE_MYPYC:
         # "cwltool/__main__.py",
         "cwltool/main.py",
         "cwltool/mutation.py",
-        "cwltool/pack.py",
         # "cwltool/pathmapper.py",  # class PathMapper needs to be subclassable
         "cwltool/process.py",
         "cwltool/procgenerator.py",
