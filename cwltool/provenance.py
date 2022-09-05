@@ -37,6 +37,7 @@ from schema_salad.utils import json_dumps
 from typing_extensions import TYPE_CHECKING, TypedDict
 
 import cwltool
+
 from .loghandler import _logger
 from .provenance_constants import (
     ACCOUNT_UUID,

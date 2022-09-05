@@ -106,7 +106,6 @@ class Graph(Node):
     ) -> Any: ...
     def namespaces(self) -> Iterator[Tuple[Any, Any]]: ...
     def absolutize(self, uri: Any, defrag: int = ...) -> Any: ...
-
     # no destination and non-None positional encoding
     @overload
     def serialize(
@@ -117,7 +116,6 @@ class Graph(Node):
         encoding: str,
         **args: Any,
     ) -> bytes: ...
-
     # no destination and non-None keyword encoding
     @overload
     def serialize(
@@ -129,7 +127,6 @@ class Graph(Node):
         encoding: str,
         **args: Any,
     ) -> bytes: ...
-
     # no destination and None encoding
     @overload
     def serialize(
@@ -140,7 +137,6 @@ class Graph(Node):
         encoding: None = ...,
         **args: Any,
     ) -> str: ...
-
     # non-None destination
     @overload
     def serialize(
@@ -151,7 +147,6 @@ class Graph(Node):
         encoding: Optional[str] = ...,
         **args: Any,
     ) -> "Graph": ...
-
     # fallback
     @overload
     def serialize(

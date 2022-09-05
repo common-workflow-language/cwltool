@@ -17,7 +17,6 @@ from typing import (
     cast,
 )
 
-
 from .loghandler import _logger
 from .process import Process, shortname
 from .resolver import ga4gh_tool_registries
