@@ -1078,7 +1078,7 @@ def checksum_only(
     buffersize: int = 1024 * 1024,
 ) -> str:
 
-    if dst_file != None:
+    if dst_file is not None:
         _logger.error("Destination file should be None but it is %s", dst_file)
 
     """Compute checksums while copying a file."""
