@@ -27,7 +27,6 @@ from prov.model import (
     PROV_VALUE,
     ProvDocument,
     ProvEntity,
-    ProvRecord,
 )
 from schema_salad.sourceline import SourceLine
 from typing_extensions import TYPE_CHECKING

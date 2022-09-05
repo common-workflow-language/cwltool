@@ -15,7 +15,6 @@ from enum import Enum
 from functools import cmp_to_key, partial
 from typing import (
     Any,
-    Callable,
     Dict,
     Generator,
     List,

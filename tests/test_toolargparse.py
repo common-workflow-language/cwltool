@@ -1,7 +1,7 @@
 import argparse
 from io import StringIO
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Callable, List
 
 import pytest
 

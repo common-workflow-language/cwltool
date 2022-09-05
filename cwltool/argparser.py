@@ -5,7 +5,6 @@ import os
 import urllib
 from typing import (
     Any,
-    AnyStr,
     Callable,
     Dict,
     List,
@@ -18,7 +17,6 @@ from typing import (
     cast,
 )
 
-from schema_salad.ref_resolver import file_uri
 
 from .loghandler import _logger
 from .process import Process, shortname
