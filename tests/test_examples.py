@@ -910,6 +910,7 @@ def test_static_checker() -> None:
         factory.make(get_data("tests/checker_wf/broken-wf3.cwl"))
 
 
+@needs_docker
 def test_circular_dependency_checker() -> None:
     # check that the circular dependency checker raises exception when there is
     # circular dependency in the workflow.
@@ -1119,8 +1120,9 @@ def test_cid_file_dir(tmp_path: Path, factor: str) -> None:
         stderr = re.sub(r"\s\s+", " ", stderr)
         assert "completed success" in stderr
         assert error_code == 0
-        cidfiles_count = sum(1 for _ in tmp_path.glob("**/*"))
-        assert cidfiles_count == 2
+        cidfiles = list(tmp_path.glob("**/*.cid"))
+        cidfiles_count = len(cidfiles)
+        assert cidfiles_count == 2, f"Should be 2 cidfiles, but got {cidfiles}"
 
 
 @needs_docker
@@ -1449,6 +1451,7 @@ def test_no_compute_chcksum(tmp_path: Path, factor: str) -> None:
     assert "checksum" not in stdout
 
 
+@needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_bad_userspace_runtime(factor: str) -> None:
     test_file = "tests/wf/wc-tool.cwl"

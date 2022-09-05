@@ -124,7 +124,7 @@ setup(
         "cwl-utils >= 0.15",
     ],
     extras_require={
-        "deps": ["galaxy-tool-util >= 21.1.0"],
+        "deps": ["galaxy-tool-util >= 22.1.2, <23"],
     },
     python_requires=">=3.6, <4",
     setup_requires=PYTEST_RUNNER,
