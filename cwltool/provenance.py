@@ -36,8 +36,6 @@ from prov.model import PROV, ProvDocument
 from schema_salad.utils import json_dumps
 from typing_extensions import TYPE_CHECKING, TypedDict
 
-import cwltool
-
 from .loghandler import _logger
 from .provenance_constants import (
     ACCOUNT_UUID,
@@ -278,6 +276,7 @@ class ResearchObject:
         temp_prefix_ro: str = "tmp",
         orcid: str = "",
         full_name: str = "",
+        no_data: bool = False,
     ) -> None:
         """Initialize the ResearchObject."""
         self.temp_prefix = temp_prefix_ro
@@ -301,6 +300,7 @@ class ResearchObject:
         ##
         self.relativised_input_object = {}  # type: CWLObjectType
         self.has_manifest = False
+        self.no_data = no_data
 
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
@@ -418,7 +418,6 @@ class ResearchObject:
     def add_tagfile(
         self,
         path: str,
-        no_data: bool = False,
         timestamp: Optional[datetime.datetime] = None,
     ) -> None:
         """Add tag files to our research object."""
@@ -434,7 +433,7 @@ class ResearchObject:
             # adding checksums after closing.
             # Below probably OK for now as metadata files
             # are not too large..?
-            if cwltool.main.NO_DATA:
+            if self.no_data:
                 checksums[SHA1] = checksum_only(tag_file, hasher=hashlib.sha1)
                 tag_file.seek(0)
                 checksums[SHA256] = checksum_only(tag_file, hasher=hashlib.sha256)
@@ -750,7 +749,7 @@ class ResearchObject:
             info_file.write("Payload-Oxum: %d.%d\n" % (total_size, num_files))
         _logger.debug("[provenance] Generated bagit metadata: %s", self.folder)
 
-    def generate_snapshot(self, prov_dep: CWLObjectType, no_data: bool) -> None:
+    def generate_snapshot(self, prov_dep: CWLObjectType) -> None:
         """Copy all of the CWL files to the snapshot/ directory."""
         self.self_check()
         for key, value in prov_dep.items():
@@ -774,13 +773,13 @@ class ResearchObject:
                         timestamp = datetime.datetime.fromtimestamp(
                             os.path.getmtime(filepath)
                         )
-                        self.add_tagfile(path, no_data, timestamp)
+                        self.add_tagfile(path, timestamp)
                     except PermissionError:
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
             elif key in ("secondaryFiles", "listing"):
                 for files in cast(MutableSequence[CWLObjectType], value):
                     if isinstance(files, MutableMapping):
-                        self.generate_snapshot(files, no_data)
+                        self.generate_snapshot(files)
             else:
                 pass
 
@@ -813,7 +812,7 @@ class ResearchObject:
             prefix=tmp_prefix, dir=tmp_dir, delete=False
         ) as tmp:
             # TODO this should depend on the arguments
-            if cwltool.main.NO_DATA:
+            if self.no_data:
                 checksum = checksum_only(from_fp)
             else:
                 checksum = checksum_copy(from_fp, tmp)
@@ -906,7 +905,7 @@ class ResearchObject:
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                if cwltool.main.NO_DATA:
+                if self.no_data:
                     checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
                 else:
                     checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
@@ -1060,12 +1059,14 @@ def checksum_copy(
     return content_processor(contents, src_file, dst_file, checksum, buffersize)
 
 
-def content_processor(contents, src_file, dst_file, checksum, buffersize):
-    """
-    Calculate the checksum based on the content.
-
-    @rtype: checksum
-    """
+def content_processor(
+    contents: Any,
+    src_file: IO[Any],
+    dst_file: Optional[IO[Any]],
+    checksum: hashlib._Hash,
+    buffersize: int,
+) -> str:
+    """Calculate the checksum based on the content."""
     while contents != b"":
         if dst_file is not None:
             dst_file.write(contents)
@@ -1082,11 +1083,7 @@ def checksum_only(
     hasher=Hasher,  # type: Callable[[], hashlib._Hash]
     buffersize: int = 1024 * 1024,
 ) -> str:
-    """
-    Calculate the checksum only, does not copy the data files.
-
-    @rtype: checksum
-    """
+    """Calculate the checksum only, does not copy the data files."""
     if dst_file is not None:
         _logger.error("Destination file should be None but it is %s", dst_file)
 

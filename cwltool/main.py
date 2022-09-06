@@ -710,6 +710,7 @@ def setup_provenance(
         temp_prefix_ro=args.tmpdir_prefix,
         orcid=args.orcid,
         full_name=args.cwl_full_name,
+        no_data=args.no_data,
     )
 
     runtimeContext.research_obj = ro
@@ -971,9 +972,6 @@ def print_targets(
             )
 
 
-NO_DATA = False
-
-
 def main(
     argsl: Optional[List[str]] = None,
     args: Optional[argparse.Namespace] = None,
@@ -1049,11 +1047,6 @@ def main(
             print(versionfunc(), file=stdout)
             return 0
         _logger.info(versionfunc())
-
-        # TODO How can we access args.no_data from other places in a nice way?...
-        _logger.error("No data status %s", args.no_data)
-        global NO_DATA
-        NO_DATA = args.no_data
 
         if args.print_supported_versions:
             print("\n".join(supported_cwl_versions(args.enable_dev)), file=stdout)
@@ -1458,7 +1451,7 @@ def main(
             research_obj = runtimeContext.research_obj
             if loadingContext.loader is not None:
                 research_obj.generate_snapshot(
-                    prov_deps(workflowobj, loadingContext.loader, uri), args.no_data
+                    prov_deps(workflowobj, loadingContext.loader, uri)
                 )
             else:
                 _logger.warning(
