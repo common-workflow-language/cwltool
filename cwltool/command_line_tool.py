@@ -252,7 +252,7 @@ def revmap_file(
         if location.startswith("file://"):
             f["path"] = uri_file_path(location)
         else:
-            f["location"] = builder.fs_access.join(outdir, f["location"])
+            f["location"] = builder.fs_access.join(outdir, cast(str, f["location"]))
             return f
 
     if "dirname" in f:
