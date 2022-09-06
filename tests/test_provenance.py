@@ -44,6 +44,7 @@ def cwltool(tmp_path: Path, *args: Any) -> Path:
         assert status == 0, f"Failed: cwltool.main({args})"
     return prov_folder
 
+
 def cwltool_no_data(tmp_path: Path, *args: Any) -> Path:
     prov_folder = tmp_path / "provenance"
     prov_folder.mkdir()
@@ -56,6 +57,7 @@ def cwltool_no_data(tmp_path: Path, *args: Any) -> Path:
         status = main(new_args)
         assert status == 0, f"Failed: cwltool.main({args})"
     return prov_folder
+
 
 @needs_docker
 def test_hello_workflow(tmp_path: Path) -> None:
@@ -203,6 +205,7 @@ def test_directory_workflow(tmp_path: Path) -> None:
         p = folder / "data" / prefix / l_hash
         assert p.is_file(), f"Could not find {l} as {p}"
 
+
 @needs_docker
 def test_directory_workflow_no_data(tmp_path: Path) -> None:
     dir2 = tmp_path / "dir2"
@@ -220,7 +223,9 @@ def test_directory_workflow_no_data(tmp_path: Path) -> None:
         with open(dir2 / x, "w", encoding="ascii") as f:
             f.write(x)
 
-    folder = cwltool_no_data(tmp_path, get_data("tests/wf/directory.cwl"), "--dir", str(dir2))
+    folder = cwltool_no_data(
+        tmp_path, get_data("tests/wf/directory.cwl"), "--dir", str(dir2)
+    )
     # check invert? as there should be no data in there
     # check_provenance(folder, directory=True)
 
@@ -248,7 +253,6 @@ def test_directory_workflow_no_data(tmp_path: Path) -> None:
         assert os.path.getsize(p.absolute()) == 0
         # To be discared when file really does not exist anymore
         assert p.is_file(), f"Could not find {l} as {p}"
-
 
 
 @needs_docker
