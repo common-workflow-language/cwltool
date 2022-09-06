@@ -1063,7 +1063,7 @@ def content_processor(
     contents: Any,
     src_file: IO[Any],
     dst_file: Optional[IO[Any]],
-    checksum: hashlib._Hash,
+    checksum: "hashlib._Hash",
     buffersize: int,
 ) -> str:
     """Calculate the checksum based on the content."""
