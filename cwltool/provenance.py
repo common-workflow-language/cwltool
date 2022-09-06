@@ -1061,6 +1061,11 @@ def checksum_copy(
 
 
 def content_processor(contents, src_file, dst_file, checksum, buffersize):
+    """
+    Calculate the checksum based on the content.
+
+    @rtype: checksum
+    """
     while contents != b"":
         if dst_file is not None:
             dst_file.write(contents)
@@ -1077,7 +1082,11 @@ def checksum_only(
     hasher=Hasher,  # type: Callable[[], hashlib._Hash]
     buffersize: int = 1024 * 1024,
 ) -> str:
+    """
+    Calculate the checksum only, does not copy the data files.
 
+    @rtype: checksum
+    """
     if dst_file is not None:
         _logger.error("Destination file should be None but it is %s", dst_file)
 
@@ -1088,11 +1097,3 @@ def checksum_only(
 
     # TODO Could be a function for both checksum_only and checksum_copy?
     return content_processor(contents, src_file, dst_file, checksum, buffersize)
-    # while contents != b"":
-    #     if dst_file is not None:
-    #         dst_file.write(contents)
-    #     checksum.update(contents)
-    #     contents = src_file.read(buffersize)
-    # if dst_file is not None:
-    #     dst_file.flush()
-    # return checksum.hexdigest().lower()
