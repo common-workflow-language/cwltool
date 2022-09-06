@@ -44,6 +44,18 @@ def cwltool(tmp_path: Path, *args: Any) -> Path:
         assert status == 0, f"Failed: cwltool.main({args})"
     return prov_folder
 
+def cwltool_no_data(tmp_path: Path, *args: Any) -> Path:
+    prov_folder = tmp_path / "provenance"
+    prov_folder.mkdir()
+    new_args = ["--no-data", "--provenance", str(prov_folder)]
+    new_args.extend(args)
+    # Run within a temporary directory to not pollute git checkout
+    tmp_dir = tmp_path / "cwltool-run"
+    tmp_dir.mkdir()
+    with working_directory(tmp_dir):
+        status = main(new_args)
+        assert status == 0, f"Failed: cwltool.main({args})"
+    return prov_folder
 
 @needs_docker
 def test_hello_workflow(tmp_path: Path) -> None:
@@ -190,6 +202,53 @@ def test_directory_workflow(tmp_path: Path) -> None:
         prefix = l_hash[:2]  # first 2 letters
         p = folder / "data" / prefix / l_hash
         assert p.is_file(), f"Could not find {l} as {p}"
+
+@needs_docker
+def test_directory_workflow_no_data(tmp_path: Path) -> None:
+    dir2 = tmp_path / "dir2"
+    dir2.mkdir()
+    sha1 = {
+        # Expected hashes of ASCII letters (no linefeed)
+        # as returned from:
+        # for x in a b c ; do echo -n $x | sha1sum ; done
+        "a": "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8",
+        "b": "e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98",
+        "c": "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4",
+    }
+    for x in "abc":
+        # Make test files with predictable hashes
+        with open(dir2 / x, "w", encoding="ascii") as f:
+            f.write(x)
+
+    folder = cwltool_no_data(tmp_path, get_data("tests/wf/directory.cwl"), "--dir", str(dir2))
+    # check invert? as there should be no data in there
+    # check_provenance(folder, directory=True)
+
+    # Output should include ls stdout of filenames a b c on each line
+    file_list = (
+        folder
+        / "data"
+        / "3c"
+        / "3ca69e8d6c234a469d16ac28a4a658c92267c423"
+        # checksum as returned from:
+        # echo -e "a\nb\nc" | sha1sum
+        # 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
+    )
+    # File should be empty and in the future not existing...
+    assert os.path.getsize(file_list.absolute()) == 0
+    # To be discared when file really does not exist anymore
+    assert file_list.is_file()
+
+    # Input files should be captured by hash value,
+    # even if they were inside a class: Directory
+    for (l, l_hash) in sha1.items():
+        prefix = l_hash[:2]  # first 2 letters
+        p = folder / "data" / prefix / l_hash
+        # File should be empty and in the future not existing...
+        assert os.path.getsize(p.absolute()) == 0
+        # To be discared when file really does not exist anymore
+        assert p.is_file(), f"Could not find {l} as {p}"
+
 
 
 @needs_docker
