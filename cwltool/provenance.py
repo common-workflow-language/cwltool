@@ -809,7 +809,7 @@ class ResearchObject:
             prefix=tmp_prefix, dir=tmp_dir, delete=False
         ) as tmp:
             # TODO this should depend on the arguments
-            if NO_DATA:
+            if utils.NO_DATA:
                 checksum = checksum_only(from_fp)
             else:
                 checksum = checksum_copy(from_fp, tmp)
@@ -902,7 +902,7 @@ class ResearchObject:
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                if NO_DATA:
+                if utils.NO_DATA:
                     checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
                 else:
                     checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
