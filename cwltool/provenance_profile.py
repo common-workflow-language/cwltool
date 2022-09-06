@@ -20,14 +20,7 @@ from typing import (
 )
 
 from prov.identifier import Identifier, Namespace, QualifiedName
-from prov.model import (
-    PROV,
-    PROV_LABEL,
-    PROV_TYPE,
-    PROV_VALUE,
-    ProvDocument,
-    ProvEntity,
-)
+from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
 from typing_extensions import TYPE_CHECKING
 
