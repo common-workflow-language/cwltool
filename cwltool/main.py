@@ -971,7 +971,7 @@ def print_targets(
             )
 
 
-NO_DATA = None
+NO_DATA = False
 
 
 def main(
