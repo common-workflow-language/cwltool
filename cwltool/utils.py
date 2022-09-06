@@ -58,6 +58,8 @@ DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill = collections.deque()  # type: Deque[subprocess.Popen[str]]
 
+NO_DATA = False
+
 CWLOutputAtomType = Union[
     None,
     bool,

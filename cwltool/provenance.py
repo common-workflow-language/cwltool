@@ -36,9 +36,9 @@ from prov.model import PROV, ProvDocument
 from schema_salad.utils import json_dumps
 from typing_extensions import TYPE_CHECKING, TypedDict
 
-import cwltool
-
+from . import utils
 from .loghandler import _logger
+
 from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV,
@@ -71,11 +71,7 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from .command_line_tool import (  # pylint: disable=unused-import
-        CommandLineTool,
-        ExpressionTool,
-    )
-    from .workflow import Workflow  # pylint: disable=unused-import
+    pass
 
 
 def _whoami() -> Tuple[str, str]:
@@ -418,7 +414,6 @@ class ResearchObject:
     def add_tagfile(
         self,
         path: str,
-        no_data: bool = False,
         timestamp: Optional[datetime.datetime] = None,
     ) -> None:
         """Add tag files to our research object."""
@@ -434,7 +429,8 @@ class ResearchObject:
             # adding checksums after closing.
             # Below probably OK for now as metadata files
             # are not too large..?
-            if cwltool.main.NO_DATA:
+
+            if utils.NO_DATA:
                 checksums[SHA1] = checksum_only(tag_file, hasher=hashlib.sha1)
                 tag_file.seek(0)
                 checksums[SHA256] = checksum_only(tag_file, hasher=hashlib.sha256)
@@ -750,8 +746,8 @@ class ResearchObject:
             info_file.write("Payload-Oxum: %d.%d\n" % (total_size, num_files))
         _logger.debug("[provenance] Generated bagit metadata: %s", self.folder)
 
-    def generate_snapshot(self, prov_dep: CWLObjectType, no_data: bool) -> None:
-        """Copy all of the CWL files to the snapshot/ directory."""
+    def generate_snapshot(self, prov_dep: CWLObjectType) -> None:
+        """Copy all the CWL files to the snapshot/ directory."""
         self.self_check()
         for key, value in prov_dep.items():
             if key == "location" and cast(str, value).split("/")[-1]:
@@ -774,13 +770,13 @@ class ResearchObject:
                         timestamp = datetime.datetime.fromtimestamp(
                             os.path.getmtime(filepath)
                         )
-                        self.add_tagfile(path, no_data, timestamp)
+                        self.add_tagfile(path, timestamp)
                     except PermissionError:
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
             elif key in ("secondaryFiles", "listing"):
                 for files in cast(MutableSequence[CWLObjectType], value):
                     if isinstance(files, MutableMapping):
-                        self.generate_snapshot(files, no_data)
+                        self.generate_snapshot(files)
             else:
                 pass
 
@@ -813,7 +809,7 @@ class ResearchObject:
             prefix=tmp_prefix, dir=tmp_dir, delete=False
         ) as tmp:
             # TODO this should depend on the arguments
-            if cwltool.main.NO_DATA:
+            if NO_DATA:
                 checksum = checksum_only(from_fp)
             else:
                 checksum = checksum_copy(from_fp, tmp)
@@ -906,7 +902,7 @@ class ResearchObject:
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                if cwltool.main.NO_DATA:
+                if NO_DATA:
                     checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
                 else:
                     checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)

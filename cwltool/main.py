@@ -45,7 +45,7 @@ from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import cmap, strip_dup_lineno
 from schema_salad.utils import ContextType, FetcherCallableType, json_dumps, yaml_no_ts
 
-from . import CWL_CONTENT_TYPES, workflow
+from . import CWL_CONTENT_TYPES, workflow, utils
 from .argparser import arg_parser, generate_parser, get_default_args
 from .context import LoadingContext, RuntimeContext, getdefault
 from .cwlrdf import printdot, printrdf
@@ -161,8 +161,8 @@ def _signal_handler(signum: int, _: Any) -> None:
 
 
 def generate_example_input(
-    inptype: Optional[CWLOutputType],
-    default: Optional[CWLOutputType],
+        inptype: Optional[CWLOutputType],
+        default: Optional[CWLOutputType],
 ) -> Tuple[Any, str]:
     """Convert a single input schema into an example."""
     example = None
@@ -258,8 +258,8 @@ def generate_example_input(
 
 
 def realize_input_schema(
-    input_types: MutableSequence[Union[str, CWLObjectType]],
-    schema_defs: MutableMapping[str, CWLObjectType],
+        input_types: MutableSequence[Union[str, CWLObjectType]],
+        schema_defs: MutableMapping[str, CWLObjectType],
 ) -> MutableSequence[Union[str, CWLObjectType]]:
     """Replace references to named typed with the actual types."""
     for index, entry in enumerate(input_types):
@@ -329,8 +329,8 @@ def generate_input_template(tool: Process) -> CWLObjectType:
     """Generate an example input object for the given CWL process."""
     template = ruamel.yaml.comments.CommentedMap()
     for inp in cast(
-        List[MutableMapping[str, str]],
-        realize_input_schema(tool.tool["inputs"], tool.schemaDefs),
+            List[MutableMapping[str, str]],
+            realize_input_schema(tool.tool["inputs"], tool.schemaDefs),
     ):
         name = shortname(inp["id"])
         value, comment = generate_example_input(inp["type"], inp.get("default", None))
@@ -339,13 +339,12 @@ def generate_input_template(tool: Process) -> CWLObjectType:
 
 
 def load_job_order(
-    args: argparse.Namespace,
-    stdin: IO[Any],
-    fetcher_constructor: Optional[FetcherCallableType],
-    overrides_list: List[CWLObjectType],
-    tool_file_uri: str,
+        args: argparse.Namespace,
+        stdin: IO[Any],
+        fetcher_constructor: Optional[FetcherCallableType],
+        overrides_list: List[CWLObjectType],
+        tool_file_uri: str,
 ) -> Tuple[Optional[CWLObjectType], str, Loader]:
-
     job_order_object = None
     job_order_file = None
 
@@ -378,8 +377,8 @@ def load_job_order(
         )
 
     if (
-        job_order_object is not None
-        and "http://commonwl.org/cwltool#overrides" in job_order_object
+            job_order_object is not None
+            and "http://commonwl.org/cwltool#overrides" in job_order_object
     ):
         ov_uri = file_uri(job_order_file or input_basedir)
         overrides_list.extend(
@@ -391,7 +390,7 @@ def load_job_order(
         input_basedir = args.basedir if args.basedir else os.getcwd()
 
     if job_order_object is not None and not isinstance(
-        job_order_object, MutableMapping
+            job_order_object, MutableMapping
     ):
         _logger.error(
             "CWL input object at %s is not formatted correctly, it should be a "
@@ -406,18 +405,18 @@ def load_job_order(
 
 
 def init_job_order(
-    job_order_object: Optional[CWLObjectType],
-    args: argparse.Namespace,
-    process: Process,
-    loader: Loader,
-    stdout: Union[TextIO, StreamWriter],
-    print_input_deps: bool = False,
-    relative_deps: str = "primary",
-    make_fs_access: Callable[[str], StdFsAccess] = StdFsAccess,
-    input_basedir: str = "",
-    secret_store: Optional[SecretStore] = None,
-    input_required: bool = True,
-    runtime_context: Optional[RuntimeContext] = None,
+        job_order_object: Optional[CWLObjectType],
+        args: argparse.Namespace,
+        process: Process,
+        loader: Loader,
+        stdout: Union[TextIO, StreamWriter],
+        print_input_deps: bool = False,
+        relative_deps: str = "primary",
+        make_fs_access: Callable[[str], StdFsAccess] = StdFsAccess,
+        input_basedir: str = "",
+        secret_store: Optional[SecretStore] = None,
+        input_required: bool = True,
+        runtime_context: Optional[RuntimeContext] = None,
 ) -> CWLObjectType:
     secrets_req, _ = process.get_requirement("http://commonwl.org/cwltool#Secrets")
     if job_order_object is None:
@@ -442,7 +441,7 @@ def init_job_order(
                 k: v for k, v in cmd_line.items() if k.startswith(record_name)
             }
             for key, value in record_items.items():
-                record[key[len(record_name) + 1 :]] = value
+                record[key[len(record_name) + 1:]] = value
                 del cmd_line[key]
             cmd_line[str(record_name)] = record
         if "job_order" in cmd_line and cmd_line["job_order"]:
@@ -477,7 +476,7 @@ def init_job_order(
 
     for inp in process.tool["inputs"]:
         if "default" in inp and (
-            not job_order_object or shortname(inp["id"]) not in job_order_object
+                not job_order_object or shortname(inp["id"]) not in job_order_object
         ):
             if not job_order_object:
                 job_order_object = {}
@@ -557,13 +556,13 @@ def make_relative(base: str, obj: CWLObjectType) -> None:
 
 
 def printdeps(
-    obj: CWLObjectType,
-    document_loader: Loader,
-    stdout: Union[TextIO, StreamWriter],
-    relative_deps: str,
-    uri: str,
-    basedir: Optional[str] = None,
-    nestdirs: bool = True,
+        obj: CWLObjectType,
+        document_loader: Loader,
+        stdout: Union[TextIO, StreamWriter],
+        relative_deps: str,
+        uri: str,
+        basedir: Optional[str] = None,
+        nestdirs: bool = True,
 ) -> None:
     """Print a JSON representation of the dependencies of the CWL document."""
     deps = find_deps(obj, document_loader, uri, basedir=basedir, nestdirs=nestdirs)
@@ -576,10 +575,10 @@ def printdeps(
 
 
 def prov_deps(
-    obj: CWLObjectType,
-    document_loader: Loader,
-    uri: str,
-    basedir: Optional[str] = None,
+        obj: CWLObjectType,
+        document_loader: Loader,
+        uri: str,
+        basedir: Optional[str] = None,
 ) -> CWLObjectType:
     deps = find_deps(obj, document_loader, uri, basedir=basedir)
 
@@ -597,11 +596,11 @@ def prov_deps(
 
 
 def find_deps(
-    obj: CWLObjectType,
-    document_loader: Loader,
-    uri: str,
-    basedir: Optional[str] = None,
-    nestdirs: bool = True,
+        obj: CWLObjectType,
+        document_loader: Loader,
+        uri: str,
+        basedir: Optional[str] = None,
+        nestdirs: bool = True,
 ) -> CWLObjectType:
     """Find the dependencies of the CWL document."""
     deps = {
@@ -630,8 +629,8 @@ def find_deps(
 
 
 def print_pack(
-    loadingContext: LoadingContext,
-    uri: str,
+        loadingContext: LoadingContext,
+        uri: str,
 ) -> str:
     """Return a CWL serialization of the CWL document in JSON."""
     packed = pack(loadingContext, uri)
@@ -653,7 +652,7 @@ def supported_cwl_versions(enable_dev: bool) -> List[str]:
 
 
 def setup_schema(
-    args: argparse.Namespace, custom_schema_callback: Optional[Callable[[], None]]
+        args: argparse.Namespace, custom_schema_callback: Optional[Callable[[], None]]
 ) -> None:
     if custom_schema_callback is not None:
         custom_schema_callback()
@@ -685,7 +684,7 @@ class ProvLogFormatter(logging.Formatter):
         super().__init__("[%(asctime)sZ] %(message)s")
 
     def formatTime(
-        self, record: logging.LogRecord, datefmt: Optional[str] = None
+            self, record: logging.LogRecord, datefmt: Optional[str] = None
     ) -> str:
         formatted_time = time.strftime(
             "%Y-%m-%dT%H:%M:%S", time.gmtime(float(record.created))
@@ -698,9 +697,9 @@ ProvOut = Union[io.TextIOWrapper, WritableBagFile]
 
 
 def setup_provenance(
-    args: argparse.Namespace,
-    argsl: List[str],
-    runtimeContext: RuntimeContext,
+        args: argparse.Namespace,
+        argsl: List[str],
+        runtimeContext: RuntimeContext,
 ) -> Tuple[ProvOut, "logging.StreamHandler[ProvOut]"]:
     if not args.compute_checksum:
         _logger.error("--provenance incompatible with --no-compute-checksum")
@@ -727,9 +726,9 @@ def setup_provenance(
 
 
 def setup_loadingContext(
-    loadingContext: Optional[LoadingContext],
-    runtimeContext: RuntimeContext,
-    args: argparse.Namespace,
+        loadingContext: Optional[LoadingContext],
+        runtimeContext: RuntimeContext,
+        args: argparse.Namespace,
 ) -> LoadingContext:
     """Prepare a LoadingContext from the given arguments."""
     if loadingContext is None:
@@ -758,12 +757,12 @@ def setup_loadingContext(
 
 
 def make_template(
-    tool: Process,
+        tool: Process,
 ) -> None:
     """Make a template CWL input object for the give Process."""
 
     def my_represent_none(
-        self: Any, data: Any
+            self: Any, data: Any
     ) -> Any:  # pylint: disable=unused-argument
         """Force clean representation of 'null'."""
         return self.represent_scalar("tag:yaml.org,2002:null", "null")
@@ -807,9 +806,9 @@ def inherit_reqshints(tool: Process, parent: Process) -> None:
 
 
 def choose_target(
-    args: argparse.Namespace,
-    tool: Process,
-    loading_context: LoadingContext,
+        args: argparse.Namespace,
+        tool: Process,
+        loading_context: LoadingContext,
 ) -> Optional[Process]:
     """Walk the Workflow, extract the subset matches all the args.targets."""
     if loading_context.loader is None:
@@ -843,9 +842,9 @@ def choose_target(
 
 
 def choose_step(
-    args: argparse.Namespace,
-    tool: Process,
-    loading_context: LoadingContext,
+        args: argparse.Namespace,
+        tool: Process,
+        loading_context: LoadingContext,
 ) -> Optional[Process]:
     """Walk the given Workflow and extract just args.single_step."""
     if loading_context.loader is None:
@@ -875,9 +874,9 @@ def choose_step(
 
 
 def choose_process(
-    args: argparse.Namespace,
-    tool: Process,
-    loadingContext: LoadingContext,
+        args: argparse.Namespace,
+        tool: Process,
+        loadingContext: LoadingContext,
 ) -> Optional[Process]:
     """Walk the given Workflow and extract just args.single_process."""
     if loadingContext.loader is None:
@@ -909,18 +908,18 @@ def choose_process(
 
 
 def check_working_directories(
-    runtimeContext: RuntimeContext,
+        runtimeContext: RuntimeContext,
 ) -> Optional[int]:
     """Make any needed working directories."""
     for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
         if (
-            getattr(runtimeContext, dirprefix)
-            and getattr(runtimeContext, dirprefix) != DEFAULT_TMP_PREFIX
+                getattr(runtimeContext, dirprefix)
+                and getattr(runtimeContext, dirprefix) != DEFAULT_TMP_PREFIX
         ):
             sl = (
                 "/"
                 if getattr(runtimeContext, dirprefix).endswith("/")
-                or dirprefix == "cachedir"
+                   or dirprefix == "cachedir"
                 else ""
             )
             setattr(
@@ -938,10 +937,10 @@ def check_working_directories(
 
 
 def print_targets(
-    tool: Process,
-    stdout: Union[TextIO, StreamWriter],
-    loading_context: LoadingContext,
-    prefix: str = "",
+        tool: Process,
+        stdout: Union[TextIO, StreamWriter],
+        loading_context: LoadingContext,
+        prefix: str = "",
 ) -> None:
     """Recursively find targets for --subgraph and friends."""
     for f in ("outputs", "inputs"):
@@ -971,28 +970,25 @@ def print_targets(
             )
 
 
-NO_DATA = False
-
-
 def main(
-    argsl: Optional[List[str]] = None,
-    args: Optional[argparse.Namespace] = None,
-    job_order_object: Optional[CWLObjectType] = None,
-    stdin: IO[Any] = sys.stdin,
-    stdout: Optional[Union[TextIO, StreamWriter]] = None,
-    stderr: IO[Any] = sys.stderr,
-    versionfunc: Callable[[], str] = versionstring,
-    logger_handler: Optional[logging.Handler] = None,
-    custom_schema_callback: Optional[Callable[[], None]] = None,
-    executor: Optional[JobExecutor] = None,
-    loadingContext: Optional[LoadingContext] = None,
-    runtimeContext: Optional[RuntimeContext] = None,
-    input_required: bool = True,
+        argsl: Optional[List[str]] = None,
+        args: Optional[argparse.Namespace] = None,
+        job_order_object: Optional[CWLObjectType] = None,
+        stdin: IO[Any] = sys.stdin,
+        stdout: Optional[Union[TextIO, StreamWriter]] = None,
+        stderr: IO[Any] = sys.stderr,
+        versionfunc: Callable[[], str] = versionstring,
+        logger_handler: Optional[logging.Handler] = None,
+        custom_schema_callback: Optional[Callable[[], None]] = None,
+        executor: Optional[JobExecutor] = None,
+        loadingContext: Optional[LoadingContext] = None,
+        runtimeContext: Optional[RuntimeContext] = None,
+        input_required: bool = True,
 ) -> int:
     if not stdout:  # force UTF-8 even if the console is configured differently
         if hasattr(sys.stdout, "encoding") and sys.stdout.encoding.upper() not in (
-            "UTF-8",
-            "UTF8",
+                "UTF-8",
+                "UTF8",
         ):
             if hasattr(sys.stdout, "detach"):
                 stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
@@ -1051,9 +1047,8 @@ def main(
         _logger.info(versionfunc())
 
         # TODO How can we access args.no_data from other places in a nice way?...
-        _logger.error("No data status %s", args.no_data)
-        global NO_DATA
-        NO_DATA = args.no_data
+        utils.NO_DATA = args.no_data
+        _logger.error("utils.NO_DATA: %s", utils.NO_DATA)
 
         if args.print_supported_versions:
             print("\n".join(supported_cwl_versions(args.enable_dev)), file=stdout)
@@ -1449,16 +1444,16 @@ def main(
 
     finally:
         if (
-            args
-            and runtimeContext
-            and runtimeContext.research_obj
-            and workflowobj
-            and loadingContext
+                args
+                and runtimeContext
+                and runtimeContext.research_obj
+                and workflowobj
+                and loadingContext
         ):
             research_obj = runtimeContext.research_obj
             if loadingContext.loader is not None:
                 research_obj.generate_snapshot(
-                    prov_deps(workflowobj, loadingContext.loader, uri), args.no_data
+                    prov_deps(workflowobj, loadingContext.loader, uri)
                 )
             else:
                 _logger.warning(
@@ -1493,9 +1488,9 @@ def main(
 
 
 def find_default_container(
-    builder: HasReqsHints,
-    default_container: Optional[str] = None,
-    use_biocontainers: Optional[bool] = None,
+        builder: HasReqsHints,
+        default_container: Optional[str] = None,
+        use_biocontainers: Optional[bool] = None,
 ) -> Optional[str]:
     """Find a container."""
     if not default_container and use_biocontainers:
