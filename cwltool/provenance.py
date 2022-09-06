@@ -1056,7 +1056,7 @@ def checksum_copy(
     return content_processor(contents, src_file, dst_file, checksum, buffersize)
 
 
-def content_processor(contents, src_file, dst_file, checksum, buffersize):
+def content_processor(contents, src_file, dst_file, checksum, buffersize) -> str:
     """
     Calculate the checksum based on the content.
 
