@@ -48,7 +48,7 @@ def cwltool(tmp_path: Path, *args: Any) -> Path:
 def cwltool_no_data(tmp_path: Path, *args: Any) -> Path:
     prov_folder = tmp_path / "provenance"
     prov_folder.mkdir()
-    new_args = ["--no-data", "--provenance", str(prov_folder)]
+    new_args = ["--enable-ext", "--no-data", "--provenance", str(prov_folder)]
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
     tmp_dir = tmp_path / "cwltool-run"
@@ -207,7 +207,7 @@ def test_directory_workflow(tmp_path: Path) -> None:
 
 
 @needs_docker
-def test_directory_workflow_no_data(tmp_path: Path) -> None:
+def test_directory_workflow_no_listing(tmp_path: Path) -> None:
     dir2 = tmp_path / "dir2"
     dir2.mkdir()
     sha1 = {
@@ -223,8 +223,28 @@ def test_directory_workflow_no_data(tmp_path: Path) -> None:
         with open(dir2 / x, "w", encoding="ascii") as f:
             f.write(x)
 
-    folder = cwltool_no_data(
-        tmp_path, get_data("tests/wf/directory.cwl"), "--dir", str(dir2)
+    dir3 = tmp_path / "dirIgnore"
+    dir3.mkdir()
+    sha1 = {
+        # Expected hashes of ASCII letters (no linefeed)
+        # as returned from:
+        # for x in a b c ; do echo -n $x | sha1sum ; done
+        "d": "3c363836cf4e16666669a25da280a1865c2d2874",
+        "e": "58e6b3a414a1e090dfc6029add0f3555ccba127f",
+        "f": "4a0a19218e082a343a1b17e5333409af9d98f0f5",
+    }
+    for x in "def":
+        # Make test files with predictable hashes
+        with open(dir3 / x, "w", encoding="ascii") as f:
+            f.write(x)
+
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/directory_no_listing.cwl"),
+        "--dir",
+        str(dir2),
+        "--ignore",
+        str(dir3),
     )
     # check invert? as there should be no data in there
     # check_provenance(folder, directory=True)
@@ -234,12 +254,13 @@ def test_directory_workflow_no_data(tmp_path: Path) -> None:
         folder
         / "data"
         / "3c"
-        / "3ca69e8d6c234a469d16ac28a4a658c92267c423"
+        / "3c363836cf4e16666669a25da280a1865c2d2874"
         # checksum as returned from:
         # echo -e "a\nb\nc" | sha1sum
         # 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
     )
     # File should be empty and in the future not existing...
+    print("FILE LIST: ", file_list.absolute())
     assert os.path.getsize(file_list.absolute()) == 0
     # To be discared when file really does not exist anymore
     assert file_list.is_file()
