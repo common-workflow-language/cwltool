@@ -334,7 +334,7 @@ class MultithreadedJobExecutor(JobExecutor):
                         self.allocated_ram -= ram
                         cores = job.builder.resources["cores"]
                         self.allocated_cores -= cores
-                    runtime_context.workflow_eval_lock.notifyAll()
+                    runtime_context.workflow_eval_lock.notify_all()
 
     def run_job(
         self,
