@@ -25,6 +25,7 @@ from schema_salad.sourceline import SourceLine
 from typing_extensions import TYPE_CHECKING
 
 import cwltool.workflow
+from . import process
 
 from .errors import WorkflowException
 from .job import CommandLineJob, JobBase
@@ -57,7 +58,7 @@ if TYPE_CHECKING:
 
 
 def copy_job_order(
-    job: Union[Process, JobsType], job_order_object: CWLObjectType
+    job: Union[Process, JobsType], job_order_object: CWLObjectType, process
 ) -> CWLObjectType:
     """Create copy of job object for provenance."""
     if not isinstance(job, WorkflowJob):
@@ -66,12 +67,34 @@ def copy_job_order(
     customised_job: CWLObjectType = {}
     # new job object for RO
     debug = _logger.isEnabledFor(logging.DEBUG)
+    # Process the process object first
+    load_listing = {}
+
+    # Implementation to capture the loadlisting from cwl to skip the inclusion of for example files of big database
+    # folders
+    for index, entry in enumerate(process.inputs_record_schema["fields"]):
+        if (
+            entry["type"] == "org.w3id.cwl.cwl.Directory"
+            and "loadListing" in entry
+            and entry["loadListing"]
+        ):
+            load_listing[entry["name"]] = entry["loadListing"]
+
+    # print("LOAD LISTING: ", load_listing)
+    # PROCESS:Workflow: file:///Users/jasperk/gitlab/cwltool/tests/wf/directory_no_listing.cwl
+    # print("PROCESS:" + str(process))
+
     for each, i in enumerate(job.tool["inputs"]):
         with SourceLine(job.tool["inputs"], each, WorkflowException, debug):
             iid = shortname(i["id"])
+            # if iid in the load listing object and no_listing then....
             if iid in job_order_object:
-                customised_job[iid] = copy.deepcopy(job_order_object[iid])
-                # add the input element in dictionary for provenance
+                if iid in load_listing and load_listing[iid] != "no_listing":
+                    customised_job[iid] = copy.deepcopy(job_order_object[iid])
+                # TODO Other listing options here?
+                else:
+                    # add the input element in dictionary for provenance
+                    customised_job[iid] = copy.deepcopy(job_order_object[iid])
             elif "default" in i:
                 customised_job[iid] = copy.deepcopy(i["default"])
                 # add the default elements in the dictionary for provenance
@@ -246,13 +269,13 @@ class ProvenanceProfile:
         if not hasattr(process, "steps"):
             # record provenance of independent commandline tool executions
             self.prospective_prov(job)
-            customised_job = copy_job_order(job, job_order_object)
+            customised_job = copy_job_order(job, job_order_object, process)
             self.used_artefacts(customised_job, self.workflow_run_uri)
             research_obj.create_job(customised_job)
         elif hasattr(job, "workflow"):
             # record provenance of workflow executions
             self.prospective_prov(job)
-            customised_job = copy_job_order(job, job_order_object)
+            customised_job = copy_job_order(job, job_order_object, process)
             self.used_artefacts(customised_job, self.workflow_run_uri)
 
     def record_process_start(
@@ -472,8 +495,11 @@ class ProvenanceProfile:
         # a later call to this method will sort that
         is_empty = True
 
+        # if value['basename'] == "dirIgnore":
+        #     pass
         if "listing" not in value:
             get_listing(self.fsaccess, value)
+
         for entry in cast(MutableSequence[CWLObjectType], value.get("listing", [])):
             is_empty = False
             # Declare child-artifacts
