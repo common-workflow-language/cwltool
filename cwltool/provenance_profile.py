@@ -735,8 +735,11 @@ class ProvenanceProfile:
                     load_listing = "deep_listing"
                     for field in schema['fields']:
                         if field['name'] == key:
-                            load_listing = field['loadListing']
-                            break
+                            if 'loadListing' in field:
+                                load_listing = field['loadListing']
+                                break
+                            else:
+                                _logger.warning("No loadListing info in object")
                 try:
                     entity = self.declare_artefact(value, load_listing)
                     self.document.used(

@@ -17,6 +17,9 @@ inputs:
     ignore:
         type: Directory
         loadListing: no_listing
+    ignore_no_info:
+        type: Directory
+
 
 steps:
     ls:

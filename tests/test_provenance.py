@@ -212,7 +212,7 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
     This test will check for 3 files that should be there and 3 files that should not be there.
     @param tmp_path:
     """
-    dir2 = tmp_path / "dir2"
+    dir2 = tmp_path / "dir_deep_listing"
     dir2.mkdir()
     sha1 = {
         # Expected hashes of ASCII letters (no linefeed)
@@ -227,12 +227,12 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         with open(dir2 / x, "w", encoding="ascii") as f:
             f.write(x)
 
-    dir3 = tmp_path / "dirIgnore"
+    dir3 = tmp_path / "dir_no_listing"
     dir3.mkdir()
     sha1 = {
         # Expected hashes of ASCII letters (no linefeed)
         # as returned from:
-        # for x in a b c ; do echo -n $x | sha1sum ; done
+        # for x in d e f ; do echo -n $x | sha1sum ; done
         "d": "3c363836cf4e16666669a25da280a1865c2d2874",
         "e": "58e6b3a414a1e090dfc6029add0f3555ccba127f",
         "f": "4a0a19218e082a343a1b17e5333409af9d98f0f5",
@@ -242,6 +242,21 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         with open(dir3 / x, "w", encoding="ascii") as f:
             f.write(x)
 
+    dir4 = tmp_path / "dir_no_info"
+    dir4.mkdir()
+    sha1 = {
+        # Expected hashes of ASCII letters (no linefeed)
+        # as returned from:
+        # for x in g h i ; do echo -n $x | sha1sum ; done
+        "g": "54fd1711209fb1c0781092374132c66e79e2241b",
+        "h": "27d5482eebd075de44389774fce28c69f45c8a75",
+        "i": "042dc4512fa3d391c5170cf3aa61e6a638f84342",
+    }
+    for x in "def":
+        # Make test files with predictable hashes
+        with open(dir4 / x, "w", encoding="ascii") as f:
+            f.write(x)
+
     folder = cwltool(
         tmp_path,
         get_data("tests/wf/directory_no_listing.cwl"),
@@ -249,6 +264,8 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         str(dir2),
         "--ignore",
         str(dir3),
+        "--ignore_no_info",
+        str(dir4),
     )
     # check invert? as there should be no data in there
     # check_provenance(folder, directory=True)
@@ -277,7 +294,7 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         # File should be empty and in the future not existing...
         # assert os.path.getsize(p.absolute()) == 0
         # To be discared when file really does not exist anymore
-        if l not in ['d', 'e', 'f']:
+        if l not in ['d', 'e', 'f', 'g', 'h', 'i']:
             print("Analysing file %s", l)
             assert p.is_file(), f"Could not find {l} as {p}"
 
