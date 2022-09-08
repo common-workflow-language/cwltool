@@ -739,7 +739,9 @@ class ProvenanceProfile:
                                 load_listing = field['loadListing']
                                 break
                             else:
+                                # Need to find a way to reproduce this
                                 _logger.warning("No loadListing info in object")
+                                load_listing = "no_listing"
                 try:
                     entity = self.declare_artefact(value, load_listing)
                     self.document.used(
