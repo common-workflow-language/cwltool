@@ -25,8 +25,6 @@ from schema_salad.sourceline import SourceLine
 from typing_extensions import TYPE_CHECKING
 
 import cwltool.workflow
-from . import process
-
 from .errors import WorkflowException
 from .job import CommandLineJob, JobBase
 from .loghandler import _logger
