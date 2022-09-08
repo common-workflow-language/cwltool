@@ -89,8 +89,15 @@ def copy_job_order(
             iid = shortname(i["id"])
             # if iid in the load listing object and no_listing then....
             if iid in job_order_object:
-                if iid in load_listing and load_listing[iid] != "no_listing":
-                    customised_job[iid] = copy.deepcopy(job_order_object[iid])
+                if iid in load_listing:
+                    if load_listing[iid] == "no_listing":
+                        _logger.warning("Skip listing of " + iid)
+                        job_order_object[iid]['loadListing'] = 'no_listing'
+                        job_order_object[iid]['listing'] = []
+                        customised_job[iid] = job_order_object[iid]
+                    else:
+                        # Normal deep copy
+                        customised_job[iid] = copy.deepcopy(job_order_object[iid])
                 # TODO Other listing options here?
                 else:
                     # add the input element in dictionary for provenance
@@ -270,13 +277,14 @@ class ProvenanceProfile:
             # record provenance of independent commandline tool executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object, process)
-            self.used_artefacts(customised_job, self.workflow_run_uri)
+            self.used_artefacts(customised_job, self.workflow_run_uri, job.builder.loadListing)
             research_obj.create_job(customised_job)
         elif hasattr(job, "workflow"):
             # record provenance of workflow executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object, process)
-            self.used_artefacts(customised_job, self.workflow_run_uri)
+            self.used_artefacts(customised_job, self.workflow_run_uri, schema=process.inputs_record_schema)
+
 
     def record_process_start(
         self, process: Process, job: JobsType, process_run_id: Optional[str] = None
@@ -355,11 +363,12 @@ class ProvenanceProfile:
         process_run_id: str,
         outputs: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
         when: datetime.datetime,
+        load_listing: str = "deep_listing",
     ) -> None:
-        self.generate_output_prov(outputs, process_run_id, process_name)
+        self.generate_output_prov(outputs, process_run_id, process_name, load_listing)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
-    def declare_file(self, value: CWLObjectType) -> Tuple[ProvEntity, ProvEntity, str]:
+    def declare_file(self, value: CWLObjectType, load_listing: str = "deep_listing") -> Tuple[ProvEntity, ProvEntity, str]:
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
@@ -436,9 +445,9 @@ class ProvenanceProfile:
         ):
             # TODO: Record these in a specializationOf entity with UUID?
             if sec["class"] == "File":
-                (sec_entity, _, _) = self.declare_file(sec)
+                (sec_entity, _, _) = self.declare_file(sec, load_listing)
             elif sec["class"] == "Directory":
-                sec_entity = self.declare_directory(sec)
+                sec_entity = self.declare_directory(sec, load_listing)
             else:
                 raise ValueError(f"Got unexpected secondaryFiles value: {sec}")
             # We don't know how/when/where the secondary file was generated,
@@ -453,7 +462,7 @@ class ProvenanceProfile:
 
         return file_entity, entity, checksum
 
-    def declare_directory(self, value: CWLObjectType) -> ProvEntity:
+    def declare_directory(self, value: CWLObjectType, load_listing: str = "deep_listing") -> ProvEntity:
         """Register any nested files/directories."""
         # FIXME: Calculate a hash-like identifier for directory
         # so we get same value if it's the same filenames/hashes
@@ -498,12 +507,19 @@ class ProvenanceProfile:
         # if value['basename'] == "dirIgnore":
         #     pass
         if "listing" not in value:
-            get_listing(self.fsaccess, value)
+            if load_listing == "no_listing":
+                pass
+            elif load_listing == "deep_listing":
+                get_listing(self.fsaccess, value)
+            elif load_listing == "shallow_listing":
+                get_listing(self.fsaccess, value, False)
+            else:
+                raise ValueError("Invalid listing value: %s", load_listing)
 
         for entry in cast(MutableSequence[CWLObjectType], value.get("listing", [])):
             is_empty = False
             # Declare child-artifacts
-            entity = self.declare_artefact(entry)
+            entity = self.declare_artefact(entry, load_listing)
             self.document.membership(coll, entity)
             # Membership relation aka our ORE Proxy
             m_id = uuid.uuid4().urn
@@ -573,7 +589,7 @@ class ProvenanceProfile:
         )
         return entity, checksum
 
-    def declare_artefact(self, value: Any) -> ProvEntity:
+    def declare_artefact(self, value: Any, load_listing: str = "deep_listing") -> ProvEntity:
         """Create data artefact entities for all file objects."""
         if value is None:
             # FIXME: If this can happen in CWL, we'll
@@ -615,12 +631,12 @@ class ProvenanceProfile:
 
             # Base case - we found a File we need to update
             if value.get("class") == "File":
-                (entity, _, _) = self.declare_file(value)
+                (entity, _, _) = self.declare_file(value, load_listing)
                 value["@id"] = entity.identifier.uri
                 return entity
 
             if value.get("class") == "Directory":
-                entity = self.declare_directory(value)
+                entity = self.declare_directory(value, load_listing)
                 value["@id"] = entity.identifier.uri
                 return entity
             coll_id = value.setdefault("@id", uuid.uuid4().urn)
@@ -643,7 +659,7 @@ class ProvenanceProfile:
             # Let's iterate and recurse
             coll_attribs: List[Tuple[Union[str, Identifier], Any]] = []
             for (key, val) in value.items():
-                v_ent = self.declare_artefact(val)
+                v_ent = self.declare_artefact(val, load_listing)
                 self.document.membership(coll, v_ent)
                 m_entity = self.document.entity(uuid.uuid4().urn)
                 # Note: only support PROV-O style dictionary
@@ -664,7 +680,7 @@ class ProvenanceProfile:
             members = []
             for each_input_obj in iter(value):
                 # Recurse and register any nested objects
-                e = self.declare_artefact(each_input_obj)
+                e = self.declare_artefact(each_input_obj, load_listing)
                 members.append(e)
 
             # If we reached this, then we were allowed to iterate
@@ -698,11 +714,16 @@ class ProvenanceProfile:
         job_order: Union[CWLObjectType, List[CWLObjectType]],
         process_run_id: str,
         name: Optional[str] = None,
+        schema: Any = None,
+        load_listing: Optional[str] = None,
     ) -> None:
         """Add used() for each data artefact."""
         if isinstance(job_order, list):
             for entry in job_order:
-                self.used_artefacts(entry, process_run_id, name)
+                # for field in schema.fields:
+                    # if field['name'] == entry.
+                    # load_listing = schema.fields
+                self.used_artefacts(entry, process_run_id, name, load_listing)
         else:
             # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
             base = "main"
@@ -710,8 +731,14 @@ class ProvenanceProfile:
                 base += "/" + name
             for key, value in job_order.items():
                 prov_role = self.wf_ns[f"{base}/{key}"]
+                if not load_listing:
+                    load_listing = "deep_listing"
+                    for field in schema['fields']:
+                        if field['name'] == key:
+                            load_listing = field['loadListing']
+                            break
                 try:
-                    entity = self.declare_artefact(value)
+                    entity = self.declare_artefact(value, load_listing)
                     self.document.used(
                         process_run_id,
                         entity,
@@ -727,11 +754,12 @@ class ProvenanceProfile:
         final_output: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
         process_run_id: Optional[str],
         name: Optional[str],
+        load_listing: str = "deep_listing"
     ) -> None:
         """Call wasGeneratedBy() for each output,copy the files into the RO."""
         if isinstance(final_output, MutableSequence):
             for entry in final_output:
-                self.generate_output_prov(entry, process_run_id, name)
+                self.generate_output_prov(entry, process_run_id, name, load_listing)
         elif final_output is not None:
             # Timestamp should be created at the earliest
             timestamp = datetime.datetime.now()
@@ -740,7 +768,7 @@ class ProvenanceProfile:
             # entity (UUID) and document it as generated in
             # a role corresponding to the output
             for output, value in final_output.items():
-                entity = self.declare_artefact(value)
+                entity = self.declare_artefact(value, load_listing)
                 if name is not None:
                     name = urllib.parse.quote(str(name), safe=":/,#")
                     # FIXME: Probably not "main" in nested workflows

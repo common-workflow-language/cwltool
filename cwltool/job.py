@@ -299,7 +299,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 and isinstance(job_order, (list, dict))
             ):
                 runtimeContext.prov_obj.used_artefacts(
-                    job_order, runtimeContext.process_run_id, str(self.name)
+                    job_order, runtimeContext.process_run_id, str(self.name), load_listing=self.builder.loadListing
                 )
             else:
                 _logger.warning(
@@ -426,6 +426,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 runtimeContext.process_run_id,
                 outputs,
                 datetime.datetime.now(),
+                builder.loadListing # TODO FIX THIS
             )
         if processStatus != "success":
             _logger.warning("[job %s] completed %s", self.name, processStatus)

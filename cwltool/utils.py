@@ -97,7 +97,7 @@ ScatterDestinationsType = MutableMapping[str, List[Optional[CWLOutputType]]]
 ScatterOutputCallbackType = Callable[[Optional[ScatterDestinationsType], str], None]
 SinkType = Union[CWLOutputType, CWLObjectType]
 DirectoryType = TypedDict(
-    "DirectoryType", {"class": str, "listing": List[CWLObjectType], "basename": str}
+    "DirectoryType", {"class": str, "listing": List[CWLObjectType], "basename": str, "loadListing": str}
 )
 JSONAtomType = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
 JSONType = Union[

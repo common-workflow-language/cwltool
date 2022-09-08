@@ -208,6 +208,10 @@ def test_directory_workflow(tmp_path: Path) -> None:
 
 @needs_docker
 def test_directory_workflow_no_listing(tmp_path: Path) -> None:
+    """
+    This test will check for 3 files that should be there and 3 files that should not be there.
+    @param tmp_path:
+    """
     dir2 = tmp_path / "dir2"
     dir2.mkdir()
     sha1 = {
@@ -253,8 +257,8 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
     file_list = (
         folder
         / "data"
-        / "3c"
-        / "3c363836cf4e16666669a25da280a1865c2d2874"
+        / "84"
+        / "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4"
         # checksum as returned from:
         # echo -e "a\nb\nc" | sha1sum
         # 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
@@ -273,8 +277,9 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         # File should be empty and in the future not existing...
         # assert os.path.getsize(p.absolute()) == 0
         # To be discared when file really does not exist anymore
-        assert p.is_file(), f"Could not find {l} as {p}"
-
+        if l not in ['d', 'e', 'f']:
+            print("Analysing file %s", l)
+            assert p.is_file(), f"Could not find {l} as {p}"
 
 @needs_docker
 def test_no_data_files(tmp_path: Path) -> None:

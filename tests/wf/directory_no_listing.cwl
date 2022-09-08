@@ -13,6 +13,7 @@ hints:
 inputs:
     dir:
         type: Directory
+        loadListing: deep_listing
     ignore:
         type: Directory
         loadListing: no_listing
@@ -47,7 +48,10 @@ steps:
         run:
             class: CommandLineTool
             requirements:
-            - class: ShellCommandRequirement
+                ShellCommandRequirement: {}
+                LoadListingRequirement:
+                    loadListing: deep_listing
+
             arguments:
             - shellQuote: false
               valueFrom: >
@@ -64,10 +68,10 @@ steps:
                         glob: "dir1"
 
 outputs:
-    listing:
+    output_1:
         type: File
         outputSource: ls/listing
-    dir1:
+    output_2:
         type: Directory
         outputSource: generate/dir1
 
