@@ -126,13 +126,11 @@ def v1_0to1_1(
         proc.setdefault("hints", CommentedSeq())
         na = CommentedMap([("class", "NetworkAccess"), ("networkAccess", True)])
         na.lc.filename = proc.lc.filename
-        proc["hints"].insert(
-            0, na
-        )
+        proc["hints"].insert(0, na)
 
         ll = CommentedMap(
-                [("class", "LoadListingRequirement"), ("loadListing", "deep_listing")]
-            )
+            [("class", "LoadListingRequirement"), ("loadListing", "deep_listing")]
+        )
         ll.lc.filename = proc.lc.filename
         proc["hints"].insert(
             0,
