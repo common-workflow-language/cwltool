@@ -125,7 +125,7 @@ jobs:
         include:
           - cwl-version: v1.2
             container: docker
-            extras: "--fast-validator"
+            extras: "--fast-parser"
 
     steps:
       - uses: actions/checkout@v3
