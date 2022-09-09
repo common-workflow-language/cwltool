@@ -81,7 +81,8 @@ def can_assign_src_to_sink(
     src: admissible source types
     sink: admissible sink types
 
-    In non-strict comparison, at least one source type must match one sink type.
+    In non-strict comparison, at least one source type must match one sink type,
+       except for 'null'.
     In strict comparison, all source types must match at least one sink type.
     """
     if src == "Any" or sink == "Any":
@@ -119,7 +120,9 @@ def can_assign_src_to_sink(
                     return False
             return True
         for this_src in src:
-            if can_assign_src_to_sink(cast(SinkType, this_src), sink):
+            if this_src != "null" and can_assign_src_to_sink(
+                cast(SinkType, this_src), sink
+            ):
                 return True
         return False
     if isinstance(sink, MutableSequence):
