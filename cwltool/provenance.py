@@ -842,7 +842,7 @@ class ResearchObject:
         if 'dir' in self.relativised_input_object:
             _logger.debug("[provenance] Directory :%s", self.relativised_input_object['dir']['basename'])
         else:
-            _logger.debug("[provenance] File: %s", from_fp.name)
+            _logger.debug("[provenance] File: %s", str(from_fp))
         _logger.debug("[provenance] Added data file %s", path)
         if timestamp is not None:
             createdOn, createdBy = self._self_made(timestamp)
