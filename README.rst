@@ -667,6 +667,19 @@ given in the following table; all are optional.
 +----------------+------------------+----------+------------------------------+
 
 
+Enabling Fast Parser (experimental)
+-----------------------------------
+
+For very large workflows, it can spend a lot of time in
+initialization, before the first step runs.  There is an experimental
+flag ``--fast-parser`` which can dramatically reduce the
+initialization overhead, however as of this writing it has several limitations:
+
+- Error reporting in general is worse than the standard parser, you will want to use it with workflows that you know are already correct.
+
+- It does not check for dangling links (these will become runtime errors instead of loading errors)
+
+- Several other cases fail, as documented in https://github.com/common-workflow-language/cwltool/pull/1720
 
 ===========
 Development
