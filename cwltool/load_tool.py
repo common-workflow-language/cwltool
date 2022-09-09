@@ -277,20 +277,22 @@ def _fast_parser_convert_stdstreams_to_files(
         for p in processobj:
             _fast_parser_convert_stdstreams_to_files(p)
 
-def _fast_parser_expand_hint_class(
-        hints,
-        loadingOptions: cwl_v1_2.LoadingOptions):
 
-    for h in hints:
-        if isinstance(h, MutableMapping) and "class" in h:
-            for k, v in loadingOptions.namespaces.items():
-                if h["class"].startswith(k+":"):
-                    h["class"] = v + h["class"][len(k)+1:]
+def _fast_parser_expand_hint_class(
+    hints: Optional[Any], loadingOptions: cwl_v1_2.LoadingOptions
+) -> None:
+
+    if isinstance(hints, MutableSequence):
+        for h in hints:
+            if isinstance(h, MutableMapping) and "class" in h:
+                for k, v in loadingOptions.namespaces.items():
+                    if h["class"].startswith(k + ":"):
+                        h["class"] = v + h["class"][len(k) + 1 :]
 
 
 def _fast_parser_handle_hints(
-        processobj: Union[cwl_v1_2.Process, MutableSequence[cwl_v1_2.Process]],
-        loadingOptions: cwl_v1_2.LoadingOptions
+    processobj: Union[cwl_v1_2.Process, MutableSequence[cwl_v1_2.Process]],
+    loadingOptions: cwl_v1_2.LoadingOptions,
 ) -> None:
     if isinstance(processobj, (cwl_v1_2.CommandLineTool, cwl_v1_2.Workflow)):
         _fast_parser_expand_hint_class(processobj.hints, loadingOptions)
@@ -298,10 +300,10 @@ def _fast_parser_handle_hints(
     if isinstance(processobj, cwl_v1_2.Workflow):
         for st in processobj.steps:
             _fast_parser_expand_hint_class(st.hints, loadingOptions)
-            _fast_parser_handle_hints(st.run)
+            _fast_parser_handle_hints(st.run, loadingOptions)
     elif isinstance(processobj, MutableSequence):
         for p in processobj:
-            _fast_parser_handle_hints(p)
+            _fast_parser_handle_hints(p, loadingOptions)
 
 
 def fast_parser(
