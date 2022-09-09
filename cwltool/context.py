@@ -117,7 +117,7 @@ class LoadingContext(ContextBase):
         self.podman = False  # type: bool
         self.eval_timeout: float = 60
         self.codegen_idx: Dict[str, Tuple[Any, "LoadingOptions"]] = {}
-        self.fast_validator = False
+        self.fast_parser = False
 
         super().__init__(kwargs)
 

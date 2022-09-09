@@ -265,20 +265,46 @@ def _add_blank_ids(
             )
 
 
-def _fast_validator_convert_stdstreams_to_files(
+def _fast_parser_convert_stdstreams_to_files(
     processobj: Union[cwl_v1_2.Process, MutableSequence[cwl_v1_2.Process]]
 ) -> None:
     if isinstance(processobj, cwl_v1_2.CommandLineTool):
         cwl_v1_2_utils.convert_stdstreams_to_files(processobj)
     elif isinstance(processobj, cwl_v1_2.Workflow):
         for st in processobj.steps:
-            _fast_validator_convert_stdstreams_to_files(st.run)
+            _fast_parser_convert_stdstreams_to_files(st.run)
     elif isinstance(processobj, MutableSequence):
         for p in processobj:
-            _fast_validator_convert_stdstreams_to_files(p)
+            _fast_parser_convert_stdstreams_to_files(p)
+
+def _fast_parser_expand_hint_class(
+        hints,
+        loadingOptions: cwl_v1_2.LoadingOptions):
+
+    for h in hints:
+        if isinstance(h, MutableMapping) and "class" in h:
+            for k, v in loadingOptions.namespaces.items():
+                if h["class"].startswith(k+":"):
+                    h["class"] = v + h["class"][len(k)+1:]
 
 
-def fast_validator(
+def _fast_parser_handle_hints(
+        processobj: Union[cwl_v1_2.Process, MutableSequence[cwl_v1_2.Process]],
+        loadingOptions: cwl_v1_2.LoadingOptions
+) -> None:
+    if isinstance(processobj, (cwl_v1_2.CommandLineTool, cwl_v1_2.Workflow)):
+        _fast_parser_expand_hint_class(processobj.hints, loadingOptions)
+
+    if isinstance(processobj, cwl_v1_2.Workflow):
+        for st in processobj.steps:
+            _fast_parser_expand_hint_class(st.hints, loadingOptions)
+            _fast_parser_handle_hints(st.run)
+    elif isinstance(processobj, MutableSequence):
+        for p in processobj:
+            _fast_parser_handle_hints(p)
+
+
+def fast_parser(
     workflowobj: Union[CommentedMap, CommentedSeq, None],
     fileuri: Optional[str],
     uri: str,
@@ -296,7 +322,8 @@ def fast_validator(
 
     objects, loadopt = loadingContext.codegen_idx[uri]
 
-    _fast_validator_convert_stdstreams_to_files(objects)
+    _fast_parser_convert_stdstreams_to_files(objects)
+    _fast_parser_handle_hints(objects, loadopt)
 
     processobj: Union[MutableMapping[str, Any], MutableSequence[Any], float, str, None]
 
@@ -448,10 +475,10 @@ def resolve_and_validate_document(
         _add_blank_ids(workflowobj)
 
     if cwlVersion != "v1.2":
-        loadingContext.fast_validator = False
+        loadingContext.fast_parser = False
 
-    if loadingContext.fast_validator:
-        processobj, metadata = fast_validator(workflowobj, fileuri, uri, loadingContext)
+    if loadingContext.fast_parser:
+        processobj, metadata = fast_parser(workflowobj, fileuri, uri, loadingContext)
     else:
         document_loader.resolve_all(workflowobj, fileuri)
         processobj, metadata = document_loader.resolve_ref(uri)
@@ -478,7 +505,7 @@ def resolve_and_validate_document(
     if isinstance(processobj, CommentedMap):
         uri = processobj["id"]
 
-    if not loadingContext.fast_validator:
+    if not loadingContext.fast_parser:
         _convert_stdstreams_to_files(workflowobj)
 
     if isinstance(jobobj, CommentedMap):
@@ -523,8 +550,8 @@ def make_tool(
     resolveduri: Union[float, str, CommentedMap, CommentedSeq, None]
     metadata: CWLObjectType
 
-    if loadingContext.fast_validator and isinstance(uri, str):
-        resolveduri, metadata = fast_validator(None, None, uri, loadingContext)
+    if loadingContext.fast_parser and isinstance(uri, str):
+        resolveduri, metadata = fast_parser(None, None, uri, loadingContext)
     else:
         resolveduri, metadata = loadingContext.loader.resolve_ref(uri)
 

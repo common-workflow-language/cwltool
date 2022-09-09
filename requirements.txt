@@ -15,4 +15,4 @@ pydot>=1.4.1
 argcomplete>=1.12.0
 pyparsing != 3.0.2  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
 pyparsing < 3;python_version<='3.6'  # breaks --print-dot
-https://github.com/common-workflow-language/cwl-utils/archive/codegen-fixes.zip
+cwl-utils>=0.18

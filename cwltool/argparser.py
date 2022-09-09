@@ -577,8 +577,8 @@ def arg_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,
     )
     parser.add_argument(
-        "--fast-validator",
-        dest="fast_validator",
+        "--fast-parser",
+        dest="fast_parser",
         action="store_true",
         default=False,
         help=argparse.SUPPRESS,
