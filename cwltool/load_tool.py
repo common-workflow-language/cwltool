@@ -460,7 +460,7 @@ def resolve_and_validate_document(
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    processobj: Union[CommentedMap, CommentedSeq, int, float, str, None]
+    processobj: ResolveType
     document_loader = Loader(
         sch_document_loader.ctx,
         schemagraph=sch_document_loader.graph,
