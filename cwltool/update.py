@@ -124,14 +124,19 @@ def v1_0to1_1(
         upd = upd["$graph"]
     for proc in aslist(upd):
         proc.setdefault("hints", CommentedSeq())
+        na = CommentedMap([("class", "NetworkAccess"), ("networkAccess", True)])
+        na.lc.filename = proc.lc.filename
         proc["hints"].insert(
-            0, CommentedMap([("class", "NetworkAccess"), ("networkAccess", True)])
+            0, na
         )
+
+        ll = CommentedMap(
+                [("class", "LoadListingRequirement"), ("loadListing", "deep_listing")]
+            )
+        ll.lc.filename = proc.lc.filename
         proc["hints"].insert(
             0,
-            CommentedMap(
-                [("class", "LoadListingRequirement"), ("loadListing", "deep_listing")]
-            ),
+            ll,
         )
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
