@@ -516,7 +516,16 @@ def resolve_and_validate_document(
     loadingContext.avsc_names = avsc_names
     loadingContext.metadata = metadata
 
+    def update_index(pr: CommentedMap) -> None:
+        if "id" in pr:
+            document_loader.idx[pr["id"]] = pr
+
     if preprocess_only:
+        if loadingContext.fast_parser:
+            # Need to match the document loader's index with the fast parser index
+            visit_class(
+                processobj, ("CommandLineTool", "Workflow", "ExpressionTool"), update_index
+            )
         return loadingContext, uri
 
     if loadingContext.do_validate:
@@ -530,10 +539,6 @@ def resolve_and_validate_document(
             processobj, document_loader, fileuri, loadingContext.enable_dev, metadata
         )
         document_loader.idx[processobj["id"]] = processobj
-
-        def update_index(pr: CommentedMap) -> None:
-            if "id" in pr:
-                document_loader.idx[pr["id"]] = pr
 
         visit_class(
             processobj, ("CommandLineTool", "Workflow", "ExpressionTool"), update_index
