@@ -524,7 +524,9 @@ def resolve_and_validate_document(
         if loadingContext.fast_parser:
             # Need to match the document loader's index with the fast parser index
             visit_class(
-                processobj, ("CommandLineTool", "Workflow", "ExpressionTool"), update_index
+                processobj,
+                ("CommandLineTool", "Workflow", "ExpressionTool"),
+                update_index,
             )
         return loadingContext, uri
 
