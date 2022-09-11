@@ -18,6 +18,7 @@ from typing import (
     Union,
     cast,
 )
+from functools import partial
 
 from cwl_utils.parser import cwl_v1_2, cwl_v1_2_utils
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -306,6 +307,11 @@ def _fast_parser_handle_hints(
             _fast_parser_handle_hints(p, loadingOptions)
 
 
+def update_index(document_loader: Loader, pr: CommentedMap) -> None:
+    if "id" in pr:
+        document_loader.idx[pr["id"]] = pr
+
+
 def fast_parser(
     workflowobj: Union[CommentedMap, CommentedSeq, None],
     fileuri: Optional[str],
@@ -348,6 +354,22 @@ def fast_parser(
 
     if loadingContext.loader:
         loadingContext.loader.graph += loadopt.graph
+
+        # Need to match the document loader's index with the fast parser index
+        # Get the base URI (no fragments) for documents that use $graph
+        nofrag = urllib.parse.urldefrag(uri)[0]
+        objects, loadopt = loadingContext.codegen_idx[nofrag]
+        fileobj = cmap(
+            cast(
+                Union[int, float, str, Dict[str, Any], List[Any], None],
+                cwl_v1_2.save(objects, relative_uris=False),
+            )
+        )
+        visit_class(
+            fileobj,
+            ("CommandLineTool", "Workflow", "ExpressionTool"),
+            partial(update_index, loadingContext.loader),
+        )
 
     return cast(
         Union[CommentedMap, CommentedSeq],
@@ -516,18 +538,7 @@ def resolve_and_validate_document(
     loadingContext.avsc_names = avsc_names
     loadingContext.metadata = metadata
 
-    def update_index(pr: CommentedMap) -> None:
-        if "id" in pr:
-            document_loader.idx[pr["id"]] = pr
-
     if preprocess_only:
-        if loadingContext.fast_parser:
-            # Need to match the document loader's index with the fast parser index
-            visit_class(
-                processobj,
-                ("CommandLineTool", "Workflow", "ExpressionTool"),
-                update_index,
-            )
         return loadingContext, uri
 
     if loadingContext.do_validate:
@@ -543,7 +554,9 @@ def resolve_and_validate_document(
         document_loader.idx[processobj["id"]] = processobj
 
         visit_class(
-            processobj, ("CommandLineTool", "Workflow", "ExpressionTool"), update_index
+            processobj,
+            ("CommandLineTool", "Workflow", "ExpressionTool"),
+            partial(update_index, document_loader),
         )
 
     return loadingContext, uri
