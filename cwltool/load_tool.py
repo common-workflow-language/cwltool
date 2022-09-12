@@ -588,7 +588,11 @@ def make_tool(
     resolveduri: Union[float, str, CommentedMap, CommentedSeq, None]
     metadata: CWLObjectType
 
-    if loadingContext.fast_parser and isinstance(uri, str) and not loadingContext.skip_resolve_all:
+    if (
+        loadingContext.fast_parser
+        and isinstance(uri, str)
+        and not loadingContext.skip_resolve_all
+    ):
         resolveduri, metadata = fast_parser(None, None, uri, loadingContext)
     else:
         resolveduri, metadata = loadingContext.loader.resolve_ref(uri)
