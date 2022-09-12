@@ -501,7 +501,23 @@ def resolve_and_validate_document(
     if cwlVersion != "v1.2":
         loadingContext.fast_parser = False
 
-    if loadingContext.fast_parser:
+    if loadingContext.skip_resolve_all:
+        # Some integrations (e.g. Arvados) loads documents, makes
+        # in-memory changes to them (which are applied to the objects
+        # in the document_loader index), and then sends them back
+        # through the loading machinery.
+        #
+        # In this case, the functions of resolve_all() have already
+        # happened.  Because resolve_all() is expensive, we don't want
+        # to do it again if it's going to be a no-op, so the
+        # skip_resolve_all flag tells us just to use the document
+        # as-is from the loader index.
+        #
+        # Note that at the moment, fast_parser code path is considered
+        # functionally the same as resolve_all() for this case.
+        #
+        processobj, metadata = document_loader.resolve_ref(uri)
+    elif loadingContext.fast_parser:
         processobj, metadata = fast_parser(workflowobj, fileuri, uri, loadingContext)
     else:
         document_loader.resolve_all(workflowobj, fileuri)
@@ -572,7 +588,7 @@ def make_tool(
     resolveduri: Union[float, str, CommentedMap, CommentedSeq, None]
     metadata: CWLObjectType
 
-    if loadingContext.fast_parser and isinstance(uri, str):
+    if loadingContext.fast_parser and isinstance(uri, str) and not loadingContext.skip_resolve_all:
         resolveduri, metadata = fast_parser(None, None, uri, loadingContext)
     else:
         resolveduri, metadata = loadingContext.loader.resolve_ref(uri)

@@ -118,6 +118,7 @@ class LoadingContext(ContextBase):
         self.eval_timeout: float = 60
         self.codegen_idx: Dict[str, Tuple[Any, "LoadingOptions"]] = {}
         self.fast_parser = False
+        self.skip_resolve_all = False
 
         super().__init__(kwargs)
 
