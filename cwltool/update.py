@@ -125,13 +125,19 @@ def v1_0to1_1(
     for proc in aslist(upd):
         proc.setdefault("hints", CommentedSeq())
         na = CommentedMap([("class", "NetworkAccess"), ("networkAccess", True)])
-        na.lc.filename = proc.lc.filename
+
+        if hasattr(proc.lc, "filename"):
+            comment_filename = proc.lc.filename
+        else:
+            comment_filename = ""
+        na.lc.filename = comment_filename
+
         proc["hints"].insert(0, na)
 
         ll = CommentedMap(
             [("class", "LoadListingRequirement"), ("loadListing", "deep_listing")]
         )
-        ll.lc.filename = proc.lc.filename
+        ll.lc.filename = comment_filename
         proc["hints"].insert(
             0,
             ll,
