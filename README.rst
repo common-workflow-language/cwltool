@@ -670,7 +670,7 @@ given in the following table; all are optional.
 Enabling Fast Parser (experimental)
 -----------------------------------
 
-For very large workflows, it can spend a lot of time in
+For very large workflows, `cwltool` can spend a lot of time in
 initialization, before the first step runs.  There is an experimental
 flag ``--fast-parser`` which can dramatically reduce the
 initialization overhead, however as of this writing it has several limitations:
