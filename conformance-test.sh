@@ -151,7 +151,7 @@ echo CWLTOOL_OPTIONS="${CWLTOOL_OPTIONS}"
 LC_ALL=C.UTF-8 ./run_test.sh --junit-xml=result3.xml ${EXCLUDE} \
       RUNNER=${CWLTOOL_WITH_COV} "-j$(nproc)" ${BADGE} \
       ${DRAFT} \
-      "--classname=py3_${container}"
+      "--classname=py3_${container}_$(echo ${CWLTOOL_OPTIONS} | tr "[:blank:]-" _)"
 # LC_ALL=C is to work around junit-xml ASCII only bug
 
 # capture return code of ./run_test.sh
