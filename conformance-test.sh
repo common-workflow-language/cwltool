@@ -56,6 +56,7 @@ pip3 install -U setuptools wheel pip
 pip3 uninstall -y cwltool
 pip3 install -e .
 pip3 install codecov cwltest>=2.1
+root_folder=${PWD}
 pushd "${repo}-${spec_branch}" || exit 1
 
 # shellcheck disable=SC2043
@@ -71,6 +72,7 @@ cat > "${COVERAGE_RC}" <<EOF
 [run]
 branch = True
 source_pkgs = cwltool
+source = ${root_folder}
 
 [report]
 exclude_lines =
