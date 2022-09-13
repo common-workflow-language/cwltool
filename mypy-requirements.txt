@@ -1,7 +1,7 @@
 mypy==0.971
 ruamel.yaml>=0.16.0,<0.17.22
 schema-salad>=8.2.20211104054942,<9
-cwl-utils >=0.18
+cwl-utils >=0.19
 types-requests
 types-setuptools
 types-psutil
