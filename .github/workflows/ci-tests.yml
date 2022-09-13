@@ -121,6 +121,11 @@ jobs:
       matrix:
         cwl-version: [v1.0, v1.1, v1.2]
         container: [docker, singularity, podman]
+        extras: [""]
+        include:
+          - cwl-version: v1.2
+            container: docker
+            extras: "--fast-parser"
 
     steps:
       - uses: actions/checkout@v3
@@ -141,6 +146,7 @@ jobs:
           version: ${{ matrix.cwl-version }}
           container: ${{ matrix.container }}
           spec_branch: main
+          CWLTOOL_OPTIONS: ${{ matrix.extras }}
         run: ./conformance-test.sh
 
   release_test:

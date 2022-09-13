@@ -576,6 +576,13 @@ def arg_parser() -> argparse.ArgumentParser:
         default=True,
         help=argparse.SUPPRESS,
     )
+    parser.add_argument(
+        "--fast-parser",
+        dest="fast_parser",
+        action="store_true",
+        default=False,
+        help=argparse.SUPPRESS,
+    )
 
     reggroup = parser.add_mutually_exclusive_group()
     reggroup.add_argument(

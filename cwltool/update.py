@@ -124,14 +124,23 @@ def v1_0to1_1(
         upd = upd["$graph"]
     for proc in aslist(upd):
         proc.setdefault("hints", CommentedSeq())
-        proc["hints"].insert(
-            0, CommentedMap([("class", "NetworkAccess"), ("networkAccess", True)])
+        na = CommentedMap([("class", "NetworkAccess"), ("networkAccess", True)])
+
+        if hasattr(proc.lc, "filename"):
+            comment_filename = proc.lc.filename
+        else:
+            comment_filename = ""
+        na.lc.filename = comment_filename
+
+        proc["hints"].insert(0, na)
+
+        ll = CommentedMap(
+            [("class", "LoadListingRequirement"), ("loadListing", "deep_listing")]
         )
+        ll.lc.filename = comment_filename
         proc["hints"].insert(
             0,
-            CommentedMap(
-                [("class", "LoadListingRequirement"), ("loadListing", "deep_listing")]
-            ),
+            ll,
         )
         if "cwlVersion" in proc:
             del proc["cwlVersion"]
