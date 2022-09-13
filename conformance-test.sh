@@ -73,6 +73,9 @@ cat > "${COVERAGE_RC}" <<EOF
 branch = True
 source_pkgs = cwltool
 source = ${root_folder}
+omit =
+    ${root_folder}/tests/*
+    ${root_folder}/setup.py
 
 [report]
 exclude_lines =
@@ -82,7 +85,8 @@ exclude_lines =
     if __name__ == .__main__.:
 ignore_errors = True
 omit =
-    tests/*
+    ${root_folder}/tests/*
+    ${root_folder}/setup.py
 EOF
 CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov3
 cat > "${CWLTOOL_WITH_COV}" <<EOF
