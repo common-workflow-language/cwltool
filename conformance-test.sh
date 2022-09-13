@@ -129,6 +129,7 @@ Conformance test of cwltool ${tool_ver} for CWL ${version}
 Commit: ${GIT_COMMIT}
 Python version: 3
 Container: ${container}
+Extra options: ${CWLTOOL_OPTIONS}
 EOM
 )
 
@@ -145,6 +146,7 @@ else
     EXCLUDE=""
 fi
 export CWLTOOL_OPTIONS
+echo CWLTOOL_OPTIONS="${CWLTOOL_OPTIONS}"
 # shellcheck disable=SC2086
 LC_ALL=C.UTF-8 ./run_test.sh --junit-xml=result3.xml ${EXCLUDE} \
       RUNNER=${CWLTOOL_WITH_COV} "-j$(nproc)" ${BADGE} \
