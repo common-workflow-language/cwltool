@@ -533,7 +533,7 @@ def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -
 def is_all_output_method_loop_step(
     param_to_step: Dict[str, CWLObjectType], parm_id: str
 ) -> bool:
-    source_step = param_to_step.get(parm_id)
+    source_step: Optional[MutableMapping[str, Any]] = param_to_step.get(parm_id)
     if source_step is not None:
         requirements = {
             **{h["class"]: h for h in source_step.get("hints", [])},
@@ -546,3 +546,29 @@ def is_all_output_method_loop_step(
             if output_method == "all":
                 return True
     return False
+
+
+def loop_checker(steps: List[MutableMapping[str, Any]]) -> None:
+    when_and_loop = []
+    scatter_and_loop = []
+    for step in steps:
+        requirements = {
+            **{h["class"]: h for h in step.get("hints", [])},
+            **{r["class"]: r for r in step.get("requirements", [])},
+        }
+        if "http://commonwl.org/cwltool#Loop" in requirements:
+            if "when" in step:
+                when_and_loop.append(shortname(step["id"]))
+            if "scatter" in step:
+                scatter_and_loop.append(shortname(step["id"]))
+    if when_and_loop or scatter_and_loop:
+        exception_msg = ""
+        if when_and_loop:
+            exception_msg += "The cwltool:Loop clause is not compatible with the `when` directive. Check steps:\n"
+            exception_msg += "\n".join(when_and_loop)
+        if scatter_and_loop:
+            if when_and_loop:
+                exception_msg += "\n\n"
+            exception_msg += "The cwltool:Loop clause is not compatible with the `scatter` directive. Check steps:\n"
+            exception_msg += "\n".join(scatter_and_loop)
+        raise ValidationException(exception_msg)

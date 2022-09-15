@@ -20,7 +20,7 @@ from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
 
 from . import command_line_tool, context, procgenerator
-from .checker import circular_dependency_checker, static_checker
+from .checker import circular_dependency_checker, loop_checker, static_checker
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import WorkflowException
 from .load_tool import load_tool
@@ -140,6 +140,7 @@ class Workflow(Process):
                 param_to_step,
             )
             circular_dependency_checker(step_inputs)
+            loop_checker([step.tool for step in self.steps])
 
     def make_workflow_step(
         self,
@@ -218,7 +219,10 @@ class WorkflowStep(Process):
                 if parent_req["class"] == step_req["class"]:
                     found_in_step = True
                     break
-            if not found_in_step and parent_req.get('class') != 'http://commonwl.org/cwltool#Loop':
+            if (
+                not found_in_step
+                and parent_req.get("class") != "http://commonwl.org/cwltool#Loop"
+            ):
                 loadingContext.requirements.append(parent_req)
         loadingContext.requirements.extend(
             cast(
