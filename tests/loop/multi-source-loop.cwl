@@ -5,6 +5,7 @@ $namespaces:
   cwltool: "http://commonwl.org/cwltool#"
 requirements:
   InlineJavascriptRequirement: {}
+  MultipleInputFeatureRequirement: {}
   ScatterFeatureRequirement: {}
   SubworkflowFeatureRequirement: {}
 inputs:

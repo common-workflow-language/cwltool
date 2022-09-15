@@ -5,6 +5,7 @@ $namespaces:
   cwltool: "http://commonwl.org/cwltool#"
 requirements:
   InlineJavascriptRequirement: {}
+  StepInputExpressionRequirement: {}
 inputs:
   i1: int
   i2: int

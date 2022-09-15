@@ -551,6 +551,7 @@ def is_all_output_method_loop_step(
 def loop_checker(steps: List[MutableMapping[str, Any]]) -> None:
     when_and_loop = []
     scatter_and_loop = []
+    no_condition_loop = []
     for step in steps:
         requirements = {
             **{h["class"]: h for h in step.get("hints", [])},
@@ -561,14 +562,21 @@ def loop_checker(steps: List[MutableMapping[str, Any]]) -> None:
                 when_and_loop.append(shortname(step["id"]))
             if "scatter" in step:
                 scatter_and_loop.append(shortname(step["id"]))
-    if when_and_loop or scatter_and_loop:
+            if "loopWhen" not in requirements["http://commonwl.org/cwltool#Loop"]:
+                no_condition_loop.append(shortname(step["id"]))
+    if when_and_loop or scatter_and_loop or no_condition_loop:
         exception_msg = ""
         if when_and_loop:
-            exception_msg += "The cwltool:Loop clause is not compatible with the `when` directive. Check steps:\n"
+            exception_msg += "The `cwltool:Loop` clause is not compatible with the `when` directive. Check steps:\n"
             exception_msg += "\n".join(when_and_loop)
         if scatter_and_loop:
-            if when_and_loop:
+            if exception_msg:
                 exception_msg += "\n\n"
-            exception_msg += "The cwltool:Loop clause is not compatible with the `scatter` directive. Check steps:\n"
+            exception_msg += "The `cwltool:Loop` clause is not compatible with the `scatter` directive. Check steps:\n"
             exception_msg += "\n".join(scatter_and_loop)
+        if no_condition_loop:
+            if exception_msg:
+                exception_msg += "\n\n"
+            exception_msg += "The `loopWhen` is required for `cwltool:Loop` requirement. Check steps:\n"
+            exception_msg += "\n".join(no_condition_loop)
         raise ValidationException(exception_msg)

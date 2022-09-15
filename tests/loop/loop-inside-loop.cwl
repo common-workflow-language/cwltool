@@ -6,6 +6,7 @@ $namespaces:
 requirements:
   InlineJavascriptRequirement: {}
   ScatterFeatureRequirement: {}
+  StepInputExpressionRequirement: {}
   SubworkflowFeatureRequirement: {}
 inputs:
   i1: int

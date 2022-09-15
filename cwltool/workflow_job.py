@@ -60,6 +60,10 @@ class WorkflowJobStep:
         self.name = uniquename("step %s" % shortname(self.id))
         self.prov_obj = step.prov_obj
         self.parent_wf = step.parent_wf
+        self.joborder: Optional[CWLObjectType] = None
+        self.output_buffer: MutableMapping[
+            str, MutableSequence[Optional[CWLOutputType]]
+        ] = {}
 
     def job(
         self,
@@ -73,6 +77,7 @@ class WorkflowJobStep:
 
         _logger.info("[%s] start", self.name)
 
+        self.joborder = joborder
         yield from self.step.job(joborder, output_callback, runtimeContext)
 
 
@@ -559,15 +564,31 @@ class WorkflowJob:
         step: WorkflowJobStep,
         outputparms: List[CWLObjectType],
         final_output_callback: OutputCallbackType,
+        runtimeContext: RuntimeContext,
+        container_engine: str,
         jobout: CWLObjectType,
         processStatus: str,
     ) -> None:
+
+        requirements = {
+            **{h["class"]: h for h in step.tool.get("hints", [])},
+            **{r["class"]: r for r in step.tool.get("requirements", [])},
+        }
 
         for i in outputparms:
             if "id" in i:
                 iid = cast(str, i["id"])
                 if iid in jobout:
                     self.state[iid] = WorkflowStateItem(i, jobout[iid], processStatus)
+                    if (
+                        requirements.get("http://commonwl.org/cwltool#Loop", {}).get(
+                            "outputMethod"
+                        )
+                        == "all"
+                    ):
+                        if iid not in step.output_buffer:
+                            step.output_buffer[iid] = []
+                        step.output_buffer[iid].append(jobout[iid])
                 else:
                     _logger.error(
                         "[%s] Output is missing expected field %s", step.name, iid
@@ -585,6 +606,122 @@ class WorkflowJob:
             _logger.warning("[%s] completed %s", step.name, processStatus)
         else:
             _logger.info("[%s] completed %s", step.name, processStatus)
+
+        if "http://commonwl.org/cwltool#Loop" in requirements:
+            loop_req = requirements["http://commonwl.org/cwltool#Loop"]
+            supportsMultipleInput = bool(
+                self.workflow.get_requirement("MultipleInputFeatureRequirement")[0]
+            )
+
+            inputobj = {
+                **cast(CWLObjectType, step.joborder),
+                **cast(
+                    CWLObjectType,
+                    object_from_state(
+                        self.state,
+                        [
+                            {**source, **{"type": "Any"}}
+                            for source in loop_req.get("loop", [])
+                        ],
+                        False,
+                        supportsMultipleInput,
+                        "loopSource",
+                    ),
+                ),
+            }
+
+            loadContents = {
+                i["id"] for i in loop_req.get("loop", []) if i.get("loadContents")
+            }
+            fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
+            for k, v in inputobj.items():
+                if k in loadContents:
+                    val = cast(CWLObjectType, v)
+                    if val.get("contents") is None:
+                        with fs_access.open(cast(str, val["location"]), "rb") as f:
+                            val["contents"] = content_limit_respected_read(f)
+
+            valueFrom = {
+                i["id"]: i["valueFrom"]
+                for i in loop_req.get("loop", [])
+                if "valueFrom" in i
+            }
+            if len(valueFrom) > 0 and not bool(
+                self.workflow.get_requirement("StepInputExpressionRequirement")[0]
+            ):
+                raise WorkflowException(
+                    "Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements"
+                )
+
+            for k, v in inputobj.items():
+                if k in valueFrom:
+                    adjustDirObjs(
+                        v, functools.partial(get_listing, fs_access, recursive=True)
+                    )
+                    inputobj[k] = cast(
+                        CWLObjectType,
+                        expression.do_eval(
+                            valueFrom[k],
+                            {
+                                shortname(k): v
+                                for k, v in cast(CWLObjectType, step.joborder).items()
+                            },
+                            self.workflow.requirements,
+                            None,
+                            None,
+                            {},
+                            context=v,
+                            debug=runtimeContext.debug,
+                            js_console=runtimeContext.js_console,
+                            timeout=runtimeContext.eval_timeout,
+                            container_engine=container_engine,
+                        ),
+                    )
+
+            evalinputs = {shortname(k): v for k, v in inputobj.items()}
+            whenval = expression.do_eval(
+                loop_req["loopWhen"],
+                evalinputs,
+                self.workflow.requirements,
+                None,
+                None,
+                {},
+                debug=runtimeContext.debug,
+                js_console=runtimeContext.js_console,
+                timeout=runtimeContext.eval_timeout,
+                container_engine=container_engine,
+            )
+            _logger.debug(
+                "[%s] loop condition %s evaluated to %s",
+                step.name,
+                loop_req["loopWhen"],
+                whenval,
+            )
+            if whenval is True:
+                callback = functools.partial(
+                    self.receive_output,
+                    step,
+                    outputparms,
+                    final_output_callback,
+                    runtimeContext,
+                    container_engine,
+                )
+                step.iterable = step.job(inputobj, callback, runtimeContext)
+                return
+            elif whenval is False:
+                if loop_req.get("outputMethod") == "all":
+                    for i in outputparms:
+                        if "id" in i:
+                            iid = cast(str, i["id"])
+                            self.state[iid] = WorkflowStateItem(
+                                i,
+                                cast(CWLOutputType, step.output_buffer[iid]),
+                                processStatus,
+                            )
+            else:
+                raise WorkflowException(
+                    "Loop condition 'loopWhen' must evaluate to 'true' or 'false'"
+                )
 
         step.completed = True
         # Release the iterable related to this step to
@@ -628,7 +765,12 @@ class WorkflowJob:
             _logger.info("[%s] starting %s", self.name, step.name)
 
             callback = functools.partial(
-                self.receive_output, step, outputparms, final_output_callback
+                self.receive_output,
+                step,
+                outputparms,
+                final_output_callback,
+                runtimeContext,
+                container_engine,
             )
 
             valueFrom = {
@@ -682,6 +824,11 @@ class WorkflowJob:
                         )
                     return v
 
+                requirements = {
+                    **{h["class"]: h for h in step.tool.get("hints", [])},
+                    **{r["class"]: r for r in step.tool.get("requirements", [])},
+                }
+
                 psio = {k: valueFromFunc(k, v) for k, v in io.items()}
                 if "when" in step.tool:
                     evalinputs = {shortname(k): v for k, v in psio.items()}
@@ -715,6 +862,40 @@ class WorkflowJob:
                     else:
                         raise WorkflowException(
                             "Conditional 'when' must evaluate to 'true' or 'false'"
+                        )
+                elif "http://commonwl.org/cwltool#Loop" in requirements:
+                    loop_req = requirements["http://commonwl.org/cwltool#Loop"]
+                    evalinputs = {shortname(k): v for k, v in psio.items()}
+                    whenval = expression.do_eval(
+                        loop_req["loopWhen"],
+                        evalinputs,
+                        self.workflow.requirements,
+                        None,
+                        None,
+                        {},
+                        debug=runtimeContext.debug,
+                        js_console=runtimeContext.js_console,
+                        timeout=runtimeContext.eval_timeout,
+                        container_engine=container_engine,
+                    )
+                    if whenval is True:
+                        pass
+                    elif whenval is False:
+                        _logger.debug(
+                            "[%s] loop condition %s evaluated to %s",
+                            step.name,
+                            step.tool["when"],
+                            whenval,
+                        )
+                        _logger.debug(
+                            "[%s] inputs was %s",
+                            step.name,
+                            json_dumps(evalinputs, indent=2),
+                        )
+                        return None
+                    else:
+                        raise WorkflowException(
+                            "Loop condition 'loopWhen' must evaluate to 'true' or 'false'"
                         )
                 return psio
 
