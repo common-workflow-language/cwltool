@@ -361,12 +361,12 @@ class ProvenanceProfile:
         process_run_id: str,
         outputs: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
         when: datetime.datetime,
-        load_listing: str = "deep_listing",
+        load_listing: str = "invalid_listing",
     ) -> None:
         self.generate_output_prov(outputs, process_run_id, process_name, load_listing)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
-    def declare_file(self, value: CWLObjectType, load_listing: str = "deep_listing") -> Tuple[ProvEntity, ProvEntity, str]:
+    def declare_file(self, value: CWLObjectType, load_listing: str = "invalid_listing") -> Tuple[ProvEntity, ProvEntity, str]:
         print("What listing? " + load_listing)
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
@@ -444,8 +444,10 @@ class ProvenanceProfile:
         ):
             # TODO: Record these in a specializationOf entity with UUID?
             if sec["class"] == "File":
+                _logger.debug("447: " + load_listing)
                 (sec_entity, _, _) = self.declare_file(sec, load_listing)
             elif sec["class"] == "Directory":
+                _logger.debug("450: " + load_listing)
                 sec_entity = self.declare_directory(sec, load_listing)
             else:
                 raise ValueError(f"Got unexpected secondaryFiles value: {sec}")
@@ -461,7 +463,7 @@ class ProvenanceProfile:
 
         return file_entity, entity, checksum
 
-    def declare_directory(self, value: CWLObjectType, load_listing: str = "deep_listing") -> ProvEntity:
+    def declare_directory(self, value: CWLObjectType, load_listing: str = "invalid_listing") -> ProvEntity:
         """Register any nested files/directories."""
         # FIXME: Calculate a hash-like identifier for directory
         # so we get same value if it's the same filenames/hashes
@@ -518,6 +520,7 @@ class ProvenanceProfile:
         for entry in cast(MutableSequence[CWLObjectType], value.get("listing", [])):
             is_empty = False
             # Declare child-artifacts
+            _logger.debug("523: " + load_listing)
             entity = self.declare_artefact(entry, load_listing)
             self.document.membership(coll, entity)
             # Membership relation aka our ORE Proxy
@@ -588,7 +591,7 @@ class ProvenanceProfile:
         )
         return entity, checksum
 
-    def declare_artefact(self, value: Any, load_listing: str = "deep_listing") -> ProvEntity:
+    def declare_artefact(self, value: Any, load_listing: str = "invalid_listing") -> ProvEntity:
         """Create data artefact entities for all file objects."""
         if value is None:
             # FIXME: If this can happen in CWL, we'll
@@ -630,6 +633,7 @@ class ProvenanceProfile:
 
             # Base case - we found a File we need to update
             if value.get("class") == "File":
+                _logger.debug("635: " + load_listing)
                 (entity, _, _) = self.declare_file(value, load_listing)
                 value["@id"] = entity.identifier.uri
                 return entity
@@ -758,7 +762,7 @@ class ProvenanceProfile:
         final_output: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
         process_run_id: Optional[str],
         name: Optional[str],
-        load_listing: str = "deep_listing"
+        load_listing: str = "invalid_listing"
     ) -> None:
         """Call wasGeneratedBy() for each output,copy the files into the RO."""
         if isinstance(final_output, MutableSequence):
