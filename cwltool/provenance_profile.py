@@ -367,6 +367,7 @@ class ProvenanceProfile:
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
     def declare_file(self, value: CWLObjectType, load_listing: str = "deep_listing") -> Tuple[ProvEntity, ProvEntity, str]:
+        print("What listing? " + load_listing)
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
