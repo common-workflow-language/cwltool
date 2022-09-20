@@ -27,7 +27,7 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           file: cwltool.Dockerfile
-          tags: quay.io/commonwl/cwltool_module:${{ steps.image_tags.outputs.IMAGE_TAGS }},quay.io/commonwl/cwltool_module:lastest
+          tags: quay.io/commonwl/cwltool_module:${{ steps.image_tags.outputs.IMAGE_TAGS }},quay.io/commonwl/cwltool_module:latest
           target: module
           platforms: linux/amd64,linux/arm64
           push: true
