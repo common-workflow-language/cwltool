@@ -179,7 +179,7 @@ class JobExecutor(metaclass=ABCMeta):
                 process_run_id = None  # type: Optional[str]
                 name = "primary"
                 process.parent_wf.generate_output_prov(
-                    self.final_output[0], process_run_id, name
+                    self.final_output[0], process_run_id, name, "generate_output_prov"
                 )
                 process.parent_wf.document.wasEndedBy(
                     process.parent_wf.workflow_run_uri,
