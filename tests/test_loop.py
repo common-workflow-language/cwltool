@@ -3,6 +3,7 @@ import json
 from io import StringIO
 
 from cwltool.main import main
+
 from .util import get_data
 
 
@@ -136,7 +137,6 @@ def test_loop_value_from_fail_no_requirement() -> None:
         "--enable-ext",
         get_data("tests/loop/invalid-value-from-loop-no-requirement.cwl"),
         get_data("tests/loop/two-vars-loop-job.yml"),
-
     ]
     assert main(params) == 1
 
