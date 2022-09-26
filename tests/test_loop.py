@@ -45,6 +45,26 @@ def test_validate_loop_fail_when() -> None:
     assert main(params) == 1
 
 
+def test_validate_loop_fail_no_loop_when() -> None:
+    """Affirm that a loop workflow does not validate if no loopWhen directive is specified."""
+    params = [
+        "--enable-ext",
+        "--validate",
+        get_data("tests/loop/invalid-no-loopWhen.cwl"),
+    ]
+    assert main(params) == 1
+
+
+def test_loop_fail_non_boolean_loop_when() -> None:
+    """Affirm that a loop workflow fails if loopWhen directive returns a non-boolean value."""
+    params = [
+        "--enable-ext",
+        get_data("tests/loop/invalid-non-boolean-loopWhen.cwl"),
+        get_data("tests/loop/two-vars-loop-job.yml"),
+    ]
+    assert main(params) == 1
+
+
 def test_loop_single_variable() -> None:
     """Test a simple loop case with a single variable."""
     stream = StringIO()
@@ -110,6 +130,17 @@ def test_loop_value_from() -> None:
     assert json.loads(stream.getvalue()) == expected
 
 
+def test_loop_value_from_fail_no_requirement() -> None:
+    """Test that a workflow loop fails if a valueFrom directive is specified without StepInputExpressionRequirement."""
+    params = [
+        "--enable-ext",
+        get_data("tests/loop/invalid-value-from-loop-no-requirement.cwl"),
+        get_data("tests/loop/two-vars-loop-job.yml"),
+
+    ]
+    assert main(params) == 1
+
+
 def test_loop_inside_scatter() -> None:
     """Test a loop subworkflow inside a scatter step."""
     stream = StringIO()
@@ -162,8 +193,18 @@ def test_multi_source_loop_input() -> None:
     assert json.loads(stream.getvalue()) == expected
 
 
+def test_multi_source_loop_input_fail_no_requirement() -> None:
+    """Test that aloop with two sources fails without MultipleInputFeatureRequirement."""
+    params = [
+        "--enable-ext",
+        get_data("tests/loop/invalid-multi-source-loop-no-requirement.cwl"),
+        get_data("tests/loop/single-var-loop-job.yml"),
+    ]
+    assert main(params) == 1
+
+
 def test_default_value_loop() -> None:
-    """Test a loop whose source has a defautl value."""
+    """Test a loop whose source has a default value."""
     stream = StringIO()
     params = [
         "--enable-ext",

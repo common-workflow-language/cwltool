@@ -630,16 +630,7 @@ class WorkflowJob:
                 ),
             }
 
-            loadContents = {
-                i["id"] for i in loop_req.get("loop", []) if i.get("loadContents")
-            }
             fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
-            for k, v in inputobj.items():
-                if k in loadContents:
-                    val = cast(CWLObjectType, v)
-                    if val.get("contents") is None:
-                        with fs_access.open(cast(str, val["location"]), "rb") as f:
-                            val["contents"] = content_limit_respected_read(f)
 
             valueFrom = {
                 i["id"]: i["valueFrom"]
@@ -884,7 +875,7 @@ class WorkflowJob:
                         _logger.debug(
                             "[%s] loop condition %s evaluated to %s",
                             step.name,
-                            step.tool["when"],
+                            loop_req["loopWhen"],
                             whenval,
                         )
                         _logger.debug(
