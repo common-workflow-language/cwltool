@@ -26,6 +26,10 @@ jobs:
         py-ver-major: [3]
         py-ver-minor: [6, 7, 8, 9, 10]
         step: [lint, unit, bandit, mypy]
+        exclude:
+          - py-ver-major: 3
+            py-ver-minor: 6
+            step: mypy
 
     env:
       py-semver: ${{ format('{0}.{1}', matrix.py-ver-major, matrix.py-ver-minor) }}
