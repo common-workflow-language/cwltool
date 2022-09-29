@@ -19,12 +19,12 @@ jobs:
   tox:
     name: CI tests via Tox
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-20.04  # 22.04 doesn't support Python 3.6
 
     strategy:
       matrix:
         py-ver-major: [3]
-        py-ver-minor: [6, 7, 8, 9, 10]
+        py-ver-minor: [6, 7, 8, 9, 10, 11]
         step: [lint, unit, bandit, mypy]
         exclude:
           - py-ver-major: 3
@@ -51,9 +51,20 @@ jobs:
         run: sudo usermod -c 'CI Runner' $(whoami)
 
       - name: Set up Python
+        if: matrix.py-ver-minor != 11
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.py-semver }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            tox.ini
+
+      - name: Set up Python 3.11.0-rc.2
+        if: matrix.py-ver-minor == 11
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11.0-rc.2
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -156,7 +167,7 @@ jobs:
   release_test:
     name: cwltool release test
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v3
