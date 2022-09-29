@@ -194,10 +194,12 @@ $graph:
     Unlike other CWL requirements, Loop requirement is not propagated to inner steps.
 
     `loopWhen` is an expansion of the CWL v1.2 `when` construct which controls
-    conditional execution. Using `loopWhen` and `when` will produce an error.
+    conditional execution.
 
-    Loops are evaluated after any specified `scatter`ing; the implicit gathering
-    is done with the results of the scatter-jobs (after the `loop`s have finished).
+    Using `loopWhen` and `when` for the same step will produce an error.
+
+    `loopWhen` is not compatible with `scatter` at this time and combining the
+    two in the same step will produce an error.
   fields:
     class:
       type: string
