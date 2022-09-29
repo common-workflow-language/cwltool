@@ -359,6 +359,8 @@ class WorkflowStep(Process):
                     "SubworkflowFeatureRequirement not in requirements"
                 )
 
+        conditional = self.tool.get("when")
+
         if "scatter" in self.tool:
             (feature, _) = self.get_requirement("ScatterFeatureRequirement")
             if not feature:
@@ -398,11 +400,22 @@ class WorkflowStep(Process):
             else:
                 nesting = 1
 
-            for _ in range(0, nesting):
+            for n in range(0, nesting):
                 for oparam in outputparms:
+                    if conditional and n == 0:
+                        oparam["type"] = ["null"] + cast(
+                            List[str], aslist(oparam["type"])
+                        )
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
+        elif conditional:
+            # No scatter, but conditional
+            outputparms = copy.deepcopy(self.tool["outputs"])
+            for oparam in outputparms:
+                oparam["type"] = ["null"] + cast(List[str], aslist(oparam["type"]))
+            self.tool["outputs"] = outputparms
+
         self.prov_obj = None  # type: Optional[ProvenanceProfile]
         if loadingContext.research_obj is not None:
             self.prov_obj = parentworkflowProv
