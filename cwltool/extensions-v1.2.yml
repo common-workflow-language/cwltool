@@ -173,7 +173,7 @@ $graph:
         this input parameter.
 
         If `valueFrom` is a parameter reference or expression, it must be
-        evaluated to yield the actual value to be assiged to the input field.
+        evaluated to yield the actual value to be assigned to the input field.
 
         The `self` value in the parameter reference or expression must be
         `null` if there is no `source` field, or the value of the
@@ -194,9 +194,7 @@ $graph:
     Unlike other CWL requirements, Loop requirement is not propagated to inner steps.
 
     `loopWhen` is an expansion of the CWL v1.2 `when` construct which controls
-    conditional execution and thus when using `Loop` do not also specify a `when` as
-    the `loopWhen` expanded definition is intended to replace `when` in a
-    future version of the CWL standards.
+    conditional execution. Using `loopWhen` and `when` will produce an error.
 
     Loops are evaluated after any specified `scatter`ing; the implicit gathering
     is done with the results of the scatter-jobs (after the `loop`s have finished).
@@ -219,7 +217,7 @@ $graph:
 
         It is an error if this expression returns a value other than `true` or `false`.
     loop:
-      type: LoopInput[]?
+      type: LoopInput[]
       jsonldPredicate:
         _id: "cwltool:loop"
         mapSubject: id
@@ -234,6 +232,7 @@ $graph:
         type: enum
         name: LoopOutputModes
         symbols: [ last, all ]
+      default: last
       doc:
         - Specify the desired method of dealing with loop outputs
         - Default. Propagates only the last computed element to the subsequent steps when the loop terminates.
