@@ -295,3 +295,51 @@ def test_warn_large_inputs() -> None:
         )
     finally:
         cwltool.process.FILE_COUNT_WARNING = was
+
+
+def test_parameter_restrictions_parsing() -> None:
+    """Basic parsing of the ParameterRestrictions extension."""
+    assert (
+        main(
+            ["--enable-ext", "--validate", get_data("tests/parameter_restrictions.cwl")]
+        )
+        == 0
+    )
+
+
+def test_parameter_restrictions_valid_job() -> None:
+    """Confirm that valid values are accepted."""
+    assert (
+        main(
+            [
+                "--enable-ext",
+                get_data("tests/parameter_restrictions.cwl"),
+                "--one",
+                "2.5",
+                "--two",
+                "foofoobar",
+                "--three",
+                "-5",
+            ]
+        )
+        == 0
+    )
+
+
+def test_parameter_restrictions_invalid_job() -> None:
+    """Confirm that an invvalid value is rejected."""
+    assert (
+        main(
+            [
+                "--enable-ext",
+                get_data("tests/parameter_restrictions.cwl"),
+                "--one",
+                "2.5",
+                "--two",
+                "fuzzbar",
+                "--three",
+                "-5",
+            ]
+        )
+        == 1
+    )

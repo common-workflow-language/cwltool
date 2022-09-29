@@ -661,9 +661,11 @@ def setup_schema(
             ext10 = res.read().decode("utf-8")
         with pkg_resources.resource_stream(__name__, "extensions-v1.1.yml") as res:
             ext11 = res.read().decode("utf-8")
+        with pkg_resources.resource_stream(__name__, "extensions-v1.2.yml") as res:
+            ext12 = res.read().decode("utf-8")
         use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext10)
         use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
-        use_custom_schema("v1.2", "http://commonwl.org/cwltool", ext11)
+        use_custom_schema("v1.2", "http://commonwl.org/cwltool", ext12)
         use_custom_schema("v1.2.0-dev1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev3", "http://commonwl.org/cwltool", ext11)

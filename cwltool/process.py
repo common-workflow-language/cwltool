@@ -20,6 +20,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Mapping,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -55,6 +56,7 @@ from .errors import UnsupportedRequirement, WorkflowException
 from .loghandler import _logger
 from .mpi import MPIRequirementName
 from .pathmapper import MapperEnt, PathMapper
+from .sandboxjs import execjs
 from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
@@ -121,6 +123,7 @@ supportedProcessRequirements = [
     "http://commonwl.org/cwltool#LoadListingRequirement",
     "http://commonwl.org/cwltool#InplaceUpdateRequirement",
     "http://commonwl.org/cwltool#CUDARequirement",
+    "http://commonwl.org/cwltool#ParameterRestrictions",
 ]
 
 cwl_files = (
@@ -523,10 +526,11 @@ def var_spool_cwl_detector(
     r = False
     if isinstance(obj, str):
         if "var/spool/cwl" in obj and obj_key != "dockerOutputDirectory":
+            debug = _logger.isEnabledFor(logging.DEBUG)
             _logger.warning(
-                SourceLine(item=item, key=obj_key, raise_type=str).makeError(
-                    _VAR_SPOOL_ERROR.format(obj)
-                )
+                SourceLine(
+                    item=item, key=obj_key, raise_type=str, include_traceback=debug
+                ).makeError(_VAR_SPOOL_ERROR.format(obj))
             )
             r = True
     elif isinstance(obj, MutableMapping):
@@ -744,7 +748,9 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             and not is_req
         ):
             _logger.warning(
-                SourceLine(item=dockerReq, raise_type=str).makeError(
+                SourceLine(
+                    item=dockerReq, raise_type=str, include_traceback=debug
+                ).makeError(
                     "When 'dockerOutputDirectory' is declared, DockerRequirement "
                     "should go in the 'requirements' section, not 'hints'."
                     ""
@@ -805,6 +811,98 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 logger=_logger_validation_warnings,
                 vocab=INPUT_OBJ_VOCAB,
             )
+
+            restriction_req, mandatory_restrictions = self.get_requirement(
+                "ParameterRestrictions"
+            )
+
+            if restriction_req:
+                restrictions = restriction_req["restrictions"]
+                for entry in cast(List[CWLObjectType], restrictions):
+                    name = shortname(cast(str, entry["input"]))
+                    if name in job:
+                        value = job[name]
+                        matched = False
+                        for constraint in cast(
+                            List[CWLOutputType], entry["constraints"]
+                        ):
+                            if isinstance(constraint, Mapping):
+                                if constraint["class"] == "intInterval":
+                                    if not isinstance(value, int):
+                                        raise SourceLine(
+                                            constraint,
+                                            None,
+                                            WorkflowException,
+                                            runtime_context.debug,
+                                        ).makeError(
+                                            "intInterval parameter restriction is only valid for inputs of type 'int'; "
+                                            f"instead got {type(value)}: {value}."
+                                        )
+                                    low = cast(
+                                        Union[int, float],
+                                        constraint.get("low", -math.inf),
+                                    )
+                                    high = cast(
+                                        Union[int, float],
+                                        constraint.get("high", math.inf),
+                                    )
+                                    matched = value >= low and value <= high
+                                elif constraint["class"] == "realInterval":
+                                    if not isinstance(value, (int, float)):
+                                        raise SourceLine(
+                                            constraint,
+                                            None,
+                                            WorkflowException,
+                                            runtime_context.debug,
+                                        ).makeError(
+                                            "realInterval parameter restriction is only valid for inputs of type 'int', 'float', and 'double'; "
+                                            f"instead got {type(value)}: {value}."
+                                        )
+                                    low = cast(
+                                        Union[int, float],
+                                        constraint.get("low", -math.inf),
+                                    )
+                                    high = cast(
+                                        Union[int, float],
+                                        constraint.get("high", math.inf),
+                                    )
+                                    low_inclusive = constraint.get(
+                                        "low_inclusive", True
+                                    )
+                                    high_inclusive = constraint.get(
+                                        "high_inclusive", True
+                                    )
+                                    check_low = (
+                                        value >= low if low_inclusive else value > low
+                                    )
+                                    check_high = (
+                                        value <= high if low_inclusive else value < high
+                                    )
+                                    matched = check_low and check_high
+                                elif constraint["class"] == "regex":
+                                    rpattern = constraint["rpattern"]
+                                    quoted_value = json.dumps(value)
+                                    matched = cast(
+                                        bool,
+                                        execjs(
+                                            f"/{rpattern}/.test({quoted_value})",
+                                            "",
+                                            runtime_context.eval_timeout,
+                                            runtime_context.force_docker_pull,
+                                        ),
+                                    )
+                            elif constraint == value:
+                                matched = True
+                            if matched:
+                                break
+                        if not matched:
+                            raise SourceLine(
+                                job, name, WorkflowException, runtime_context.debug
+                            ).makeError(
+                                f"The field '{name}' is not valid because its "
+                                f"value '{value}' failed to match any of the "
+                                f"constraints '{json.dumps(entry['constraints'])}'."
+                            )
 
             if load_listing and load_listing != "no_listing":
                 get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
