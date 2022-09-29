@@ -533,6 +533,7 @@ def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -
 def is_all_output_method_loop_step(
     param_to_step: Dict[str, CWLObjectType], parm_id: str
 ) -> bool:
+    """Check if a step contains a http://commonwl.org/cwltool#Loop requirement with `all` outputMethod."""
     source_step: Optional[MutableMapping[str, Any]] = param_to_step.get(parm_id)
     if source_step is not None:
         for requirement in source_step.get("requirements", []):
@@ -545,6 +546,7 @@ def is_all_output_method_loop_step(
 
 
 def loop_checker(steps: List[MutableMapping[str, Any]]) -> None:
+    """Check http://commonwl.org/cwltool#Loop requirement compatibility with other directives."""
     exceptions = []
     for step in steps:
         requirements = {

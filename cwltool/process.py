@@ -1035,6 +1035,7 @@ hints:
         rec: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType, None],
         supported_process_requirements: Iterable[str],
     ) -> None:
+        """Check the presence of unsupported requirements."""
         if isinstance(rec, MutableMapping):
             if "requirements" in rec:
                 debug = _logger.isEnabledFor(logging.DEBUG)

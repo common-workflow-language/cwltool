@@ -234,7 +234,7 @@ def test_multi_source_loop_input() -> None:
 
 
 def test_multi_source_loop_input_fail_no_requirement() -> None:
-    """Test that aloop with two sources fails without MultipleInputFeatureRequirement."""
+    """Test that a loop with two sources fails without MultipleInputFeatureRequirement."""
     params = [
         "--enable-ext",
         get_data("tests/loop/invalid-multi-source-loop-no-requirement.cwl"),

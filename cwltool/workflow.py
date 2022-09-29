@@ -18,7 +18,6 @@ from typing import (
 from uuid import UUID
 
 from ruamel.yaml.comments import CommentedMap
-from schema_salad.avro.schema import Names
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
 
@@ -424,6 +423,7 @@ class WorkflowStep(Process):
         rec: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType, None],
         supported_process_requirements: Iterable[str],
     ) -> None:
+        """Check the presence of unsupported requirements."""
         supported_process_requirements = list(supported_process_requirements)
         supported_process_requirements.append("http://commonwl.org/cwltool#Loop")
         super().checkRequirements(rec, supported_process_requirements)
