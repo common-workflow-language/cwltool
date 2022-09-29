@@ -6,16 +6,19 @@ import random
 from typing import (
     Callable,
     Dict,
+    Iterable,
     List,
     Mapping,
     MutableMapping,
     MutableSequence,
     Optional,
+    Union,
     cast,
 )
 from uuid import UUID
 
 from ruamel.yaml.comments import CommentedMap
+from schema_salad.avro.schema import Names
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
 
@@ -29,6 +32,7 @@ from .process import Process, get_overrides, shortname
 from .provenance_profile import ProvenanceProfile
 from .utils import (
     CWLObjectType,
+    CWLOutputType,
     JobsGeneratorType,
     OutputCallbackType,
     StepType,
@@ -414,6 +418,15 @@ class WorkflowStep(Process):
                 self.parent_wf = self.embedded_tool.parent_wf
             else:
                 self.parent_wf = self.prov_obj
+
+    def checkRequirements(
+        self,
+        rec: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType, None],
+        supported_process_requirements: Iterable[str],
+    ) -> None:
+        supported_process_requirements = list(supported_process_requirements)
+        supported_process_requirements.append("http://commonwl.org/cwltool#Loop")
+        super().checkRequirements(rec, supported_process_requirements)
 
     def receive_output(
         self,

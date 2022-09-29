@@ -56,6 +56,46 @@ def test_validate_loop_fail_no_loop_when() -> None:
     assert main(params) == 1
 
 
+def test_validate_loop_fail_on_workflow() -> None:
+    """Affirm that a workflow does not validate if it contains a Loop requirement."""
+    params = [
+        "--enable-ext",
+        "--validate",
+        get_data("tests/loop/invalid-loop-workflow.cwl"),
+    ]
+    assert main(params) == 1
+
+
+def test_validate_loop_fail_on_command_line_tool() -> None:
+    """Affirm that a CommandLineTool does not validate if it contains a Loop requirement."""
+    params = [
+        "--enable-ext",
+        "--validate",
+        get_data("tests/loop/invalid-loop-command-line-tool.cwl"),
+    ]
+    assert main(params) == 1
+
+
+def test_validate_loop_fail_on_expression_tool() -> None:
+    """Affirm that an ExpressionTool does not validate if it contains a Loop requirement."""
+    params = [
+        "--enable-ext",
+        "--validate",
+        get_data("tests/loop/invalid-loop-expression-tool.cwl"),
+    ]
+    assert main(params) == 1
+
+
+def test_validate_loop_fail_on_hint() -> None:
+    """Affirm that a loop workflow does not validate if it contains a Loop hint."""
+    params = [
+        "--enable-ext",
+        "--validate",
+        get_data("tests/loop/invalid-loop-hint.cwl"),
+    ]
+    assert main(params) == 1
+
+
 def test_loop_fail_non_boolean_loop_when() -> None:
     """Affirm that a loop workflow fails if loopWhen directive returns a non-boolean value."""
     params = [
