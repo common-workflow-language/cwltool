@@ -570,22 +570,13 @@ class WorkflowJob:
         processStatus: str,
     ) -> None:
 
-        requirements = {
-            **{h["class"]: h for h in step.tool.get("hints", [])},
-            **{r["class"]: r for r in step.tool.get("requirements", [])},
-        }
-
+        loop_req = step.step.get_requirement("http://commonwl.org/cwltool#Loop")[0]
         for i in outputparms:
             if "id" in i:
                 iid = cast(str, i["id"])
                 if iid in jobout:
                     self.state[iid] = WorkflowStateItem(i, jobout[iid], processStatus)
-                    if (
-                        requirements.get("http://commonwl.org/cwltool#Loop", {}).get(
-                            "outputMethod"
-                        )
-                        == "all"
-                    ):
+                    if loop_req and loop_req.get("outputMethod") == "all":
                         if iid not in step.output_buffer:
                             step.output_buffer[iid] = []
                         step.output_buffer[iid].append(jobout[iid])
@@ -607,8 +598,7 @@ class WorkflowJob:
         else:
             _logger.info("[%s] completed %s", step.name, processStatus)
 
-        if "http://commonwl.org/cwltool#Loop" in requirements:
-            loop_req = requirements["http://commonwl.org/cwltool#Loop"]
+        if loop_req:
             supportsMultipleInput = bool(
                 self.workflow.get_requirement("MultipleInputFeatureRequirement")[0]
             )
@@ -621,7 +611,9 @@ class WorkflowJob:
                         self.state,
                         [
                             {**source, **{"type": "Any"}}
-                            for source in loop_req.get("loop", [])
+                            for source in cast(
+                                MutableSequence[CWLObjectType], loop_req.get("loop", [])
+                            )
                         ],
                         False,
                         supportsMultipleInput,
@@ -634,7 +626,7 @@ class WorkflowJob:
 
             valueFrom = {
                 i["id"]: i["valueFrom"]
-                for i in loop_req.get("loop", [])
+                for i in cast(MutableSequence[CWLObjectType], loop_req.get("loop", []))
                 if "valueFrom" in i
             }
             if len(valueFrom) > 0 and not bool(
@@ -815,11 +807,9 @@ class WorkflowJob:
                         )
                     return v
 
-                requirements = {
-                    **{h["class"]: h for h in step.tool.get("hints", [])},
-                    **{r["class"]: r for r in step.tool.get("requirements", [])},
-                }
-
+                loop_req = step.step.get_requirement(
+                    "http://commonwl.org/cwltool#Loop"
+                )[0]
                 psio = {k: valueFromFunc(k, v) for k, v in io.items()}
                 if "when" in step.tool:
                     evalinputs = {shortname(k): v for k, v in psio.items()}
@@ -854,8 +844,7 @@ class WorkflowJob:
                         raise WorkflowException(
                             "Conditional 'when' must evaluate to 'true' or 'false'"
                         )
-                elif "http://commonwl.org/cwltool#Loop" in requirements:
-                    loop_req = requirements["http://commonwl.org/cwltool#Loop"]
+                elif loop_req:
                     evalinputs = {shortname(k): v for k, v in psio.items()}
                     whenval = expression.do_eval(
                         loop_req["loopWhen"],

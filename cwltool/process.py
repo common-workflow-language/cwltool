@@ -1051,11 +1051,6 @@ hints:
                             raise UnsupportedRequirement(
                                 f"Unsupported requirement {entry['class']}."
                             )
-            for key in rec:
-                self.checkRequirements(rec[key], supported_process_requirements)
-        if isinstance(rec, MutableSequence):
-            for entry2 in rec:
-                self.checkRequirements(entry2, supported_process_requirements)
 
     def validate_hints(
         self, avsc_names: Names, hints: List[CWLObjectType], strict: bool

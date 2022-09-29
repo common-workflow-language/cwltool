@@ -535,15 +535,11 @@ def is_all_output_method_loop_step(
 ) -> bool:
     source_step: Optional[MutableMapping[str, Any]] = param_to_step.get(parm_id)
     if source_step is not None:
-        requirements = {
-            **{h["class"]: h for h in source_step.get("hints", [])},
-            **{r["class"]: r for r in source_step.get("requirements", [])},
-        }
-        if "http://commonwl.org/cwltool#Loop" in requirements:
-            output_method = requirements["http://commonwl.org/cwltool#Loop"].get(
-                "outputMethod", "last"
-            )
-            if output_method == "all":
+        for requirement in source_step.get("requirements", []):
+            if (
+                requirement["class"] == "http://commonwl.org/cwltool#Loop"
+                and requirement.get("outputMethod") == "all"
+            ):
                 return True
     return False
 
