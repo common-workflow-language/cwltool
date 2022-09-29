@@ -726,6 +726,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         any_path_okay: bool = False,
     ) -> None:
         """Append volume mappings to the runtime option list."""
+        stage_source_dir = os.environ.get(
+            "STAGE_SRC_DIR", os.path.join(tempfile.gettempdir(), "cwl-stg-src-dir")
+        )
         container_outdir = self.builder.outdir
         for key, vol in (itm for itm in pathmapper.items() if itm[1].staged):
             host_outdir_tgt = None  # type: Optional[str]
@@ -739,6 +742,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     "the designated output directory, also know as "
                     "$(runtime.outdir): {}".format(vol)
                 )
+            if stage_source_dir and vol.resolved.startswith(stage_source_dir):
+                continue  # path is already staged; only mount the host directory (at the end of this function)
             if vol.type in ("File", "Directory"):
                 self.add_file_or_directory_volume(runtime, vol, host_outdir_tgt)
             elif vol.type == "WritableFile":
@@ -754,6 +759,11 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix
                 )
                 pathmapper.update(key, new_path, vol.target, vol.type, vol.staged)
+        if stage_source_dir and pathmapper.stagedir != container_outdir:
+            # mount a single host directory for all staged input files
+            self.append_volume(
+                runtime, stage_source_dir, pathmapper.stagedir, writable=True
+            )
 
     def run(
         self,
