@@ -32,6 +32,7 @@ from typing import (
 )
 
 from cwl_utils import expression
+from mypy_extensions import mypyc_attr
 from pkg_resources import resource_stream
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -535,6 +536,7 @@ def eval_resource(
 FILE_COUNT_WARNING = 5000
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class Process(HasReqsHints, metaclass=abc.ABCMeta):
     def __init__(
         self, toolpath_object: CommentedMap, loadingContext: LoadingContext
