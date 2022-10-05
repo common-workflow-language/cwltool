@@ -313,6 +313,11 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Print input object document dependencies.",
     )
     printgroup.add_argument(
+        "--print-input-schema",
+        action="store_true",
+        help="Print SALAD schema for the inputs of the document.",
+    )
+    printgroup.add_argument(
         "--pack",
         action="store_true",
         help="Combine components into single document and print.",

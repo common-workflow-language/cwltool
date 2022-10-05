@@ -337,6 +337,172 @@ def generate_input_template(tool: Process) -> CWLObjectType:
     return template
 
 
+def generate_input_schema(tool: Process) -> CWLObjectType:
+    """Generate a schema-salad schema for the inputs of a given CWL process."""
+    template: CWLObjectType = {
+        "saladVersion": "v1.1",
+        "$base": "https://w3id.org/cwl/cwl#",
+        "$namespaces": {"cwl": "https://w3id.org/cwl/cwl#"},
+        "$graph": [
+            {
+                "name": "File",
+                "type": "record",
+                "fields": [
+                    {
+                        "name": "class",
+                        "type": {
+                            "type": "enum",
+                            "name": "File_class",
+                            "symbols": ["cwl:File"],
+                        },
+                        "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
+                    },
+                    {
+                        "name": "location",
+                        "type": "string?",
+                        "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
+                    },
+                    {
+                        "name": "path",
+                        "type": "string?",
+                        "jsonldPredicate": {
+                            "_id": "cwl:path",
+                            "_type": "@id",
+                        },
+                    },
+                    {
+                        "name": "basename",
+                        "type": "string?",
+                        "jsonldPredicate": {
+                            "_id": "cwl:basename",
+                            "_type": "@id",
+                        },
+                    },
+                    {
+                        "name": "dirname",
+                        "type": "string?",
+                    },
+                    {
+                        "name": "nameroot",
+                        "type": "string?",
+                    },
+                    {
+                        "name": "nameext",
+                        "type": "string?",
+                    },
+                    {
+                        "name": "checksum",
+                        "type": "string?",
+                    },
+                    {
+                        "name": "size",
+                        "type": "long?",
+                    },
+                    {
+                        "name": "secondaryFiles",
+                        "type": [
+                            "null",
+                            {"type": "array", "items": ["File", "Directory"]},
+                        ],
+                        "jsonldPredicate": {
+                            "_id": "cwl:secondaryFiles",
+                            "secondaryFilesDSL": True,
+                        },
+                    },
+                    {
+                        "name": "format",
+                        "type": "string?",
+                        "jsonldPredicate": {
+                            "_id": "cwl:format",
+                            "_type": "@id",
+                            "identity": True,
+                        },
+                    },
+                    {
+                        "name": "contents",
+                        "type": "string?",
+                    },
+                ],
+            },
+            {
+                "name": "Directory",
+                "type": "record",
+                "fields": [
+                    {
+                        "name": "class",
+                        "type": {
+                            "type": "enum",
+                            "name": "Directory_class",
+                            "symbols": ["cwl:Directory"],
+                        },
+                        "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
+                    },
+                    {
+                        "name": "location",
+                        "type": "string?",
+                        "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
+                    },
+                    {
+                        "name": "path",
+                        "type": "string?",
+                        "jsonldPredicate": {
+                            "_id": "cwl:path",
+                            "_type": "@id",
+                        },
+                    },
+                    {
+                        "name": "basename",
+                        "type": "string?",
+                        "jsonldPredicate": {
+                            "_id": "cwl:basename",
+                            "_type": "@id",
+                        },
+                    },
+                    {
+                        "name": "listing",
+                        "type": [
+                            "null",
+                            {"type": "array", "items": ["File", "Directory"]},
+                        ],
+                        "jsonldPredicate": {
+                            "_id": "cwl:listing",
+                        },
+                    },
+                ],
+            },
+        ],
+    }
+    inputs_record_schema: CWLObjectType = {
+        "name": "inputs_record_schema",
+        "type": "record",
+        "fields": [],
+        "documentRoot": True,
+    }
+    for inp in tool.inputs_record_schema["fields"]:
+        salad_type: CWLObjectType = {"name": inp["name"], "type": inp["type"]}
+        if "label" in inp:
+            salad_type["doc"] = inp["label"]
+        inputs_record_schema["fields"].append(salad_type)
+
+    def rename_cwl_types(item: Any) -> Any:
+        if isinstance(item, str):
+            if item == "org.w3id.cwl.cwl.File":
+                return "cwl:File"
+            if item == "org.w3id.cwl.cwl.Directory":
+                return "cwl:Directory"
+        elif isinstance(item, MutableSequence):
+            for index, entry in enumerate(item):
+                item[index] = rename_cwl_types(entry)
+        elif isinstance(item, MutableMapping):
+            for key, value in item.items():
+                item[key] = rename_cwl_types(value)
+        return item
+
+    template["$graph"].append(rename_cwl_types(inputs_record_schema))
+
+    return template
+
+
 def load_job_order(
     args: argparse.Namespace,
     stdin: IO[Any],
@@ -757,8 +923,9 @@ def setup_loadingContext(
 
 def make_template(
     tool: Process,
+    stdout: Union[TextIO, StreamWriter] = sys.stdout,
 ) -> None:
-    """Make a template CWL input object for the give Process."""
+    """Make a template CWL input object for the given Process."""
 
     def my_represent_none(
         self: Any, data: Any
@@ -775,7 +942,33 @@ def make_template(
     yaml.block_seq_indent = 2
     yaml.dump(
         generate_input_template(tool),
-        sys.stdout,
+        stdout,
+    )
+
+
+def make_input_schema(
+    tool: Process,
+    stdout: Union[TextIO, StreamWriter] = sys.stdout,
+) -> None:
+    """Make a schema-salad schema for the CWL input object for the given Process."""
+
+    def my_represent_none(
+        self: Any, data: Any
+    ) -> Any:  # pylint: disable=unused-argument
+        """Force clean representation of 'null'."""
+        return self.represent_scalar("tag:yaml.org,2002:null", "null")
+
+    ruamel.yaml.representer.RoundTripRepresenter.add_representer(
+        type(None), my_represent_none
+    )
+    yaml = YAML()
+    yaml.default_flow_style = False
+    yaml.indent = 4
+    yaml.block_seq_indent = 2
+    yaml.preserve_quotes = False
+    yaml.dump(
+        generate_input_schema(tool),
+        stdout,
     )
 
 
@@ -1166,7 +1359,11 @@ def main(
                     raise main_missing_exc
 
             if args.make_template:
-                make_template(tool)
+                make_template(tool, stdout)
+                return 0
+
+            if args.print_input_schema:
+                make_input_schema(tool, stdout)
                 return 0
 
             if args.validate:
