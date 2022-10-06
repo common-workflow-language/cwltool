@@ -900,6 +900,17 @@ class WorkflowJobLoopStep:
             Union[MutableSequence[Optional[CWLOutputType]], Optional[CWLOutputType]],
         ] = {}
 
+    def _set_empty_output(self, loop_req: CWLObjectType) -> None:
+        for i in self.step.tool["outputs"]:
+            if "id" in i:
+                iid = cast(str, i["id"])
+                if loop_req.get("outputMethod") == "all":
+                    self.output_buffer[iid] = cast(
+                        MutableSequence[Optional[CWLOutputType]], []
+                    )
+                else:
+                    self.output_buffer[iid] = None
+
     def job(
         self,
         joborder: CWLObjectType,
@@ -934,9 +945,13 @@ class WorkflowJobLoopStep:
                     container_engine=self.container_engine,
                 )
                 if whenval is True:
+                    self.processStatus = ""
                     yield from self.step.job(self.joborder, callback, runtimeContext)
+                    while self.processStatus == "":
+                        yield None
                     if self.processStatus == "permanentFail":
                         output_callback(self.output_buffer, self.processStatus)
+                        return
                 elif whenval is False:
                     _logger.debug(
                         "[%s] loop condition %s evaluated to %s at iteration %i",
@@ -952,15 +967,7 @@ class WorkflowJobLoopStep:
                     )
                     if self.iteration == 0:
                         self.processStatus = "skipped"
-                        for i in self.step.tool["outputs"]:
-                            if "id" in i:
-                                iid = cast(str, i["id"])
-                                if loop_req.get("outputMethod") == "all":
-                                    self.output_buffer[iid] = cast(
-                                        MutableSequence[Optional[CWLOutputType]], []
-                                    )
-                                else:
-                                    self.output_buffer[iid] = None
+                        self._set_empty_output(loop_req)
                     output_callback(self.output_buffer, self.processStatus)
                     return
                 else:
@@ -972,7 +979,9 @@ class WorkflowJobLoopStep:
         except Exception:
             _logger.exception("Unhandled exception")
             self.processStatus = "permanentFail"
-            self.step.completed = True
+            if self.iteration == 0:
+                self._set_empty_output(loop_req)
+            output_callback(self.output_buffer, self.processStatus)
 
     def loop_callback(
         self,
@@ -1020,9 +1029,10 @@ class WorkflowJobLoopStep:
                     json_dumps(jobout, indent=4),
                 )
 
+            if self.processStatus != "permanentFail":
+                self.processStatus = processStatus
+
             if processStatus not in ("success", "skipped"):
-                if self.processStatus != "permanentFail":
-                    self.processStatus = processStatus
 
                 _logger.warning(
                     "[%s] Iteration %i completed %s",
