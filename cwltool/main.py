@@ -339,150 +339,148 @@ def generate_input_template(tool: Process) -> CWLObjectType:
 
 def generate_input_schema(tool: Process) -> CWLObjectType:
     """Generate a schema-salad schema for the inputs of a given CWL process."""
-    template: CWLObjectType = {
-        "saladVersion": "v1.1",
-        "$base": "https://w3id.org/cwl/cwl#",
-        "$namespaces": {"cwl": "https://w3id.org/cwl/cwl#"},
-        "$graph": [
-            {
-                "name": "File",
-                "type": "record",
-                "fields": [
-                    {
-                        "name": "class",
-                        "type": {
-                            "type": "enum",
-                            "name": "File_class",
-                            "symbols": ["cwl:File"],
-                        },
-                        "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
+    graph: MutableSequence[CWLOutputAtomType] = [
+        {
+            "name": "File",
+            "type": "record",
+            "fields": [
+                {
+                    "name": "class",
+                    "type": {
+                        "type": "enum",
+                        "name": "File_class",
+                        "symbols": ["cwl:File"],
                     },
-                    {
-                        "name": "location",
-                        "type": "string?",
-                        "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
+                    "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
+                },
+                {
+                    "name": "location",
+                    "type": "string?",
+                    "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
+                },
+                {
+                    "name": "path",
+                    "type": "string?",
+                    "jsonldPredicate": {
+                        "_id": "cwl:path",
+                        "_type": "@id",
                     },
-                    {
-                        "name": "path",
-                        "type": "string?",
-                        "jsonldPredicate": {
-                            "_id": "cwl:path",
-                            "_type": "@id",
-                        },
+                },
+                {
+                    "name": "basename",
+                    "type": "string?",
+                    "jsonldPredicate": {
+                        "_id": "cwl:basename",
+                        "_type": "@id",
                     },
-                    {
-                        "name": "basename",
-                        "type": "string?",
-                        "jsonldPredicate": {
-                            "_id": "cwl:basename",
-                            "_type": "@id",
-                        },
+                },
+                {
+                    "name": "dirname",
+                    "type": "string?",
+                },
+                {
+                    "name": "nameroot",
+                    "type": "string?",
+                },
+                {
+                    "name": "nameext",
+                    "type": "string?",
+                },
+                {
+                    "name": "checksum",
+                    "type": "string?",
+                },
+                {
+                    "name": "size",
+                    "type": "long?",
+                },
+                {
+                    "name": "secondaryFiles",
+                    "type": [
+                        "null",
+                        {"type": "array", "items": ["File", "Directory"]},
+                    ],
+                    "jsonldPredicate": {
+                        "_id": "cwl:secondaryFiles",
+                        "secondaryFilesDSL": True,
                     },
-                    {
-                        "name": "dirname",
-                        "type": "string?",
+                },
+                {
+                    "name": "format",
+                    "type": "string?",
+                    "jsonldPredicate": {
+                        "_id": "cwl:format",
+                        "_type": "@id",
+                        "identity": True,
                     },
-                    {
-                        "name": "nameroot",
-                        "type": "string?",
+                },
+                {
+                    "name": "contents",
+                    "type": "string?",
+                },
+            ],
+        },
+        {
+            "name": "Directory",
+            "type": "record",
+            "fields": [
+                {
+                    "name": "class",
+                    "type": {
+                        "type": "enum",
+                        "name": "Directory_class",
+                        "symbols": ["cwl:Directory"],
                     },
-                    {
-                        "name": "nameext",
-                        "type": "string?",
+                    "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
+                },
+                {
+                    "name": "location",
+                    "type": "string?",
+                    "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
+                },
+                {
+                    "name": "path",
+                    "type": "string?",
+                    "jsonldPredicate": {
+                        "_id": "cwl:path",
+                        "_type": "@id",
                     },
-                    {
-                        "name": "checksum",
-                        "type": "string?",
+                },
+                {
+                    "name": "basename",
+                    "type": "string?",
+                    "jsonldPredicate": {
+                        "_id": "cwl:basename",
+                        "_type": "@id",
                     },
-                    {
-                        "name": "size",
-                        "type": "long?",
+                },
+                {
+                    "name": "listing",
+                    "type": [
+                        "null",
+                        {"type": "array", "items": ["File", "Directory"]},
+                    ],
+                    "jsonldPredicate": {
+                        "_id": "cwl:listing",
                     },
-                    {
-                        "name": "secondaryFiles",
-                        "type": [
-                            "null",
-                            {"type": "array", "items": ["File", "Directory"]},
-                        ],
-                        "jsonldPredicate": {
-                            "_id": "cwl:secondaryFiles",
-                            "secondaryFilesDSL": True,
-                        },
-                    },
-                    {
-                        "name": "format",
-                        "type": "string?",
-                        "jsonldPredicate": {
-                            "_id": "cwl:format",
-                            "_type": "@id",
-                            "identity": True,
-                        },
-                    },
-                    {
-                        "name": "contents",
-                        "type": "string?",
-                    },
-                ],
-            },
-            {
-                "name": "Directory",
-                "type": "record",
-                "fields": [
-                    {
-                        "name": "class",
-                        "type": {
-                            "type": "enum",
-                            "name": "Directory_class",
-                            "symbols": ["cwl:Directory"],
-                        },
-                        "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
-                    },
-                    {
-                        "name": "location",
-                        "type": "string?",
-                        "jsonldPredicate": {"_id": "@type", "_type": "@vocab"},
-                    },
-                    {
-                        "name": "path",
-                        "type": "string?",
-                        "jsonldPredicate": {
-                            "_id": "cwl:path",
-                            "_type": "@id",
-                        },
-                    },
-                    {
-                        "name": "basename",
-                        "type": "string?",
-                        "jsonldPredicate": {
-                            "_id": "cwl:basename",
-                            "_type": "@id",
-                        },
-                    },
-                    {
-                        "name": "listing",
-                        "type": [
-                            "null",
-                            {"type": "array", "items": ["File", "Directory"]},
-                        ],
-                        "jsonldPredicate": {
-                            "_id": "cwl:listing",
-                        },
-                    },
-                ],
-            },
-        ],
-    }
-    inputs_record_schema: CWLObjectType = {
-        "name": "inputs_record_schema",
-        "type": "record",
-        "fields": [],
-        "documentRoot": True,
-    }
-    for inp in tool.inputs_record_schema["fields"]:
+                },
+            ],
+        },
+    ]
+    original_fields = cast(List[CWLObjectType], tool.inputs_record_schema["fields"])
+    salad_fields: MutableSequence[CWLOutputAtomType] = []
+    for inp in original_fields:
         salad_type: CWLObjectType = {"name": inp["name"], "type": inp["type"]}
         if "label" in inp:
             salad_type["doc"] = inp["label"]
-        inputs_record_schema["fields"].append(salad_type)
+        salad_fields.append(salad_type)
+
+    inputs_record_schema: CWLObjectType = {
+        "name": "inputs_record_schema",
+        "type": "record",
+        "fields": salad_fields,
+        "documentRoot": True,
+    }
 
     def rename_cwl_types(item: Any) -> Any:
         if isinstance(item, str):
@@ -498,8 +496,13 @@ def generate_input_schema(tool: Process) -> CWLObjectType:
                 item[key] = rename_cwl_types(value)
         return item
 
-    template["$graph"].append(rename_cwl_types(inputs_record_schema))
-
+    graph.append(rename_cwl_types(inputs_record_schema))
+    template: CWLObjectType = {
+        "saladVersion": "v1.1",
+        "$base": "https://w3id.org/cwl/cwl#",
+        "$namespaces": {"cwl": "https://w3id.org/cwl/cwl#"},
+        "$graph": graph,
+    }
     return template
 
 
@@ -965,7 +968,7 @@ def make_input_schema(
     yaml.default_flow_style = False
     yaml.indent = 4
     yaml.block_seq_indent = 2
-    yaml.preserve_quotes = False
+    yaml.preserve_quotes = False  # type: ignore[assignment]
     yaml.dump(
         generate_input_schema(tool),
         stdout,
