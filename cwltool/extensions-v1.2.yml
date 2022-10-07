@@ -176,12 +176,12 @@ $graph:
         evaluated to yield the actual value to be assigned to the input field.
 
         The `self` value in the parameter reference or expression must be
-        `null` if there is no `source` field, or the value of the
-        parameter(s) specified in the `source` field.
+        `null` if there is no `loopSource` field, or the value of the
+        parameter(s) specified in the `loopSource` field.
 
         The value of `inputs` in the parameter reference or expression must be
         the input object to the previous iteration of the workflow step (or the initial
-        inputs for the first iteration).
+        inputs for the first iteration).ß
 
 - name: Loop
   type: record
