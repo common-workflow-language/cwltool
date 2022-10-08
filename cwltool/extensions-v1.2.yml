@@ -181,7 +181,7 @@ $graph:
 
         The value of `inputs` in the parameter reference or expression must be
         the input object to the previous iteration of the workflow step (or the initial
-        inputs for the first iteration).ß
+        inputs for the first iteration).
 
 - name: Loop
   type: record

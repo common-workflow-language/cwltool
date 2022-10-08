@@ -1,6 +1,7 @@
 """Test the prototype loop extension."""
 import json
 from io import StringIO
+from typing import MutableMapping, MutableSequence
 
 from cwltool.main import main
 
@@ -119,6 +120,19 @@ def test_loop_single_variable() -> None:
     assert json.loads(stream.getvalue()) == expected
 
 
+def test_loop_single_variable_no_iteration() -> None:
+    """Test a simple loop case with a single variable and a false loopWhen condition."""
+    stream = StringIO()
+    params = [
+        "--enable-ext",
+        get_data("tests/loop/single-var-loop-no-iteration.cwl"),
+        get_data("tests/loop/single-var-loop-job.yml"),
+    ]
+    main(params, stdout=stream)
+    expected = {"o1": None}
+    assert json.loads(stream.getvalue()) == expected
+
+
 def test_loop_two_variables() -> None:
     """Test a loop case with two variables, which are both back-propagated between iterations."""
     stream = StringIO()
@@ -155,6 +169,19 @@ def test_loop_with_all_output_method() -> None:
     ]
     main(params, stdout=stream)
     expected = {"o1": [2, 3, 4, 5, 6, 7, 8, 9, 10]}
+    assert json.loads(stream.getvalue()) == expected
+
+
+def test_loop_with_all_output_method_no_iteration() -> None:
+    """Test a loop case with outputMethod set to all and a false loopWhen condition."""
+    stream = StringIO()
+    params = [
+        "--enable-ext",
+        get_data("tests/loop/all-output-loop-no-iteration.cwl"),
+        get_data("tests/loop/single-var-loop-job.yml"),
+    ]
+    main(params, stdout=stream)
+    expected: MutableMapping[str, MutableSequence[int]] = {"o1": []}
     assert json.loads(stream.getvalue()) == expected
 
 
