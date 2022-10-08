@@ -232,28 +232,6 @@ def shortname(inputid: str) -> str:
     return d.path.split("/")[-1]
 
 
-def checkRequirements(
-    rec: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType, None],
-    supported_process_requirements: Iterable[str],
-) -> None:
-    if isinstance(rec, MutableMapping):
-        if "requirements" in rec:
-            debug = _logger.isEnabledFor(logging.DEBUG)
-            for i, entry in enumerate(
-                cast(MutableSequence[CWLObjectType], rec["requirements"])
-            ):
-                with SourceLine(rec["requirements"], i, UnsupportedRequirement, debug):
-                    if cast(str, entry["class"]) not in supported_process_requirements:
-                        raise UnsupportedRequirement(
-                            f"Unsupported requirement {entry['class']}."
-                        )
-        for key in rec:
-            checkRequirements(rec[key], supported_process_requirements)
-    if isinstance(rec, MutableSequence):
-        for entry2 in rec:
-            checkRequirements(entry2, supported_process_requirements)
-
-
 def stage_files(
     pathmapper: PathMapper,
     stage_func: Optional[Callable[[str, str], None]] = None,
@@ -623,7 +601,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         if self.doc_loader is not None:
             self.formatgraph = self.doc_loader.graph
 
-        checkRequirements(self.tool, supportedProcessRequirements)
+        self.checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(
             cast(Names, loadingContext.avsc_names),
             self.tool.get("hints", []),
@@ -1052,6 +1030,29 @@ hints:
             defaultReq["cudaDeviceCount"] = request_evaluated["cudaDeviceCountMin"]
         return defaultReq
 
+    def checkRequirements(
+        self,
+        rec: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType, None],
+        supported_process_requirements: Iterable[str],
+    ) -> None:
+        """Check the presence of unsupported requirements."""
+        if isinstance(rec, MutableMapping):
+            if "requirements" in rec:
+                debug = _logger.isEnabledFor(logging.DEBUG)
+                for i, entry in enumerate(
+                    cast(MutableSequence[CWLObjectType], rec["requirements"])
+                ):
+                    with SourceLine(
+                        rec["requirements"], i, UnsupportedRequirement, debug
+                    ):
+                        if (
+                            cast(str, entry["class"])
+                            not in supported_process_requirements
+                        ):
+                            raise UnsupportedRequirement(
+                                f"Unsupported requirement {entry['class']}."
+                            )
+
     def validate_hints(
         self, avsc_names: Names, hints: List[CWLObjectType], strict: bool
     ) -> None:
@@ -1062,6 +1063,10 @@ hints:
             sl = SourceLine(hints, i, ValidationException, debug)
             with sl:
                 classname = cast(str, r["class"])
+                if classname == "http://commonwl.org/cwltool#Loop":
+                    raise ValidationException(
+                        "http://commonwl.org/cwltool#Loop is valid only under requirements."
+                    )
                 avroname = classname
                 if classname in self.doc_loader.vocab:
                     avroname = avro_type_name(self.doc_loader.vocab[classname])

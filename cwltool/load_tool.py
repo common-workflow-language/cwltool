@@ -7,6 +7,7 @@ import os
 import re
 import urllib
 import uuid
+from functools import partial
 from typing import (
     Any,
     Dict,
@@ -18,7 +19,6 @@ from typing import (
     Union,
     cast,
 )
-from functools import partial
 
 from cwl_utils.parser import cwl_v1_2, cwl_v1_2_utils
 from ruamel.yaml.comments import CommentedMap, CommentedSeq

@@ -6,11 +6,13 @@ import random
 from typing import (
     Callable,
     Dict,
+    Iterable,
     List,
     Mapping,
     MutableMapping,
     MutableSequence,
     Optional,
+    Union,
     cast,
 )
 from uuid import UUID
@@ -20,7 +22,7 @@ from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
 
 from . import command_line_tool, context, procgenerator
-from .checker import circular_dependency_checker, static_checker
+from .checker import circular_dependency_checker, loop_checker, static_checker
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import WorkflowException
 from .load_tool import load_tool
@@ -29,6 +31,7 @@ from .process import Process, get_overrides, shortname
 from .provenance_profile import ProvenanceProfile
 from .utils import (
     CWLObjectType,
+    CWLOutputType,
     JobsGeneratorType,
     OutputCallbackType,
     StepType,
@@ -140,6 +143,7 @@ class Workflow(Process):
                 param_to_step,
             )
             circular_dependency_checker(step_inputs)
+            loop_checker([step.tool for step in self.steps])
 
     def make_workflow_step(
         self,
@@ -218,7 +222,10 @@ class WorkflowStep(Process):
                 if parent_req["class"] == step_req["class"]:
                     found_in_step = True
                     break
-            if not found_in_step:
+            if (
+                not found_in_step
+                and parent_req.get("class") != "http://commonwl.org/cwltool#Loop"
+            ):
                 loadingContext.requirements.append(parent_req)
         loadingContext.requirements.extend(
             cast(
@@ -410,6 +417,16 @@ class WorkflowStep(Process):
                 self.parent_wf = self.embedded_tool.parent_wf
             else:
                 self.parent_wf = self.prov_obj
+
+    def checkRequirements(
+        self,
+        rec: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType, None],
+        supported_process_requirements: Iterable[str],
+    ) -> None:
+        """Check the presence of unsupported requirements."""
+        supported_process_requirements = list(supported_process_requirements)
+        supported_process_requirements.append("http://commonwl.org/cwltool#Loop")
+        super().checkRequirements(rec, supported_process_requirements)
 
     def receive_output(
         self,
