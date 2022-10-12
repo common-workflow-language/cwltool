@@ -845,7 +845,7 @@ class ResearchObject:
         else:
             # This still shows up when no_listing
             _logger.debug("[provenance] File: %s", str(from_fp))
-            traceback.print_stack()
+            _logger.debug(traceback.print_stack())
         _logger.debug("[provenance] Added data file %s", path)
         if timestamp is not None:
             createdOn, createdBy = self._self_made(timestamp)
