@@ -844,7 +844,9 @@ class ResearchObject:
             _logger.debug("[provenance] Directory :%s", self.relativised_input_object['dir']['basename'])
         else:
             # This still shows up when no_listing
-            _logger.debug("[provenance] File: %s", str(from_fp))
+            if _logger.DEBUG >= _logger.root.level:
+                _logger.debug("[provenance] File: %s", str(from_fp))
+            # If debug is enabled?
             _logger.debug(traceback.print_stack())
         _logger.debug("[provenance] Added data file %s", path)
         if timestamp is not None:
