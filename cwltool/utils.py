@@ -39,7 +39,7 @@ import pkg_resources
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
-from mypy_extensions import TypedDict
+from mypy_extensions import TypedDict, mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from typing_extensions import TYPE_CHECKING, Deque
@@ -502,6 +502,7 @@ def create_tmp_dir(tmpdir_prefix: str) -> str:
     return tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class HasReqsHints:
     """Base class for get_requirement()."""
 
