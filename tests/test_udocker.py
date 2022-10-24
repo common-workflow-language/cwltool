@@ -21,7 +21,7 @@ def udocker(tmp_path_factory: TempPathFactory) -> str:
     docker_install_dir = str(tmp_path_factory.mktemp("udocker"))
     with working_directory(docker_install_dir):
 
-        url = "https://github.com/indigo-dc/udocker/releases/download/v1.3.1/udocker-1.3.1.tar.gz"
+        url = "https://github.com/indigo-dc/udocker/releases/download/1.3.5/udocker-1.3.5.tar.gz"
         install_cmds = [
             ["curl", "-L", url, "-o", "./udocker-tarball.tgz"],
             ["tar", "xzvf", "udocker-tarball.tgz"],
