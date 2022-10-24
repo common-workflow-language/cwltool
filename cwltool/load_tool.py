@@ -39,7 +39,7 @@ from .context import LoadingContext
 from .errors import GraphTargetMissingException
 from .loghandler import _logger
 from .process import Process, get_schema, shortname
-from .update import ALLUPDATES
+from .update import ALLUPDATES, INTERNAL_VERSION
 from .utils import CWLObjectType, ResolverType, visit_class
 
 jobloaderctx = {
@@ -650,7 +650,7 @@ def resolve_overrides(
     ret, _ = ovloader.resolve_all(ov, baseurl)
     if not isinstance(ret, CommentedMap):
         raise Exception("Expected CommentedMap, got %s" % type(ret))
-    cwl_docloader = get_schema("v1.0")[0]
+    cwl_docloader = get_schema(INTERNAL_VERSION)[0]
     cwl_docloader.resolve_all(ret, ov_uri)
     return cast(List[CWLObjectType], ret["http://commonwl.org/cwltool#overrides"])
 
