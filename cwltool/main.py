@@ -242,7 +242,9 @@ def generate_example_input(
             for field in cast(List[CWLObjectType], inptype["fields"]):
                 value, f_comment = generate_example_input(field["type"], None)
                 if f_comment:
-                    example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
+                    example.insert(
+                        0, shortname(cast(str, field["name"])), value, f_comment
+                    )
                 else:
                     example.insert(0, shortname(cast(str, field["name"])), value, None)
         elif "default" in inptype:
