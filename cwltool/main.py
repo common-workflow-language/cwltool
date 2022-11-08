@@ -241,12 +241,7 @@ def generate_example_input(
                 comment = "Anonymous record type."
             for field in cast(List[CWLObjectType], inptype["fields"]):
                 value, f_comment = generate_example_input(field["type"], None)
-                if f_comment:
-                    example.insert(
-                        0, shortname(cast(str, field["name"])), value, f_comment
-                    )
-                else:
-                    example.insert(0, shortname(cast(str, field["name"])), value, None)
+                example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
         elif "default" in inptype:
             example = inptype["default"]
             comment = 'default value of type "{}".'.format(inptype["type"])
@@ -340,10 +335,7 @@ def generate_input_template(tool: Process) -> CWLObjectType:
     ):
         name = shortname(inp["id"])
         value, comment = generate_example_input(inp["type"], inp.get("default", None))
-        if comment:
-            template.insert(0, name, value, comment)
-        else:
-            template.insert(0, name, value, None)
+        template.insert(0, name, value, comment)
     return template
 
 
