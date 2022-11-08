@@ -11,5 +11,9 @@ def test_anonymous_record() -> None:
 
 
 def test_union() -> None:
+    """Test for --make-template for a union type."""
     inputs = cmap(["string", "string[]"])
-    assert main.generate_example_input(inputs, None) == ("a_string", 'one of type "string", type "string[]"')
+    assert main.generate_example_input(inputs, None) == (
+        "a_string",
+        'one of type "string", type "string[]"',
+    )
