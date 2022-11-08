@@ -228,7 +228,7 @@ class SingleJobExecutor(JobExecutor):
             for job in jobiter:
                 if job is not None:
                     if runtime_context.builder is not None and hasattr(job, "builder"):
-                        job.builder = runtime_context.builder  # type: ignore
+                        job.builder = runtime_context.builder
                     if job.outdir is not None:
                         self.output_dirs.add(job.outdir)
                     if runtime_context.research_obj is not None:
