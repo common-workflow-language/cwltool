@@ -195,13 +195,15 @@ def generate_example_input(
                 else:
                     comment = "optional"
         else:
-            example = CommentedSeq()
-            for index, entry in enumerate(inptype):
+            example, comment = generate_example_input(inptype[0], default)
+            type_names = []
+            for entry in inptype:
                 value, e_comment = generate_example_input(entry, default)
-                example.append(value)
-                example.yaml_add_eol_comment(e_comment, index)
+                if e_comment:
+                    type_names.append(e_comment)
+            comment = "one of " + ", ".join(type_names)
             if optional:
-                comment = "optional"
+                comment = f"{comment} (optional)"
     elif isinstance(inptype, Mapping) and "type" in inptype:
         if inptype["type"] == "array":
             first_item = cast(MutableSequence[CWLObjectType], inptype["items"])[0]
@@ -239,7 +241,10 @@ def generate_example_input(
                 comment = "Anonymous record type."
             for field in cast(List[CWLObjectType], inptype["fields"]):
                 value, f_comment = generate_example_input(field["type"], None)
-                example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
+                if f_comment:
+                    example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
+                else:
+                    example.insert(0, shortname(cast(str, field["name"])), value, None)
         elif "default" in inptype:
             example = inptype["default"]
             comment = 'default value of type "{}".'.format(inptype["type"])
@@ -333,7 +338,10 @@ def generate_input_template(tool: Process) -> CWLObjectType:
     ):
         name = shortname(inp["id"])
         value, comment = generate_example_input(inp["type"], inp.get("default", None))
-        template.insert(0, name, value, comment)
+        if comment:
+            template.insert(0, name, value, comment)
+        else:
+            template.insert(0, name, value, None)
     return template
 
 
