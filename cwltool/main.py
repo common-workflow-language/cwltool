@@ -195,13 +195,15 @@ def generate_example_input(
                 else:
                     comment = "optional"
         else:
-            example = CommentedSeq()
-            for index, entry in enumerate(inptype):
+            example, comment = generate_example_input(inptype[0], default)
+            type_names = []
+            for entry in inptype:
                 value, e_comment = generate_example_input(entry, default)
-                example.append(value)
-                example.yaml_add_eol_comment(e_comment, index)
+                if e_comment:
+                    type_names.append(e_comment)
+            comment = "one of " + ", ".join(type_names)
             if optional:
-                comment = "optional"
+                comment = f"{comment} (optional)"
     elif isinstance(inptype, Mapping) and "type" in inptype:
         if inptype["type"] == "array":
             first_item = cast(MutableSequence[CWLObjectType], inptype["items"])[0]
