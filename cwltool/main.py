@@ -1322,7 +1322,11 @@ def main(
                     runtime_context=runtimeContext,
                 )
             except SystemExit as err:
-                return err.code
+                if isinstance(err.code, int):
+                    return err.code
+                else:
+                    _logger.debug("Non-integer SystemExit: %s", err.code)
+                    return 1
 
             del args.workflow
             del args.job_order
