@@ -334,10 +334,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] or False
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if user_space_docker_cmd:
-            if "udocker" in user_space_docker_cmd and not runtimeContext.debug:
-                runtime = [user_space_docker_cmd, "--quiet", "run"]
-                # udocker 1.1.1 will output diagnostic messages to stdout
-                # without this
+            if "udocker" in user_space_docker_cmd:
+                if runtimeContext.debug:
+                    runtime = [user_space_docker_cmd, "run", "--nobanner"]
+                else:
+                    runtime = [user_space_docker_cmd, "--quiet", "run", "--nobanner"]
             else:
                 runtime = [user_space_docker_cmd, "run"]
         elif runtimeContext.podman:
