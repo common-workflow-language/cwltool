@@ -89,3 +89,19 @@ def test_udocker_should_display_memory_usage(udocker: str, tmp_path: Path) -> No
 
     assert "completed success" in stderr, stderr
     assert "Max memory" in stderr, stderr
+
+
+@pytest.mark.skipif(not LINUX, reason="LINUX only")
+def test_udocker_nobanner(udocker: str, tmp_path: Path) -> None:
+    """Avoid the banner when running udocker."""
+    with working_directory(tmp_path):
+        error_code, stdout, stderr = get_main_output(
+            [
+                "--user-space-docker-cmd=" + udocker,
+                get_data("tests/wf/cat-tool.cwl"),
+                get_data("tests/wf/wc-job.json"),
+            ]
+        )
+
+    assert "completed success" in stderr, stderr
+    assert "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376" in stdout, stdout

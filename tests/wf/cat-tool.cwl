@@ -5,7 +5,7 @@ cwlVersion: v1.0
 
 hints:
   DockerRequirement:
-    dockerPull: docker.io/bash:4.4`
+    dockerPull: docker.io/bash:4.4
 
 inputs:
   file1: File
