@@ -13,4 +13,4 @@ inputs:
       class: Directory
       location: indir1
 outputs: []
-baseCommand: true
+baseCommand: []

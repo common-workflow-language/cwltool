@@ -7,7 +7,7 @@ def test_content_types(caplog: LogCaptureFixture) -> None:
     for _ in ("js_output.cwl", "js_output_workflow.cwl"):
         commands = [
             "https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/test-cwl-out2.cwl",
-            "https://github.com/common-workflow-language/common-workflow-language/blob/main/v1.0/v1.0/empty.json",
+            "https://www.cnn.com",
         ]
         error_code, _, stderr = get_main_output(commands)
 
