@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Dict
 
 import pytest
+from cwl_utils.pack import pack
 from schema_salad.utils import yaml_no_ts
 
-import cwltool.pack
 import cwltool.workflow
 from cwltool.context import LoadingContext
 from cwltool.load_tool import fetch_document, resolve_and_validate_document
@@ -42,13 +42,7 @@ from .util import get_data, needs_docker
 )
 def test_packing(unpacked: str, expected: str) -> None:
     """Compare expected version reality with various workflows and --pack."""
-    loadingContext, workflowobj, uri = fetch_document(get_data(unpacked))
-    loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
-
-    packed = json.loads(print_pack(loadingContext, uri))
+    packed = json.loads(print_pack(get_data(unpacked)))
     context_dir = os.path.abspath(os.path.dirname(get_data(unpacked)))
     adjustFileObjs(packed, partial(make_relative, context_dir))
     adjustDirObjs(packed, partial(make_relative, context_dir))
@@ -68,18 +62,7 @@ def test_packing(unpacked: str, expected: str) -> None:
 
 
 def test_pack_single_tool() -> None:
-    loadingContext, workflowobj, uri = fetch_document(
-        get_data("tests/wf/formattest.cwl")
-    )
-    loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
-    loader = loadingContext.loader
-    assert loader
-    loader.resolve_ref(uri)[0]
-
-    packed = cwltool.pack.pack(loadingContext, uri)
+    packed = pack(get_data("tests/wf/formattest.cwl"))
     assert "$schemas" in packed
 
 
@@ -90,7 +73,7 @@ def test_pack_fragment() -> None:
         expect_packed = yaml.load(packed_file)
 
     loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/scatter2.cwl"))
-    packed = cwltool.pack.pack(loadingContext, uri + "#scatterstep/mysub")
+    packed = pack(uri + "#scatterstep/mysub")
     adjustFileObjs(
         packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
     )
@@ -100,29 +83,6 @@ def test_pack_fragment() -> None:
     expected = json.dumps(expect_packed, sort_keys=True, indent=2)
 
     assert packed_result == expected
-
-
-def test_pack_rewrites() -> None:
-    rewrites = {}  # type: Dict[str, str]
-
-    loadingContext, workflowobj, uri = fetch_document(
-        get_data("tests/wf/default-wf5.cwl")
-    )
-    loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
-    loader = loadingContext.loader
-    assert loader
-    loader.resolve_ref(uri)[0]
-
-    cwltool.pack.pack(
-        loadingContext,
-        uri,
-        rewrite_out=rewrites,
-    )
-
-    assert len(rewrites) == 6
 
 
 cwl_missing_version_paths = [
@@ -135,17 +95,7 @@ cwl_missing_version_paths = [
 def test_pack_missing_cwlVersion(cwl_path: str) -> None:
     """Ensure the generated pack output is not missing the `cwlVersion` in case of single tool workflow and single step workflow."""
     # Testing single tool workflow
-    loadingContext, workflowobj, uri = fetch_document(get_data(cwl_path))
-    loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
-    loader = loadingContext.loader
-    assert loader
-    loader.resolve_ref(uri)[0]
-
-    # generate pack output dict
-    packed = json.loads(print_pack(loadingContext, uri))
+    packed = json.loads(print_pack(get_data(cwl_path)))
 
     assert packed["cwlVersion"] == "v1.0"
 
@@ -161,17 +111,8 @@ def test_pack_idempotence_workflow(tmp_path: Path) -> None:
 
 
 def _pack_idempotently(document: str, tmp_path: Path) -> None:
-    loadingContext, workflowobj, uri = fetch_document(get_data(document))
-    loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
-    loader = loadingContext.loader
-    assert loader
-    loader.resolve_ref(uri)[0]
-
     # generate pack output dict
-    packed_text = print_pack(loadingContext, uri)
+    packed_text = print_pack(get_data(document))
     packed = json.loads(packed_text)
 
     tmp_name = tmp_path / "packed.cwl"
@@ -180,20 +121,10 @@ def _pack_idempotently(document: str, tmp_path: Path) -> None:
     tmp.flush()
     tmp.close()
 
-    loadingContext, workflowobj, uri2 = fetch_document(tmp.name)
-    loadingContext.do_update = False
-    loadingContext, uri2 = resolve_and_validate_document(
-        loadingContext, workflowobj, uri2
-    )
-    loader2 = loadingContext.loader
-    assert loader2
-    loader2.resolve_ref(uri2)[0]
-
-    # generate pack output dict
-    packed_text = print_pack(loadingContext, uri2)
+    # generate 2nd packed output dict
+    packed_text = print_pack(tmp.name)
     double_packed = json.loads(packed_text)
 
-    assert uri != uri2
     assert packed == double_packed
 
 
@@ -208,17 +139,7 @@ cwl_to_run = [
 def test_packed_workflow_execution(
     wf_path: str, job_path: str, namespaced: bool, tmp_path: Path
 ) -> None:
-    loadingContext = LoadingContext()
-    loadingContext.resolver = tool_resolver
-    loadingContext, workflowobj, uri = fetch_document(get_data(wf_path), loadingContext)
-    loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
-    loader = loadingContext.loader
-    assert loader
-    loader.resolve_ref(uri)[0]
-    packed = json.loads(print_pack(loadingContext, uri))
+    packed = json.loads(print_pack(get_data(wf_path)))
 
     assert not namespaced or "$namespaces" in packed
 

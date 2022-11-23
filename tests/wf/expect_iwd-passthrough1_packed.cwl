@@ -1,5 +1,6 @@
 {
     "class": "CommandLineTool",
+    "cwlVersion": "v1.2",
     "doc": "YAML |- syntax does not add trailing newline so in the listing entry\nbelow there is no whitespace surrounding the value\n$(inputs.filelist), so it is evaluated as a File object.  Compare to\niwd-passthrough2.cwl\n",
     "requirements": [
         {
@@ -15,19 +16,17 @@
     "inputs": [
         {
             "type": "File",
-            "id": "#main/filelist"
+            "id": "filelist"
         }
     ],
-    "baseCommand": "true",
-    "id": "#main",
     "outputs": [
         {
             "type": "File",
             "outputBinding": {
                 "glob": "renamed-filelist.txt"
             },
-            "id": "#main/filelist"
+            "id": "filelist"
         }
     ],
-    "cwlVersion": "v1.2"
+    "baseCommand": "true"
 }

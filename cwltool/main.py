@@ -37,6 +37,7 @@ import argcomplete
 import coloredlogs
 import pkg_resources  # part of setuptools
 import ruamel.yaml
+from cwl_utils.pack import pack
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
@@ -68,7 +69,6 @@ from .load_tool import (
 from .loghandler import _logger, configure_logging, defaultStreamHandler
 from .mpi import MpiConfig
 from .mutation import MutationManager
-from .pack import pack
 from .process import (
     CWL_IANA,
     Process,
@@ -631,16 +631,11 @@ def find_deps(
 
 
 def print_pack(
-    loadingContext: LoadingContext,
     uri: str,
 ) -> str:
     """Return a CWL serialization of the CWL document in JSON."""
-    packed = pack(loadingContext, uri)
-    if len(cast(Sized, packed["$graph"])) > 1:
-        return json_dumps(packed, indent=4, default=str)
-    return json_dumps(
-        cast(MutableSequence[CWLObjectType], packed["$graph"])[0], indent=4, default=str
-    )
+    packed = pack(uri)
+    return json_dumps(packed, indent=4, default=str)
 
 
 def supported_cwl_versions(enable_dev: bool) -> List[str]:
@@ -1132,14 +1127,12 @@ def main(
             processobj, metadata = loadingContext.loader.resolve_ref(uri)
             processobj = cast(Union[CommentedMap, CommentedSeq], processobj)
             if args.pack:
-                print(print_pack(loadingContext, uri), file=stdout)
+                print(print_pack(uri), file=stdout)
                 return 0
 
             if args.provenance and runtimeContext.research_obj:
                 # Can't really be combined with args.pack at same time
-                runtimeContext.research_obj.packed_workflow(
-                    print_pack(loadingContext, uri)
-                )
+                runtimeContext.research_obj.packed_workflow(print_pack(uri))
 
             if args.print_pre:
                 print(
