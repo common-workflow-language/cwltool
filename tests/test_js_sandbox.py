@@ -49,8 +49,16 @@ def hide_nodejs(temp_dir: Path) -> str:
     """Generate a new PATH that hides node{js,}."""
     paths: List[str] = os.environ.get("PATH", "").split(":")
     names: List[str] = []
+    if "/bin" in paths:
+        bin_path = Path("/bin")
+        if (
+            bin_path.is_symlink()
+            and os.readlink(bin_path) == "usr/bin"
+            and "/usr/bin" in paths
+        ):
+            paths.remove("/bin")
     for name in ("nodejs", "node"):
-        path = shutil.which(name)
+        path = shutil.which(name, path=":".join(paths))
         if path:
             names.append(path)
     for name in names:
