@@ -17,9 +17,10 @@ from typing import (
 )
 from uuid import UUID
 
-from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
+
+from ruamel.yaml.comments import CommentedMap
 
 from . import command_line_tool, context, procgenerator
 from .checker import circular_dependency_checker, loop_checker, static_checker

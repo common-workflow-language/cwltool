@@ -17,12 +17,13 @@ from typing import (
     Union,
 )
 
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names
 from schema_salad.ref_resolver import Loader
 from schema_salad.utils import FetcherCallableType
 from typing_extensions import TYPE_CHECKING
+
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from ruamel.yaml.comments import CommentedMap
 
 from .builder import Builder
 from .mpi import MpiConfig
