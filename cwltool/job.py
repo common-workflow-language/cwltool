@@ -874,6 +874,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 cidfile,
                 runtimeContext.tmpdir_prefix,
                 not bool(runtimeContext.cidfile_dir),
+                "podman" if runtimeContext.podman else "docker",
             )
         elif runtimeContext.user_space_docker_cmd:
             monitor_function = functools.partial(self.process_monitor)
@@ -884,6 +885,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         cidfile: str,
         tmpdir_prefix: str,
         cleanup_cidfile: bool,
+        docker_exe: str,
         process,  # type: subprocess.Popen[str]
     ) -> None:
         """Record memory usage of the running Docker container."""
@@ -901,7 +903,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                         os.remove(cidfile)
                     except OSError as exc:
                         _logger.warning(
-                            "Ignored error cleaning up Docker cidfile: %s", exc
+                            "Ignored error cleaning up %s cidfile: %s", docker_exe, exc
                         )
                     return
             try:
@@ -915,15 +917,19 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         stats_file_name = stats_file.name
         try:
             with open(stats_file_name, mode="w") as stats_file_handle:
+                cmds = [docker_exe, "stats"]
+                if "podman" not in docker_exe:
+                    cmds.append("--no-trunc")
+                cmds.extend(["--format", "{{.MemPerc}}", cid])
                 stats_proc = subprocess.Popen(  # nosec
-                    ["docker", "stats", "--no-trunc", "--format", "{{.MemPerc}}", cid],
+                    cmds,
                     stdout=stats_file_handle,
                     stderr=subprocess.DEVNULL,
                 )
                 process.wait()
                 stats_proc.kill()
         except OSError as exc:
-            _logger.warning("Ignored error with docker stats: %s", exc)
+            _logger.warning("Ignored error with %s stats: %s", docker_exe, exc)
             return
         max_mem_percent = 0  # type: float
         mem_percent = 0  # type: float
@@ -938,8 +944,10 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     )
                     if mem_percent > max_mem_percent:
                         max_mem_percent = mem_percent
-                except ValueError:
-                    break
+                except ValueError as exc:
+                    _logger.debug(
+                        "%s stats parsing error in line %s: %s", docker_exe, line, exc
+                    )
         _logger.info(
             "[job %s] Max memory used: %iMiB",
             self.name,
