@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import List, cast
 
 import pytest
-from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro import schema
 from schema_salad.sourceline import cmap
 
@@ -19,6 +18,7 @@ from cwltool.pathmapper import MapperEnt, PathMapper
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from cwltool.utils import create_tmp_dir
+from ruamel.yaml.comments import CommentedMap
 
 from .util import get_data, needs_docker
 
@@ -116,8 +116,39 @@ def test_dockerfile_tmpdir_prefix(
     monkeypatch.setattr(
         target=subprocess, name="check_call", value=lambda *args, **kwargs: True
     )
-    tmp_outdir_prefix = tmp_path / "1"
-    assert DockerCommandLineJob.get_image(
+    (tmp_path / "out").mkdir()
+    tmp_outdir_prefix = tmp_path / "out" / "1"
+    (tmp_path / "3").mkdir()
+    tmpdir_prefix = str(tmp_path / "3" / "ttmp")
+    runtime_context = RuntimeContext(
+        {"tmpdir_prefix": tmpdir_prefix, "user_space_docker_cmd": None}
+    )
+    builder = Builder(
+        {},
+        [],
+        [],
+        {},
+        schema.Names(),
+        [],
+        [],
+        {},
+        None,
+        None,
+        StdFsAccess,
+        StdFsAccess(""),
+        None,
+        0.1,
+        False,
+        False,
+        False,
+        "",
+        runtime_context.get_outdir(),
+        runtime_context.get_tmpdir(),
+        runtime_context.get_stagedir(),
+        INTERNAL_VERSION,
+        "docker",
+    )
+    assert DockerCommandLineJob(builder, {}, PathMapper, [], [], "").get_image(
         {
             "class": "DockerRequirement",
             "dockerFile": "FROM debian:stable-slim",

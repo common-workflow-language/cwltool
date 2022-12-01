@@ -90,9 +90,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
     ) -> None:
         """Initialize a command line builder using the Docker software container engine."""
         super().__init__(builder, joborder, make_path_mapper, requirements, hints, name)
+        self.docker_exec = "docker"
 
-    @staticmethod
     def get_image(
+        self,
         docker_requirement: Dict[str, str],
         pull_image: bool,
         force_pull: bool,
@@ -117,7 +118,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         for line in (
             subprocess.check_output(  # nosec
-                ["docker", "images", "--no-trunc", "--all"]
+                [self.docker_exec, "images", "--no-trunc", "--all"]
             )
             .decode("utf-8")
             .splitlines()
@@ -151,7 +152,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if (force_pull or not found) and pull_image:
             cmd = []  # type: List[str]
             if "dockerPull" in docker_requirement:
-                cmd = ["docker", "pull", str(docker_requirement["dockerPull"])]
+                cmd = [self.docker_exec, "pull", str(docker_requirement["dockerPull"])]
                 _logger.info(str(cmd))
                 subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
@@ -160,7 +161,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as dfile:
                     dfile.write(docker_requirement["dockerFile"])
                 cmd = [
-                    "docker",
+                    self.docker_exec,
                     "build",
                     "--tag=%s" % str(docker_requirement["dockerImageId"]),
                     dockerfile_dir,
@@ -169,7 +170,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
             elif "dockerLoad" in docker_requirement:
-                cmd = ["docker", "load"]
+                cmd = [self.docker_exec, "load"]
                 _logger.info(str(cmd))
                 if os.path.exists(docker_requirement["dockerLoad"]):
                     _logger.info(
@@ -203,7 +204,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 found = True
             elif "dockerImport" in docker_requirement:
                 cmd = [
-                    "docker",
+                    self.docker_exec,
                     "import",
                     str(docker_requirement["dockerImport"]),
                     str(docker_requirement["dockerImageId"]),
@@ -225,8 +226,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         force_pull: bool,
         tmp_outdir_prefix: str,
     ) -> Optional[str]:
-        if not shutil.which("docker"):
-            raise WorkflowException("docker executable is not available")
+        if not shutil.which(self.docker_exec):
+            raise WorkflowException(f"{self.docker_exec} executable is not available")
 
         if self.get_image(
             cast(Dict[str, str], r), pull_image, force_pull, tmp_outdir_prefix
@@ -341,10 +342,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     runtime = [user_space_docker_cmd, "--quiet", "run", "--nobanner"]
             else:
                 runtime = [user_space_docker_cmd, "run"]
-        elif runtimeContext.podman:
-            runtime = ["podman", "run", "-i", "--userns=keep-id"]
         else:
-            runtime = ["docker", "run", "-i"]
+            runtime = [self.docker_exec, "run", "-i"]
+        if runtimeContext.podman:
+            runtime.append("--userns=keep-id")
         self.append_volume(
             runtime, os.path.realpath(self.outdir), self.builder.outdir, writable=True
         )
@@ -460,3 +461,20 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 )
 
         return runtime, cidfile_path
+
+
+class PodmanCommandLineJob(DockerCommandLineJob):
+    """Runs a CommandLineJob in a software container using the podman engine."""
+
+    def __init__(
+        self,
+        builder: Builder,
+        joborder: CWLObjectType,
+        make_path_mapper: Callable[..., PathMapper],
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
+        name: str,
+    ) -> None:
+        """Initialize a command line builder using the Podman software container engine."""
+        super().__init__(builder, joborder, make_path_mapper, requirements, hints, name)
+        self.docker_exec = "podman"

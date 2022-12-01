@@ -36,13 +36,14 @@ from typing import (
 import argcomplete
 import coloredlogs
 import pkg_resources  # part of setuptools
-import ruamel.yaml
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import cmap, strip_dup_lineno
 from schema_salad.utils import ContextType, FetcherCallableType, json_dumps, yaml_no_ts
+
+import ruamel.yaml
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.main import YAML
 
 from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
@@ -105,6 +106,8 @@ from .utils import (
 )
 from .workflow import Workflow
 
+docker_exe: str
+
 
 def _terminate_processes() -> None:
     """Kill all spawned processes.
@@ -117,6 +120,7 @@ def _terminate_processes() -> None:
     continuing to execute while it kills the processes that they've
     spawned. This may occasionally lead to unexpected behaviour.
     """
+    global docker_exe
     # It's possible that another thread will spawn a new task while
     # we're executing, so it's not safe to use a for loop here.
     while processes_to_kill:
@@ -130,7 +134,7 @@ def _terminate_processes() -> None:
             try:
                 with open(cidfile[0]) as inp_stream:
                     p = subprocess.Popen(  # nosec
-                        ["docker", "kill", inp_stream.read()], shell=False  # nosec
+                        [docker_exe, "kill", inp_stream.read()], shell=False  # nosec
                     )
                     try:
                         p.wait(timeout=10)
@@ -1009,6 +1013,7 @@ def main(
         stderr_handler = _logger.handlers[-1]
     workflowobj = None
     prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
+    global docker_exe
     try:
         if args is None:
             if argsl is None:
@@ -1030,6 +1035,10 @@ def main(
         else:
             runtimeContext = runtimeContext.copy()
 
+        if runtimeContext.podman:
+            docker_exe = "podman"
+        else:
+            docker_exe = "docker"
         # If caller parsed its own arguments, it may not include every
         # cwltool option, so fill in defaults to avoid crashing when
         # dereferencing them in args.

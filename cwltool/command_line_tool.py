@@ -30,7 +30,6 @@ from typing import (
 )
 
 import shellescape
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Schema
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import file_uri, uri_file_path
@@ -39,6 +38,8 @@ from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
 from typing_extensions import TYPE_CHECKING, Type
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+
 from .builder import (
     INPUT_OBJ_VOCAB,
     Builder,
@@ -46,7 +47,7 @@ from .builder import (
     substitute,
 )
 from .context import LoadingContext, RuntimeContext, getdefault
-from .docker import DockerCommandLineJob
+from .docker import DockerCommandLineJob, PodmanCommandLineJob
 from .errors import UnsupportedRequirement, WorkflowException
 from .flatten import flatten
 from .job import CommandLineJob, JobBase
@@ -460,6 +461,8 @@ class CommandLineTool(Process):
                         raise UnsupportedRequirement(
                             "Both Docker and MPI have been hinted - don't know what to do"
                         )
+            if runtimeContext.podman:
+                return PodmanCommandLineJob
             return DockerCommandLineJob
         if dockerRequired:
             raise UnsupportedRequirement(
