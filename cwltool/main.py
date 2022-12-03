@@ -1511,10 +1511,9 @@ def run(*args: Any, **kwargs: Any) -> int:
     """Run cwltool."""
     windows_check()
     signal.signal(signal.SIGTERM, _signal_handler)
+    retval = 1
     try:
         retval = main(*args, **kwargs)
-    except:
-        retval = 1
     finally:
         _terminate_processes()
     return retval
