@@ -1398,10 +1398,11 @@ def main(
                 # Unsetting the Generation from final output object
                 visit_class(out, ("File",), MutationManager().unset_generation)
 
-                print(
-                    json_dumps(out, indent=4, ensure_ascii=False, default=str),
-                    file=stdout,
-                )
+                if not args.no_print_final_output:
+                    print(
+                        json_dumps(out, indent=4, ensure_ascii=False, default=str),
+                        file=stdout,
+                    )
                 if hasattr(stdout, "flush"):
                     stdout.flush()
 

@@ -391,6 +391,14 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--no-print-final-output",
+        action="store_true",
+        help="Determines whether the final output object should not be printed to stdout.",
+        default=False,
+        dest="no_print_final_output",
+    )
+
+    parser.add_argument(
         "--strict-memory-limit",
         action="store_true",
         help="When running with "
