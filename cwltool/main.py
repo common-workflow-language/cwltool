@@ -1507,15 +1507,17 @@ def windows_check() -> None:
         )
 
 
-def run(*args: Any, **kwargs: Any) -> None:
+def run(*args: Any, **kwargs: Any) -> int:
     """Run cwltool."""
     windows_check()
     signal.signal(signal.SIGTERM, _signal_handler)
+    retval = 1
     try:
-        sys.exit(main(*args, **kwargs))
+        retval = main(*args, **kwargs)
     finally:
         _terminate_processes()
+    return retval
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    sys.exit(run(sys.argv[1:]))
