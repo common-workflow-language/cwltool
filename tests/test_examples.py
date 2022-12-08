@@ -1348,8 +1348,8 @@ def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
     assert (tmp_path / "cwltool_cache" / "27903451fc1ee10c148a0bdeb845b2cf").exists()
 
 
-def test_no_print_final_output() -> None:
-    """Test --no-print-final-output option works."""
+def test_output_write() -> None:
+    """Test --output-write option works."""
     commands = [
         get_data("tests/wf/no-parameters-echo.cwl"),
     ]
@@ -1358,14 +1358,18 @@ def test_no_print_final_output() -> None:
     assert error_code == 0, stderr
 
     commands_no = [
-        "--no-print-final-output",
+        "--output-write",
+        "final-output.json",
         get_data("tests/wf/no-parameters-echo.cwl"),
     ]
     error_code, stdout_no, stderr = get_main_output(commands_no)
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert error_code == 0, stderr
 
-    assert len(stdout_no) < len(stdout)
+    with open("final-output.json") as f:
+        final_output_str = f.read()
+
+    assert len(stdout_no) + len(final_output_str) == len(stdout)
 
 
 @needs_docker

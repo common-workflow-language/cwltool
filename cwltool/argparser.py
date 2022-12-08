@@ -391,11 +391,12 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--no-print-final-output",
-        action="store_true",
-        help="Determines whether the final output object should not be printed to stdout.",
-        default=False,
-        dest="no_print_final_output",
+        "--output-write",
+        "-o",
+        type=str,
+        help="Determines whether the final output object should be saved to a file instead of printed to stdout.",
+        default="",
+        dest="output_write",
     )
 
     parser.add_argument(

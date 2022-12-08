@@ -1398,7 +1398,13 @@ def main(
                 # Unsetting the Generation from final output object
                 visit_class(out, ("File",), MutationManager().unset_generation)
 
-                if not args.no_print_final_output:
+                if args.output_write:
+                    with open(args.output_write, "w") as file:
+                        print(
+                            json_dumps(out, indent=4, ensure_ascii=False, default=str),
+                            file=file,
+                        )
+                else:
                     print(
                         json_dumps(out, indent=4, ensure_ascii=False, default=str),
                         file=stdout,
