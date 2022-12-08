@@ -49,7 +49,7 @@ def test_directory_literal_with_real_inputs_inside(tmp_path: Path) -> None:
     """Cope with unmoveable files in the output directory created by Docker+IWDR."""
     err_code, _, _ = get_main_output(
         [
-            "--out",
+            "--outdir",
             str(tmp_path),
             get_data("tests/iwdr_dir_literal_real_file.cwl"),
             "--example={}".format(get_data("tests/__init__.py")),
@@ -62,7 +62,7 @@ def test_bad_listing_expression(tmp_path: Path) -> None:
     """Confirm better error message for bad listing expression."""
     err_code, _, stderr = get_main_output(
         [
-            "--out",
+            "--outdir",
             str(tmp_path),
             get_data("tests/iwdr_bad_expr.cwl"),
             "--example={}".format(get_data("tests/__init__.py")),
