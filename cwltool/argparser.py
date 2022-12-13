@@ -391,6 +391,15 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--write-summary",
+        "-w",
+        type=str,
+        help="Path to write the final output JSON object to. Default is stdout.",
+        default="",
+        dest="write_summary",
+    )
+
+    parser.add_argument(
         "--strict-memory-limit",
         action="store_true",
         help="When running with "

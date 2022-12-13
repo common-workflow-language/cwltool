@@ -1348,6 +1348,31 @@ def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
     assert (tmp_path / "cwltool_cache" / "27903451fc1ee10c148a0bdeb845b2cf").exists()
 
 
+def test_write_summary(tmp_path: Path) -> None:
+    """Test --write-summary."""
+    commands = [
+        get_data("tests/wf/no-parameters-echo.cwl"),
+    ]
+    error_code, stdout, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert error_code == 0, stderr
+
+    final_output_path = str(tmp_path / "final-output.json")
+    commands_no = [
+        "--write-summary",
+        final_output_path,
+        get_data("tests/wf/no-parameters-echo.cwl"),
+    ]
+    error_code, stdout_no, stderr = get_main_output(commands_no)
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert error_code == 0, stderr
+
+    with open(final_output_path) as f:
+        final_output_str = f.read()
+
+    assert len(stdout_no) + len(final_output_str) == len(stdout)
+
+
 @needs_docker
 def test_compute_checksum() -> None:
     runtime_context = RuntimeContext()
