@@ -1,6 +1,6 @@
 import urllib
 from codecs import StreamWriter
-from typing import Any, Dict, Iterator, Optional, TextIO, Union, cast
+from typing import IO, Any, Dict, Iterator, Optional, TextIO, Union, cast
 
 from rdflib import Graph
 from rdflib.query import ResultRow
@@ -217,7 +217,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
 def printdot(
     wf: Process,
     ctx: ContextType,
-    stdout: Union[TextIO, StreamWriter],
+    stdout: IO[str],
 ) -> None:
     cwl_viewer = CWLViewer(printrdf(wf, ctx, "n3"))  # type: CWLViewer
     stdout.write(cwl_viewer.dot().replace(f"{wf.metadata['id']}#", ""))

@@ -391,12 +391,12 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--output-write",
-        "-o",
+        "--write-summary",
+        "-w",
         type=str,
-        help="Determines whether the final output object should be saved to a file instead of printed to stdout.",
+        help="Path to write the final output JSON object to. Default is stdout.",
         default="",
-        dest="output_write",
+        dest="write_summary",
     )
 
     parser.add_argument(
