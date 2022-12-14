@@ -78,7 +78,6 @@ def copy_job_order(
     return customised_job
 
 
-
 class ProvenanceProfile:
     """
     Provenance profile.
@@ -261,10 +260,8 @@ class ProvenanceProfile:
             #         # add nested annotations
             #         # how much of this can we reuse from _add_nested_annotations?
             #         # how do we identify the correct file to write to? self.workflow_run_uri?
-            #         # 
+            #         #
             #         pass
-
-
 
     def record_process_start(
         self, process: Process, job: JobsType, process_run_id: Optional[str] = None
@@ -314,14 +311,16 @@ class ProvenanceProfile:
         self.generate_output_prov(outputs, process_run_id, process_name)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
-    def _add_nested_annotations(self, annotation_key, annotation_value, e: ProvEntity) -> ProvEntity:
+    def _add_nested_annotations(
+        self, annotation_key, annotation_value, e: ProvEntity
+    ) -> ProvEntity:
         """Propagate input data annotations to provenance."""
         # Change https:// into http:// first
-        schema2_uri = "https://schema.org/" 
+        schema2_uri = "https://schema.org/"
         if schema2_uri in annotation_key:
-            annotation_key = SCHEMA[annotation_key.replace(schema2_uri, '')].uri 
-        
-        if not isinstance(annotation_value, (MutableSequence, MutableMapping)):            
+            annotation_key = SCHEMA[annotation_key.replace(schema2_uri, "")].uri
+
+        if not isinstance(annotation_value, (MutableSequence, MutableMapping)):
             e.add_attributes({annotation_key: str(annotation_value)})
         elif isinstance(annotation_value, MutableSequence):
             for item_value in annotation_value:
@@ -331,8 +330,10 @@ class ProvenanceProfile:
             nested_entity = self.document.entity(nested_id)
             e.add_attributes({annotation_key: nested_entity.identifier})
             for nested_key in annotation_value:
-                nested_value = annotation_value[nested_key] 
-                nested_entity = self._add_nested_annotations(nested_key, nested_value, nested_entity)
+                nested_value = annotation_value[nested_key]
+                nested_entity = self._add_nested_annotations(
+                    nested_key, nested_value, nested_entity
+                )
         return e
 
     def declare_file(self, value: CWLObjectType) -> Tuple[ProvEntity, ProvEntity, str]:
@@ -396,15 +397,21 @@ class ProvenanceProfile:
         self.document.specializationOf(file_entity, entity)
 
         # Identify all schema annotations
-        schema_annotations = dict([(v, value[v]) for v in value.keys() if 'schema.org' in v])
+        schema_annotations = dict(
+            [(v, value[v]) for v in value.keys() if "schema.org" in v]
+        )
 
         # Transfer SCHEMA annotations to provenance
         for s in schema_annotations:
             if "additionalType" in s:
-                additional_type = schema_annotations[s].split(sep='/')[-1] # find better method?
-                file_entity.add_attributes( {PROV_TYPE: SCHEMA[additional_type]}) 
-            else: 
-                file_entity = self._add_nested_annotations(s, schema_annotations[s], file_entity)
+                additional_type = schema_annotations[s].split(sep="/")[
+                    -1
+                ]  # find better method?
+                file_entity.add_attributes({PROV_TYPE: SCHEMA[additional_type]})
+            else:
+                file_entity = self._add_nested_annotations(
+                    s, schema_annotations[s], file_entity
+                )
 
         # Transfer format annotations to provenance:
         if "format" in value:
@@ -517,18 +524,22 @@ class ProvenanceProfile:
 
         coll.add_attributes(coll_attribs)
         coll_b.add_attributes(coll_b_attribs)
-        
+
         # Identify all schema annotations
-        schema_annotations = dict([(v, value[v]) for v in value.keys() if 'schema.org' in v])
+        schema_annotations = dict(
+            [(v, value[v]) for v in value.keys() if "schema.org" in v]
+        )
 
         # Transfer SCHEMA annotations to provenance
         for s in schema_annotations:
             if "additionalType" in s:
-                additional_type = schema_annotations[s].split(sep='/')[-1] # find better method?
-                coll.add_attributes( {PROV_TYPE: SCHEMA[additional_type]}) 
+                additional_type = schema_annotations[s].split(sep="/")[
+                    -1
+                ]  # find better method?
+                coll.add_attributes({PROV_TYPE: SCHEMA[additional_type]})
             elif "hasPart" not in s:
                 coll = self._add_nested_annotations(s, schema_annotations[s], coll)
-            
+
         # Also Save ORE Folder as annotation metadata
         ore_doc = ProvDocument()
         ore_doc.add_namespace(ORE)
