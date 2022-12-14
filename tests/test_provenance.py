@@ -82,6 +82,28 @@ def test_revsort_workflow(tmp_path: Path) -> None:
 
 
 @needs_docker
+def test_revsort_label_annotations(tmp_path: Path) -> None:
+    """Affirm that EDAM file formats in the input object make it into CWLProv."""
+    base_path = cwltool(
+        tmp_path,
+        get_data("tests/wf/revsort.cwl"),
+        get_data("tests/wf/revsort-job.json"),
+    )
+    prov_file = base_path / "metadata" / "provenance" / "primary.cwlprov.nt"
+    arcp_root = find_arcp(base_path)
+    g = Graph()
+    with open(prov_file, "rb") as f:
+        g.parse(file=f, format="nt", publicID=arcp_root)
+    mime_having_objects = list(g.subjects(SCHEMA.encodingFormat))
+    assert len(mime_having_objects) == 2
+    for obj in mime_having_objects:
+        assert (
+            cast(Literal, list(g.objects(obj, SCHEMA.encodingFormat))[0]).value
+            == "https://www.iana.org/assignments/media-types/text/plain"
+        )
+
+
+@needs_docker
 def test_nested_workflow(tmp_path: Path) -> None:
     check_provenance(cwltool(tmp_path, get_data("tests/wf/nested.cwl")), nested=True)
 

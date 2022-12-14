@@ -312,7 +312,7 @@ class ProvenanceProfile:
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
     def _add_nested_annotations(
-        self, annotation_key, annotation_value, e: ProvEntity
+        self, annotation_key: str, annotation_value: Any, e: ProvEntity
     ) -> ProvEntity:
         """Propagate input data annotations to provenance."""
         # Change https:// into http:// first
@@ -398,13 +398,13 @@ class ProvenanceProfile:
 
         # Identify all schema annotations
         schema_annotations = dict(
-            [(v, value[v]) for v in value.keys() if "schema.org" in v]
+            [(v, value[v]) for v in value.keys() if v.startswith("https://schema.org")]
         )
 
         # Transfer SCHEMA annotations to provenance
         for s in schema_annotations:
             if "additionalType" in s:
-                additional_type = schema_annotations[s].split(sep="/")[
+                additional_type = cast(str, schema_annotations[s]).split(sep="/")[
                     -1
                 ]  # find better method?
                 file_entity.add_attributes({PROV_TYPE: SCHEMA[additional_type]})
@@ -527,13 +527,13 @@ class ProvenanceProfile:
 
         # Identify all schema annotations
         schema_annotations = dict(
-            [(v, value[v]) for v in value.keys() if "schema.org" in v]
+            [(v, value[v]) for v in value.keys() if v.startswith("https://schema.org")]
         )
 
         # Transfer SCHEMA annotations to provenance
         for s in schema_annotations:
             if "additionalType" in s:
-                additional_type = schema_annotations[s].split(sep="/")[
+                additional_type = cast(str, schema_annotations[s]).split(sep="/")[
                     -1
                 ]  # find better method?
                 coll.add_attributes({PROV_TYPE: SCHEMA[additional_type]})
