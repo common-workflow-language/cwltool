@@ -36,14 +36,17 @@ VERSION=3.1.$(shell TZ=UTC git log --first-parent --max-count=1 \
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S=$(shell uname -s)
 
-## all         : default task
+## all                    : default task (install cwltool in dev mode)
 all: dev
 
-## help        : print this help message and exit
+## help                   : print this help message and exit
 help: Makefile
 	@sed -n 's/^##//p' $<
 
-## install-dep : install most of the development dependencies via pip
+## cleanup                : shortcut for "make sort_imports format flake8 diff_pydocstyle_report"
+cleanup: sort_imports format flake8 diff_pydocstyle_report
+
+## install-dep            : install most of the development dependencies via pip
 install-dep: install-dependencies
 
 install-dependencies: FORCE
@@ -53,20 +56,20 @@ install-dependencies: FORCE
 install-doc-dep:
 	pip install -r docs/requirements.txt
 
-## install-deb-dep: install most of the dev dependencies via apt-get
+## install-deb-dep        : install many of the dev dependencies via apt-get
 install-deb-dep:
 	sudo apt-get install $(DEBDEVPKGS)
 
-## install     : install the ${MODULE} module and schema-salad-tool
+## install                : install the cwltool module with the "deps" dependency (galaxy-tool-util)
 install: FORCE
 	pip install .[deps]
 
-## dev     : install the ${MODULE} module in dev mode
+## dev                    : install the cwltool module in dev mode
 dev: install-dep
 	pip install -e .[deps]
 
 
-## dist        : create a module package for distribution
+## dist                   : create a module package for distribution
 dist: dist/${MODULE}-$(VERSION).tar.gz
 
 check-python3:
@@ -76,11 +79,11 @@ check-python3:
 dist/${MODULE}-$(VERSION).tar.gz: check-python3 $(SOURCES)
 	python setup.py sdist bdist_wheel
 
-## docs	       : make the docs
+## docs                   : make the docs
 docs: FORCE
 	cd docs && $(MAKE) html
 
-## clean       : clean up all temporary / machine-generated files
+## clean                  : clean up all temporary / machine-generated files
 clean: check-python3 FORCE
 	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so
 	rm -Rf ${MODULE}/__pycache__/
@@ -89,36 +92,37 @@ clean: check-python3 FORCE
 	rm -f diff-cover.html
 
 # Linting and code style related targets
-## sorting imports using isort: https://github.com/timothycrosley/isort
-sort_imports: $(PYSOURCES)
+## sort_import            : sorting imports using isort: https://github.com/timothycrosley/isort
+sort_imports: $(PYSOURCES) mypy-stubs
 	isort $^
 
 remove_unused_imports: $(PYSOURCES)
 	autoflake --in-place --remove-all-unused-imports $^
 
 pep257: pydocstyle
-## pydocstyle      : check Python code style
+## pydocstyle             : check Python docstring style
 pydocstyle: $(PYSOURCES)
 	pydocstyle --add-ignore=D100,D101,D102,D103 $^ || true
 
 pydocstyle_report.txt: $(PYSOURCES)
 	pydocstyle setup.py $^ > $@ 2>&1 || true
 
+## diff_pydocstyle_report : check Python docstring style for changed files only
 diff_pydocstyle_report: pydocstyle_report.txt
 	diff-quality --compare-branch=main --violations=pydocstyle --fail-under=100 $^
 
-## codespell   : check for common mispellings
+## codespell              : check for common misspellings
 codespell:
-	codespell -w $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v typeshed)
+	codespell -w $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs)
 
-## format      : check/fix all code indentation and formatting (runs black)
+## format                 : check/fix all code indentation and formatting (runs black)
 format:
-	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests
+	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
 format-check:
-	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests
+	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
-## pylint      : run static code analysis on Python code
+## pylint                 : run static code analysis on Python code
 pylint: $(PYSOURCES)
 	pylint --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" \
                 $^ -j0|| true
@@ -153,18 +157,18 @@ diff-cover: coverage.xml
 diff-cover.html: coverage.xml
 	diff-cover --compare-branch=main $^ --html-report $@
 
-## test        : run the ${MODULE} test suite
+## test                   : run the cwltool test suite
 test: check-python3 $(PYSOURCES)
 	python -m pytest -rs ${PYTEST_EXTRA}
 
-## testcov     : run the ${MODULE} test suite and collect coverage
+## testcov                : run the cwltool test suite and collect coverage
 testcov: check-python3 $(PYSOURCES)
 	python -m pytest -rs --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
 
 sloccount.sc: $(PYSOURCES) Makefile
 	sloccount --duplicates --wide --details $^ > $@
 
-## sloccount   : count lines of code
+## sloccount              : count lines of code
 sloccount: $(PYSOURCES) Makefile
 	sloccount $^
 
@@ -176,14 +180,24 @@ mypy3: mypy
 mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
 	if ! test -f $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
 	then \
-		rm -Rf typeshed/ruamel/yaml ; \
+		rm -Rf mypy-stubs/ruamel/yaml ; \
 		ln -s $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-			typeshed/ruamel/ ; \
+			mypy-stubs/ruamel/ ; \
 	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
-	MYPYPATH=$$MYPYPATH:typeshed mypy $^
+	MYPYPATH=$$MYPYPATH:mypy-stubs mypy $^
+
+mypy_3.6: $(filter-out setup.py gittagger.py,$(PYSOURCES))
+	if ! test -f $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
+	then \
+		rm -Rf mypy-stubs/ruamel/yaml ; \
+		ln -s $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
+			mypy-stubs/ruamel/ ; \
+	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
+	MYPYPATH=$$MYPYPATH:mypy-stubs mypy --python-version 3.6 $^
+
 
 mypyc: $(PYSOURCES)
-	MYPYPATH=typeshed CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
+	MYPYPATH=mypy-stubs CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
 		 && pytest -rs -vv ${PYTEST_EXTRA}
 
 shellcheck: FORCE

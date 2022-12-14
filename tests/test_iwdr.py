@@ -25,6 +25,25 @@ def test_empty_file_creation() -> None:
     assert err_code == 0
 
 
+def test_passthrough_successive(tmp_path: Path) -> None:
+    """An empty file can be successively passed through a subdir of InitialWorkingDirectory."""
+    err_code, _, _ = get_main_output(
+        [
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/wf/iwdr-passthrough-successive.cwl"),
+        ]
+    )
+    assert err_code == 0
+    children = sorted(
+        tmp_path.glob("*")
+    )  # This input directory should be left pristine.
+    assert len(children) == 1
+    subdir = tmp_path / children[0]
+    assert len(sorted(subdir.glob("*"))) == 1
+    assert (subdir / "file").exists()
+
+
 @needs_docker
 def test_directory_literal_with_real_inputs_inside(tmp_path: Path) -> None:
     """Cope with unmoveable files in the output directory created by Docker+IWDR."""
@@ -112,7 +131,9 @@ def test_iwdr_permutations(tmp_path_factory: Any) -> None:
     )
     assert err_code == 0
     log = json.loads(stdout)["log"]
-    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log
+    with open(log["path"]) as log_h:
+        log_text = log_h.read()
+    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log_text
 
 
 def test_iwdr_permutations_readonly(tmp_path_factory: Any) -> None:
@@ -221,7 +242,9 @@ def test_iwdr_permutations_inplace(tmp_path_factory: Any) -> None:
     )
     assert err_code == 0
     log = json.loads(stdout)["log"]
-    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log
+    with open(log["path"]) as log_h:
+        log_text = log_h.read()
+    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log_text
 
 
 @needs_singularity
@@ -279,7 +302,9 @@ def test_iwdr_permutations_singularity(tmp_path_factory: Any) -> None:
     )
     assert err_code == 0
     log = json.loads(stdout)["log"]
-    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log
+    with open(log["path"]) as log_h:
+        log_text = log_h.read()
+    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log_text
 
 
 @needs_singularity

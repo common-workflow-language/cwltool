@@ -2,7 +2,7 @@
 
 from cwltool.utils import versionstring
 
-from .util import get_data, get_main_output
+from .util import get_data, get_main_output, needs_docker
 
 
 def test_version() -> None:
@@ -44,6 +44,7 @@ def test_basic_pack() -> None:
     assert "$graph" in stdout
 
 
+@needs_docker
 def test_basic_print_subgraph() -> None:
     """Basic test of --print-subgraph. See test_subgraph.py for detailed testing."""
     return_code, stdout, stderr = get_main_output(

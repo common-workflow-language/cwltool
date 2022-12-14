@@ -56,6 +56,7 @@ pip3 install -U setuptools wheel pip
 pip3 uninstall -y cwltool
 pip3 install -e .
 pip3 install codecov cwltest>=2.1
+root_folder=${PWD}
 pushd "${repo}-${spec_branch}" || exit 1
 
 # shellcheck disable=SC2043
@@ -71,6 +72,10 @@ cat > "${COVERAGE_RC}" <<EOF
 [run]
 branch = True
 source_pkgs = cwltool
+source = ${root_folder}
+omit =
+    ${root_folder}/tests/*
+    ${root_folder}/setup.py
 
 [report]
 exclude_lines =
@@ -80,7 +85,8 @@ exclude_lines =
     if __name__ == .__main__.:
 ignore_errors = True
 omit =
-    tests/*
+    ${root_folder}/tests/*
+    ${root_folder}/setup.py
 EOF
 CWLTOOL_WITH_COV=${PWD}/cwltool_with_cov3
 cat > "${CWLTOOL_WITH_COV}" <<EOF
@@ -92,15 +98,15 @@ chmod a+x "${CWLTOOL_WITH_COV}"
 unset exclusions
 declare -a exclusions
 
-EXTRA="--parallel"
+CWLTOOL_OPTIONS+=" --parallel"
 # shellcheck disable=SC2154
 if [[ "$version" = *dev* ]]
 then
-    EXTRA+=" --enable-dev"
+    CWLTOOL_OPTIONS+=" --enable-dev"
 fi
 
 if [[ "$container" = "singularity" ]]; then
-    EXTRA+=" --singularity"
+    CWLTOOL_OPTIONS+=" --singularity"
     # This test fails because Singularity and Docker have
     # different views on how to deal with this.
     exclusions+=(docker_entrypoint)
@@ -113,13 +119,9 @@ if [[ "$container" = "singularity" ]]; then
         exclusions+=(stdin_shorcut)
     fi
 elif [[ "$container" = "podman" ]]; then
-    EXTRA+=" --podman"
+    CWLTOOL_OPTIONS+=" --podman"
 fi
 
-if [ -n "$EXTRA" ]
-then
-    EXTRA="EXTRA=${EXTRA}"
-fi
 if [ "$GIT_BRANCH" = "origin/main" ] && [[ "$version" = "v1.0" ]] && [[ "$container" = "docker" ]]
 then
     rm -Rf conformance
@@ -133,6 +135,7 @@ Conformance test of cwltool ${tool_ver} for CWL ${version}
 Commit: ${GIT_COMMIT}
 Python version: 3
 Container: ${container}
+Extra options: ${CWLTOOL_OPTIONS}
 EOM
 )
 
@@ -148,11 +151,13 @@ if (( "${#exclusions[*]}" > 0 )); then
 else
     EXCLUDE=""
 fi
+export CWLTOOL_OPTIONS
+echo CWLTOOL_OPTIONS="${CWLTOOL_OPTIONS}"
 # shellcheck disable=SC2086
 LC_ALL=C.UTF-8 ./run_test.sh --junit-xml=result3.xml ${EXCLUDE} \
       RUNNER=${CWLTOOL_WITH_COV} "-j$(nproc)" ${BADGE} \
-      ${DRAFT} "${EXTRA}" \
-      "--classname=py3_${container}"
+      ${DRAFT} \
+      "--classname=py3_${container}_$(echo ${CWLTOOL_OPTIONS} | tr "[:blank:]-" _)"
 # LC_ALL=C is to work around junit-xml ASCII only bug
 
 # capture return code of ./run_test.sh

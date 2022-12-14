@@ -240,6 +240,7 @@ def test_single_process_packed_subwf_step(tmp_path: Path) -> None:
     )
 
 
+@needs_docker
 def test_single_process_subwf_subwf_inline_step() -> None:
     """Test --single-process on an inline sub-sub-workflow step."""
     err_code, stdout, stderr = get_main_output(
@@ -350,6 +351,7 @@ def test_print_targets_embedded_reqsinherit() -> None:
     assert err_code == 0
 
 
+@needs_docker
 def test_print_targets_embedded_sub_subwfs() -> None:
     """Confirm that --print-targets works with inline sub-sub-workflows."""
     err_code, stdout, stderr = get_main_output(

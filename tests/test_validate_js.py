@@ -1,9 +1,9 @@
 import pytest
+from cwl_utils.sandboxjs import code_fragment_to_js
 from schema_salad.avro.schema import Names
 from schema_salad.utils import yaml_no_ts
 
 from cwltool import process, validate_js
-from cwltool.sandboxjs import code_fragment_to_js
 
 TEST_CWL = """
 cwlVersion: v1.0

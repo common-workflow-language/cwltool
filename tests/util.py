@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Dict, Generator, List, Mapping, Optional, Tuple, Union
 
@@ -107,7 +108,10 @@ def get_main_output(
     try:
         rc = main(argsl=args, stdout=stdout, stderr=stderr)
     except SystemExit as e:
-        rc = e.code
+        if isinstance(e.code, int):
+            rc = e.code
+        else:
+            rc = sys.maxsize
     return (
         rc,
         stdout.getvalue(),

@@ -36,13 +36,20 @@ from typing import (
 import argcomplete
 import coloredlogs
 import pkg_resources  # part of setuptools
-import ruamel.yaml
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import cmap, strip_dup_lineno
-from schema_salad.utils import ContextType, FetcherCallableType, json_dumps, yaml_no_ts
+from schema_salad.utils import (
+    ContextType,
+    FetcherCallableType,
+    json_dump,
+    json_dumps,
+    yaml_no_ts,
+)
+
+import ruamel.yaml
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.main import YAML
 
 from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
@@ -105,6 +112,8 @@ from .utils import (
 )
 from .workflow import Workflow
 
+docker_exe: str
+
 
 def _terminate_processes() -> None:
     """Kill all spawned processes.
@@ -117,6 +126,7 @@ def _terminate_processes() -> None:
     continuing to execute while it kills the processes that they've
     spawned. This may occasionally lead to unexpected behaviour.
     """
+    global docker_exe
     # It's possible that another thread will spawn a new task while
     # we're executing, so it's not safe to use a for loop here.
     while processes_to_kill:
@@ -130,7 +140,7 @@ def _terminate_processes() -> None:
             try:
                 with open(cidfile[0]) as inp_stream:
                     p = subprocess.Popen(  # nosec
-                        ["docker", "kill", inp_stream.read()], shell=False  # nosec
+                        [docker_exe, "kill", inp_stream.read()], shell=False  # nosec
                     )
                     try:
                         p.wait(timeout=10)
@@ -195,13 +205,15 @@ def generate_example_input(
                 else:
                     comment = "optional"
         else:
-            example = CommentedSeq()
-            for index, entry in enumerate(inptype):
+            example, comment = generate_example_input(inptype[0], default)
+            type_names = []
+            for entry in inptype:
                 value, e_comment = generate_example_input(entry, default)
-                example.append(value)
-                example.yaml_add_eol_comment(e_comment, index)
+                if e_comment:
+                    type_names.append(e_comment)
+            comment = "one of " + ", ".join(type_names)
             if optional:
-                comment = "optional"
+                comment = f"{comment} (optional)"
     elif isinstance(inptype, Mapping) and "type" in inptype:
         if inptype["type"] == "array":
             first_item = cast(MutableSequence[CWLObjectType], inptype["items"])[0]
@@ -409,7 +421,7 @@ def init_job_order(
     args: argparse.Namespace,
     process: Process,
     loader: Loader,
-    stdout: Union[TextIO, StreamWriter],
+    stdout: IO[str],
     print_input_deps: bool = False,
     relative_deps: str = "primary",
     make_fs_access: Callable[[str], StdFsAccess] = StdFsAccess,
@@ -432,7 +444,7 @@ def init_job_order(
             file_uri(os.getcwd()) + "/",
         )
         if args.tool_help:
-            toolparser.print_help(cast(IO[str], stdout))
+            toolparser.print_help(stdout)
             exit(0)
         cmd_line = vars(toolparser.parse_args(args.job_order))
         for record_name in records:
@@ -558,7 +570,7 @@ def make_relative(base: str, obj: CWLObjectType) -> None:
 def printdeps(
     obj: CWLObjectType,
     document_loader: Loader,
-    stdout: Union[TextIO, StreamWriter],
+    stdout: IO[str],
     relative_deps: str,
     uri: str,
     basedir: Optional[str] = None,
@@ -571,7 +583,7 @@ def printdeps(
     elif relative_deps == "cwd":
         base = os.getcwd()
     visit_class(deps, ("File", "Directory"), functools.partial(make_relative, base))
-    print(json_dumps(deps, indent=4, default=str), file=stdout)
+    json_dump(deps, stdout, indent=4, default=str)
 
 
 def prov_deps(
@@ -635,10 +647,10 @@ def print_pack(
     """Return a CWL serialization of the CWL document in JSON."""
     packed = pack(loadingContext, uri)
     if len(cast(Sized, packed["$graph"])) > 1:
-        return json_dumps(packed, indent=4, default=str)
-    return json_dumps(
-        cast(MutableSequence[CWLObjectType], packed["$graph"])[0], indent=4, default=str
-    )
+        target = packed
+    else:
+        target = cast(MutableSequence[CWLObjectType], packed["$graph"])[0]
+    return json_dumps(target, indent=4, default=str)
 
 
 def supported_cwl_versions(enable_dev: bool) -> List[str]:
@@ -661,9 +673,11 @@ def setup_schema(
             ext10 = res.read().decode("utf-8")
         with pkg_resources.resource_stream(__name__, "extensions-v1.1.yml") as res:
             ext11 = res.read().decode("utf-8")
+        with pkg_resources.resource_stream(__name__, "extensions-v1.2.yml") as res:
+            ext12 = res.read().decode("utf-8")
         use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext10)
         use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
-        use_custom_schema("v1.2", "http://commonwl.org/cwltool", ext11)
+        use_custom_schema("v1.2", "http://commonwl.org/cwltool", ext12)
         use_custom_schema("v1.2.0-dev1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev3", "http://commonwl.org/cwltool", ext11)
@@ -755,9 +769,7 @@ def setup_loadingContext(
     return loadingContext
 
 
-def make_template(
-    tool: Process,
-) -> None:
+def make_template(tool: Process, target: IO[str]) -> None:
     """Make a template CWL input object for the give Process."""
 
     def my_represent_none(
@@ -775,7 +787,7 @@ def make_template(
     yaml.block_seq_indent = 2
     yaml.dump(
         generate_input_template(tool),
-        sys.stdout,
+        target,
     )
 
 
@@ -937,7 +949,7 @@ def check_working_directories(
 
 def print_targets(
     tool: Process,
-    stdout: Union[TextIO, StreamWriter],
+    stdout: IO[str],
     loading_context: LoadingContext,
     prefix: str = "",
 ) -> None:
@@ -974,7 +986,7 @@ def main(
     args: Optional[argparse.Namespace] = None,
     job_order_object: Optional[CWLObjectType] = None,
     stdin: IO[Any] = sys.stdin,
-    stdout: Optional[Union[TextIO, StreamWriter]] = None,
+    stdout: Optional[IO[str]] = None,
     stderr: IO[Any] = sys.stderr,
     versionfunc: Callable[[], str] = versionstring,
     logger_handler: Optional[logging.Handler] = None,
@@ -984,7 +996,7 @@ def main(
     runtimeContext: Optional[RuntimeContext] = None,
     input_required: bool = True,
 ) -> int:
-    if not stdout:  # force UTF-8 even if the console is configured differently
+    if stdout is None:  # force UTF-8 even if the console is configured differently
         if hasattr(sys.stdout, "encoding") and sys.stdout.encoding.upper() not in (
             "UTF-8",
             "UTF8",
@@ -992,9 +1004,10 @@ def main(
             if hasattr(sys.stdout, "detach"):
                 stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
             else:
-                stdout = getwriter("utf-8")(sys.stdout)  # type: ignore
+                stdout = getwriter("utf-8")(sys.stdout)  # type: ignore[assignment,arg-type]
         else:
             stdout = sys.stdout
+        stdout = cast(IO[str], stdout)
 
     _logger.removeHandler(defaultStreamHandler)
     stderr_handler = logger_handler
@@ -1005,13 +1018,15 @@ def main(
         stderr_handler = _logger.handlers[-1]
     workflowobj = None
     prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
+    global docker_exe
     try:
         if args is None:
             if argsl is None:
                 argsl = sys.argv[1:]
             addl = []  # type: List[str]
             if "CWLTOOL_OPTIONS" in os.environ:
-                addl = os.environ["CWLTOOL_OPTIONS"].split(" ")
+                c_opts = os.environ["CWLTOOL_OPTIONS"].split(" ")
+                addl = [x for x in c_opts if x != ""]
             parser = arg_parser()
             argcomplete.autocomplete(parser)
             args = parser.parse_args(addl + argsl)
@@ -1025,6 +1040,10 @@ def main(
         else:
             runtimeContext = runtimeContext.copy()
 
+        if runtimeContext.podman:
+            docker_exe = "podman"
+        else:
+            docker_exe = "docker"
         # If caller parsed its own arguments, it may not include every
         # cwltool option, so fill in defaults to avoid crashing when
         # dereferencing them in args.
@@ -1137,15 +1156,13 @@ def main(
                 )
 
             if args.print_pre:
-                print(
-                    json_dumps(
-                        processobj,
-                        indent=4,
-                        sort_keys=True,
-                        separators=(",", ": "),
-                        default=str,
-                    ),
-                    file=stdout,
+                json_dump(
+                    processobj,
+                    stdout,
+                    indent=4,
+                    sort_keys=True,
+                    separators=(",", ": "),
+                    default=str,
                 )
                 return 0
 
@@ -1153,7 +1170,7 @@ def main(
                 tool = make_tool(uri, loadingContext)
             except GraphTargetMissingException as main_missing_exc:
                 if args.validate:
-                    logging.warn(
+                    logging.warning(
                         "File contains $graph of multiple objects and no default "
                         "process (#main). Validating all objects:"
                     )
@@ -1165,7 +1182,7 @@ def main(
                     raise main_missing_exc
 
             if args.make_template:
-                make_template(tool)
+                make_template(tool, stdout)
                 return 0
 
             if args.validate:
@@ -1211,15 +1228,13 @@ def main(
             if args.print_subgraph:
                 if "name" in tool.tool:
                     del tool.tool["name"]
-                print(
-                    json_dumps(
-                        tool.tool,
-                        indent=4,
-                        sort_keys=True,
-                        separators=(",", ": "),
-                        default=str,
-                    ),
-                    file=stdout,
+                json_dump(
+                    tool.tool,
+                    stdout,
+                    indent=4,
+                    sort_keys=True,
+                    separators=(",", ": "),
+                    default=str,
                 )
                 return 0
 
@@ -1319,7 +1334,11 @@ def main(
                     runtime_context=runtimeContext,
                 )
             except SystemExit as err:
-                return err.code
+                if isinstance(err.code, int):
+                    return err.code
+                else:
+                    _logger.debug("Non-integer SystemExit: %s", err.code)
+                    return 1
 
             del args.workflow
             del args.job_order
@@ -1380,12 +1399,15 @@ def main(
                 # Unsetting the Generation from final output object
                 visit_class(out, ("File",), MutationManager().unset_generation)
 
-                print(
-                    json_dumps(out, indent=4, ensure_ascii=False, default=str),
-                    file=stdout,
-                )
-                if hasattr(stdout, "flush"):
-                    stdout.flush()
+                if args.write_summary:
+                    with open(args.write_summary, "w") as output_file:
+                        json_dump(
+                            out, output_file, indent=4, ensure_ascii=False, default=str
+                        )
+                else:
+                    json_dump(out, stdout, indent=4, ensure_ascii=False, default=str)
+                    if hasattr(stdout, "flush"):
+                        stdout.flush()
 
             if status != "success":
                 _logger.warning("Final process status is %s", status)
@@ -1489,15 +1511,17 @@ def windows_check() -> None:
         )
 
 
-def run(*args: Any, **kwargs: Any) -> None:
+def run(*args: Any, **kwargs: Any) -> int:
     """Run cwltool."""
     windows_check()
     signal.signal(signal.SIGTERM, _signal_handler)
+    retval = 1
     try:
-        sys.exit(main(*args, **kwargs))
+        retval = main(*args, **kwargs)
     finally:
         _terminate_processes()
+    return retval
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    sys.exit(run(sys.argv[1:]))

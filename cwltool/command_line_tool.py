@@ -15,7 +15,6 @@ from enum import Enum
 from functools import cmp_to_key, partial
 from typing import (
     Any,
-    Callable,
     Dict,
     Generator,
     List,
@@ -31,7 +30,6 @@ from typing import (
 )
 
 import shellescape
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Schema
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import file_uri, uri_file_path
@@ -40,6 +38,8 @@ from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
 from typing_extensions import TYPE_CHECKING, Type
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+
 from .builder import (
     INPUT_OBJ_VOCAB,
     Builder,
@@ -47,7 +47,7 @@ from .builder import (
     substitute,
 )
 from .context import LoadingContext, RuntimeContext, getdefault
-from .docker import DockerCommandLineJob
+from .docker import DockerCommandLineJob, PodmanCommandLineJob
 from .errors import UnsupportedRequirement, WorkflowException
 from .flatten import flatten
 from .job import CommandLineJob, JobBase
@@ -253,13 +253,14 @@ def revmap_file(
         if location.startswith("file://"):
             f["path"] = uri_file_path(location)
         else:
+            f["location"] = builder.fs_access.join(outdir, cast(str, f["location"]))
             return f
 
     if "dirname" in f:
         del f["dirname"]
 
     if "path" in f:
-        path = cast(str, f["path"])
+        path = builder.fs_access.join(builder.outdir, cast(str, f["path"]))
         uripath = file_uri(path)
         del f["path"]
 
@@ -460,6 +461,8 @@ class CommandLineTool(Process):
                         raise UnsupportedRequirement(
                             "Both Docker and MPI have been hinted - don't know what to do"
                         )
+            if runtimeContext.podman:
+                return PodmanCommandLineJob
             return DockerCommandLineJob
         if dockerRequired:
             raise UnsupportedRequirement(
@@ -850,10 +853,17 @@ class CommandLineTool(Process):
             _check_adjust = partial(
                 check_adjust, self.path_check_mode.value, cachebuilder
             )
+            _checksum = partial(
+                compute_checksums,
+                runtimeContext.make_fs_access(runtimeContext.basedir),
+            )
             visit_class(
                 [cachebuilder.files, cachebuilder.bindings],
                 ("File", "Directory"),
                 _check_adjust,
+            )
+            visit_class(
+                [cachebuilder.files, cachebuilder.bindings], ("File"), _checksum
             )
 
             cmdline = flatten(
@@ -895,14 +905,19 @@ class CommandLineTool(Process):
                         return cast(Optional[str], e["checksum"])
                 return None
 
+            def remove_prefix(s: str, prefix: str) -> str:
+                # replace with str.removeprefix when Python 3.9+
+                return s[len(prefix) :] if s.startswith(prefix) else s
+
             for location, fobj in cachebuilder.pathmapper.items():
                 if fobj.type == "File":
                     checksum = calc_checksum(location)
                     fobj_stat = os.stat(fobj.resolved)
+                    path = remove_prefix(fobj.resolved, runtimeContext.basedir + "/")
                     if checksum is not None:
-                        keydict[fobj.resolved] = [fobj_stat.st_size, checksum]
+                        keydict[path] = [fobj_stat.st_size, checksum]
                     else:
-                        keydict[fobj.resolved] = [
+                        keydict[path] = [
                             fobj_stat.st_size,
                             int(fobj_stat.st_mtime * 1000),
                         ]

@@ -1,6 +1,6 @@
 import subprocess  # nosec
 import xml.dom.minidom  # nosec
-from typing import Tuple, cast
+from typing import Tuple
 
 from .loghandler import _logger
 from .utils import CWLObjectType

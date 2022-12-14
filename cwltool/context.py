@@ -4,14 +4,26 @@ import os
 import shutil
 import tempfile
 import threading
-from typing import IO, Any, Callable, Dict, Iterable, List, Optional, TextIO, Union
+from typing import (
+    IO,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    TextIO,
+    Tuple,
+    Union,
+)
 
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names
 from schema_salad.ref_resolver import Loader
 from schema_salad.utils import FetcherCallableType
 from typing_extensions import TYPE_CHECKING
+
+# move to a regular typing import when Python 3.3-3.6 is no longer supported
+from ruamel.yaml.comments import CommentedMap
 
 from .builder import Builder
 from .mpi import MpiConfig
@@ -23,6 +35,8 @@ from .stdfsaccess import StdFsAccess
 from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, HasReqsHints, ResolverType
 
 if TYPE_CHECKING:
+    from cwl_utils.parser.cwl_v1_2 import LoadingOptions
+
     from .process import Process
     from .provenance import ResearchObject  # pylint: disable=unused-import
     from .provenance_profile import ProvenanceProfile
@@ -102,6 +116,10 @@ class LoadingContext(ContextBase):
         self.relax_path_checks = False  # type: bool
         self.singularity = False  # type: bool
         self.podman = False  # type: bool
+        self.eval_timeout: float = 60
+        self.codegen_idx: Dict[str, Tuple[Any, "LoadingOptions"]] = {}
+        self.fast_parser = False
+        self.skip_resolve_all = False
 
         super().__init__(kwargs)
 
@@ -164,7 +182,7 @@ class RuntimeContext(ContextBase):
         self.js_console = False  # type: bool
         self.job_script_provider = None  # type: Optional[DependenciesConfiguration]
         self.select_resources = None  # type: Optional[select_resources_callable]
-        self.eval_timeout = 20  # type: float
+        self.eval_timeout = 60  # type: float
         self.postScatterEval = (
             None
         )  # type: Optional[Callable[[CWLObjectType], Optional[CWLObjectType]]]

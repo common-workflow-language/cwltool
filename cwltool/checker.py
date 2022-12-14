@@ -81,7 +81,8 @@ def can_assign_src_to_sink(
     src: admissible source types
     sink: admissible sink types
 
-    In non-strict comparison, at least one source type must match one sink type.
+    In non-strict comparison, at least one source type must match one sink type,
+       except for 'null'.
     In strict comparison, all source types must match at least one sink type.
     """
     if src == "Any" or sink == "Any":
@@ -119,7 +120,9 @@ def can_assign_src_to_sink(
                     return False
             return True
         for this_src in src:
-            if can_assign_src_to_sink(cast(SinkType, this_src), sink):
+            if this_src != "null" and can_assign_src_to_sink(
+                cast(SinkType, this_src), sink
+            ):
                 return True
         return False
     if isinstance(sink, MutableSequence):
@@ -386,6 +389,11 @@ def check_all_types(
                                 message="Source is from conditional step, but pickValue is not used",
                             )
                         )
+                    if is_all_output_method_loop_step(param_to_step, parm_id):
+                        src_dict[parm_id]["type"] = {
+                            "type": "array",
+                            "items": src_dict[parm_id]["type"],
+                        }
             else:
                 parm_id = cast(str, sink[sourceField])
                 if parm_id not in src_dict:
@@ -426,6 +434,12 @@ def check_all_types(
                         )
 
                     srcs_of_sink[0]["type"] = src_typ
+
+                if is_all_output_method_loop_step(param_to_step, parm_id):
+                    src_dict[parm_id]["type"] = {
+                        "type": "array",
+                        "items": src_dict[parm_id]["type"],
+                    }
 
             for src in srcs_of_sink:
                 check_result = check_types(src, sink, linkMerge, valueFrom)
@@ -514,3 +528,43 @@ def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -
         if source_step.get("when") is not None:
             return True
     return False
+
+
+def is_all_output_method_loop_step(
+    param_to_step: Dict[str, CWLObjectType], parm_id: str
+) -> bool:
+    """Check if a step contains a http://commonwl.org/cwltool#Loop requirement with `all` outputMethod."""
+    source_step: Optional[MutableMapping[str, Any]] = param_to_step.get(parm_id)
+    if source_step is not None:
+        for requirement in source_step.get("requirements", []):
+            if (
+                requirement["class"] == "http://commonwl.org/cwltool#Loop"
+                and requirement.get("outputMethod") == "all"
+            ):
+                return True
+    return False
+
+
+def loop_checker(steps: List[MutableMapping[str, Any]]) -> None:
+    """Check http://commonwl.org/cwltool#Loop requirement compatibility with other directives."""
+    exceptions = []
+    for step in steps:
+        requirements = {
+            **{h["class"]: h for h in step.get("hints", [])},
+            **{r["class"]: r for r in step.get("requirements", [])},
+        }
+        if "http://commonwl.org/cwltool#Loop" in requirements:
+            if "when" in step:
+                exceptions.append(
+                    SourceLine(step, "id").makeError(
+                        "The `cwltool:Loop` clause is not compatible with the `when` directive."
+                    )
+                )
+            if "scatter" in step:
+                exceptions.append(
+                    SourceLine(step, "id").makeError(
+                        "The `cwltool:Loop` clause is not compatible with the `scatter` directive."
+                    )
+                )
+    if exceptions:
+        raise ValidationException("\n".join(exceptions))

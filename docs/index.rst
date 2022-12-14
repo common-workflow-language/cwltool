@@ -19,6 +19,7 @@ Modules
    :maxdepth: 2
    :caption: Contents:
 
+   loop
    pythonversions
    processgen
 

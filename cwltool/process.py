@@ -10,7 +10,7 @@ import os
 import shutil
 import stat
 import textwrap
-import urllib
+import urllib.parse
 import uuid
 from os import scandir
 from typing import (
@@ -31,9 +31,10 @@ from typing import (
     cast,
 )
 
+from cwl_utils import expression
+from mypy_extensions import mypyc_attr
 from pkg_resources import resource_stream
 from rdflib import Graph
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import (
     Names,
     Schema,
@@ -48,7 +49,8 @@ from schema_salad.utils import convert_to_dict
 from schema_salad.validate import avro_type_name, validate_ex
 from typing_extensions import TYPE_CHECKING
 
-from . import expression
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+
 from .builder import INPUT_OBJ_VOCAB, Builder
 from .context import LoadingContext, RuntimeContext, getdefault
 from .errors import UnsupportedRequirement, WorkflowException
@@ -232,28 +234,6 @@ def shortname(inputid: str) -> str:
     return d.path.split("/")[-1]
 
 
-def checkRequirements(
-    rec: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType, None],
-    supported_process_requirements: Iterable[str],
-) -> None:
-    if isinstance(rec, MutableMapping):
-        if "requirements" in rec:
-            debug = _logger.isEnabledFor(logging.DEBUG)
-            for i, entry in enumerate(
-                cast(MutableSequence[CWLObjectType], rec["requirements"])
-            ):
-                with SourceLine(rec["requirements"], i, UnsupportedRequirement, debug):
-                    if cast(str, entry["class"]) not in supported_process_requirements:
-                        raise UnsupportedRequirement(
-                            f"Unsupported requirement {entry['class']}."
-                        )
-        for key in rec:
-            checkRequirements(rec[key], supported_process_requirements)
-    if isinstance(rec, MutableSequence):
-        for entry2 in rec:
-            checkRequirements(entry2, supported_process_requirements)
-
-
 def stage_files(
     pathmapper: PathMapper,
     stage_func: Optional[Callable[[str, str], None]] = None,
@@ -263,8 +243,9 @@ def stage_files(
     fix_conflicts: bool = False,
 ) -> None:
     """Link or copy files to their targets. Create them as needed."""
+    items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
     targets = {}  # type: Dict[str, MapperEnt]
-    for key, entry in pathmapper.items():
+    for key, entry in items:
         if "File" not in entry.type:
             continue
         if entry.target not in targets:
@@ -287,7 +268,7 @@ def stage_files(
                     % (targets[entry.target].resolved, entry.resolved, entry.target)
                 )
 
-    for key, entry in pathmapper.items():
+    for key, entry in items:
         if not entry.staged:
             continue
         if not os.path.exists(os.path.dirname(entry.target)):
@@ -556,6 +537,7 @@ def eval_resource(
 FILE_COUNT_WARNING = 5000
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class Process(HasReqsHints, metaclass=abc.ABCMeta):
     def __init__(
         self, toolpath_object: CommentedMap, loadingContext: LoadingContext
@@ -622,7 +604,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         if self.doc_loader is not None:
             self.formatgraph = self.doc_loader.graph
 
-        checkRequirements(self.tool, supportedProcessRequirements)
+        self.checkRequirements(self.tool, supportedProcessRequirements)
         self.validate_hints(
             cast(Names, loadingContext.avsc_names),
             self.tool.get("hints", []),
@@ -731,6 +713,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     self.doc_schema.names[avroname],
                     validate_js_options,
                     self.container_engine,
+                    loadingContext.eval_timeout,
                 )
 
         dockerReq, is_req = self.get_requirement("DockerRequirement")
@@ -1050,6 +1033,29 @@ hints:
             defaultReq["cudaDeviceCount"] = request_evaluated["cudaDeviceCountMin"]
         return defaultReq
 
+    def checkRequirements(
+        self,
+        rec: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType, None],
+        supported_process_requirements: Iterable[str],
+    ) -> None:
+        """Check the presence of unsupported requirements."""
+        if isinstance(rec, MutableMapping):
+            if "requirements" in rec:
+                debug = _logger.isEnabledFor(logging.DEBUG)
+                for i, entry in enumerate(
+                    cast(MutableSequence[CWLObjectType], rec["requirements"])
+                ):
+                    with SourceLine(
+                        rec["requirements"], i, UnsupportedRequirement, debug
+                    ):
+                        if (
+                            cast(str, entry["class"])
+                            not in supported_process_requirements
+                        ):
+                            raise UnsupportedRequirement(
+                                f"Unsupported requirement {entry['class']}."
+                            )
+
     def validate_hints(
         self, avsc_names: Names, hints: List[CWLObjectType], strict: bool
     ) -> None:
@@ -1060,6 +1066,10 @@ hints:
             sl = SourceLine(hints, i, ValidationException, debug)
             with sl:
                 classname = cast(str, r["class"])
+                if classname == "http://commonwl.org/cwltool#Loop":
+                    raise ValidationException(
+                        "http://commonwl.org/cwltool#Loop is valid only under requirements."
+                    )
                 avroname = classname
                 if classname in self.doc_loader.vocab:
                     avroname = avro_type_name(self.doc_loader.vocab[classname])

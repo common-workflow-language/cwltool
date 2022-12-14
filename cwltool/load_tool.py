@@ -7,6 +7,7 @@ import os
 import re
 import urllib
 import uuid
+from functools import partial
 from typing import (
     Any,
     Dict,
@@ -19,7 +20,7 @@ from typing import (
     cast,
 )
 
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from cwl_utils.parser import cwl_v1_2, cwl_v1_2_utils
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.schema import validate_doc
@@ -31,6 +32,8 @@ from schema_salad.utils import (
     ResolveType,
     json_dumps,
 )
+
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from . import CWL_CONTENT_TYPES, process, update
 from .context import LoadingContext
@@ -264,6 +267,117 @@ def _add_blank_ids(
             )
 
 
+def _fast_parser_convert_stdstreams_to_files(
+    processobj: Union[cwl_v1_2.Process, MutableSequence[cwl_v1_2.Process]]
+) -> None:
+    if isinstance(processobj, cwl_v1_2.CommandLineTool):
+        cwl_v1_2_utils.convert_stdstreams_to_files(processobj)
+    elif isinstance(processobj, cwl_v1_2.Workflow):
+        for st in processobj.steps:
+            _fast_parser_convert_stdstreams_to_files(st.run)
+    elif isinstance(processobj, MutableSequence):
+        for p in processobj:
+            _fast_parser_convert_stdstreams_to_files(p)
+
+
+def _fast_parser_expand_hint_class(
+    hints: Optional[Any], loadingOptions: cwl_v1_2.LoadingOptions
+) -> None:
+
+    if isinstance(hints, MutableSequence):
+        for h in hints:
+            if isinstance(h, MutableMapping) and "class" in h:
+                for k, v in loadingOptions.namespaces.items():
+                    if h["class"].startswith(k + ":"):
+                        h["class"] = v + h["class"][len(k) + 1 :]
+
+
+def _fast_parser_handle_hints(
+    processobj: Union[cwl_v1_2.Process, MutableSequence[cwl_v1_2.Process]],
+    loadingOptions: cwl_v1_2.LoadingOptions,
+) -> None:
+    if isinstance(processobj, (cwl_v1_2.CommandLineTool, cwl_v1_2.Workflow)):
+        _fast_parser_expand_hint_class(processobj.hints, loadingOptions)
+
+    if isinstance(processobj, cwl_v1_2.Workflow):
+        for st in processobj.steps:
+            _fast_parser_expand_hint_class(st.hints, loadingOptions)
+            _fast_parser_handle_hints(st.run, loadingOptions)
+    elif isinstance(processobj, MutableSequence):
+        for p in processobj:
+            _fast_parser_handle_hints(p, loadingOptions)
+
+
+def update_index(document_loader: Loader, pr: CommentedMap) -> None:
+    if "id" in pr:
+        document_loader.idx[pr["id"]] = pr
+
+
+def fast_parser(
+    workflowobj: Union[CommentedMap, CommentedSeq, None],
+    fileuri: Optional[str],
+    uri: str,
+    loadingContext: LoadingContext,
+) -> Tuple[Union[CommentedMap, CommentedSeq], CommentedMap]:
+    lopt = cwl_v1_2.LoadingOptions(idx=loadingContext.codegen_idx, fileuri=fileuri)
+
+    if uri not in loadingContext.codegen_idx:
+        cwl_v1_2.load_document_with_metadata(
+            workflowobj,
+            fileuri,
+            loadingOptions=lopt,
+            addl_metadata_fields=["id", "cwlVersion"],
+        )
+
+    objects, loadopt = loadingContext.codegen_idx[uri]
+
+    _fast_parser_convert_stdstreams_to_files(objects)
+    _fast_parser_handle_hints(objects, loadopt)
+
+    processobj: Union[MutableMapping[str, Any], MutableSequence[Any], float, str, None]
+
+    processobj = cwl_v1_2.save(objects, relative_uris=False)
+
+    metadata: Dict[str, Any] = {}
+    metadata["id"] = loadopt.fileuri
+
+    if loadopt.namespaces:
+        metadata["$namespaces"] = loadopt.namespaces
+    if loadopt.schemas:
+        metadata["$schemas"] = loadopt.schemas
+    if loadopt.baseuri:
+        metadata["$base"] = loadopt.baseuri
+    for k, v in loadopt.addl_metadata.items():
+        if isinstance(processobj, MutableMapping) and k in processobj:
+            metadata[k] = processobj[k]
+        else:
+            metadata[k] = v
+
+    if loadingContext.loader:
+        loadingContext.loader.graph += loadopt.graph
+
+        # Need to match the document loader's index with the fast parser index
+        # Get the base URI (no fragments) for documents that use $graph
+        nofrag = urllib.parse.urldefrag(uri)[0]
+        objects, loadopt = loadingContext.codegen_idx[nofrag]
+        fileobj = cmap(
+            cast(
+                Union[int, float, str, Dict[str, Any], List[Any], None],
+                cwl_v1_2.save(objects, relative_uris=False),
+            )
+        )
+        visit_class(
+            fileobj,
+            ("CommandLineTool", "Workflow", "ExpressionTool"),
+            partial(update_index, loadingContext.loader),
+        )
+
+    return cast(
+        Union[CommentedMap, CommentedSeq],
+        cmap(cast(Union[Dict[str, Any], List[Any]], processobj)),
+    ), cast(CommentedMap, cmap(metadata))
+
+
 def resolve_and_validate_document(
     loadingContext: LoadingContext,
     workflowobj: Union[CommentedMap, CommentedSeq],
@@ -294,6 +408,8 @@ def resolve_and_validate_document(
         workflowobj = fetch_document(uri, loadingContext)[1]
 
     fileuri = urllib.parse.urldefrag(uri)[0]
+
+    metadata: CWLObjectType
 
     cwlVersion = loadingContext.metadata.get("cwlVersion")
     if not cwlVersion:
@@ -367,7 +483,7 @@ def resolve_and_validate_document(
     if isinstance(avsc_names, Exception):
         raise avsc_names
 
-    processobj = None  # type: Optional[ResolveType]
+    processobj: ResolveType
     document_loader = Loader(
         sch_document_loader.ctx,
         schemagraph=sch_document_loader.graph,
@@ -378,11 +494,36 @@ def resolve_and_validate_document(
         doc_cache=loadingContext.doc_cache,
     )
 
+    loadingContext.loader = document_loader
+
     if cwlVersion == "v1.0":
         _add_blank_ids(workflowobj)
 
-    document_loader.resolve_all(workflowobj, fileuri)
-    processobj, metadata = document_loader.resolve_ref(uri)
+    if cwlVersion != "v1.2":
+        loadingContext.fast_parser = False
+
+    if loadingContext.skip_resolve_all:
+        # Some integrations (e.g. Arvados) loads documents, makes
+        # in-memory changes to them (which are applied to the objects
+        # in the document_loader index), and then sends them back
+        # through the loading machinery.
+        #
+        # In this case, the functions of resolve_all() have already
+        # happened.  Because resolve_all() is expensive, we don't want
+        # to do it again if it's going to be a no-op, so the
+        # skip_resolve_all flag tells us just to use the document
+        # as-is from the loader index.
+        #
+        # Note that at the moment, fast_parser code path is considered
+        # functionally the same as resolve_all() for this case.
+        #
+        processobj, metadata = document_loader.resolve_ref(uri)
+    elif loadingContext.fast_parser:
+        processobj, metadata = fast_parser(workflowobj, fileuri, uri, loadingContext)
+    else:
+        document_loader.resolve_all(workflowobj, fileuri)
+        processobj, metadata = document_loader.resolve_ref(uri)
+
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):
         raise ValidationException("Workflow must be a CommentedMap or CommentedSeq.")
 
@@ -405,12 +546,12 @@ def resolve_and_validate_document(
     if isinstance(processobj, CommentedMap):
         uri = processobj["id"]
 
-    _convert_stdstreams_to_files(workflowobj)
+    if not loadingContext.fast_parser:
+        _convert_stdstreams_to_files(workflowobj)
 
     if isinstance(jobobj, CommentedMap):
         loadingContext.jobdefaults = jobobj
 
-    loadingContext.loader = document_loader
     loadingContext.avsc_names = avsc_names
     loadingContext.metadata = metadata
 
@@ -429,12 +570,10 @@ def resolve_and_validate_document(
         )
         document_loader.idx[processobj["id"]] = processobj
 
-        def update_index(pr: CommentedMap) -> None:
-            if "id" in pr:
-                document_loader.idx[pr["id"]] = pr
-
         visit_class(
-            processobj, ("CommandLineTool", "Workflow", "ExpressionTool"), update_index
+            processobj,
+            ("CommandLineTool", "Workflow", "ExpressionTool"),
+            partial(update_index, document_loader),
         )
 
     return loadingContext, uri
@@ -446,7 +585,18 @@ def make_tool(
     """Make a Python CWL object."""
     if loadingContext.loader is None:
         raise ValueError("loadingContext must have a loader")
-    resolveduri, metadata = loadingContext.loader.resolve_ref(uri)
+
+    resolveduri: Union[float, str, CommentedMap, CommentedSeq, None]
+    metadata: CWLObjectType
+
+    if (
+        loadingContext.fast_parser
+        and isinstance(uri, str)
+        and not loadingContext.skip_resolve_all
+    ):
+        resolveduri, metadata = fast_parser(None, None, uri, loadingContext)
+    else:
+        resolveduri, metadata = loadingContext.loader.resolve_ref(uri)
 
     processobj = None
     if isinstance(resolveduri, MutableSequence):

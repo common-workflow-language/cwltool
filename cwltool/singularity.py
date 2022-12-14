@@ -20,40 +20,96 @@ from .pathmapper import MapperEnt, PathMapper
 from .singularity_utils import singularity_supports_userns
 from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_writable
 
-_SINGULARITY_VERSION = ""
+# Cached version number of singularity
+# This is a list containing major and minor versions as integer.
+# (The number of minor version digits can vary among different distributions,
+#  therefore we need a list here.)
+_SINGULARITY_VERSION: Optional[List[int]] = None
+# Cached flavor / distribution of singularity
+# Can be singularity, singularity-ce or apptainer
+_SINGULARITY_FLAVOR: str = ""
 
 
-def get_version() -> str:
+def get_version() -> Tuple[List[int], str]:
+    """
+    Parse the output of 'singularity --version' to determine the singularity flavor /
+    distribution (singularity, singularity-ce or apptainer) and the singularity version.
+    Both pieces of information will be cached.
+
+    Returns
+    -------
+    A tuple containing:
+    - A tuple with major and minor version numbers as integer.
+    - A string with the name of the singularity flavor.
+    """
     global _SINGULARITY_VERSION  # pylint: disable=global-statement
-    if _SINGULARITY_VERSION == "":
-        _SINGULARITY_VERSION = check_output(  # nosec
+    global _SINGULARITY_FLAVOR  # pylint: disable=global-statement
+    if _SINGULARITY_VERSION is None:
+        version_output = check_output(  # nosec
             ["singularity", "--version"], universal_newlines=True
         ).strip()
-        if _SINGULARITY_VERSION.startswith("singularity version "):
-            _SINGULARITY_VERSION = _SINGULARITY_VERSION[20:]
-        if _SINGULARITY_VERSION.startswith("singularity-ce version "):
-            _SINGULARITY_VERSION = _SINGULARITY_VERSION[23:]
-        _logger.debug(f"Singularity version: {_SINGULARITY_VERSION}.")
-    return _SINGULARITY_VERSION
+
+        version_match = re.match(r"(.+) version ([0-9\.]+)", version_output)
+        if version_match is None:
+            raise RuntimeError("Output of 'singularity --version' not recognized.")
+
+        version_string = version_match.group(2)
+        _SINGULARITY_VERSION = [int(i) for i in version_string.split(".")]
+        _SINGULARITY_FLAVOR = version_match.group(1)
+
+        _logger.debug(
+            f"Singularity version: {version_string}" " ({_SINGULARITY_FLAVOR}."
+        )
+    return (_SINGULARITY_VERSION, _SINGULARITY_FLAVOR)
+
+
+def is_apptainer_1_or_newer() -> bool:
+    """
+    Check if apptainer singularity distribution is version 1.0 or higher.
+
+    Apptainer v1.0.0 is compatible with SingularityCE 3.9.5.
+    See: https://github.com/apptainer/apptainer/releases
+    """
+    v = get_version()
+    if v[1] != "apptainer":
+        return False
+    return v[0][0] >= 1
 
 
 def is_version_2_6() -> bool:
-    return get_version().startswith("2.6")
+    """
+    Check if this singularity version is exactly version 2.6.
+
+    Also returns False if the flavor is not singularity or singularity-ce.
+    """
+    v = get_version()
+    if v[1] != "singularity" and v[1] != "singularity-ce":
+        return False
+    return v[0][0] == 2 and v[0][1] == 6
 
 
 def is_version_3_or_newer() -> bool:
-    return int(get_version()[0]) >= 3
+    """Check if this version is singularity version 3 or newer or equivalent."""
+    if is_apptainer_1_or_newer():
+        return True  # this is equivalent to singularity-ce > 3.9.5
+    v = get_version()
+    return v[0][0] >= 3
 
 
 def is_version_3_1_or_newer() -> bool:
-    version = get_version().split(".")
-    return int(version[0]) >= 4 or (int(version[0]) == 3 and int(version[1]) >= 1)
+    """Check if this version is singularity version 3.1 or newer or equivalent."""
+    if is_apptainer_1_or_newer():
+        return True  # this is equivalent to singularity-ce > 3.9.5
+    v = get_version()
+    return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 1)
 
 
 def is_version_3_4_or_newer() -> bool:
     """Detect if Singularity v3.4+ is available."""
-    version = get_version().split(".")
-    return int(version[0]) >= 4 or (int(version[0]) == 3 and int(version[1]) >= 4)
+    if is_apptainer_1_or_newer():
+        return True  # this is equivalent to singularity-ce > 3.9.5
+    v = get_version()
+    return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 4)
 
 
 def _normalize_image_id(string: str) -> str:
@@ -128,7 +184,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             candidates.append(dockerRequirement["dockerImageId"])
             candidates.append(_normalize_image_id(dockerRequirement["dockerImageId"]))
             if is_version_3_or_newer():
-                candidates.append(_normalize_sif_id(dockerRequirement["dockerPull"]))
+                candidates.append(_normalize_sif_id(dockerRequirement["dockerImageId"]))
 
         targets = [os.getcwd()]
         if "CWL_SINGULARITY_CACHE" in os.environ:

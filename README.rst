@@ -185,7 +185,7 @@ with the ``--user-space-docker-cmd`` option.
 
 One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker.
 
-udocker installation: https://github.com/indigo-dc/udocker/blob/master/doc/installation_manual.md#22-install-from-udockertools-tarball
+udocker installation: https://indigo-dc.github.io/udocker/installation_manual.html
 
 Run `cwltool` just as you usually would, but with the new option, e.g., from the conformance tests
 
@@ -667,6 +667,19 @@ given in the following table; all are optional.
 +----------------+------------------+----------+------------------------------+
 
 
+Enabling Fast Parser (experimental)
+-----------------------------------
+
+For very large workflows, `cwltool` can spend a lot of time in
+initialization, before the first step runs.  There is an experimental
+flag ``--fast-parser`` which can dramatically reduce the
+initialization overhead, however as of this writing it has several limitations:
+
+- Error reporting in general is worse than the standard parser, you will want to use it with workflows that you know are already correct.
+
+- It does not check for dangling links (these will become runtime errors instead of loading errors)
+
+- Several other cases fail, as documented in https://github.com/common-workflow-language/cwltool/pull/1720
 
 ===========
 Development

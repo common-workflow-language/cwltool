@@ -9,15 +9,15 @@ import sys
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Union, cast
-from urllib.parse import urlparse
 
+import cwl_utils.expression as expr
 import pydot
 import pytest
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from cwl_utils.errors import JavascriptException
+from cwl_utils.sandboxjs import param_re
 from schema_salad.exceptions import ValidationException
 
 import cwltool.checker
-import cwltool.expression as expr
 import cwltool.factory
 import cwltool.pathmapper
 import cwltool.process
@@ -27,8 +27,8 @@ from cwltool.context import RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.process import CWL_IANA
-from cwltool.sandboxjs import JavascriptException
 from cwltool.utils import CWLObjectType, dedup
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .util import get_data, get_main_output, needs_docker, working_directory
 
@@ -64,7 +64,7 @@ expression_match = [
 
 @pytest.mark.parametrize("expression,expected", expression_match)
 def test_expression_match(expression: str, expected: bool) -> None:
-    match = expr.param_re.match(expression)
+    match = param_re.match(expression)
     assert (match is not None) == expected
 
 
@@ -910,6 +910,7 @@ def test_static_checker() -> None:
         factory.make(get_data("tests/checker_wf/broken-wf3.cwl"))
 
 
+@needs_docker
 def test_circular_dependency_checker() -> None:
     # check that the circular dependency checker raises exception when there is
     # circular dependency in the workflow.
@@ -1008,7 +1009,7 @@ def test_var_spool_cwl_checker3() -> None:
 
 def test_print_dot() -> None:
     # print Workflow
-    cwl_path = get_data("tests/wf/revsort.cwl")
+    cwl_path = get_data("tests/wf/three_step_color.cwl")
     expected_dot = pydot.graph_from_dot_data(
         """
     digraph {{
@@ -1022,11 +1023,8 @@ def test_print_dot() -> None:
                         rank=same,
                         style=dashed
                 ];
-                "workflow_input"      [fillcolor="#94DDF4",
-                        label=workflow_input,
-                        style=filled];
-                "reverse_sort"        [fillcolor="#94DDF4",
-                        label=reverse_sort,
+                "file_input"        [fillcolor="#94DDF4",
+                        label=file_input,
                         style=filled];
         }}
         subgraph cluster_outputs {{
@@ -1035,20 +1033,27 @@ def test_print_dot() -> None:
                         rank=same,
                         style=dashed
                 ];
-                "sorted_output"       [fillcolor="#94DDF4",
-                        label=sorted_output,
+                "file_output"       [fillcolor="#94DDF4",
+                        label=file_output,
+                        style=filled];
+                "string_output"       [fillcolor="#94DDF4",
+                        label=string_output,
                         style=filled];
         }}
-        "rev" [fillcolor=lightgoldenrodyellow,
-                label=rev,
+        "nested_workflow" [fillcolor="#F3CEA1",
+                label=nested_workflow,
                 style=filled];
-        "sorted"      [fillcolor=lightgoldenrodyellow,
-                label=sorted,
+        "operation"      [fillcolor=lightgoldenrodyellow,
+                label=operation,
+                style=dashed];
+        "command_line_tool"      [fillcolor=lightgoldenrodyellow,
+                label=command_line_tool,
                 style=filled];
-        "rev" -> "sorted";
-        "sorted" -> "sorted_output";
-        "workflow_input" -> "rev";
-        "reverse_sort" -> "sorted";
+        "file_input" -> "nested_workflow";
+        "nested_workflow" -> "operation";
+        "operation" -> "command_line_tool";
+        "operation" -> "string_output";
+        "command_line_tool" -> "file_output";
 }}
     """.format()
     )[0]
@@ -1073,19 +1078,20 @@ test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
 
 
 @pytest.mark.parametrize("factor", test_factors)
-def test_js_console_cmd_line_tool(factor: str) -> None:
+def test_js_console_cmd_line_tool(
+    factor: str, caplog: pytest.LogCaptureFixture
+) -> None:
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
         commands = factor.split()
         commands.extend(
             ["--js-console", "--no-container", get_data("tests/wf/" + test_file)]
         )
-        error_code, _, stderr = get_main_output(commands)
+        error_code, _, _ = get_main_output(commands)
+        logging_output = "\n".join([record.message for record in caplog.records])
+        assert "[log] Log message" in logging_output
+        assert "[err] Error message" in logging_output
 
-        stderr = re.sub(r"\s\s+", " ", stderr)
-        assert "[log] Log message" in stderr
-        assert "[err] Error message" in stderr
-
-        assert error_code == 0, stderr
+        assert error_code == 0, logging_output
 
 
 @pytest.mark.parametrize("factor", test_factors)
@@ -1114,8 +1120,9 @@ def test_cid_file_dir(tmp_path: Path, factor: str) -> None:
         stderr = re.sub(r"\s\s+", " ", stderr)
         assert "completed success" in stderr
         assert error_code == 0
-        cidfiles_count = sum(1 for _ in tmp_path.glob("**/*"))
-        assert cidfiles_count == 2
+        cidfiles = list(tmp_path.glob("**/*.cid"))
+        cidfiles_count = len(cidfiles)
+        assert cidfiles_count == 2, f"Should be 2 cidfiles, but got {cidfiles}"
 
 
 @needs_docker
@@ -1302,6 +1309,71 @@ def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
 
 
 @needs_docker
+@pytest.mark.parametrize("factor", test_factors)
+def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
+    """Confirm that re-running a particular workflow with caching succeeds."""
+    test_file = "secondary-files.cwl"
+    test_job_file = "secondary-files-job.yml"
+    cache_dir = str(tmp_path / "cwltool_cache")
+    commands = factor.split()
+    commands.extend(
+        [
+            "--cachedir",
+            cache_dir,
+            get_data(f"tests/{test_file}"),
+            get_data(f"tests/{test_job_file}"),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
+
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "completed success" in stderr
+    assert error_code == 0
+
+    commands = factor.split()
+    commands.extend(
+        [
+            "--cachedir",
+            cache_dir,
+            get_data(f"tests/{test_file}"),
+            get_data(f"tests/{test_job_file}"),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
+
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Output of job will be cached in" not in stderr
+    assert error_code == 0, stderr
+
+    assert (tmp_path / "cwltool_cache" / "27903451fc1ee10c148a0bdeb845b2cf").exists()
+
+
+def test_write_summary(tmp_path: Path) -> None:
+    """Test --write-summary."""
+    commands = [
+        get_data("tests/wf/no-parameters-echo.cwl"),
+    ]
+    error_code, stdout, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert error_code == 0, stderr
+
+    final_output_path = str(tmp_path / "final-output.json")
+    commands_no = [
+        "--write-summary",
+        final_output_path,
+        get_data("tests/wf/no-parameters-echo.cwl"),
+    ]
+    error_code, stdout_no, stderr = get_main_output(commands_no)
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert error_code == 0, stderr
+
+    with open(final_output_path) as f:
+        final_output_str = f.read()
+
+    assert len(stdout_no) + len(final_output_str) == len(stdout)
+
+
+@needs_docker
 def test_compute_checksum() -> None:
     runtime_context = RuntimeContext()
     runtime_context.compute_checksum = True
@@ -1404,6 +1476,7 @@ def test_no_compute_chcksum(tmp_path: Path, factor: str) -> None:
     assert "checksum" not in stdout
 
 
+@needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_bad_userspace_runtime(factor: str) -> None:
     test_file = "tests/wf/wc-tool.cwl"
@@ -1740,3 +1813,22 @@ def tests_outputsource_valid_identifier_invalid_source() -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "tests/checker_wf/broken-wf4.cwl:12:5: outputSource not found" in stderr
     assert "tests/checker_wf/broken-wf4.cwl#echo_w" in stderr
+
+
+def test_mismatched_optional_arrays() -> None:
+    """Ignore 'null' when comparing array types."""
+    factory = cwltool.factory.Factory()
+
+    with pytest.raises(ValidationException):
+        factory.make(get_data("tests/checker_wf/optional_array_mismatch.cwl"))
+
+
+def test_validate_optional_src_with_mandatory_sink() -> None:
+    """Confirm expected warning with an optional File connected to a mandatory File."""
+    exit_code, stdout, stderr = get_main_output(
+        ["--validate", get_data("tests/wf/optional_src_mandatory_sink.cwl")]
+    )
+    assert exit_code == 0
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert 'Source \'opt_file\' of type ["null", "File"] may be incompatible' in stderr
+    assert "with sink 'r' of type \"File\"" in stderr

@@ -131,10 +131,10 @@ class Singularity(CheckHolder):
         }
 
         # Singularity variables appear to be in flux somewhat.
-        version = get_version().split(".")
-        vmajor = int(version[0])
+        version = get_version()[0]
+        vmajor = version[0]
         assert vmajor == 3, "Tests only work for Singularity 3"
-        vminor = int(version[1])
+        vminor = version[1]
         sing_vars: EnvChecks = {
             "SINGULARITY_CONTAINER": None,
             "SINGULARITY_NAME": None,

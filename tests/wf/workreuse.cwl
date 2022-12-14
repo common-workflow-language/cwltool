@@ -5,7 +5,7 @@ $namespaces:
   cwltool: "http://commonwl.org/cwltool#"
 requirements:
   DockerRequirement:
-    dockerPull: docker.io/python:3
+    dockerPull: docker.io/python:3-slim
   cwltool:WorkReuse:
     enableReuse: false
 inputs: []

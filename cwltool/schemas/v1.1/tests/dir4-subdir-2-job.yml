@@ -1,9 +1,0 @@
-inf:
-  class: File
-  location: subdirsecondaries/hello.py
-  secondaryFiles:
-    - class: File
-      location: hello.tar
-    - class: Directory
-      basename: xtestdir
-      location: subdirsecondaries/testdir

@@ -228,7 +228,7 @@ class SingleJobExecutor(JobExecutor):
             for job in jobiter:
                 if job is not None:
                     if runtime_context.builder is not None and hasattr(job, "builder"):
-                        job.builder = runtime_context.builder  # type: ignore
+                        job.builder = runtime_context.builder
                     if job.outdir is not None:
                         self.output_dirs.add(job.outdir)
                     if runtime_context.research_obj is not None:
@@ -278,7 +278,7 @@ class MultithreadedJobExecutor(JobExecutor):
         self.pending_jobs = []  # type: List[JobsType]
         self.pending_jobs_lock = threading.Lock()
 
-        self.max_ram = int(psutil.virtual_memory().available / 2**20)  # type: ignore[no-untyped-call]
+        self.max_ram = int(psutil.virtual_memory().available / 2**20)
         self.max_cores = float(psutil.cpu_count())
         self.allocated_ram = float(0)
         self.allocated_cores = float(0)
@@ -334,7 +334,7 @@ class MultithreadedJobExecutor(JobExecutor):
                         self.allocated_ram -= ram
                         cores = job.builder.resources["cores"]
                         self.allocated_cores -= cores
-                    runtime_context.workflow_eval_lock.notifyAll()
+                    runtime_context.workflow_eval_lock.notify_all()
 
     def run_job(
         self,

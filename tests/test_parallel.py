@@ -5,9 +5,10 @@ from cwltool.context import RuntimeContext
 from cwltool.executors import MultithreadedJobExecutor
 from cwltool.factory import Factory
 
-from .util import get_data
+from .util import get_data, needs_docker
 
 
+@needs_docker
 def test_sequential_workflow(tmp_path: Path) -> None:
     test_file = "tests/wf/count-lines1-wf.cwl"
     executor = MultithreadedJobExecutor()
@@ -20,6 +21,7 @@ def test_sequential_workflow(tmp_path: Path) -> None:
     assert echo(file1=file_contents) == {"count_output": 16}
 
 
+@needs_docker
 def test_scattered_workflow() -> None:
     test_file = "tests/wf/scatter-wf4.cwl"
     job_file = "tests/wf/scatter-job2.json"
