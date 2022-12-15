@@ -404,10 +404,16 @@ class ProvenanceProfile:
         # Transfer SCHEMA annotations to provenance
         for s in schema_annotations:
             if "additionalType" in s:
-                additional_type = cast(str, schema_annotations[s]).split(sep="/")[
-                    -1
-                ]  # find better method?
-                file_entity.add_attributes({PROV_TYPE: SCHEMA[additional_type]})
+                atype = schema_annotations[s]
+                if isinstance(atype, str):
+                    additional_type = atype.split(sep="/")[-1]  # find better method?
+                    file_entity.add_attributes({PROV_TYPE: SCHEMA[additional_type]})
+                else:
+                    for a_entry in cast(List[str], atype):
+                        additional_type = a_entry.split(sep="/")[
+                            -1
+                        ]  # find better method?
+                        file_entity.add_attributes({PROV_TYPE: SCHEMA[additional_type]})
             else:
                 file_entity = self._add_nested_annotations(
                     s, schema_annotations[s], file_entity
