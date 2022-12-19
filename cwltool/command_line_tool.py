@@ -866,7 +866,7 @@ class CommandLineTool(Process):
                         and "checksum" in e
                         and e["checksum"] != "sha1$hash"
                     ):
-                        return cast(Optional[str], e["checksum"])
+                        return cast(str, e["checksum"])
                 return None
 
             def remove_prefix(s: str, prefix: str) -> str:
