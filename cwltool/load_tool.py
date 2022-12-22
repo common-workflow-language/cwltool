@@ -21,6 +21,7 @@ from typing import (
 )
 
 from cwl_utils.parser import cwl_v1_2, cwl_v1_2_utils
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.schema import validate_doc
@@ -32,8 +33,6 @@ from schema_salad.utils import (
     ResolveType,
     json_dumps,
 )
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from . import CWL_CONTENT_TYPES, process, update
 from .context import LoadingContext

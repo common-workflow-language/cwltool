@@ -17,10 +17,9 @@ from typing import (
 )
 from uuid import UUID
 
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
-
-from ruamel.yaml.comments import CommentedMap
 
 from . import command_line_tool, context, procgenerator
 from .checker import circular_dependency_checker, loop_checker, static_checker
@@ -144,7 +143,7 @@ class Workflow(Process):
                 param_to_step,
             )
             circular_dependency_checker(step_inputs)
-            loop_checker([step.tool for step in self.steps])
+            loop_checker(step.tool for step in self.steps)
 
     def make_workflow_step(
         self,

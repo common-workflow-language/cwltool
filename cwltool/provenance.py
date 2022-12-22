@@ -1,4 +1,8 @@
-"""Stores Research Object including provenance."""
+"""
+Stores Research Object including provenance.
+
+See :doc:`/CWLProv`
+"""
 
 import copy
 import datetime

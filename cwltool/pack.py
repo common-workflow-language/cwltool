@@ -14,10 +14,9 @@ from typing import (
     cast,
 )
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, SubLoader
 from schema_salad.utils import ResolveType
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document

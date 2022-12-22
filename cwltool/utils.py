@@ -42,7 +42,7 @@ from cachecontrol.caches import FileCache
 from mypy_extensions import TypedDict, mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
-from typing_extensions import TYPE_CHECKING, Deque
+from typing_extensions import TYPE_CHECKING, Deque, Literal
 
 if TYPE_CHECKING:
     from .command_line_tool import CallbackJob, ExpressionJob
@@ -85,6 +85,8 @@ CWLOutputType = Union[
     MutableMapping[str, CWLOutputAtomType],
 ]
 CWLObjectType = MutableMapping[str, Optional[CWLOutputType]]
+"""Typical raw dictionary found in lightly parsed CWL."""
+
 JobsType = Union[
     "CommandLineJob", "JobBase", "WorkflowJob", "ExpressionJob", "CallbackJob"
 ]
@@ -113,6 +115,10 @@ WorkflowStateItem = NamedTuple(
 
 ParametersType = List[CWLObjectType]
 StepType = CWLObjectType  # WorkflowStep
+
+LoadListingType = Union[
+    Literal["no_listing"], Literal["shallow_listing"], Literal["deep_listing"]
+]
 
 
 def versionstring() -> str:

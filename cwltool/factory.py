@@ -18,7 +18,7 @@ class WorkflowStatus(Exception):
 
 
 class Callable:
-    """Result of Factory.make()."""
+    """Result of ::py:func:`Factory.make`."""
 
     def __init__(self, t: Process, factory: "Factory") -> None:
         """Initialize."""

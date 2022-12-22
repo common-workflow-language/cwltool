@@ -4,12 +4,16 @@ Provenance capture
 It is possible to capture the full provenance of a workflow execution to 
 a folder, including intermediate values:
 
+.. code-block:: sh
+
     cwltool --provenance revsort-run-1/ tests/wf/revsort.cwl tests/wf/revsort-job.json
 
 Who executed the workflow?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Optional parameters are available to capture information about *who* executed the workflow *where*:
+
+.. code-block:: sh
 
     cwltool --orcid https://orcid.org/0000-0002-1825-0097 \
       --full-name "Alice W Land" \
@@ -29,9 +33,11 @@ since ``--enable-user-provenance --enable-host-provenance``
 are only able to identify the local machine account.
 
 It is possible to set the shell environment variables
-`ORCID` and `CWL_FULL_NAME` to avoid supplying ``--orcid`` 
-or `--full-name` for every workflow run, 
+``ORCID`` and ``CWL_FULL_NAME`` to avoid supplying ``--orcid`` 
+or ``--full-name`` for every workflow run, 
 for instance by augmenting the ``~/.bashrc`` or equivalent:
+
+.. code-block:: sh
 
     export ORCID=https://orcid.org/0000-0002-1825-0097
     export CWL_FULL_NAME="Stian Soiland-Reyes"
@@ -42,25 +48,24 @@ Care should be taken to preserve spaces when setting `--full-name` or `CWL_FULL_
 CWLProv folder structure
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-The CWLProv folder structure under revsort-run-1 is a 
+The CWLProv folder structure under ``revsort-run-1`` is a 
 `Research Object <http://www.researchobject.org/>`__
 that conforms to the `RO BagIt profile <https://w3id.org/ro/bagit>`__
 and contains `PROV <https://www.w3.org/TR/prov-overview/>`__ 
 traces detailing the execution of the workflow and its steps.
 
-
 A rough overview of the CWLProv folder structure:
 
 * ``bagit.txt`` - bag marker for `BagIt <https://tools.ietf.org/html/draft-kunze-bagit-14>`__.
 * ``bag-info.txt`` - minimal bag metadata. ``The External-Identifier`` key shows which `arcp <https://tools.ietf.org/id/draft-soilandreyes-arcp-03.html>`__ can be used as base URI within the folder bag.
-* ``manifest-*.txt`` - checksums of files under data/ (algorithms subject to change)
+* ``manifest-*.txt`` - checksums of files under ``data/`` (algorithms subject to change)
 * ``tagmanifest-*.txt`` - checksums of the remaining files (algorithms subject to change)
 * ``metadata/manifest.json`` - `Research Object manifest <https://w3id.org/bundle/#manifest>`__ as JSON-LD. Types and relates files within bag.
 * ``metadata/provenance/primary.cwlprov*`` -  `PROV <https://www.w3.org/TR/prov-overview/>`__ trace of main workflow execution in alternative PROV and RDF formats
 * ``data/`` - bag payload, workflow/step input/output data files (content-addressable)
 * ``data/32/327fc7aedf4f6b69a42a7c8b808dc5a7aff61376`` - a data item with checksum ``327fc7aedf4f6b69a42a7c8b808dc5a7aff61376`` (checksum algorithm is subject to change)
 * ``workflow/packed.cwl`` - The ``cwltool --pack`` standalone version of the executed workflow
-* ``workflow/primary-job.json`` - Job input for use with packed.cwl (references ``data/*``)
+* ``workflow/primary-job.json`` - Job input for use with ``packed.cwl`` (references ``data/*``)
 * ``snapshot/`` - Direct copies of original files used for execution, but may have broken relative/absolute paths
 
 
@@ -69,7 +74,7 @@ See the `CWLProv paper <https://doi.org/10.5281/zenodo.1208477>`__ for more deta
 Research Object manifest
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-The file ``metadata/manifest.json`` follows the structure defined for `Research Object Bundles <https://w3id.org/bundle/#manifest>` - but 
+The file ``metadata/manifest.json`` follows the structure defined for `Research Object Bundles <https://w3id.org/bundle/#manifest>`_ - but 
 note that ``.ro/`` is instead called ``metadata/`` as this conforms to the `RO BagIt profile <https://w3id.org/ro/bagit>`__.
 
 Some of the keys of the CWLProv manifest are explained below::
@@ -235,7 +240,7 @@ Note that the `arcp <https://tools.ietf.org/id/draft-soilandreyes-arcp-03.html>`
 Account who launched cwltool
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If `--enable-user-provenance` was used, the local machine account (e.g. Windows or UNIX user name) who started ``cwltool`` is tracked::
+If ``--enable-user-provenance`` was used, the local machine account (e.g. Windows or UNIX user name) who started ``cwltool`` is tracked::
 
     agent(id:855c6823-bbe7-48a5-be37-b0f07f20c495, [foaf:accountName="stain", prov:type='foaf:OnlineAccount', prov:label="stain"])
 
@@ -247,7 +252,7 @@ It is assumed that the account was under the control of the named person (in PRO
  
 However we do not have an identifier for neither the account or the person, so every ``cwltool`` run will yield new UUIDs. 
 
-With --enable-user-provenance it is possible to associate the account with a hostname::
+With ``--enable-user-provenance`` it is possible to associate the account with a hostname::
 
     agent(id:855c6823-bbe7-48a5-be37-b0f07f20c495, [cwlprov:hostname="biggie", prov:type='foaf:OnlineAccount', prov:location="biggie"])
 
@@ -281,9 +286,9 @@ Now what is that workflow again? Well a tiny bit of prospective provenance is in
   entity(wf:main, [prov:label="Prospective provenance", wfdesc:hasSubProcess='wf:main/step0'])
   entity(wf:main/step0, [prov:type='wfdesc:Process', prov:type='prov:Plan'])
 
-But we can also expand the `wf` identifiers to find that we are talking about 
+But we can also expand the ``wf`` identifiers to find that we are talking about 
 ``arcp://uuid,0e6cb79e-fe70-4807-888c-3a61b9bf232a/workflow/packed.cwl#`` - that is 
-the ``main`` workflow in the file `workflow/packed.cwl` of the Research Object.
+the ``main`` workflow in the file ``workflow/packed.cwl`` of the Research Object.
 
 Running workflow steps
 ^^^^^^^^^^^^^^^^^^^^^^

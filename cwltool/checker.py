@@ -3,6 +3,7 @@ from collections import namedtuple
 from typing import (
     Any,
     Dict,
+    Iterator,
     List,
     MutableMapping,
     MutableSequence,
@@ -15,6 +16,7 @@ from typing import (
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
 from schema_salad.utils import json_dumps
+from typing_extensions import Literal
 
 from .errors import WorkflowException
 from .loghandler import _logger
@@ -35,11 +37,11 @@ def check_types(
     sinktype: SinkType,
     linkMerge: Optional[str],
     valueFrom: Optional[str],
-) -> str:
+) -> Union[Literal["pass"], Literal["warning"], Literal["exception"]]:
     """
     Check if the source and sink types are correct.
 
-    Acceptable types are "pass", "warning", or "exception".
+    :raises WorkflowException: If there is an unrecognized linkMerge type
     """
     if valueFrom is not None:
         return "pass"
@@ -78,12 +80,12 @@ def can_assign_src_to_sink(
     """
     Check for identical type specifications, ignoring extra keys like inputBinding.
 
-    src: admissible source types
-    sink: admissible sink types
-
     In non-strict comparison, at least one source type must match one sink type,
-       except for 'null'.
+    except for 'null'.
     In strict comparison, all source types must match at least one sink type.
+
+    :param src: admissible source types
+    :param sink: admissible sink types
     """
     if src == "Any" or sink == "Any":
         return True
@@ -141,11 +143,11 @@ def _compare_records(
 
     This handles normalizing record names, which will be relative to workflow
     step, so that they can be compared.
+
+    :return: True if the records have compatible fields, False otherwise.
     """
 
-    def _rec_fields(
-        rec,
-    ):  # type: (MutableMapping[str, Any]) -> MutableMapping[str, Any]
+    def _rec_fields(rec: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
         out = {}
         for field in rec["fields"]:
             name = shortname(field["name"])
@@ -189,7 +191,11 @@ def static_checker(
     step_outputs: List[CWLObjectType],
     param_to_step: Dict[str, CWLObjectType],
 ) -> None:
-    """Check if all source and sink types of a workflow are compatible before run time."""
+    """
+    Check if all source and sink types of a workflow are compatible before run time.
+
+    :raises ValidationException: If any incompatibilities are detected.
+    """
     # source parameters: workflow_inputs and step_outputs
     # sink parameters: step_inputs and workflow_outputs
 
@@ -339,13 +345,15 @@ SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge", "message"])
 def check_all_types(
     src_dict: Dict[str, CWLObjectType],
     sinks: MutableSequence[CWLObjectType],
-    sourceField: str,
+    sourceField: Union[Literal["source"], Literal["outputSource"]],
     param_to_step: Dict[str, CWLObjectType],
 ) -> Dict[str, List[SrcSink]]:
     """
     Given a list of sinks, check if their types match with the types of their sources.
 
-    sourceField is either "source" or "outputSource"
+    :raises WorkflowException: if there is an unrecognized linkMerge value
+                               (from :py:func:`check_types`)
+    :raises ValidationException: if a sourceField is missing
     """
     validation = {"warning": [], "exception": []}  # type: Dict[str, List[SrcSink]]
     for sink in sinks:
@@ -456,7 +464,11 @@ def check_all_types(
 
 
 def circular_dependency_checker(step_inputs: List[CWLObjectType]) -> None:
-    """Check if a workflow has circular dependency."""
+    """
+    Check if a workflow has circular dependency.
+
+    :raises ValidationException: If a circular dependency is detected.
+    """
     adjacency = get_dependency_tree(step_inputs)
     vertices = adjacency.keys()
     processed: List[str] = []
@@ -545,8 +557,13 @@ def is_all_output_method_loop_step(
     return False
 
 
-def loop_checker(steps: List[MutableMapping[str, Any]]) -> None:
-    """Check http://commonwl.org/cwltool#Loop requirement compatibility with other directives."""
+def loop_checker(steps: Iterator[MutableMapping[str, Any]]) -> None:
+    """
+    Check http://commonwl.org/cwltool#Loop requirement compatibility with other directives.
+
+    :raises:
+        ValidationException: If there is an incompatible combination between cwltool:loop and 'scatter' or 'when'.
+    """
     exceptions = []
     for step in steps:
         requirements = {
