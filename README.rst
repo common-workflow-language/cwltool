@@ -180,10 +180,8 @@ Using uDocker
 -------------
 
 Some shared computing environments don't support Docker software containers for technical or policy reasons.
-As a workaround, the CWL reference runner supports using alternative ``docker`` implementations on Linux
-with the ``--user-space-docker-cmd`` option.
-
-One such "user space" friendly docker replacement is ``udocker`` https://github.com/indigo-dc/udocker.
+As a workaround, the CWL reference runner supports using the ``udocker`` program on Linux using ``--udocker``
+<https://github.com/indigo-dc/udocker>.
 
 udocker installation: https://indigo-dc.github.io/udocker/installation_manual.html
 
@@ -191,7 +189,10 @@ Run `cwltool` just as you usually would, but with the new option, e.g., from the
 
 .. code:: bash
 
-  cwltool --user-space-docker-cmd=udocker https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/empty.json
+  cwltool --udocker https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/empty.json
+
+Using Singularity
+-----------------
 
 ``cwltool`` can also use `Singularity <https://github.com/hpcng/singularity/releases/>`_ version 2.6.1
 or later as a Docker container runtime.
@@ -206,7 +207,7 @@ Example
 
 .. code:: bash
 
-  cwltool --singularity https://raw.githubusercontent.com/common-workflow-language/common-workflow-language/main/v1.0/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/blob/main/v1.0/v1.0/cat-job.json
+  cwltool --singularity https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/cat-job.json
 
 Running a tool or workflow from remote or local locations
 ---------------------------------------------------------
