@@ -77,7 +77,7 @@ def _check_docker_machine_path(path: Optional[str]) -> None:
 
 
 class DockerCommandLineJob(ContainerCommandLineJob):
-    """Runs a CommandLineJob in a software container using the Docker engine."""
+    """Runs a :py:class:`~cwltool.job.CommandLineJob` in a software container using the Docker engine."""
 
     def __init__(
         self,
@@ -102,7 +102,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         """
         Retrieve the relevant Docker container image.
 
-        Returns True upon success
+        :returns: True upon success
         """
         found = False
 
@@ -464,7 +464,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
 
 class PodmanCommandLineJob(DockerCommandLineJob):
-    """Runs a CommandLineJob in a software container using the podman engine."""
+    """Runs a :py:class:`~cwltool.job.CommandLineJob` in a software container using the podman engine."""
 
     def __init__(
         self,

@@ -1,3 +1,5 @@
+"""Support utilities for CUDA."""
+
 import subprocess  # nosec
 import xml.dom.minidom  # nosec
 from typing import Tuple
@@ -7,6 +9,7 @@ from .utils import CWLObjectType
 
 
 def cuda_version_and_device_count() -> Tuple[str, int]:
+    """Determine the CUDA version and number of attached CUDA GPUs."""
     try:
         out = subprocess.check_output(["nvidia-smi", "-q", "-x"])  # nosec
     except Exception as e:

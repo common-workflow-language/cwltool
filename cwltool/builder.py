@@ -1,3 +1,4 @@
+"""Command line builder."""
 import copy
 import logging
 import math
@@ -17,14 +18,13 @@ from typing import (
 from cwl_utils import expression
 from cwl_utils.file_formats import check_format
 from rdflib import Graph
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names, Schema, make_avsc_object
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import convert_to_dict, json_dumps
 from schema_salad.validate import validate
 from typing_extensions import TYPE_CHECKING, Type  # pylint: disable=unused-import
-
-from ruamel.yaml.comments import CommentedMap
 
 from .errors import WorkflowException
 from .loghandler import _logger
@@ -36,6 +36,7 @@ from .utils import (
     CWLObjectType,
     CWLOutputType,
     HasReqsHints,
+    LoadListingType,
     aslist,
     get_listing,
     normalizeFilesDirs,
@@ -53,7 +54,14 @@ INPUT_OBJ_VOCAB: Dict[str, str] = {
 }
 
 
-def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
+def content_limit_respected_read_bytes(f: IO[bytes]) -> bytes:
+    """
+    Read a file as bytes, respecting the :py:data:`~cwltool.utils.CONTENT_LIMIT`.
+
+    :param f: file handle
+    :returns: the file contents
+    :raises WorkflowException: if the file is too large
+    """
     contents = f.read(CONTENT_LIMIT + 1)
     if len(contents) > CONTENT_LIMIT:
         raise WorkflowException(
@@ -62,11 +70,19 @@ def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
     return contents
 
 
-def content_limit_respected_read(f):  # type: (IO[bytes]) -> str
+def content_limit_respected_read(f: IO[bytes]) -> str:
+    """
+    Read a file as a string, respecting the :py:data:`~cwltool.utils.CONTENT_LIMIT`.
+
+    :param f: file handle
+    :returns: the file contents
+    :raises WorkflowException: if the file is too large
+    """
     return content_limit_respected_read_bytes(f).decode("utf-8")
 
 
-def substitute(value, replace):  # type: (str, str) -> str
+def substitute(value: str, replace: str) -> str:
+    """Perform CWL SecondaryFilesDSL style substitution."""
     if replace.startswith("^"):
         try:
             return substitute(value[0 : value.rindex(".")], replace[1:])
@@ -77,6 +93,8 @@ def substitute(value, replace):  # type: (str, str) -> str
 
 
 class Builder(HasReqsHints):
+    """Helper class to construct a command line from a CWL CommandLineTool."""
+
     def __init__(
         self,
         job: CWLObjectType,
@@ -96,7 +114,7 @@ class Builder(HasReqsHints):
         debug: bool,
         js_console: bool,
         force_docker_pull: bool,
-        loadListing: str,
+        loadListing: LoadListingType,
         outdir: str,
         tmpdir: str,
         stagedir: str,
@@ -127,7 +145,6 @@ class Builder(HasReqsHints):
         self.js_console = js_console
         self.force_docker_pull = force_docker_pull
 
-        # One of "no_listing", "shallow_listing", "deep_listing"
         self.loadListing = loadListing
 
         self.outdir = outdir
@@ -136,9 +153,9 @@ class Builder(HasReqsHints):
 
         self.cwlVersion = cwlVersion
 
-        self.pathmapper = None  # type: Optional[PathMapper]
-        self.prov_obj = None  # type: Optional[ProvenanceProfile]
-        self.find_default_container = None  # type: Optional[Callable[[], str]]
+        self.pathmapper: Optional["PathMapper"] = None
+        self.prov_obj: Optional["ProvenanceProfile"] = None
+        self.find_default_container: Optional[Callable[[], str]] = None
         self.container_engine = container_engine
 
     def build_job_script(self, commands: List[str]) -> Optional[str]:
@@ -154,6 +171,14 @@ class Builder(HasReqsHints):
         lead_pos: Optional[Union[int, List[int]]] = None,
         tail_pos: Optional[Union[str, List[int]]] = None,
     ) -> List[MutableMapping[str, Union[str, List[int]]]]:
+        """
+        Bind an input object to the command line.
+
+        :raises ValidationException: in the event of an invalid type union
+        :raises WorkflowException: if a CWL Expression ("position", "required",
+          "pattern", "format") evaluates to the wrong type or if a required
+          secondary file is missing
+        """
         debug = _logger.isEnabledFor(logging.DEBUG)
 
         if tail_pos is None:
@@ -578,6 +603,12 @@ class Builder(HasReqsHints):
         return bindings
 
     def tostr(self, value: Union[MutableMapping[str, str], Any]) -> str:
+        """
+        Represent an input parameter as a string.
+
+        :raises WorkflowException: if the item is a File or Directory and the
+          "path" is missing.
+        """
         if isinstance(value, MutableMapping) and value.get("class") in (
             "File",
             "Directory",

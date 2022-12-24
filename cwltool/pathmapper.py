@@ -18,6 +18,30 @@ from .utils import CWLObjectType, dedup, downloadHttpFile
 MapperEnt = collections.namedtuple(
     "MapperEnt", ["resolved", "target", "type", "staged"]
 )
+""" Mapper entries.
+
+.. py:attribute:: resolved
+   :type: str
+
+   The "real" path on the local file system (after resolving relative paths
+   and traversing symlinks
+
+.. py:attribute:: target
+   :type: str
+
+   The path on the target file system (under stagedir)
+
+.. py:attribute:: type
+   :type: str
+
+   The object type. One of "File", "Directory", "CreateFile", "WritableFile",
+   or "CreateWritableFile".
+
+.. py:attribute:: staged
+   :type: bool
+
+   If the File has been staged yet
+"""
 
 
 class PathMapper:
@@ -28,16 +52,16 @@ class PathMapper:
 
     The tao of PathMapper:
 
-    The initializer takes a list of File and Directory objects, a base
-    directory (for resolving relative references) and a staging directory
-    (where the files are mapped to).
+    The initializer takes a list of ``class: File`` and ``class: Directory``
+    objects, a base directory (for resolving relative references) and a staging
+    directory (where the files are mapped to).
 
     The purpose of the setup method is to determine where each File or
     Directory should be placed on the target file system (relative to
     stagedir).
 
-    If separatedirs=True, unrelated files will be isolated in their own
-    directories under stagedir. If separatedirs=False, files and directories
+    If ``separatedirs=True``, unrelated files will be isolated in their own
+    directories under stagedir. If ``separatedirs=False``, files and directories
     will all be placed in stagedir (with the possibility for name
     collisions...)
 

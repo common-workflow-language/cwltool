@@ -12,6 +12,7 @@ The loop condition
 The ``loopWhen`` field controls loop termination. It is an expansion of the CWL v1.2 ``when`` construct, which controls conditional execution. This is an expression that must be evaluated with ``inputs`` bound to the step input object and outputs produced in the last step execution, and returns a boolean value. It is an error if this expression returns a value other than ``true`` or ``false``. For example:
 
 .. code:: yaml
+
   example:
     run:
       class: ExpressionTool
@@ -30,6 +31,7 @@ The ``loopWhen`` field controls loop termination. It is an expansion of the CWL 
         loop:
           i1: o1
         outputMethod: last
+
 This loop executes untile the counter ``i1`` reaches the value of 10, and then terminates. Note that if the ``loopWhen`` condition evaluates to ``false`` prior to the first iteration, the loop is skipped. The value assumed by the output fields depends on the specified ``outputMethod``, as described below.
 
 The loop field
@@ -77,6 +79,7 @@ The ``last`` output mode propagates only the last computed element to the subseq
 This is the most recurrent behaviour and it is typical of the optimization processes, when a step must iterate until a desired precision is reached. For example:
 
 .. code:: yaml
+
   optimization:
     in:
       a: a
@@ -93,6 +96,7 @@ This is the most recurrent behaviour and it is typical of the optimization proce
           prev_a:
             valueFrom: $(inputs.a)
         outputMethod: last
+
 This loop keeps optimizing the initial ``a`` value until the error value falls below a given (constant) ``threshold``. Then, the last values of ``a`` will be propagated.
 
 The ``all`` output mode propagates a single array with all output values to the subsequent steps when the loop terminates. When a loop with an ``outputMethod`` equal to ``all`` is skipped, each output assumes a ``[]`` value.
@@ -100,6 +104,7 @@ The ``all`` output mode propagates a single array with all output values to the 
 This behaviour is needed when a recurrent simulation produces loop-carried results, but the subsequent steps need to know the total amount of computed values to proceed. For example:
 
 .. code:: yaml
+
   simulation:
     in:
       a: a
@@ -116,6 +121,7 @@ This behaviour is needed when a recurrent simulation produces loop-carried resul
           day:
             valueFrom: $(inputs.day + 1)
         outputMethod: all
+
 In this case, subsequent steps can start processing outputs even before the ``simulation`` step terminates. When a loop with an ``outputMethod`` equal to ``last`` is skipped, each output assumes a ``null`` value.
 
 Loop-independent iterations
@@ -124,6 +130,7 @@ Loop-independent iterations
 If a ``cwltool:Loop`` comes with loop-independent iterations, i.e. if each iteration does not depend on the result produced by the previous ones, all iterations can be processed concurrently. For example:
 
 .. code:: yaml
+
   example:
     run: inner.cwl
     in:
@@ -136,4 +143,5 @@ If a ``cwltool:Loop`` comes with loop-independent iterations, i.e. if each itera
           i1:
             valueFrom: $(inputs.i1 + 1)
         outputMethod: all
+
 Since each iteration of this loop only depends on the input field ``i1``, all its iterations can be processed in parallel if there is enough computing power.

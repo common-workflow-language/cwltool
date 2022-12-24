@@ -62,7 +62,7 @@ jobs:
       - name: Upgrade setuptools and install tox
         run: |
           pip install -U pip setuptools wheel
-          pip install tox tox-gh-actions
+          pip install "tox<4" tox-gh-actions
 
       - name: MyPy cache
         if: ${{ matrix.step == 'mypy' }}

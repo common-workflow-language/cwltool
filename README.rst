@@ -1,6 +1,6 @@
-==================================================================
-Common Workflow Language tool description reference implementation
-==================================================================
+#############################################################################################
+``cwltool``: The reference reference implementation of the Common Workflow Language standards
+#############################################################################################
 
 |Linux Status| |Coverage Status| |Docs Status|
 
@@ -46,11 +46,12 @@ Quay.io (Docker): |Quay.io Container|
    :target: https://cwltool.readthedocs.io/en/latest/?badge=latest
    :alt: Documentation Status
 
-This is the reference implementation of the Common Workflow Language.  It is
-intended to be feature complete and provide comprehensive validation of CWL
+This is the reference implementation of the `Common Workflow Language open
+standards <https://www.commonwl.org/>`_.  It is intended to be feature complete
+and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
-This is written and tested for
+``cwltool`` is written and tested for
 `Python <https://www.python.org/>`_ ``3.x {x = 6, 7, 8, 9, 10, 11}``
 
 The reference implementation consists of two packages.  The ``cwltool`` package
@@ -64,11 +65,14 @@ default CWL interpreter installed on a host.
 ``cwltool`` is provided by the CWL project, `a member project of Software Freedom Conservancy <https://sfconservancy.org/news/2018/apr/11/cwl-new-member-project/>`_
 and our `many contributors <https://github.com/common-workflow-language/cwltool/graphs/contributors>`_.
 
+.. contents:: Table of Contents
+
+*******
 Install
--------
+*******
 
 ``cwltool`` packages
-^^^^^^^^^^^^^^^^^^^^
+====================
 
 Your operating system may offer cwltool directly. For `Debian <https://tracker.debian.org/pkg/cwltool>`_, `Ubuntu <https://launchpad.net/ubuntu/+source/cwltool>`_,
 and similar Linux distribution try
@@ -112,19 +116,19 @@ If installing alongside another CWL implementation (like ``toil-cwl-runner`` or 
   pip install cwltool
 
 MS Windows users
-^^^^^^^^^^^^^^^^
+================
 
-1.  Install `"Windows Subsystem for Linux 2" (WSL2) and Docker Desktop <https://docs.docker.com/docker-for-windows/wsl/#prerequisites>`_
-2.  Install `Debian from the Microsoft Store <https://www.microsoft.com/en-us/p/debian/9msvkqc78pk6>`_
-3.  Set Debian as your default WSL 2 distro: ``wsl --set-default debian``.
-4.  Return to the Docker Desktop, choose `Settings → Resources → WSL Integration <https://docs.docker.com/desktop/windows/images/wsl2-choose-distro.png>`_ and under "Enable integration with additional distros" select "Debian",
-5.  Reboot if you have not yet already.
-6.  Launch Debian and follow the Linux instructions above (``apt-get install cwltool`` or use the ``venv`` method)
+1. `Install Windows Subsystem for Linux 2 and Docker Desktop <https://docs.docker.com/docker-for-windows/wsl/#prerequisites>`_. 
+2. `Install Debian from the Microsoft Store <https://www.microsoft.com/en-us/p/debian/9msvkqc78pk6>`_.
+3. Set Debian as your default WSL 2 distro: ``wsl --set-default debian``.
+4. Return to the Docker Desktop, choose ``Settings`` → ``Resources`` → ``WSL Integration`` and under "Enable integration with additional distros" select "Debian",
+5. Reboot if you have not yet already.
+6. Launch Debian and follow the Linux instructions above (``apt-get install cwltool`` or use the ``venv`` method)
 
 Network problems from within WSL2? Try `these instructions <https://github.com/microsoft/WSL/issues/4731#issuecomment-702176954>`_ followed by ``wsl --shutdown``.
 
 ``cwltool`` development version
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+===============================
 
 Or you can skip the direct ``pip`` commands above and install the latest development version of ``cwltool``:
 
@@ -140,33 +144,42 @@ maintain which implementation ``cwl-runner`` points to via a symbolic file
 system link or `another facility <https://wiki.debian.org/DebianAlternatives>`_.
 
 Recommended Software
-^^^^^^^^^^^^^^^^^^^^
+====================
 
-You may also want to have the following installed:
-- `node.js <https://nodejs.org/en/download/>`_
-- Docker, udocker, or Singularity (optional)
+We strongly suggested to have the following installed:
+
+* One of the following software container engines
+
+  * `Podman <https://podman.io/getting-started/installation>`_
+  * `Docker <https://docs.docker.com/engine/install/>`_
+  * Singularity/Apptainer: See `Using Singularity`_
+  * udocker: See `Using uDocker`_
+
+* `node.js <https://nodejs.org/en/download/>`_ for evaluating CWL Expressions quickly
+  (required for `udocker` users, optional but recommended for the other container engines).
 
 Without these, some examples in the CWL tutorials at http://www.commonwl.org/user_guide/ may not work.
 
+***********************
 Run on the command line
------------------------
+***********************
 
 Simple command::
 
-  cwl-runner [tool-or-workflow-description] [input-job-settings]
+  cwl-runner my_workflow.cwl my_inputs.yaml
 
 Or if you have multiple CWL implementations installed and you want to override
 the default cwl-runner then use::
 
-  cwltool [tool-or-workflow-description] [input-job-settings]
+  cwltool my_workflow.cwl my_inputs.yml
 
-You can set cwltool options in the environment with CWLTOOL_OPTIONS,
+You can set cwltool options in the environment with ``CWLTOOL_OPTIONS``,
 these will be inserted at the beginning of the command line::
 
   export CWLTOOL_OPTIONS="--debug"
 
 Use with boot2docker on macOS
------------------------------
+=============================
 boot2docker runs Docker inside a virtual machine, and it only mounts ``Users``
 on it. The default behavior of CWL is to create temporary directories under e.g.
 ``/Var`` which is not accessible to Docker containers.
@@ -177,22 +190,24 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
     $ cwl-runner --tmp-outdir-prefix=/Users/username/project --tmpdir-prefix=/Users/username/project wc-tool.cwl wc-job.json
 
 Using uDocker
--------------
+=============
 
 Some shared computing environments don't support Docker software containers for technical or policy reasons.
-As a workaround, the CWL reference runner supports using the ``udocker`` program on Linux using ``--udocker``
-<https://github.com/indigo-dc/udocker>.
+As a workaround, the CWL reference runner supports using the `udocker <https://github.com/indigo-dc/udocker>`_
+program on Linux using ``--udocker``.
 
 udocker installation: https://indigo-dc.github.io/udocker/installation_manual.html
 
-Run `cwltool` just as you usually would, but with the new option, e.g., from the conformance tests
+Run `cwltool` just as you usually would, but with ``--udocker`` prior to the workflow path:
 
 .. code:: bash
 
   cwltool --udocker https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/empty.json
 
+As was mentioned in the `Recommended Software`_ section,
+
 Using Singularity
------------------
+=================
 
 ``cwltool`` can also use `Singularity <https://github.com/hpcng/singularity/releases/>`_ version 2.6.1
 or later as a Docker container runtime.
@@ -210,7 +225,7 @@ Example
   cwltool --singularity https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/cat3-tool-mediumcut.cwl https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/cat-job.json
 
 Running a tool or workflow from remote or local locations
----------------------------------------------------------
+=========================================================
 
 ``cwltool`` can run tool and workflow descriptions on both local and remote
 systems via its support for HTTP[S] URLs.
@@ -221,11 +236,11 @@ is referenced and that document isn't found in the current directory, then the
 following locations will be searched:
 http://www.commonwl.org/v1.0/CommandLineTool.html#Discovering_CWL_documents_on_a_local_filesystem
 
-You can also use `cwldep <https://github.com/common-workflow-language/cwldep>`
+You can also use `cwldep <https://github.com/common-workflow-language/cwldep>`_
 to manage dependencies on external tools and workflows.
 
 Overriding workflow requirements at load time
----------------------------------------------
+=============================================
 
 Sometimes a workflow needs additional requirements to run in a particular
 environment or with a particular dataset.  To avoid the need to modify the
@@ -269,7 +284,7 @@ Override identifiers are relative to the top-level workflow document.
 
 
 Combining parts of a workflow into a single document
-----------------------------------------------------
+====================================================
 
 Use ``--pack`` to combine a workflow made up of multiple files into a
 single compound document.  This operation takes all the CWL files
@@ -285,7 +300,7 @@ document.  The top-level workflow is named ``#main``.
 
 
 Running only part of a workflow
--------------------------------
+===============================
 
 You can run a partial workflow with the ``--target`` (``-t``) option.  This
 takes the name of an output parameter, workflow step, or input
@@ -315,7 +330,7 @@ selected targets.
 
 
 Visualizing a CWL document
---------------------------
+==========================
 
 The ``--print-dot`` option will print a file suitable for Graphviz ``dot`` program.  Here is a bash onliner to generate a Scalable Vector Graphic (SVG) file:
 
@@ -324,7 +339,7 @@ The ``--print-dot`` option will print a file suitable for Graphviz ``dot`` progr
   cwltool --print-dot my-wf.cwl | dot -Tsvg > my-wf.svg
 
 Modeling a CWL document as RDF
-------------------------------
+==============================
 
 CWL documents can be expressed as RDF triple graphs.
 
@@ -334,7 +349,7 @@ CWL documents can be expressed as RDF triple graphs.
 
 
 Environment Variables in cwltool
---------------------------------
+================================
 
 This reference implementation supports several ways of setting
 environment variables for tools, in addition to the standard
@@ -573,7 +588,7 @@ at the following links:
 - `Initial cwltool Integration Pull Request <https://github.com/common-workflow-language/cwltool/pull/214>`__
 
 Use with GA4GH Tool Registry API
---------------------------------
+================================
 
 Cwltool can launch tools directly from `GA4GH Tool Registry API`_ endpoints.
 
@@ -596,7 +611,7 @@ For this example, grab the test.json (and input file) from https://github.com/Ca
 .. _`GA4GH Tool Registry API`: https://github.com/ga4gh/tool-registry-schemas
 
 Running MPI-based tools that need to be launched
-------------------------------------------------
+================================================
 
 Cwltool supports an extension to the CWL spec
 ``http://commonwl.org/cwltool#MPIRequirement``. When the tool
@@ -669,7 +684,7 @@ given in the following table; all are optional.
 
 
 Enabling Fast Parser (experimental)
------------------------------------
+===================================
 
 For very large workflows, `cwltool` can spend a lot of time in
 initialization, before the first step runs.  There is an experimental
@@ -682,12 +697,12 @@ initialization overhead, however as of this writing it has several limitations:
 
 - Several other cases fail, as documented in https://github.com/common-workflow-language/cwltool/pull/1720
 
-===========
+***********
 Development
-===========
+***********
 
 Running tests locally
----------------------
+=====================
 
 -  Running basic tests ``(/tests)``:
 
@@ -719,7 +734,7 @@ program
 Instructions for running these tests can be found in the Common Workflow Language Specification repository at https://github.com/common-workflow-language/common-workflow-language/blob/main/CONFORMANCE_TESTS.md .
 
 Import as a module
-------------------
+==================
 
 Add
 
@@ -743,7 +758,7 @@ The easiest way to use cwltool to run a tool or workflow from Python is to use a
 
 
 CWL Tool Control Flow
----------------------
+=====================
 
 Technical outline of how cwltool works internally, for maintainers.
 
@@ -801,9 +816,8 @@ Technical outline of how cwltool works internally, for maintainers.
       Docker container, waits for it to complete, collects output, and makes
       the output callback.
 
-
 Extension points
-----------------
+================
 
 The following functions can be passed to main() to override or augment
 the listed behaviors.

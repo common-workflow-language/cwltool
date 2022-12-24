@@ -1,4 +1,4 @@
-"""Support for executing Docker containers using the Singularity 2.x engine."""
+"""Support for executing Docker format containers using Singularity {2,3}.x or Apptainer 1.x."""
 
 import os
 import os.path

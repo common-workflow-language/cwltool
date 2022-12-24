@@ -4,10 +4,9 @@ from typing import IO, Any, Dict, Iterator, Optional, TextIO, Union, cast
 
 from rdflib import Graph
 from rdflib.query import ResultRow
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.jsonld_context import makerdf
 from schema_salad.utils import ContextType
-
-from ruamel.yaml.comments import CommentedMap
 
 from .cwlviewer import CWLViewer
 from .process import Process
@@ -127,7 +126,7 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
 
 
 def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
-    dotname = {}  # type: Dict[str,str]
+    dotname: Dict[str, str] = {}
     clusternode = {}
 
     stdout.write("compound=true\n")
@@ -219,5 +218,5 @@ def printdot(
     ctx: ContextType,
     stdout: IO[str],
 ) -> None:
-    cwl_viewer = CWLViewer(printrdf(wf, ctx, "n3"))  # type: CWLViewer
+    cwl_viewer: CWLViewer = CWLViewer(printrdf(wf, ctx, "n3"))
     stdout.write(cwl_viewer.dot().replace(f"{wf.metadata['id']}#", ""))

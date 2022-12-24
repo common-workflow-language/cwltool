@@ -30,6 +30,7 @@ from typing import (
 )
 
 import shellescape
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Schema
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import file_uri, uri_file_path
@@ -37,8 +38,6 @@ from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
 from typing_extensions import TYPE_CHECKING, Type
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .builder import (
     INPUT_OBJ_VOCAB,
@@ -96,49 +95,64 @@ class PathCheckingMode(Enum):
     """
 
     STRICT = re.compile(r"^[\w.+\,\-:@\]^\u2600-\u26FF\U0001f600-\U0001f64f]+$")
-    # accepts names that contain one or more of the following:
-    # "\w"                  unicode word characters; this includes most characters
-    #                            that can be part of a word in any language, as well
-    #                            as numbers and the underscore
-    # "."                    a literal period
-    # "+"                    a literal plus sign
-    # "\,"                  a literal comma
-    # "\-"                  a literal minus sign
-    # ":"                    a literal colon
-    # "@"                    a literal at-symbol
-    # "\]"                  a literal end-square-bracket
-    # "^"                    a literal caret symbol
-    # \u2600-\u26FF                  matches a single character in the range between
-    #                       ☀ (index 9728) and ⛿ (index 9983)
-    # \U0001f600-\U0001f64f matches a single character in the range between
-    #                       😀 (index 128512) and 🙏 (index 128591)
+    r"""
+    Accepts names that contain one or more of the following:
 
-    # Note: the following characters are intentionally not included:
-    #
-    # 1. reserved words in POSIX:
-    # ! { }
-    #
-    # 2. POSIX metacharacters listed in the CWL standard as okay to reject
-    # | & ; < > ( ) $ ` " ' <space> <tab> <newline>
-    # (In accordance with
-    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path" )
-    #
-    # 3. POSIX path separator
-    # \
-    # (also listed at
-    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path")
-    #
-    # 4. Additional POSIX metacharacters
-    # * ? [ # ˜ = %
+    .. list-table::
 
-    # TODO: switch to https://pypi.org/project/regex/ and use
-    # `\p{Extended_Pictographic}` instead of the manual emoji ranges
+       * - ``\w``
+         - unicode word characters
 
-    RELAXED = re.compile(r".*")  # Accept anything
+           this includes most characters that can be part of a word in any
+           language, as well as numbers and the underscore
+       * - ``.``
+         - a literal period
+       * - ``+``
+         - a literal plus sign
+       * - ``,``
+         - a literal comma
+       * - ``-``
+         - a literal minus sign
+       * - ``:``
+         - a literal colon
+       * - ``@``
+         - a literal at-symbol
+       * - ``]``
+         - a literal end-square-bracket
+       * - ``^``
+         - a literal caret symbol
+       * - ``\u2600-\u26FF``
+         - matches a single character in the range between ☀ (index 9728) and ⛿ (index 9983)
+       * - ``\U0001f600-\U0001f64f``
+         - matches a single character in the range between 😀 (index 128512) and 🙏 (index 128591)
+
+    Note: the following characters are intentionally not included:
+
+    1. reserved words in POSIX: ``!``, :code:`{`, ``}``
+
+    2. POSIX metacharacters listed in the CWL standard as okay to reject: ``|``,
+       ``&``, ``;``, ``<``, ``>``, ``(``, ``)``, ``$``, `````, ``"``, ``'``,
+       :kbd:`<space>`, :kbd:`<tab>`, :kbd:`<newline>`.
+
+       (In accordance with https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path" )
+
+    3. POSIX path separator: ``\``
+
+       (also listed at https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path")
+
+    4. Additional POSIX metacharacters: ``*``, ``?``, ``[``, ``#``, ``˜``,
+       ``=``, ``%``.
+
+    TODO: switch to https://pypi.org/project/regex/ and use
+    ``\p{Extended_Pictographic}`` instead of the manual emoji ranges
+    """
+
+    RELAXED = re.compile(r".*")
+    """Accept anything."""
 
 
 class ExpressionJob:
-    """Job for ExpressionTools."""
+    """Job for :py:class:`ExpressionTool`."""
 
     def __init__(
         self,
@@ -150,7 +164,7 @@ class ExpressionJob:
         outdir: Optional[str] = None,
         tmpdir: Optional[str] = None,
     ) -> None:
-        """Initializet this ExpressionJob."""
+        """Initialize this ExpressionJob."""
         self.builder = builder
         self.requirements = requirements
         self.hints = hints
@@ -158,7 +172,7 @@ class ExpressionJob:
         self.outdir = outdir
         self.tmpdir = tmpdir
         self.script = script
-        self.prov_obj = None  # type: Optional[ProvenanceProfile]
+        self.prov_obj: Optional["ProvenanceProfile"] = None
 
     def run(
         self,
@@ -305,7 +319,7 @@ def revmap_file(
 
 
 class CallbackJob:
-    """Callback Job class, used by CommandLine.job()."""
+    """Callback Job class, used by :py:func:`CommandLineTool.job`."""
 
     def __init__(
         self,

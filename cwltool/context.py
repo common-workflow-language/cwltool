@@ -17,13 +17,11 @@ from typing import (
     Union,
 )
 
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names
 from schema_salad.ref_resolver import Loader
 from schema_salad.utils import FetcherCallableType
 from typing_extensions import TYPE_CHECKING
-
-# move to a regular typing import when Python 3.3-3.6 is no longer supported
-from ruamel.yaml.comments import CommentedMap
 
 from .builder import Builder
 from .mpi import MpiConfig
@@ -43,7 +41,7 @@ if TYPE_CHECKING:
 
 
 class ContextBase:
-    """Shared kwargs based initilizer for {Runtime,Loading}Context."""
+    """Shared kwargs based initilizer for :py:class:`RuntimeContext` and :py:class:`LoadingContext`."""
 
     def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
         """Initialize."""
@@ -123,12 +121,18 @@ class LoadingContext(ContextBase):
 
         super().__init__(kwargs)
 
-    def copy(self):
-        # type: () -> LoadingContext
+    def copy(self) -> "LoadingContext":
+        """Return a copy of this :py:class:`LoadingContext`."""
         return copy.copy(self)
 
 
 class RuntimeContext(ContextBase):
+    outdir: Optional[str] = None
+    tmpdir: str = ""
+    tmpdir_prefix: str = DEFAULT_TMP_PREFIX
+    tmp_outdir_prefix: str = ""
+    stagedir: str = ""
+
     def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
         """Initialize the RuntimeContext from the kwargs."""
         select_resources_callable = Callable[  # pylint: disable=unused-variable
@@ -145,9 +149,6 @@ class RuntimeContext(ContextBase):
         self.use_container = True  # type: bool
         self.force_docker_pull = False  # type: bool
 
-        self.tmp_outdir_prefix = ""  # type: str
-        self.tmpdir_prefix = DEFAULT_TMP_PREFIX  # type: str
-        self.tmpdir = ""  # type: str
         self.rm_tmpdir = True  # type: bool
         self.pull_image = True  # type: bool
         self.rm_container = True  # type: bool
@@ -167,8 +168,6 @@ class RuntimeContext(ContextBase):
             None
         )  # type: Optional[Callable[[HasReqsHints], Optional[str]]]
         self.cachedir = None  # type: Optional[str]
-        self.outdir = None  # type: Optional[str]
-        self.stagedir = ""  # type: str
         self.part_of = ""  # type: str
         self.basedir = ""  # type: str
         self.toplevel = False  # type: bool
@@ -206,41 +205,41 @@ class RuntimeContext(ContextBase):
             self.tmp_outdir_prefix = self.tmpdir_prefix
 
     def get_outdir(self) -> str:
-        """Return self.outdir or create one with self.tmp_outdir_prefix."""
+        """Return :py:attr:`outdir` or create one with :py:attr:`tmp_outdir_prefix`."""
         if self.outdir:
             return self.outdir
         return self.create_outdir()
 
     def get_tmpdir(self) -> str:
-        """Return self.tmpdir or create one with self.tmpdir_prefix."""
+        """Return :py:attr:`tmpdir` or create one with :py:attr:`tmpdir_prefix`."""
         if self.tmpdir:
             return self.tmpdir
         return self.create_tmpdir()
 
     def get_stagedir(self) -> str:
-        """Return self.stagedir or create one with self.tmpdir_prefix."""
+        """Return :py:attr:`stagedir` or create one with :py:attr:`tmpdir_prefix`."""
         if self.stagedir:
             return self.stagedir
         tmp_dir, tmp_prefix = os.path.split(self.tmpdir_prefix)
         return tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
 
     def create_tmpdir(self) -> str:
-        """Create a temporary directory that respects self.tmpdir_prefix."""
+        """Create a temporary directory that respects :py:attr:`tmpdir_prefix`."""
         tmp_dir, tmp_prefix = os.path.split(self.tmpdir_prefix)
         return tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
 
     def create_outdir(self) -> str:
-        """Create a temporary directory that respects self.tmp_outdir_prefix."""
+        """Create a temporary directory that respects :py:attr:`tmp_outdir_prefix`."""
         out_dir, out_prefix = os.path.split(self.tmp_outdir_prefix)
         return tempfile.mkdtemp(prefix=out_prefix, dir=out_dir)
 
-    def copy(self):
-        # type: () -> RuntimeContext
+    def copy(self) -> "RuntimeContext":
+        """Return a copy of this :py:class:`RuntimeContext`."""
         return copy.copy(self)
 
 
-def getdefault(val, default):
-    # type: (Any, Any) -> Any
+def getdefault(val: Any, default: Any) -> Any:
+    """Return the ``val`` using the ``default`` as backup in case the val is ``None``."""
     if val is None:
         return default
     else:

@@ -35,6 +35,7 @@ from cwl_utils import expression
 from mypy_extensions import mypyc_attr
 from pkg_resources import resource_stream
 from rdflib import Graph
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import (
     Names,
     Schema,
@@ -48,8 +49,6 @@ from schema_salad.sourceline import SourceLine, strip_dup_lineno
 from schema_salad.utils import convert_to_dict
 from schema_salad.validate import avro_type_name, validate_ex
 from typing_extensions import TYPE_CHECKING
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .builder import INPUT_OBJ_VOCAB, Builder
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -66,6 +65,7 @@ from .utils import (
     CWLOutputType,
     HasReqsHints,
     JobsGeneratorType,
+    LoadListingType,
     OutputCallbackType,
     adjustDirObjs,
     aslist,
@@ -242,7 +242,11 @@ def stage_files(
     secret_store: Optional[SecretStore] = None,
     fix_conflicts: bool = False,
 ) -> None:
-    """Link or copy files to their targets. Create them as needed."""
+    """
+    Link or copy files to their targets. Create them as needed.
+
+    :raises WorkflowException: if there is a file staging conflict
+    """
     items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
     targets = {}  # type: Dict[str, MapperEnt]
     for key, entry in items:
@@ -422,6 +426,11 @@ def fill_in_defaults(
     job: CWLObjectType,
     fsaccess: StdFsAccess,
 ) -> None:
+    """
+    For each missing input in the input object, copy over the default.
+
+    :raises WorkflowException: if a required input parameter is missing
+    """
     debug = _logger.isEnabledFor(logging.DEBUG)
     for e, inp in enumerate(inputs):
         with SourceLine(inputs, e, WorkflowException, debug):
@@ -764,7 +773,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         load_listing_req, _ = self.get_requirement("LoadListingRequirement")
 
         load_listing = (
-            cast(str, load_listing_req.get("loadListing"))
+            cast(LoadListingType, load_listing_req.get("loadListing"))
             if load_listing_req is not None
             else "no_listing"
         )
@@ -787,7 +796,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 vocab=INPUT_OBJ_VOCAB,
             )
 
-            if load_listing and load_listing != "no_listing":
+            if load_listing != "no_listing":
                 get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
 
             visit_class(job, ("File",), functools.partial(add_sizes, fs_access))
@@ -1193,23 +1202,21 @@ def scandeps(
     (references to external files) of 'doc' and return them as a list
     of File or Directory objects.
 
-    The 'base' is the base URL for relative references.
-
     Looks for objects with 'class: File' or 'class: Directory' and
     adds them to the list of dependencies.
 
-    Anything in 'urlfields' is also added as a File dependency.
-
-    Anything in 'reffields' (such as workflow step 'run') will be
-    added as a dependency and also loaded (using the 'loadref'
-    function) and recursively scanned for dependencies.  Those
-    dependencies will be added as secondary files to the primary file.
-
-    If "nestdirs" is true, create intermediate directory objects when
-    a file is located in a subdirectory under the starting directory.
-    This is so that if the dependencies are materialized, they will
-    produce the same relative file system locations.
-
+    :param base: the base URL for relative references.
+    :param doc: a CWL document or input object
+    :param urlfields: added as a File dependency
+    :param reffields: field name like a workflow step 'run'; will be
+      added as a dependency and also loaded (using the 'loadref'
+      function) and recursively scanned for dependencies.  Those
+      dependencies will be added as secondary files to the primary file.
+    :param nestdirs: if true, create intermediate directory objects when
+      a file is located in a subdirectory under the starting directory.
+      This is so that if the dependencies are materialized, they will
+      produce the same relative file system locations.
+    :returns: A list of File or Directory dependencies
     """
 
     r: MutableSequence[CWLObjectType] = []

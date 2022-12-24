@@ -88,7 +88,7 @@ def _makebuilder(cudaReq: CWLObjectType) -> Builder:
         False,
         False,
         False,
-        "",
+        "no_listing",
         "",
         "",
         "",

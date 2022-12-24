@@ -977,7 +977,8 @@ def generate_parser(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     base_uri: str = "",
 ) -> argparse.ArgumentParser:
-    toolparser.description = tool.tool.get("doc", None)
+    """Generate an ArgumentParser for the given CWL Process."""
+    toolparser.description = tool.tool.get("doc", tool.tool.get("label", None))
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
@@ -985,7 +986,7 @@ def generate_parser(
         name = shortname(inp["id"])
         namemap[name.replace("-", "_")] = name
         inptype = inp["type"]
-        description = inp.get("doc", "")
+        description = inp.get("doc", inp.get("label", ""))
         default = inp.get("default", None)
         add_argument(
             toolparser,
