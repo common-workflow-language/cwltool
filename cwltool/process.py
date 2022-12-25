@@ -1046,10 +1046,6 @@ hints:
             sl = SourceLine(hints, i, ValidationException, debug)
             with sl:
                 classname = cast(str, r["class"])
-                if classname == "http://commonwl.org/cwltool#Loop":
-                    raise ValidationException(
-                        "http://commonwl.org/cwltool#Loop is valid only under requirements."
-                    )
                 avroname = classname
                 if classname in self.doc_loader.vocab:
                     avroname = avro_type_name(self.doc_loader.vocab[classname])

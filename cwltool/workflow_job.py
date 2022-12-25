@@ -734,7 +734,7 @@ class WorkflowJob:
                             step.name,
                             json_dumps(inputobj, indent=4),
                         )
-                    if step.step.get_requirement("http://commonwl.org/cwltool#Loop")[0]:
+                    if step.tool.get("loop"):
                         jobs = WorkflowJobLoopStep(
                             step=step, container_engine=container_engine
                         ).job(inputobj, callback, runtimeContext)
@@ -742,7 +742,13 @@ class WorkflowJob:
                         jobs = step.job(inputobj, callback, runtimeContext)
                 else:
                     _logger.info("[%s] will be skipped", step.name)
-                    callback({k["id"]: None for k in outputparms}, "skipped")
+                    if (
+                        step.tool.get("loop") is not None
+                        and step.tool.get("outputMethod", "last") == "all"
+                    ):
+                        callback({k["id"]: [] for k in outputparms}, "skipped")
+                    else:
+                        callback({k["id"]: None for k in outputparms}, "skipped")
                     step.completed = True
                     jobs = (_ for _ in ())
 
@@ -850,7 +856,7 @@ class WorkflowJob:
 
 
 class WorkflowJobLoopStep:
-    """Generated for each step in Workflow.steps() containing a Loop requirement."""
+    """Generated for each step in Workflow.steps() containing a `loop` directive."""
 
     def __init__(self, step: WorkflowJobStep, container_engine: str):
         """Initialize this WorkflowJobLoopStep."""
@@ -864,11 +870,11 @@ class WorkflowJobLoopStep:
             Union[MutableSequence[Optional[CWLOutputType]], Optional[CWLOutputType]],
         ] = {}
 
-    def _set_empty_output(self, loop_req: CWLObjectType) -> None:
+    def _set_empty_output(self, outputMethod: str) -> None:
         for i in self.step.tool["outputs"]:
             if "id" in i:
                 iid = cast(str, i["id"])
-                if loop_req.get("outputMethod") == "all":
+                if outputMethod == "all":
                     self.output_buffer[iid] = cast(MutableSequence[Optional[CWLOutputType]], [])
                 else:
                     self.output_buffer[iid] = None
@@ -879,12 +885,9 @@ class WorkflowJobLoopStep:
         output_callback: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
-        """Generate a WorkflowJobStep job until the `loopWhen` condition evaluates to False."""
+        """Generate a WorkflowJobStep job until the `when` condition evaluates to False."""
         self.joborder = joborder
-        loop_req = cast(
-            CWLObjectType,
-            self.step.step.get_requirement("http://commonwl.org/cwltool#Loop")[0],
-        )
+        outputMethod = self.step.tool.get("outputMethod", "last")
 
         callback = functools.partial(
             self.loop_callback,
@@ -895,7 +898,7 @@ class WorkflowJobLoopStep:
             while True:
                 evalinputs = {shortname(k): v for k, v in self.joborder.items()}
                 whenval = expression.do_eval(
-                    loop_req["loopWhen"],
+                    self.step.tool["when"],
                     evalinputs,
                     self.step.step.requirements,
                     None,
@@ -916,9 +919,9 @@ class WorkflowJobLoopStep:
                         return
                 elif whenval is False:
                     _logger.debug(
-                        "[%s] loop condition %s evaluated to %s at iteration %i",
+                        "[%s] condition %s evaluated to %s at iteration %i",
                         self.step.name,
-                        loop_req["loopWhen"],
+                        self.step.tool["when"],
                         whenval,
                         self.iteration,
                     )
@@ -927,22 +930,17 @@ class WorkflowJobLoopStep:
                         self.step.name,
                         json_dumps(evalinputs, indent=2),
                     )
-                    if self.iteration == 0:
-                        self.processStatus = "skipped"
-                        self._set_empty_output(loop_req)
                     output_callback(self.output_buffer, self.processStatus)
                     return
                 else:
-                    raise WorkflowException(
-                        "Loop condition 'loopWhen' must evaluate to 'true' or 'false'"
-                    )
+                    raise WorkflowException("Conditional 'when' must evaluate to 'true' or 'false'")
         except WorkflowException:
             raise
         except Exception:
             _logger.exception("Unhandled exception")
             self.processStatus = "permanentFail"
             if self.iteration == 0:
-                self._set_empty_output(loop_req)
+                self._set_empty_output(outputMethod)
             output_callback(self.output_buffer, self.processStatus)
 
     def loop_callback(
@@ -954,17 +952,15 @@ class WorkflowJobLoopStep:
         """Update the joborder object with output values from the last iteration."""
         self.iteration += 1
         try:
-            loop_req = cast(
-                CWLObjectType,
-                self.step.step.get_requirement("http://commonwl.org/cwltool#Loop")[0],
-            )
+            loop = cast(MutableSequence[CWLObjectType], self.step.tool.get("loop", []))
+            outputMethod = self.step.tool.get("outputMethod", "last")
             state: Dict[str, Optional[WorkflowStateItem]] = {}
             for i in self.step.tool["outputs"]:
                 if "id" in i:
                     iid = cast(str, i["id"])
                     if iid in jobout:
                         state[iid] = WorkflowStateItem(i, jobout[iid], processStatus)
-                        if loop_req.get("outputMethod") == "all":
+                        if outputMethod == "all":
                             if iid not in self.output_buffer:
                                 self.output_buffer[iid] = cast(
                                     MutableSequence[Optional[CWLOutputType]], []
@@ -994,7 +990,7 @@ class WorkflowJobLoopStep:
             if self.processStatus != "permanentFail":
                 self.processStatus = processStatus
 
-            if processStatus not in ("success", "skipped"):
+            if processStatus != "success":
                 _logger.warning(
                     "[%s] Iteration %i completed %s",
                     self.step.name,
@@ -1019,12 +1015,7 @@ class WorkflowJobLoopStep:
                     CWLObjectType,
                     object_from_state(
                         state,
-                        [
-                            {**source, **{"type": "Any"}}
-                            for source in cast(
-                                MutableSequence[CWLObjectType], loop_req.get("loop", [])
-                            )
-                        ],
+                        [{**source, **{"type": "Any"}} for source in loop],
                         False,
                         supportsMultipleInput,
                         "loopSource",
@@ -1034,11 +1025,7 @@ class WorkflowJobLoopStep:
 
             fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
 
-            valueFrom = {
-                i["id"]: i["valueFrom"]
-                for i in cast(MutableSequence[CWLObjectType], loop_req.get("loop", []))
-                if "valueFrom" in i
-            }
+            valueFrom = {i["id"]: i["valueFrom"] for i in loop if "valueFrom" in i}
             if len(valueFrom) > 0 and not bool(
                 self.step.step.get_requirement("StepInputExpressionRequirement")[0]
             ):
