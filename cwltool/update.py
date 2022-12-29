@@ -27,53 +27,36 @@ def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> Tuple[Comm
 
     def rewrite_loop_requirements(t: CWLObjectType) -> None:
         for s in cast(MutableSequence[CWLObjectType], t["steps"]):
-            if isinstance(s, MutableMapping):
-                if "requirements" in s:
-                    for i, r in enumerate(
-                        list(cast(MutableSequence[CWLObjectType], s["requirements"]))
-                    ):
-                        if isinstance(r, MutableMapping):
-                            cls = cast(str, r["class"])
-                            if cls == "http://commonwl.org/cwltool#Loop":
-                                if "when" in s:
-                                    raise SourceLine(s, "when", ValidationException).makeError(
-                                        "The `cwltool:Loop` clause is not compatible with the `when` directive."
-                                    )
-                                if "loopWhen" not in r:
-                                    raise SourceLine(r, raise_type=ValidationException).makeError(
-                                        "The `loopWhen` clause is mandatory within the `cwltool:Loop` requirement."
-                                    )
-                                s["when"] = r["loopWhen"]
-                                if "loop" in r:
-                                    s["loop"] = r["loop"]
-                                if "outputMethod" in r:
-                                    s["outputMethod"] = r["outputMethod"]
-                                cast(
-                                    MutableSequence[CWLObjectType],
-                                    s["requirements"],
-                                ).pop(index=i)
-                        else:
-                            raise SourceLine(s, i, ValidationException).makeError(
-                                "requirements entries must be dictionaries: {} {}.".format(
-                                    type(r), r
-                                )
+            if "requirements" in s:
+                for i, r in enumerate(
+                    list(cast(MutableSequence[CWLObjectType], s["requirements"]))
+                ):
+                    cls = cast(str, r["class"])
+                    if cls == "http://commonwl.org/cwltool#Loop":
+                        if "when" in s:
+                            raise SourceLine(s, "when", ValidationException).makeError(
+                                "The `cwltool:Loop` clause is not compatible with the `when` directive."
                             )
-                if "hints" in s:
-                    for r in cast(MutableSequence[CWLObjectType], s["hints"]):
-                        if isinstance(r, MutableMapping):
-                            cls = cast(str, r["class"])
-                            if cls == "http://commonwl.org/cwltool#Loop":
-                                raise SourceLine(s["hints"], r, ValidationException).makeError(
-                                    "http://commonwl.org/cwltool#Loop is valid only under requirements."
-                                )
-                        else:
-                            raise SourceLine(s["hints"], r, ValidationException).makeError(
-                                f"hints entries must be dictionaries: {type(r)} {r}."
+                        if "loopWhen" not in r:
+                            raise SourceLine(r, raise_type=ValidationException).makeError(
+                                "The `loopWhen` clause is mandatory within the `cwltool:Loop` requirement."
                             )
-            else:
-                raise SourceLine(t["steps"], s, ValidationException).makeError(
-                    f"steps entries must be dictionaries: {type(s)} {s}."
-                )
+                        s["when"] = r["loopWhen"]
+                        if "loop" in r:
+                            s["loop"] = r["loop"]
+                        if "outputMethod" in r:
+                            s["outputMethod"] = r["outputMethod"]
+                        cast(
+                            MutableSequence[CWLObjectType],
+                            s["requirements"],
+                        ).pop(index=i)
+            if "hints" in s:
+                for r in cast(MutableSequence[CWLObjectType], s["hints"]):
+                    cls = cast(str, r["class"])
+                    if cls == "http://commonwl.org/cwltool#Loop":
+                        raise SourceLine(s["hints"], r, ValidationException).makeError(
+                            "http://commonwl.org/cwltool#Loop is valid only under requirements."
+                        )
 
     visit_class(doc, "Workflow", rewrite_loop_requirements)
     return doc, "v1.3.0-dev1"
@@ -117,19 +100,10 @@ def v1_0to1_1(
                 if cls in rewrite:
                     r["class"] = rewrite[cls]
         if "hints" in t:
-            for index, r in enumerate(cast(MutableSequence[CWLObjectType], t["hints"])):
-                if isinstance(r, MutableMapping):
-                    if "class" not in r:
-                        raise SourceLine(r, None, ValidationException).makeError(
-                            "'hints' entry missing required key 'class'."
-                        )
-                    cls = cast(str, r["class"])
-                    if cls in rewrite:
-                        r["class"] = rewrite[cls]
-                else:
-                    raise SourceLine(t["hints"], index, ValidationException).makeError(
-                        f"'hints' entries must be dictionaries: {type(r)} {r}."
-                    )
+            for r in cast(MutableSequence[CWLObjectType], t["hints"]):
+                cls = cast(str, r["class"])
+                if cls in rewrite:
+                    r["class"] = rewrite[cls]
         if "steps" in t:
             for s in cast(MutableSequence[CWLObjectType], t["steps"]):
                 rewrite_requirements(s)
