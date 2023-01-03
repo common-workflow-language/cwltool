@@ -1018,7 +1018,7 @@ class WorkflowJobLoopStep:
                         [{**source, **{"type": "Any"}} for source in loop],
                         False,
                         supportsMultipleInput,
-                        "loopSource",
+                        "outputSource",
                     ),
                 ),
             }
