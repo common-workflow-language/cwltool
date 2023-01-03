@@ -43,7 +43,7 @@ def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> Tuple[Comm
                             )
                         s["when"] = r["loopWhen"]
                         if "loop" in r:
-                            for el in r["loop"]:
+                            for el in cast(MutableSequence[CWLObjectType], r["loop"]):
                                 source = el.pop("loopSource", None)
                                 if source is not None:
                                     el["outputSource"] = source
