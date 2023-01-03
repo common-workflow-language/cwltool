@@ -182,18 +182,46 @@ $graph:
     - all_non_null
 
 
-- name: WorkflowOutputParameter
+- name: Sink
   type: record
-  extends: OutputParameter
-  docParent: "#Workflow"
-  doc: |
-    Describe an output parameter of a workflow.  The parameter must be
-    connected to one or more parameters defined in the workflow that
-    will provide the value of the output parameter. It is legal to
-    connect a WorkflowInputParameter to a WorkflowOutputParameter.
+  abstract: true
+  fields:
+    - name: linkMerge
+      type: LinkMergeMethod?
+      jsonldPredicate: "cwl:linkMerge"
+      default: merge_nested
+      doc: |
+        The method to use to merge multiple inbound links into a single array.
+        If not specified, the default method is "merge_nested".
+    - name: pickValue
+      type: [ "null", PickValueMethod ]
+      jsonldPredicate: "cwl:pickValue"
+      doc: |
+        The method to use to choose non-null elements among multiple sources.
 
-    See [WorkflowStepInput](#WorkflowStepInput) for discussion of
-    `linkMerge` and `pickValue`.
+
+- name: InputSink
+  type: record
+  extends: Sink
+  abstract: true
+  fields:
+    - name: source
+      doc: |
+        Specifies one or more workflow parameters that will provide input to
+        the underlying step parameter.
+      jsonldPredicate:
+        "_id": "cwl:source"
+        "_type": "@id"
+        refScope: 2
+      type:
+        - string?
+        - string[]?
+
+
+- name: OutputSink
+  type: record
+  extends: Sink
+  abstract: true
   fields:
     - name: outputSource
       doc: |
@@ -209,20 +237,21 @@ $graph:
       type:
         - string?
         - string[]?
-    - name: linkMerge
-      type: ["null", LinkMergeMethod]
-      jsonldPredicate: "cwl:linkMerge"
-      default: merge_nested
-      doc: |
-        The method to use to merge multiple sources into a single array.
-        If not specified, the default method is "merge_nested".
 
-    - name: pickValue
-      type: ["null", PickValueMethod]
-      jsonldPredicate: "cwl:pickValue"
-      doc: |
-        The method to use to choose non-null elements among multiple sources.
 
+- name: WorkflowOutputParameter
+  type: record
+  extends: [OutputParameter, OutputSink]
+  docParent: "#Workflow"
+  doc: |
+    Describe an output parameter of a workflow.  The parameter must be
+    connected to one or more parameters defined in the workflow that
+    will provide the value of the output parameter. It is legal to
+    connect a WorkflowInputParameter to a WorkflowOutputParameter.
+
+    See [WorkflowStepInput](#WorkflowStepInput) for discussion of
+    `linkMerge` and `pickValue`.
+  fields:
     - name: type
       type:
         - CWLType
@@ -246,38 +275,9 @@ $graph:
         Specify valid types of data that may be assigned to this parameter.
 
 
-- name: Sink
-  type: record
-  abstract: true
-  fields:
-    - name: source
-      doc: |
-        Specifies one or more workflow parameters that will provide input to
-        the underlying step parameter.
-      jsonldPredicate:
-        "_id": "cwl:source"
-        "_type": "@id"
-        refScope: 2
-      type:
-        - string?
-        - string[]?
-    - name: linkMerge
-      type: LinkMergeMethod?
-      jsonldPredicate: "cwl:linkMerge"
-      default: merge_nested
-      doc: |
-        The method to use to merge multiple inbound links into a single array.
-        If not specified, the default method is "merge_nested".
-    - name: pickValue
-      type: ["null", PickValueMethod]
-      jsonldPredicate: "cwl:pickValue"
-      doc: |
-        The method to use to choose non-null elements among multiple sources.
-
-
 - type: record
   name: WorkflowStepInput
-  extends: [Identified, Sink, LoadContents, Labeled]
+  extends: [Identified, InputSink, LoadContents, Labeled]
   docParent: "#WorkflowStep"
   doc: |
     The input of a workflow step connects an upstream parameter (from the
@@ -445,6 +445,44 @@ $graph:
     to connect the output value to downstream parameters.
 
 
+- name: LoopInput
+  type: record
+  extends: [Identified, OutputSink]
+  fields:
+    - name: default
+      type: ["null", File, Directory, Any]
+      doc: |
+        The default value for this parameter to use if either there is no
+        `source` field, or the value produced by the `source` is `null`.  The
+        default must be applied prior to scattering or evaluating `valueFrom`.
+      jsonldPredicate:
+        _id: "sld:default"
+        noLinkCheck: true
+    - name: valueFrom
+      type:
+        - "null"
+        - string
+        - Expression
+      jsonldPredicate: "cwl:valueFrom"
+      doc: |
+        To use valueFrom, [StepInputExpressionRequirement](#StepInputExpressionRequirement) must
+        be specified in the workflow or workflow step requirements.
+
+        If `valueFrom` is a constant string value, use this as the value for
+        this input parameter.
+
+        If `valueFrom` is a parameter reference or expression, it must be
+        evaluated to yield the actual value to be assigned to the input field.
+
+        The `self` value in the parameter reference or expression must be
+        `null` if there is no `source` field, or the value of the
+        parameter(s) specified in the `source` field.
+
+        The value of `inputs` in the parameter reference or expression must be
+        the input object to the previous iteration of the workflow step (or the initial
+        inputs for the first iteration).
+    
+
 - name: ScatterMethod
   type: enum
   docParent: "#WorkflowStep"
@@ -453,6 +491,15 @@ $graph:
     - dotproduct
     - nested_crossproduct
     - flat_crossproduct
+
+
+- name: LoopOutputMethod
+  type: enum
+  docParent: "#WorkflowStep"
+  doc: The loop output method, as described in [workflow step loop](#WorkflowStep).
+  symbols:
+    - last
+    - all
 
 
 - name: WorkflowStep
@@ -507,7 +554,7 @@ $graph:
           output arrays must be flattened to a single level, but otherwise listed in the
           order that the input arrays are listed in the `scatter` field.
 
-    # Conditional execution (Optional)
+    # Conditional and iterative execution (Optional)
 
     Conditional execution makes execution of a step conditional on an
     expression.  A step that is not executed is "skipped".  A skipped
@@ -524,12 +571,37 @@ $graph:
     input object (or individual scatter job), and returns a boolean
     value.  It is an error if this expression returns a value other
     than `true` or `false`.
+    
+    The `loop` field controls iterative execution. It defines the input
+    parameters of the loop iterations after the first one (inputs of the
+    first iteration are the step input parameters, as usual). If no
+    `loop` rule is specified for a given step `in` field, the initial
+    value is kept constant among all iterations.
+    
+    When a `loop` field is present, the `when` field is mandatory. It is
+    evaluated before each loop iteration and acts as a termination condition:
+    as soon as the `when` expression evaluates to `false`, the loop terminates
+    and the step outputs are propagated to the subsequent workflow steps.
+    
+    The `outputMethod` field describes how to deal with loop outputs after
+    termination:
 
-    Conditionals in CWL are an optional feature and are not required
-    to be implemented by all consumers of CWL documents.  An
-    implementation that does not support conditionals must return a
+      * **last** specifies that only the last computed element for each output
+        parameter should be propagated to the subsequenct steps. This is the 
+        default value.
+    
+      * **all** specifies that a single ordered array with all output values
+        computed at the end of each loop iteration should be propagated to the
+        subsequent steps.
+
+    Conditionals and iterative execution in CWL are an optional features
+    and are not required to be implemented by all consumers of CWL documents.
+    An implementation that does not support conditionals must return a
     fatal error when attempting to execute a workflow that uses
     conditional constructs the implementation does not support.
+    
+    At this time, the `loop` field is not compatible with the `scatter` field.
+    Combining the two in the same step will produce an error.
 
     # Subworkflows
 
@@ -620,6 +692,24 @@ $graph:
       type: ScatterMethod?
       jsonldPredicate:
         "_id": "cwl:scatterMethod"
+        "_type": "@vocab"
+    - name: loop
+      doc: |
+        Defines the input parameters of the loop iterations after the first one
+        (inputs of the first iteration are the step input parameters). If no
+        `loop` rule is specified for a given step `in` field, the initial value
+        is kept constant among all iterations.
+      type: LoopInput[]?
+      jsonldPredicate:
+        _id: "cwl:loop"
+        mapSubject: id
+        mapPredicate: outputSource
+    - name: outputMethod
+      doc: |
+        Required if `loop` is defined.
+      type: LoopOutputMethod?
+      jsonldPredicate:
+        "_id": "cwl:outputMethod"
         "_type": "@vocab"
 
 
