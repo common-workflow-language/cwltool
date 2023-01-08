@@ -66,6 +66,7 @@ default CWL interpreter installed on a host.
 and our `many contributors <https://github.com/common-workflow-language/cwltool/graphs/contributors>`_.
 
 .. contents:: Table of Contents
+   :local:
 
 *******
 Install
