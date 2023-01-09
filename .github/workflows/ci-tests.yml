@@ -1,4 +1,4 @@
-name: Continuous integration tests
+name: CI Tests
 
 on:
   push:
@@ -11,16 +11,11 @@ concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  singularity_version: 3.8.3
-
 jobs:
 
   tox:
-    name: CI tests via Tox
-
+    name: Tox
     runs-on: ubuntu-20.04  # 22.04 doesn't support Python 3.6
-
     strategy:
       matrix:
         py-ver-major: [3]
@@ -42,9 +37,9 @@ jobs:
 
       - name: Set up Singularity
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
-        uses: eWaterCycle/setup-singularity@v7
-        with:
-          singularity-version: ${{ env.singularity_version }}
+        run: |
+          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v3.10.4/singularity-ce_3.10.4-focal_amd64.deb
+          sudo apt-get install -y ./singularity-ce_3.10.4-focal_amd64.deb
 
       - name: Give the test runner user a name to make provenance happy.
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
@@ -82,8 +77,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
   tox-style:
-    name: CI linters via Tox
-
+    name: Linters
     runs-on: ubuntu-20.04
 
     strategy:
@@ -118,9 +112,8 @@ jobs:
         run: tox
 
   conformance_tests:
-    name: CWL spec conformance tests
-
-    runs-on: ubuntu-20.04
+    name: CWL conformance
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
@@ -137,9 +130,16 @@ jobs:
 
       - name: Set up Singularity
         if: ${{ matrix.container == 'singularity' }}
-        uses: eWaterCycle/setup-singularity@v7
+        run: |
+          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v3.10.4/singularity-ce_3.10.4-jammy_amd64.deb
+          sudo apt-get install -y ./singularity-ce_3.10.4-jammy_amd64.deb
+
+      - name: Singularity cache
+        if: ${{ matrix.container == 'singularity' }}
+        uses: actions/cache@v3
         with:
-          singularity-version: ${{ env.singularity_version }}
+          path: sifcache
+          key: singularity
 
       - name: Set up Podman
         if: ${{ matrix.container == 'podman' }}
@@ -148,29 +148,32 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.9
+          python-version: 3.11
           cache: pip
 
-      - name: Run CWL conformance tests ${{ matrix.cwl-version }}
+      - name: "Test CWL ${{ matrix.version }} conformance"
         env:
-          version: ${{ matrix.cwl-version }}
-          container: ${{ matrix.container }}
-          spec_branch: main
+          VERSION: ${{ matrix.cwl-version }}
+          CONTAINER: ${{ matrix.container }}
+          GIT_TARGET: main
           CWLTOOL_OPTIONS: ${{ matrix.extras }}
         run: ./conformance-test.sh
-
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
   release_test:
     name: cwltool release test
-
     runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v3
 
       - name: Set up Singularity
-        uses: eWaterCycle/setup-singularity@v7
-        with:
-          singularity-version: ${{ env.singularity_version }}
+        run: |
+          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v3.10.4/singularity-ce_3.10.4-jammy_amd64.deb
+          sudo apt-get install -y ./singularity-ce_3.10.4-jammy_amd64.deb
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -202,7 +205,7 @@ jobs:
         run: ./build-cwltool-docker.sh
 
   macos:
-    name: CI test on macos-latest
+    name: Test on macos-latest
     runs-on: macos-latest
     env:
       TOXENV: py310-unit
