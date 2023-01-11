@@ -399,7 +399,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             runtime.append("--rm")
 
         if self.builder.resources.get("cudaDeviceCount"):
-            runtime.append("--gpus=" + str(self.builder.resources["cudaDeviceCount"]))
+            count = int(self.builder.resources["cudaDeviceCount"])
+            indices = ",".join([str(x) for x in range(count)])
+            runtime.append("--gpus=" + indices)
 
         cidfile_path = None  # type: Optional[str]
         # add parameters to docker to write a container ID file

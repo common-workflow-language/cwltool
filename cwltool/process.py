@@ -991,8 +991,8 @@ hints:
 
         cudaReq, _ = self.get_requirement("http://commonwl.org/cwltool#CUDARequirement")
         if cudaReq:
-            request["cudaDeviceCountMin"] = 1
-            request["cudaDeviceCountMax"] = 1
+            request["cudaDeviceCountMin"] = cudaReq.get("cudaDeviceCountMin", 1)
+            request["cudaDeviceCountMax"] = cudaReq.get("cudaDeviceCountMax", 1)
 
         for rsc, a in (
             (resourceReq, "cores"),
