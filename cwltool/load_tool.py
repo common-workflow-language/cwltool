@@ -359,7 +359,7 @@ def fast_parser(
         # Get the base URI (no fragments) for documents that use $graph
         nofrag = urllib.parse.urldefrag(uri)[0]
 
-        flag = "fastparser-idx-from:"+nofrag
+        flag = "fastparser-idx-from:" + nofrag
         if not loadingContext.loader.idx.get(flag):
             objects, loadopt = loadingContext.codegen_idx[nofrag]
             fileobj = cmap(
@@ -375,9 +375,9 @@ def fast_parser(
             )
             loadingContext.loader.idx[flag] = True
             for u in lopt.imports:
-                loadingContext.loader.idx["import:"+u] = True
+                loadingContext.loader.idx["import:" + u] = True
             for u in lopt.includes:
-                loadingContext.loader.idx["include:"+u] = True
+                loadingContext.loader.idx["include:" + u] = True
 
     return cast(
         Union[CommentedMap, CommentedSeq],
