@@ -204,7 +204,13 @@ Run `cwltool` just as you usually would, but with ``--udocker`` prior to the wor
 
   cwltool --udocker https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/test-cwl-out2.cwl https://github.com/common-workflow-language/common-workflow-language/raw/main/v1.0/v1.0/empty.json
 
-As was mentioned in the `Recommended Software`_ section,
+As was mentioned in the `Recommended Software`_ section, you will need ``nodejs``
+installed for evaluating CWL Expressions.
+
+Note that some features are not yet working with udocker
+- disabling network access (test ``networkaccess_disabled``)
+- literal Directory with a real file inside (test ``iwdr_dir_literal_real_file``)
+- colons in the file path (``colon_in_paths``) even with ``--relax-path-checks``.
 
 Using Singularity
 =================

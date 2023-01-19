@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import List, cast
 
 import pytest
-from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro import schema
 from schema_salad.sourceline import cmap
 
@@ -19,6 +18,7 @@ from cwltool.pathmapper import MapperEnt, PathMapper
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from cwltool.utils import create_tmp_dir
+from ruamel.yaml.comments import CommentedMap
 
 from .util import get_data, needs_docker
 

@@ -30,7 +30,6 @@ from typing import (
 )
 
 import shellescape
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Schema
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import file_uri, uri_file_path
@@ -38,6 +37,8 @@ from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
 from typing_extensions import TYPE_CHECKING, Type
+
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .builder import (
     INPUT_OBJ_VOCAB,

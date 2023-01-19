@@ -35,7 +35,6 @@ from cwl_utils import expression
 from mypy_extensions import mypyc_attr
 from pkg_resources import resource_stream
 from rdflib import Graph
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import (
     Names,
     Schema,
@@ -49,6 +48,8 @@ from schema_salad.sourceline import SourceLine, strip_dup_lineno
 from schema_salad.utils import convert_to_dict
 from schema_salad.validate import avro_type_name, validate_ex
 from typing_extensions import TYPE_CHECKING
+
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .builder import INPUT_OBJ_VOCAB, Builder
 from .context import LoadingContext, RuntimeContext, getdefault

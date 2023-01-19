@@ -36,9 +36,6 @@ from typing import (
 import argcomplete
 import coloredlogs
 import pkg_resources  # part of setuptools
-import ruamel.yaml
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import cmap, strip_dup_lineno
@@ -49,6 +46,10 @@ from schema_salad.utils import (
     json_dumps,
     yaml_no_ts,
 )
+
+import ruamel.yaml
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.main import YAML
 
 from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args

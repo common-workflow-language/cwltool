@@ -12,6 +12,8 @@ from .util import get_data, get_main_output, working_directory
 
 LINUX = sys.platform in ("linux", "linux2")
 
+UDOCKER_VERSION = "1.3.6"
+
 
 @pytest.fixture(scope="session")
 def udocker(tmp_path_factory: TempPathFactory) -> str:
@@ -21,11 +23,11 @@ def udocker(tmp_path_factory: TempPathFactory) -> str:
     docker_install_dir = str(tmp_path_factory.mktemp("udocker"))
     with working_directory(docker_install_dir):
 
-        url = "https://github.com/indigo-dc/udocker/releases/download/1.3.5/udocker-1.3.5.tar.gz"
+        url = f"https://github.com/indigo-dc/udocker/releases/download/{UDOCKER_VERSION}/udocker-{UDOCKER_VERSION}.tar.gz"
         install_cmds = [
             ["curl", "-L", url, "-o", "./udocker-tarball.tgz"],
             ["tar", "xzvf", "udocker-tarball.tgz"],
-            ["./udocker/udocker", "install"],
+            [f"./udocker-{UDOCKER_VERSION}/udocker/udocker", "install"],
         ]
 
         test_environ["UDOCKER_DIR"] = os.path.join(docker_install_dir, ".udocker")
@@ -40,7 +42,9 @@ def udocker(tmp_path_factory: TempPathFactory) -> str:
 
         assert sum(results) == 0
 
-        udocker_path = os.path.join(docker_install_dir, "udocker/udocker")
+        udocker_path = os.path.join(
+            docker_install_dir, f"udocker-{UDOCKER_VERSION}/udocker/udocker"
+        )
 
     return udocker_path
 
