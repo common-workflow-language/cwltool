@@ -215,6 +215,24 @@ class ExpressionTool(Process):
     ) -> Generator[ExpressionJob, None, None]:
         builder = self._init_job(job_order, runtimeContext)
 
+        paramskey = []
+        paramskeys = []
+
+        if self.tool["inputs"] is not None:
+            for inp in self.tool["inputs"]:
+                for k, v in inp.items():
+                    if k == "id":
+                        paramskey.append(v)
+                        paramskeys.append(shortname(v))
+        if builder.job is not None:
+            newbj = {}
+            for k, v in dict(builder.job).items():
+                if k in paramskey:
+                    newbj[k] = v
+                elif k in paramskeys:
+                    newbj[k] = v
+            builder.job = newbj
+
         job = ExpressionJob(
             builder,
             self.tool["expression"],
@@ -1018,6 +1036,23 @@ class CommandLineTool(Process):
 
         builder = self._init_job(job_order, runtimeContext)
 
+        paramskey = []
+        paramskeys = []
+
+        if self.tool["inputs"] is not None:
+            for inp in self.tool["inputs"]:
+                for k, v in inp.items():
+                    if k == "id":
+                        paramskey.append(v)
+                        paramskeys.append(shortname(v))
+        if builder.job is not None:
+            newbj = {}
+            for k, v in dict(builder.job).items():
+                if k in paramskey:
+                    newbj[k] = v
+                elif k in paramskeys:
+                    newbj[k] = v
+            builder.job = newbj
         reffiles = copy.deepcopy(builder.files)
 
         j = self.make_job_runner(runtimeContext)(
