@@ -38,6 +38,7 @@ author = "Peter Amstutz and Common Workflow Language Project contributors"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
+    "sphinx.ext.autosectionlabel",
     "sphinx.ext.intersphinx",
     "sphinx.ext.inheritance_diagram",
     "autoapi.extension",
@@ -45,6 +46,8 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinxcontrib.autoprogram",
 ]
+
+autosectionlabel_prefix_document = True
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
