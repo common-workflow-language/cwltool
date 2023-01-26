@@ -14,6 +14,7 @@ import urllib.parse
 import uuid
 from os import scandir
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -35,7 +36,6 @@ from cwl_utils import expression
 from mypy_extensions import mypyc_attr
 from pkg_resources import resource_stream
 from rdflib import Graph
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import (
     Names,
     Schema,
@@ -48,7 +48,8 @@ from schema_salad.schema import load_schema, make_avro_schema, make_valid_avro
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
 from schema_salad.utils import convert_to_dict
 from schema_salad.validate import avro_type_name, validate_ex
-from typing_extensions import TYPE_CHECKING
+
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .builder import INPUT_OBJ_VOCAB, Builder
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -79,7 +80,7 @@ from .utils import (
 from .validate_js import validate_js_expressions
 
 if TYPE_CHECKING:
-    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
+    from .provenance_profile import ProvenanceProfile
 
 
 class LogAsDebugFilter(logging.Filter):
@@ -161,14 +162,14 @@ salad_files = (
     "vocab_res_proc.yml",
 )
 
-SCHEMA_CACHE = (
-    {}
-)  # type: Dict[str, Tuple[Loader, Union[Names, SchemaParseException], CWLObjectType, Loader]]
-SCHEMA_FILE = None  # type: Optional[CWLObjectType]
-SCHEMA_DIR = None  # type: Optional[CWLObjectType]
-SCHEMA_ANY = None  # type: Optional[CWLObjectType]
+SCHEMA_CACHE: Dict[
+    str, Tuple[Loader, Union[Names, SchemaParseException], CWLObjectType, Loader]
+] = {}
+SCHEMA_FILE: Optional[CWLObjectType] = None
+SCHEMA_DIR: Optional[CWLObjectType] = None
+SCHEMA_ANY: Optional[CWLObjectType] = None
 
-custom_schemas = {}  # type: Dict[str, Tuple[str, str]]
+custom_schemas: Dict[str, Tuple[str, str]] = {}
 
 
 def use_standard_schema(version: str) -> None:
@@ -191,7 +192,7 @@ def get_schema(
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
-    cache = {}  # type: Dict[str, Union[str, Graph, bool]]
+    cache: Dict[str, Union[str, Graph, bool]] = {}
     version = version.split("#")[-1]
     if ".dev" in version:
         version = ".".join(version.split(".")[:-1])
@@ -248,7 +249,7 @@ def stage_files(
     :raises WorkflowException: if there is a file staging conflict
     """
     items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
-    targets = {}  # type: Dict[str, MapperEnt]
+    targets: Dict[str, MapperEnt] = {}
     for key, entry in items:
         if "File" not in entry.type:
             continue
@@ -257,7 +258,8 @@ def stage_files(
         elif targets[entry.target].resolved != entry.resolved:
             if fix_conflicts:
                 # find first key that does not clash with an existing entry in targets
-                # start with entry.target + '_' + 2 and then keep incrementing the number till there is no clash
+                # start with entry.target + '_' + 2 and then keep incrementing
+                # the number till there is no clash
                 i = 2
                 tgt = f"{entry.target}_{i}"
                 while tgt in targets:
@@ -482,7 +484,7 @@ def avroize_type(
 def get_overrides(
     overrides: MutableSequence[CWLObjectType], toolid: str
 ) -> CWLObjectType:
-    req = {}  # type: CWLObjectType
+    req: CWLObjectType = {}
     if not isinstance(overrides, MutableSequence):
         raise ValidationException(
             "Expected overrides to be a list, but was %s" % type(overrides)
@@ -553,9 +555,9 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
     ) -> None:
         """Build a Process object from the provided dictionary."""
         super().__init__()
-        self.metadata = getdefault(loadingContext.metadata, {})  # type: CWLObjectType
-        self.provenance_object = None  # type: Optional[ProvenanceProfile]
-        self.parent_wf = None  # type: Optional[ProvenanceProfile]
+        self.metadata: CWLObjectType = getdefault(loadingContext.metadata, {})
+        self.provenance_object: Optional["ProvenanceProfile"] = None
+        self.parent_wf: Optional["ProvenanceProfile"] = None
         global SCHEMA_FILE, SCHEMA_DIR, SCHEMA_ANY  # pylint: disable=global-statement
         if SCHEMA_FILE is None or SCHEMA_ANY is None or SCHEMA_DIR is None:
             get_schema("v1.0")
@@ -609,7 +611,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         self.doc_loader = loadingContext.loader
         self.doc_schema = loadingContext.avsc_names
 
-        self.formatgraph = None  # type: Optional[Graph]
+        self.formatgraph: Optional[Graph] = None
         if self.doc_loader is not None:
             self.formatgraph = self.doc_loader.graph
 
@@ -620,7 +622,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             strict=getdefault(loadingContext.strict, False),
         )
 
-        self.schemaDefs = {}  # type: MutableMapping[str, CWLObjectType]
+        self.schemaDefs: MutableMapping[str, CWLObjectType] = {}
 
         sd, _ = self.get_requirement("SchemaDefRequirement")
 
@@ -638,16 +640,16 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             make_avsc_object(convert_to_dict(av), self.names)
 
         # Build record schema from inputs
-        self.inputs_record_schema = {
+        self.inputs_record_schema: CWLObjectType = {
             "name": "input_record_schema",
             "type": "record",
             "fields": [],
-        }  # type: CWLObjectType
-        self.outputs_record_schema = {
+        }
+        self.outputs_record_schema: CWLObjectType = {
             "name": "outputs_record_schema",
             "type": "record",
             "fields": [],
-        }  # type: CWLObjectType
+        }
 
         for key in ("inputs", "outputs"):
             for i in self.tool[key]:
@@ -699,9 +701,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         if toolpath_object.get("class") is not None and not getdefault(
             loadingContext.disable_js_validation, False
         ):
-            validate_js_options = (
-                None
-            )  # type: Optional[Dict[str, Union[List[str], str, int]]]
+            validate_js_options: Optional[Dict[str, Union[List[str], str, int]]] = None
             if loadingContext.js_hint_options_file is not None:
                 try:
                     with open(loadingContext.js_hint_options_file) as options_file:
@@ -809,22 +809,28 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     v = job[k]
                     dircount = [0]
 
-                    def inc(d):  # type: (List[int]) -> None
+                    def inc(d: List[int]) -> None:
                         d[0] += 1
 
-                    visit_class(v, ("Directory",), lambda x: inc(dircount))
+                    visit_class(
+                        v, ("Directory",), lambda x: inc(dircount)  # noqa: B023
+                    )
                     if dircount[0] == 0:
                         continue
                     filecount = [0]
-                    visit_class(v, ("File",), lambda x: inc(filecount))
+                    visit_class(v, ("File",), lambda x: inc(filecount))  # noqa: B023
                     if filecount[0] > FILE_COUNT_WARNING:
                         # Long lines in this message are okay, will be reflowed based on terminal columns.
                         _logger.warning(
                             strip_dup_lineno(
                                 SourceLine(self.tool["inputs"], i, str).makeError(
-                                    """Recursive directory listing has resulted in a large number of File objects (%s) passed to the input parameter '%s'.  This may negatively affect workflow performance and memory use.
-
-If this is a problem, use the hint 'cwltool:LoadListingRequirement' with "shallow_listing" or "no_listing" to change the directory listing behavior:
+                                    "Recursive directory listing has resulted "
+                                    "in a large number of File objects (%s) passed "
+                                    "to the input parameter '%s'.  This may "
+                                    "negatively affect workflow performance and memory use.\n\n"
+                                    "If this is a problem, use the hint 'cwltool:LoadListingRequirement' "
+                                    'with "shallow_listing" or "no_listing" to change the directory '
+                                    """listing behavior:
 
 $namespaces:
   cwltool: "http://commonwl.org/cwltool#"
@@ -841,7 +847,7 @@ hints:
         except (ValidationException, WorkflowException) as err:
             raise WorkflowException("Invalid job input record:\n" + str(err)) from err
 
-        files = []  # type: List[CWLObjectType]
+        files: List[CWLObjectType] = []
         bindings = CommentedSeq()
         outdir = ""
         tmpdir = ""
@@ -1119,7 +1125,7 @@ hints:
         return f"{type(self).__name__}: {self.tool['id']}"
 
 
-_names = set()  # type: Set[str]
+_names: Set[str] = set()
 
 
 def uniquename(stem: str, names: Optional[Set[str]] = None) -> str:
@@ -1157,8 +1163,8 @@ def nestdir(base: str, deps: CWLObjectType) -> CWLObjectType:
 def mergedirs(
     listing: MutableSequence[CWLObjectType],
 ) -> MutableSequence[CWLObjectType]:
-    r = []  # type: List[CWLObjectType]
-    ents = {}  # type: Dict[str, CWLObjectType]
+    r: List[CWLObjectType] = []
+    ents: Dict[str, CWLObjectType] = {}
     for e in listing:
         basename = cast(str, e["basename"])
         if basename not in ents:
@@ -1231,10 +1237,10 @@ def scandeps(
         if doc.get("class") in ("File", "Directory") and "location" in urlfields:
             u = cast(Optional[str], doc.get("location", doc.get("path")))
             if u and not u.startswith("_:"):
-                deps = {
+                deps: CWLObjectType = {
                     "class": doc["class"],
                     "location": urljoin(base, u),
-                }  # type: CWLObjectType
+                }
                 if "basename" in doc:
                     deps["basename"] = doc["basename"]
                 if doc["class"] == "Directory" and "listing" in doc:
@@ -1309,11 +1315,11 @@ def scandeps(
                             Union[MutableSequence[CWLObjectType], CWLObjectType],
                             loadref(base, u2),
                         )
-                        deps2 = {
+                        deps2: CWLObjectType = {
                             "class": "File",
                             "location": subid,
                             "format": CWL_IANA,
-                        }  # type: CWLObjectType
+                        }
                         sf = scandeps(
                             subid,
                             sub,

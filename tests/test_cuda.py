@@ -1,6 +1,6 @@
+from unittest import mock
 from unittest.mock import MagicMock
 
-import mock
 import pytest
 from schema_salad.avro import schema
 

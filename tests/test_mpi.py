@@ -8,7 +8,6 @@ from typing import Any, Generator, List, MutableMapping, Optional, Tuple
 
 import pkg_resources
 import pytest
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Names
 from schema_salad.utils import yaml_no_ts
 
@@ -19,6 +18,7 @@ from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
 from cwltool.mpi import MpiConfig, MPIRequirementName
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .util import get_data, working_directory
 
@@ -353,7 +353,7 @@ def test_docker_mpi_both_required(schema_ext11: Names) -> None:
     with pytest.raises(cwltool.errors.UnsupportedRequirement):
         lc, rc, tool = mk_tool(schema_ext11, [], reqs=[mpiReq, containerReq])
         clt = CommandLineTool(tool, lc)
-        jr = clt.make_job_runner(rc)
+        clt.make_job_runner(rc)
 
 
 def test_docker_mpi_both_hinted(schema_ext11: Names) -> None:
@@ -361,4 +361,4 @@ def test_docker_mpi_both_hinted(schema_ext11: Names) -> None:
     with pytest.raises(cwltool.errors.UnsupportedRequirement):
         lc, rc, tool = mk_tool(schema_ext11, [], hints=[mpiReq, containerReq])
         clt = CommandLineTool(tool, lc)
-        jr = clt.make_job_runner(rc)
+        clt.make_job_runner(rc)

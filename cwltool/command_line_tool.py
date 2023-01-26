@@ -14,6 +14,7 @@ import urllib.parse
 from enum import Enum
 from functools import cmp_to_key, partial
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Generator,
@@ -25,19 +26,20 @@ from typing import (
     Pattern,
     Set,
     TextIO,
+    Type,
     Union,
     cast,
 )
 
 import shellescape
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Schema
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
-from typing_extensions import TYPE_CHECKING, Type
+
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .builder import (
     INPUT_OBJ_VOCAB,
@@ -380,7 +382,7 @@ def check_adjust(
             file_o["nameext"] = str(ne)
     if not accept_re.match(basename):
         raise WorkflowException(
-            f"Invalid filename: '{file_o['basename']}' contains illegal characters"
+            f"Invalid filename: {file_o['basename']!r} contains illegal characters"
         )
     return file_o
 
@@ -599,8 +601,8 @@ class CommandLineTool(Process):
                     message += ". "
                 else:
                     message += "; null; or arrays of File or Directory objects. "
-                message += f"Got '{fail}' among the results from "
-                message += f"'{initialWorkdir['listing'].strip()}'." + fail_suffix
+                message += f"Got {fail!r} among the results from "
+                message += f"{initialWorkdir['listing'].strip()!r}." + fail_suffix
                 raise SourceLine(
                     initialWorkdir, "listing", WorkflowException, debug
                 ).makeError(message)
@@ -677,7 +679,7 @@ class CommandLineTool(Process):
                                     "If that is the desired result then please "
                                     "consider using 'cwl-upgrader' to upgrade "
                                     "your document to CWL version 1.2. "
-                                    f"Result of '{entry_field}' was '{entry}'."
+                                    f"Result of {entry_field!r} was {entry!r}."
                                 )
                             et["entry"] = json_dumps(entry, sort_keys=True)
 
@@ -690,7 +692,7 @@ class CommandLineTool(Process):
                                     t, "entryname", WorkflowException, debug
                                 ).makeError(
                                     "'entryname' expression must result a string. "
-                                    f"Got '{en}' from '{entryname_field}'"
+                                    f"Got {en!r} from {entryname_field!r}"
                                 )
                             et["entryname"] = en
                         else:
@@ -778,7 +780,7 @@ class CommandLineTool(Process):
                 raise SourceLine(
                     initialWorkdir, "listing", WorkflowException, debug
                 ).makeError(
-                    f"Name '{basename}' at index {i} of listing is invalid, "
+                    f"Name {basename!r} at index {i} of listing is invalid, "
                     "cannot start with '../'"
                 )
             if basename.startswith("/"):
@@ -789,7 +791,7 @@ class CommandLineTool(Process):
                     raise SourceLine(
                         initialWorkdir, "listing", WorkflowException, debug
                     ).makeError(
-                        f"Name '{basename}' at index {i} of listing is invalid, "
+                        f"Name {basename!r} at index {i} of listing is invalid, "
                         "paths starting with '/' are only permitted in CWL 1.2 "
                         "and later. Consider changing the absolute path to a relative "
                         "path, or upgrade the CWL description to CWL v1.2 using "
@@ -801,7 +803,7 @@ class CommandLineTool(Process):
                     raise SourceLine(
                         initialWorkdir, "listing", WorkflowException, debug
                     ).makeError(
-                        f"Name '{basename}' at index {i} of listing is invalid, "
+                        f"Name {basename!r} at index {i} of listing is invalid, "
                         "name can only start with '/' when DockerRequirement "
                         "is in 'requirements'."
                     )
@@ -1078,8 +1080,8 @@ class CommandLineTool(Process):
                 stdin_eval = builder.do_eval(self.tool["stdin"])
                 if not (isinstance(stdin_eval, str) or stdin_eval is None):
                     raise ValidationException(
-                        f"'stdin' expression must return a string or null. Got '{stdin_eval}' "
-                        f"for '{self.tool['stdin']}'."
+                        f"'stdin' expression must return a string or null. Got {stdin_eval!r} "
+                        f"for {self.tool['stdin']!r}."
                     )
                 j.stdin = stdin_eval
                 if j.stdin:
@@ -1090,8 +1092,8 @@ class CommandLineTool(Process):
                 stderr_eval = builder.do_eval(self.tool["stderr"])
                 if not isinstance(stderr_eval, str):
                     raise ValidationException(
-                        f"'stderr' expression must return a string. Got '{stderr_eval}' "
-                        f"for '{self.tool['stderr']}'."
+                        f"'stderr' expression must return a string. Got {stderr_eval!r} "
+                        f"for {self.tool['stderr']!r}."
                     )
                 j.stderr = stderr_eval
                 if j.stderr:
@@ -1105,8 +1107,8 @@ class CommandLineTool(Process):
                 stdout_eval = builder.do_eval(self.tool["stdout"])
                 if not isinstance(stdout_eval, str):
                     raise ValidationException(
-                        f"'stdout' expression must return a string. Got '{stdout_eval}' "
-                        f"for '{self.tool['stdout']}'."
+                        f"'stdout' expression must return a string. Got {stdout_eval!r} "
+                        f"for {self.tool['stdout']!r}."
                     )
                 j.stdout = stdout_eval
                 if j.stdout:
@@ -1174,13 +1176,13 @@ class CommandLineTool(Process):
                     if timelimit_eval and not isinstance(timelimit_eval, int):
                         raise WorkflowException(
                             "'timelimit' expression must evaluate to a long/int. Got "
-                            f"'{timelimit_eval}' for expression '{limit_field}'."
+                            f"{timelimit_eval!r} for expression {limit_field!r}."
                         )
                 else:
                     timelimit_eval = limit_field
                 if not isinstance(timelimit_eval, int) or timelimit_eval < 0:
                     raise WorkflowException(
-                        f"timelimit must be an integer >= 0, got: {timelimit_eval}"
+                        f"timelimit must be an integer >= 0, got: {timelimit_eval!r}"
                     )
                 j.timelimit = timelimit_eval
 
@@ -1193,13 +1195,13 @@ class CommandLineTool(Process):
                     if not isinstance(networkaccess_eval, bool):
                         raise WorkflowException(
                             "'networkAccess' expression must evaluate to a bool. "
-                            f"Got '{networkaccess_eval}' for expression '{networkaccess_field}'."
+                            f"Got {networkaccess_eval!r} for expression {networkaccess_field!r}."
                         )
                 else:
                     networkaccess_eval = networkaccess_field
                 if not isinstance(networkaccess_eval, bool):
                     raise WorkflowException(
-                        "networkAccess must be a boolean, got: {networkaccess_eval}."
+                        "networkAccess must be a boolean, got: {networkaccess_eval!r}."
                     )
                 j.networkaccess = networkaccess_eval
 
@@ -1216,7 +1218,7 @@ class CommandLineTool(Process):
                             evr["envDef"], eindex, WorkflowException, debug
                         ).makeError(
                             "'envValue expression must evaluate to a str. "
-                            f"Got '{env_value_eval}' for expression '{env_value_field}'."
+                            f"Got {env_value_eval!r} for expression {env_value_field!r}."
                         )
                     env_value = env_value_eval
                 else:
@@ -1262,7 +1264,7 @@ class CommandLineTool(Process):
                         mpi, "processes", WorkflowException, debug
                     ).makeError(
                         f"{MPIRequirementName} needs 'processes' expression to "
-                        f"evaluate to an int, got '{np_eval}' for expression '{np}'."
+                        f"evaluate to an int, got {np_eval!r} for expression {np!r}."
                     )
                 np = np_eval
             j.mpi_procs = np
@@ -1389,7 +1391,7 @@ class CommandLineTool(Process):
                                 raise WorkflowException(
                                     "Resolved glob patterns must be strings "
                                     f"or list of strings, not "
-                                    f"'{gb}' from '{binding['glob']}'"
+                                    f"{gb!r} from {binding['glob']!r}"
                                 )
                             globpatterns.extend(aslist(gb))
 
@@ -1497,7 +1499,7 @@ class CommandLineTool(Process):
                 with SourceLine(binding, "glob", WorkflowException, debug):
                     if not result and not optional:
                         raise WorkflowException(
-                            f"Did not find output file with glob pattern: '{globpatterns}'."
+                            f"Did not find output file with glob pattern: {globpatterns!r}."
                         )
                     elif not result and optional:
                         pass
@@ -1536,8 +1538,8 @@ class CommandLineTool(Process):
                                                 "Expressions in the field "
                                                 "'required' must evaluate to a "
                                                 "Boolean (true or false) or None. "
-                                                f"Got '{sf_required_eval}' for "
-                                                f"'{sf['required']}'."
+                                                f"Got {sf_required_eval!r} for "
+                                                f"{sf['required']!r}."
                                             )
                                         sf_required: bool = sf_required_eval or False
                                 else:
@@ -1582,10 +1584,10 @@ class CommandLineTool(Process):
                         if not isinstance(format_eval, str):
                             message = (
                                 f"'format' expression must evaluate to a string. "
-                                f"Got '{format_eval}' from '{format_field}'."
+                                f"Got {format_eval!r} from {format_field!r}."
                             )
                             if isinstance(result, list):
-                                message += f" 'self' had the value of the index {index} result: '{primary}'."
+                                message += f" 'self' had the value of the index {index} result: {primary!r}."
                             raise SourceLine(
                                 schema, "format", WorkflowException, debug
                             ).makeError(message)

@@ -23,9 +23,9 @@ from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .utils import CWLObjectType, create_tmp_dir, ensure_writable
 
-_IMAGES = set()  # type: Set[str]
+_IMAGES: Set[str] = set()
 _IMAGES_LOCK = threading.Lock()
-__docker_machine_mounts = None  # type: Optional[List[str]]
+__docker_machine_mounts: Optional[List[str]] = None
 __docker_machine_mounts_lock = threading.Lock()
 
 
@@ -150,7 +150,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 pass
 
         if (force_pull or not found) and pull_image:
-            cmd = []  # type: List[str]
+            cmd: List[str] = []
             if "dockerPull" in docker_requirement:
                 cmd = [self.docker_exec, "pull", str(docker_requirement["dockerPull"])]
                 _logger.info(str(cmd))
@@ -401,7 +401,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if self.builder.resources.get("cudaDeviceCount"):
             runtime.append("--gpus=" + str(self.builder.resources["cudaDeviceCount"]))
 
-        cidfile_path = None  # type: Optional[str]
+        cidfile_path: Optional[str] = None
         # add parameters to docker to write a container ID file
         if runtimeContext.user_space_docker_cmd is None:
             if runtimeContext.cidfile_dir:

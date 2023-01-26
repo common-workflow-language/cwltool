@@ -147,7 +147,7 @@ def test_loop_two_variables() -> None:
 
 
 def test_loop_two_variables_single_backpropagation() -> None:
-    """Test a loop case with two variables, but when only one of them is back-propagated between iterations."""
+    """Test loop with 2 variables, but when only one of them is back-propagated between iterations."""
     stream = StringIO()
     params = [
         "--enable-ext",
@@ -199,7 +199,7 @@ def test_loop_value_from() -> None:
 
 
 def test_loop_value_from_fail_no_requirement() -> None:
-    """Test that a workflow loop fails if a valueFrom directive is specified without StepInputExpressionRequirement."""
+    """Test workflow loop fails for valueFrom without StepInputExpressionRequirement."""
     params = [
         "--enable-ext",
         get_data("tests/loop/invalid-value-from-loop-no-requirement.cwl"),

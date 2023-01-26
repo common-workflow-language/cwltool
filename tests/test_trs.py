@@ -45,8 +45,8 @@ class MockResponse2:
 
 def mocked_requests_get(*args: Any, **kwargs: Any) -> MockResponse2:
     if (
-        args[0]
-        == "https://dockstore.org/api/api/ga4gh/v2/tools/quay.io%2Fbriandoconnor%2Fdockstore-tool-md5sum/versions/1.0.4/CWL/files"
+        args[0] == "https://dockstore.org/api/api/ga4gh/v2/tools/"
+        "quay.io%2Fbriandoconnor%2Fdockstore-tool-md5sum/versions/1.0.4/CWL/files"
     ):
         return MockResponse2(
             [
@@ -57,26 +57,26 @@ def mocked_requests_get(*args: Any, **kwargs: Any) -> MockResponse2:
             200,
         )
     elif (
-        args[0]
-        == "https://dockstore.org/api/api/ga4gh/v2/tools/quay.io%2Fbriandoconnor%2Fdockstore-tool-md5sum/versions/1.0.4/plain-CWL/descriptor/Dockstore.cwl"
+        args[0] == "https://dockstore.org/api/api/ga4gh/v2/tools/"
+        "quay.io%2Fbriandoconnor%2Fdockstore-tool-md5sum/versions/1.0.4/plain-CWL/descriptor/Dockstore.cwl"
     ):
         string = open(get_data("tests/trs/Dockstore.cwl")).read()
         return MockResponse2(string, 200)
     elif (
-        args[0]
-        == "https://dockstore.org/api/api/ga4gh/v2/tools/%23workflow%2Fgithub.com%2Fdockstore-testing%2Fmd5sum-checker/versions/develop/plain-CWL/descriptor/md5sum-tool.cwl"
+        args[0] == "https://dockstore.org/api/api/ga4gh/v2/tools/"
+        "%23workflow%2Fgithub.com%2Fdockstore-testing%2Fmd5sum-checker/versions/develop/plain-CWL/descriptor/md5sum-tool.cwl"
     ):
         string = open(get_data("tests/trs/md5sum-tool.cwl")).read()
         return MockResponse2(string, 200)
     elif (
-        args[0]
-        == "https://dockstore.org/api/api/ga4gh/v2/tools/%23workflow%2Fgithub.com%2Fdockstore-testing%2Fmd5sum-checker/versions/develop/plain-CWL/descriptor/md5sum-workflow.cwl"
+        args[0] == "https://dockstore.org/api/api/ga4gh/v2/tools/"
+        "%23workflow%2Fgithub.com%2Fdockstore-testing%2Fmd5sum-checker/versions/develop/plain-CWL/descriptor/md5sum-workflow.cwl"
     ):
         string = open(get_data("tests/trs/md5sum-workflow.cwl")).read()
         return MockResponse2(string, 200)
     elif (
-        args[0]
-        == "https://dockstore.org/api/api/ga4gh/v2/tools/%23workflow%2Fgithub.com%2Fdockstore-testing%2Fmd5sum-checker/versions/develop/CWL/files"
+        args[0] == "https://dockstore.org/api/api/ga4gh/v2/tools/"
+        "%23workflow%2Fgithub.com%2Fdockstore-testing%2Fmd5sum-checker/versions/develop/CWL/files"
     ):
         return MockResponse2(
             [

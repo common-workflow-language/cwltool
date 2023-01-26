@@ -10,7 +10,7 @@ class SecretStore:
 
     def __init__(self) -> None:
         """Initialize the secret store."""
-        self.secrets = {}  # type: Dict[str, str]
+        self.secrets: Dict[str, str] = {}
 
     def add(self, value: Optional[CWLOutputType]) -> Optional[CWLOutputType]:
         """

@@ -11,10 +11,11 @@ from typing import (
     cast,
 )
 
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from schema_salad.sourceline import SourceLine
+
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .loghandler import _logger
 from .utils import CWLObjectType, CWLOutputType, aslist, visit_class, visit_field
@@ -83,8 +84,9 @@ def v1_0to1_1(
                         f"steps entries must be dictionaries: {type(s)} {s}."
                     )
 
-    def update_secondaryFiles(t, top=False):
-        # type: (CWLOutputType, bool) -> Union[MutableSequence[MutableMapping[str, str]], MutableMapping[str, str]]
+    def update_secondaryFiles(
+        t: CWLOutputType, top: bool = False
+    ) -> Union[MutableSequence[MutableMapping[str, str]], MutableMapping[str, str]]:
         if isinstance(t, CommentedSeq):
             new_seq = copy.deepcopy(t)
             for index, entry in enumerate(t):
@@ -218,20 +220,24 @@ ORDERED_VERSIONS = [
     "v1.2",
 ]
 
-UPDATES = {
+UPDATES: Dict[
+    str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]
+] = {
     "v1.0": v1_0to1_1,
     "v1.1": v1_1to1_2,
     "v1.2": None,
-}  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
+}
 
-DEVUPDATES = {
+DEVUPDATES: Dict[
+    str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]
+] = {
     "v1.1.0-dev1": v1_1_0dev1to1_1,
     "v1.2.0-dev1": v1_2_0dev1todev2,
     "v1.2.0-dev2": v1_2_0dev2todev3,
     "v1.2.0-dev3": v1_2_0dev3todev4,
     "v1.2.0-dev4": v1_2_0dev4todev5,
     "v1.2.0-dev5": v1_2_0dev5to1_2,
-}  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
+}
 
 
 ALLUPDATES = UPDATES.copy()
@@ -258,7 +264,7 @@ def checkversion(
 
     Returns the document and the validated version string.
     """
-    cdoc = None  # type: Optional[CommentedMap]
+    cdoc: Optional[CommentedMap] = None
     if isinstance(doc, CommentedSeq):
         if not isinstance(metadata, CommentedMap):
             raise Exception("Expected metadata to be CommentedMap")
@@ -318,9 +324,9 @@ def update(
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
     originalversion = copy.copy(version)
 
-    nextupdate = (
-        identity
-    )  # type: Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]
+    nextupdate: Optional[
+        Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]
+    ] = identity
 
     while version != update_to and nextupdate:
         (cdoc, version) = nextupdate(cdoc, loader, baseuri)

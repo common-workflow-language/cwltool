@@ -62,7 +62,7 @@ def check_types(
         return check_types(
             merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None
         )
-    raise WorkflowException(f"Unrecognized linkMerge enum '{linkMerge}'")
+    raise WorkflowException(f"Unrecognized linkMerge enum {linkMerge!r}")
 
 
 def merge_flatten_type(src: SinkType) -> CWLOutputType:
@@ -561,8 +561,8 @@ def loop_checker(steps: Iterator[MutableMapping[str, Any]]) -> None:
     """
     Check http://commonwl.org/cwltool#Loop requirement compatibility with other directives.
 
-    :raises:
-        ValidationException: If there is an incompatible combination between cwltool:loop and 'scatter' or 'when'.
+    :raises ValidationException: If there is an incompatible combination between
+            cwltool:loop and 'scatter' or 'when'.
     """
     exceptions = []
     for step in steps:
