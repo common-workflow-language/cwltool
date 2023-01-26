@@ -318,9 +318,11 @@ def fast_parser(
     fileuri: Optional[str],
     uri: str,
     loadingContext: LoadingContext,
-        fetcher: Fetcher
+    fetcher: Fetcher,
 ) -> Tuple[Union[CommentedMap, CommentedSeq], CommentedMap]:
-    lopt = cwl_v1_2.LoadingOptions(idx=loadingContext.codegen_idx, fileuri=fileuri, fetcher=fetcher)
+    lopt = cwl_v1_2.LoadingOptions(
+        idx=loadingContext.codegen_idx, fileuri=fileuri, fetcher=fetcher
+    )
 
     if uri not in loadingContext.codegen_idx:
         cwl_v1_2.load_document_with_metadata(
@@ -528,7 +530,9 @@ def resolve_and_validate_document(
         #
         processobj, metadata = document_loader.resolve_ref(uri)
     elif loadingContext.fast_parser:
-        processobj, metadata = fast_parser(workflowobj, fileuri, uri, loadingContext, document_loader.fetcher)
+        processobj, metadata = fast_parser(
+            workflowobj, fileuri, uri, loadingContext, document_loader.fetcher
+        )
     else:
         document_loader.resolve_all(workflowobj, fileuri)
         processobj, metadata = document_loader.resolve_ref(uri)
@@ -603,7 +607,9 @@ def make_tool(
         and isinstance(uri, str)
         and not loadingContext.skip_resolve_all
     ):
-        resolveduri, metadata = fast_parser(None, None, uri, loadingContext, loadingContext.loader.fetcher)
+        resolveduri, metadata = fast_parser(
+            None, None, uri, loadingContext, loadingContext.loader.fetcher
+        )
     else:
         resolveduri, metadata = loadingContext.loader.resolve_ref(uri)
 
