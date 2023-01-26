@@ -55,3 +55,6 @@ value
 
 # Folder created when using make
 cwltool_deps
+docs/_build/
+docs/autoapi/
+
