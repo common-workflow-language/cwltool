@@ -73,7 +73,7 @@ fi
 venv cwl-conformance-venv
 pip install -U setuptools wheel pip
 pip uninstall -y cwltool
-pip install "${SCRIPT_DIRECTORY}"
+pip install "${SCRIPT_DIRECTORY}" -r"${SCRIPT_DIRECTORY}/requirements.txt"
 pip install cwltest>=2.3 pytest-cov pytest-xdist
 
 # Set conformance test filename
