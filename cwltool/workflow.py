@@ -17,9 +17,10 @@ from typing import (
 )
 from uuid import UUID
 
-from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
+
+from ruamel.yaml.comments import CommentedMap
 
 from . import command_line_tool, context, procgenerator
 from .checker import circular_dependency_checker, loop_checker, static_checker
@@ -75,9 +76,9 @@ class Workflow(Process):
     ) -> None:
         """Initialize this Workflow."""
         super().__init__(toolpath_object, loadingContext)
-        self.provenance_object = None  # type: Optional[ProvenanceProfile]
+        self.provenance_object: Optional[ProvenanceProfile] = None
         if loadingContext.research_obj is not None:
-            run_uuid = None  # type: Optional[UUID]
+            run_uuid: Optional[UUID] = None
             is_main = not loadingContext.prov_obj  # Not yet set
             if is_main:
                 run_uuid = loadingContext.research_obj.ro_uuid
@@ -100,7 +101,7 @@ class Workflow(Process):
         loadingContext.requirements = self.requirements
         loadingContext.hints = self.hints
 
-        self.steps = []  # type: List[WorkflowStep]
+        self.steps: List[WorkflowStep] = []
         validation_errors = []
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
@@ -123,9 +124,9 @@ class Workflow(Process):
         workflow_inputs = self.tool["inputs"]
         workflow_outputs = self.tool["outputs"]
 
-        step_inputs = []  # type: List[CWLObjectType]
-        step_outputs = []  # type: List[CWLObjectType]
-        param_to_step = {}  # type: Dict[str, CWLObjectType]
+        step_inputs: List[CWLObjectType] = []
+        step_outputs: List[CWLObjectType] = []
+        param_to_step: Dict[str, CWLObjectType] = {}
         for step in self.steps:
             step_inputs.extend(step.tool["inputs"])
             step_outputs.extend(step.tool["outputs"])
@@ -242,9 +243,9 @@ class WorkflowStep(Process):
 
         try:
             if isinstance(toolpath_object["run"], CommentedMap):
-                self.embedded_tool = loadingContext.construct_tool_object(
+                self.embedded_tool: Process = loadingContext.construct_tool_object(
                     toolpath_object["run"], loadingContext
-                )  # type: Process
+                )
             else:
                 loadingContext.metadata = {}
                 self.embedded_tool = load_tool(toolpath_object["run"], loadingContext)
@@ -271,7 +272,7 @@ class WorkflowStep(Process):
             toolpath_object[toolfield] = []
             for index, step_entry in enumerate(toolpath_object[stepfield]):
                 if isinstance(step_entry, str):
-                    param = CommentedMap()  # type: CommentedMap
+                    param: CommentedMap = CommentedMap()
                     inputid = step_entry
                 else:
                     param = CommentedMap(step_entry.items())
@@ -410,7 +411,7 @@ class WorkflowStep(Process):
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
-        self.prov_obj = None  # type: Optional[ProvenanceProfile]
+        self.prov_obj: Optional[ProvenanceProfile] = None
         if loadingContext.research_obj is not None:
             self.prov_obj = parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":

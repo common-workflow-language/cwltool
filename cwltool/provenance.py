@@ -38,7 +38,7 @@ from typing import (
 import prov.model as provM
 from prov.model import PROV, ProvDocument
 from schema_salad.utils import json_dumps
-from typing_extensions import TYPE_CHECKING, TypedDict
+from typing_extensions import TypedDict
 
 from .loghandler import _logger
 from .provenance_constants import (
@@ -71,13 +71,6 @@ from .utils import (
     posix_path,
     versionstring,
 )
-
-if TYPE_CHECKING:
-    from .command_line_tool import (  # pylint: disable=unused-import
-        CommandLineTool,
-        ExpressionTool,
-    )
-    from .workflow import Workflow  # pylint: disable=unused-import
 
 
 def _whoami() -> Tuple[str, str]:
@@ -288,12 +281,12 @@ class ResearchObject:
         self.folder = create_tmp_dir(temp_prefix_ro)
         self.closed = False
         # map of filename "data/de/alsdklkas": 12398123 bytes
-        self.bagged_size = {}  # type: Dict[str, int]
-        self.tagfiles = set()  # type: Set[str]
-        self._file_provenance = {}  # type: Dict[str, Aggregate]
-        self._external_aggregates = []  # type: List[Aggregate]
-        self.annotations = []  # type: List[Annotation]
-        self._content_types = {}  # type: Dict[str,str]
+        self.bagged_size: Dict[str, int] = {}
+        self.tagfiles: Set[str] = set()
+        self._file_provenance: Dict[str, Aggregate] = {}
+        self._external_aggregates: List[Aggregate] = []
+        self.annotations: List[Annotation] = []
+        self._content_types: Dict[str, str] = {}
         self.fsaccess = fsaccess
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engine_uuid = "urn:uuid:%s" % uuid.uuid4()
@@ -301,7 +294,7 @@ class ResearchObject:
         self.base_uri = "arcp://uuid,%s/" % self.ro_uuid
         self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
         ##
-        self.relativised_input_object = {}  # type: CWLObjectType
+        self.relativised_input_object: CWLObjectType = {}
         self.has_manifest = False
 
         self._initialize()
@@ -461,7 +454,7 @@ class ResearchObject:
             rel_path: str,
         ) -> Tuple[Optional[str], Optional[Union[str, List[str]]]]:
             """Return the mediatypes."""
-            media_types = {
+            media_types: Dict[str, str] = {
                 # Adapted from
                 # https://w3id.org/bundle/2014-11-05/#media-types
                 "txt": TEXT_PLAIN,
@@ -474,13 +467,13 @@ class ResearchObject:
                 "cwl": 'text/x+yaml; charset="UTF-8"',
                 "provn": 'text/provenance-notation; charset="UTF-8"',
                 "nt": "application/n-triples",
-            }  # type: Dict[str, str]
-            conforms_to = {
+            }
+            conforms_to: Dict[str, str] = {
                 "provn": "http://www.w3.org/TR/2013/REC-prov-n-20130430/",
                 "cwl": "https://w3id.org/cwl/",
-            }  # type: Dict[str, str]
+            }
 
-            prov_conforms_to = {
+            prov_conforms_to: Dict[str, str] = {
                 "provn": "http://www.w3.org/TR/2013/REC-prov-n-20130430/",
                 "rdf": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
                 "ttl": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
@@ -488,9 +481,9 @@ class ResearchObject:
                 "jsonld": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
                 "xml": "http://www.w3.org/TR/2013/NOTE-prov-xml-20130430/",
                 "json": "http://www.w3.org/Submission/2013/SUBM-prov-json-20130424/",
-            }  # type: Dict[str, str]
+            }
 
-            extension = rel_path.rsplit(".", 1)[-1].lower()  # type: Optional[str]
+            extension: Optional[str] = rel_path.rsplit(".", 1)[-1].lower()
             if extension == rel_path:
                 # No ".", no extension
                 extension = None
@@ -1024,7 +1017,7 @@ class ResearchObject:
 def checksum_copy(
     src_file: IO[Any],
     dst_file: Optional[IO[Any]] = None,
-    hasher=Hasher,  # type: Callable[[], hashlib._Hash]
+    hasher: Callable[[], "hashlib._Hash"] = Hasher,
     buffersize: int = 1024 * 1024,
 ) -> str:
     """Compute checksums while copying a file."""

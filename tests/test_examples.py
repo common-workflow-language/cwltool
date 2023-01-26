@@ -15,7 +15,6 @@ import pydot
 import pytest
 from cwl_utils.errors import JavascriptException
 from cwl_utils.sandboxjs import param_re
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 
 import cwltool.checker
@@ -29,6 +28,7 @@ from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.process import CWL_IANA
 from cwltool.utils import CWLObjectType, dedup
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .util import get_data, get_main_output, needs_docker, working_directory
 
@@ -250,9 +250,8 @@ interpolate_bad_parameters = [
 
 @pytest.mark.parametrize("pattern", interpolate_bad_parameters)
 def test_expression_interpolate_failures(pattern: str) -> None:
-    result = None
     with pytest.raises(JavascriptException):
-        result = expr.interpolate(pattern, interpolate_input)
+        expr.interpolate(pattern, interpolate_input)
 
 
 interpolate_escapebehavior = (
@@ -614,15 +613,18 @@ record = {
     "fields": [
         {
             "type": {"items": "string", "type": "array"},
-            "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description",
+            "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/"
+            "run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description",
         },
         {
             "type": {"items": "File", "type": "array"},
-            "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file",
+            "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/"
+            "run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file",
         },
     ],
     "type": "record",
-    "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec",
+    "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/"
+    "run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec",
 }
 
 source_to_sink = [
@@ -869,8 +871,8 @@ def test_format_expr_error() -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
         "An expression in the 'format' field must evaluate to a string, or list "
-        "of strings. However a non-string item was received: '42' of "
-        "type '<class 'int'>'." in stderr
+        "of strings. However a non-string item was received: 42 of "
+        "type <class 'int'>." in stderr
     )
 
 
@@ -1402,7 +1404,7 @@ def test_bad_stdin_expr_error() -> None:
     assert error_code == 1
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
-        "'stdin' expression must return a string or null. Got '1111' for '$(inputs.file1.size)'."
+        "'stdin' expression must return a string or null. Got 1111 for '$(inputs.file1.size)'."
         in stderr
     )
 
@@ -1419,7 +1421,7 @@ def test_bad_stderr_expr_error() -> None:
     assert error_code == 1
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
-        "'stderr' expression must return a string. Got '1111' for '$(inputs.file1.size)'."
+        "'stderr' expression must return a string. Got 1111 for '$(inputs.file1.size)'."
         in stderr
     )
 
@@ -1436,7 +1438,7 @@ def test_bad_stdout_expr_error() -> None:
     assert error_code == 1
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
-        "'stdout' expression must return a string. Got '1111' for '$(inputs.file1.size)'."
+        "'stdout' expression must return a string. Got 1111 for '$(inputs.file1.size)'."
         in stderr
     )
 
@@ -1578,7 +1580,8 @@ def test_env_filtering(factor: str) -> None:
   local trueExe nextTarget 2>/dev/null
   trueExe=$(ps -o comm= $$) || return 1
   [ "${trueExe#-}" = "$trueExe" ] || trueExe=${trueExe#-}
-  [ "${trueExe#/}" != "$trueExe" ] || trueExe=$([ -n "$ZSH_VERSION" ] && which -p "$trueExe" || which "$trueExe")
+  [ "${trueExe#/}" != "$trueExe" ] || trueExe=$([ -n "$ZSH_VERSION" ] \
+          && which -p "$trueExe" || which "$trueExe")
   while nextTarget=$(readlink "$trueExe"); do trueExe=$nextTarget; done
   printf '%s\n' "$(basename "$trueExe")"
 } ; getTrueShellExeName""",
@@ -1619,7 +1622,7 @@ def test_v1_0_arg_empty_prefix_separate_false() -> None:
 
 
 def test_scatter_output_filenames(tmp_path: Path) -> None:
-    """If a scatter step produces identically named output then confirm that the final output is renamed correctly."""
+    """Confirm that the final output is renamed correctly from identically named scatter outputs."""
     cwd = Path.cwd()
     with working_directory(tmp_path):
         rtc = RuntimeContext()
@@ -1711,7 +1714,7 @@ def test_bad_networkaccess_expr() -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
         "'networkAccess' expression must evaluate to a bool. "
-        "Got '42' for expression '${return 42;}" in stderr
+        "Got 42 for expression '${return 42;}" in stderr
     )
     assert err_code == 1
 

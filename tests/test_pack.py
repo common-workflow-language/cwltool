@@ -103,7 +103,7 @@ def test_pack_fragment() -> None:
 
 
 def test_pack_rewrites() -> None:
-    rewrites = {}  # type: Dict[str, str]
+    rewrites: Dict[str, str] = {}
 
     loadingContext, workflowobj, uri = fetch_document(
         get_data("tests/wf/default-wf5.cwl")
@@ -133,7 +133,7 @@ cwl_missing_version_paths = [
 
 @pytest.mark.parametrize("cwl_path", cwl_missing_version_paths)
 def test_pack_missing_cwlVersion(cwl_path: str) -> None:
-    """Ensure the generated pack output is not missing the `cwlVersion` in case of single tool workflow and single step workflow."""
+    """Test generated pack output for `cwlVersion` in case of 1 tool workflow and 1 step workflow."""
     # Testing single tool workflow
     loadingContext, workflowobj, uri = fetch_document(get_data(cwl_path))
     loadingContext.do_update = False

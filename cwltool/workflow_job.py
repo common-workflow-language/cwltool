@@ -4,6 +4,7 @@ import functools
 import logging
 import threading
 from typing import (
+    TYPE_CHECKING,
     Dict,
     List,
     MutableMapping,
@@ -18,7 +19,6 @@ from typing import (
 from cwl_utils import expression
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
-from typing_extensions import TYPE_CHECKING
 
 from .builder import content_limit_respected_read
 from .checker import can_assign_src_to_sink
@@ -56,7 +56,7 @@ class WorkflowJobStep:
         self.tool = step.tool
         self.id = step.id
         self.submitted = False
-        self.iterable = None  # type: Optional[JobsGeneratorType]
+        self.iterable: Optional[JobsGeneratorType] = None
         self.completed = False
         self.name = uniquename("step %s" % shortname(self.id))
         self.prov_obj = step.prov_obj
@@ -92,7 +92,7 @@ class ReceiveScatterOutput:
         self.processStatus = "success"
         self.total = total
         self.output_callback = output_callback
-        self.steps = []  # type: List[Optional[JobsGeneratorType]]
+        self.steps: List[Optional[JobsGeneratorType]] = []
 
     def receive_scatter_output(
         self, index: int, jobout: CWLObjectType, processStatus: str
@@ -174,15 +174,15 @@ def nested_crossproduct_scatter(
 ) -> JobsGeneratorType:
     scatter_key = scatter_keys[0]
     jobl = len(cast(Sized, joborder[scatter_key]))
-    output = {}  # type: ScatterDestinationsType
+    output: ScatterDestinationsType = {}
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * jobl
 
     rc = ReceiveScatterOutput(output_callback, output, jobl)
 
-    steps = []  # type: List[Optional[JobsGeneratorType]]
+    steps: List[Optional[JobsGeneratorType]] = []
     for index in range(0, jobl):
-        sjob = copy.copy(joborder)  # type: Optional[CWLObjectType]
+        sjob: Optional[CWLObjectType] = copy.copy(joborder)
         assert sjob is not None  # nosec
         sjob[scatter_key] = cast(
             MutableMapping[int, CWLObjectType], joborder[scatter_key]
@@ -232,7 +232,7 @@ def flat_crossproduct_scatter(
     output_callback: ScatterOutputCallbackType,
     runtimeContext: RuntimeContext,
 ) -> JobsGeneratorType:
-    output = {}  # type: ScatterDestinationsType
+    output: ScatterDestinationsType = {}
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * crossproduct_size(joborder, scatter_keys)
     callback = ReceiveScatterOutput(output_callback, output, 0)
@@ -250,14 +250,14 @@ def _flat_crossproduct_scatter(
     callback: ReceiveScatterOutput,
     startindex: int,
     runtimeContext: RuntimeContext,
-) -> Tuple[List[Optional[JobsGeneratorType]], int,]:
+) -> Tuple[List[Optional[JobsGeneratorType]], int]:
     """Inner loop."""
     scatter_key = scatter_keys[0]
     jobl = len(cast(Sized, joborder[scatter_key]))
-    steps = []  # type: List[Optional[JobsGeneratorType]]
+    steps: List[Optional[JobsGeneratorType]] = []
     put = startindex
     for index in range(0, jobl):
-        sjob = copy.copy(joborder)  # type: Optional[CWLObjectType]
+        sjob: Optional[CWLObjectType] = copy.copy(joborder)
         assert sjob is not None  # nosec
         sjob[scatter_key] = cast(
             MutableMapping[int, CWLObjectType], joborder[scatter_key]
@@ -290,7 +290,7 @@ def dotproduct_scatter(
     output_callback: ScatterOutputCallbackType,
     runtimeContext: RuntimeContext,
 ) -> JobsGeneratorType:
-    jobl = None  # type: Optional[int]
+    jobl: Optional[int] = None
     for key in scatter_keys:
         if jobl is None:
             jobl = len(cast(Sized, joborder[key]))
@@ -302,15 +302,15 @@ def dotproduct_scatter(
     if jobl is None:
         raise Exception("Impossible codepath")
 
-    output = {}  # type: ScatterDestinationsType
+    output: ScatterDestinationsType = {}
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * jobl
 
     rc = ReceiveScatterOutput(output_callback, output, jobl)
 
-    steps = []  # type: List[Optional[JobsGeneratorType]]
+    steps: List[Optional[JobsGeneratorType]] = []
     for index in range(0, jobl):
-        sjobo = copy.copy(joborder)  # type: Optional[CWLObjectType]
+        sjobo: Optional[CWLObjectType] = copy.copy(joborder)
         assert sjobo is not None  # nosec
         for key in scatter_keys:
             sjobo[key] = cast(MutableMapping[int, CWLObjectType], joborder[key])[index]
@@ -386,7 +386,7 @@ def object_from_state(
     sourceField: str,
     incomplete: bool = False,
 ) -> Optional[CWLObjectType]:
-    inputobj = {}  # type: CWLObjectType
+    inputobj: CWLObjectType = {}
     for inp in params:
         iid = original_id = cast(str, inp["id"])
         if frag_only:
@@ -479,17 +479,17 @@ class WorkflowJob:
     def __init__(self, workflow: "Workflow", runtimeContext: RuntimeContext) -> None:
         """Initialize this WorkflowJob."""
         self.workflow = workflow
-        self.prov_obj = None  # type: Optional[ProvenanceProfile]
-        self.parent_wf = None  # type: Optional[ProvenanceProfile]
+        self.prov_obj: Optional[ProvenanceProfile] = None
+        self.parent_wf: Optional[ProvenanceProfile] = None
         self.tool = workflow.tool
         if runtimeContext.research_obj is not None:
             self.prov_obj = workflow.provenance_object
             self.parent_wf = workflow.parent_wf
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
-        self.state = {}  # type: Dict[str, Optional[WorkflowStateItem]]
+        self.state: Dict[str, Optional[WorkflowStateItem]] = {}
         self.processStatus = ""
         self.did_callback = False
-        self.made_progress = None  # type: Optional[bool]
+        self.made_progress: Optional[bool] = None
         self.outdir = runtimeContext.get_outdir()
 
         self.name = uniquename(
@@ -513,7 +513,7 @@ class WorkflowJob:
             self.workflow.get_requirement("MultipleInputFeatureRequirement")[0]
         )
 
-        wo = None  # type: Optional[CWLObjectType]
+        wo: Optional[CWLObjectType] = None
         try:
             wo = object_from_state(
                 self.state,
@@ -533,7 +533,7 @@ class WorkflowJob:
             and self.parent_wf
             and self.prov_obj.workflow_run_uri != self.parent_wf.workflow_run_uri
         ):
-            process_run_id = None  # type: Optional[str]
+            process_run_id: Optional[str] = None
             self.prov_obj.generate_output_prov(wo or {}, process_run_id, self.name)
             self.prov_obj.document.wasEndedBy(
                 self.prov_obj.workflow_run_uri,
@@ -886,7 +886,7 @@ class WorkflowJob:
 
 
 class WorkflowJobLoopStep:
-    """Generated for each step in Workflow.steps() containing a http://commonwl.org/cwltool#Loop requirement."""
+    """Generated for each step in Workflow.steps() containing a Loop requirement."""
 
     def __init__(self, step: WorkflowJobStep, container_engine: str):
         """Initialize this WorkflowJobLoopStep."""

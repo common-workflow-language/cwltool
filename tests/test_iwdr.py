@@ -72,7 +72,7 @@ def test_bad_listing_expression(tmp_path: Path) -> None:
     assert (
         "Expression in a 'InitialWorkdirRequirement.listing' field must return "
         "a list containing zero or more of: File or Directory objects; Dirent "
-        "objects. Got '42' among the results" in stderr
+        "objects. Got 42 among the results" in stderr
     )
     assert err_code == 1
 

@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from socket import getfqdn
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     List,
@@ -22,7 +23,6 @@ from typing import (
 from prov.identifier import Identifier, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
-from typing_extensions import TYPE_CHECKING
 
 from .errors import WorkflowException
 from .job import CommandLineJob, JobBase
