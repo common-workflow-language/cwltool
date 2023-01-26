@@ -21,7 +21,6 @@ from typing import (
 )
 
 from cwl_utils.parser import cwl_v1_2, cwl_v1_2_utils
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.schema import validate_doc
@@ -35,6 +34,8 @@ from schema_salad.utils import (
 )
 from schema_salad.fetcher import Fetcher
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+
 from . import CWL_CONTENT_TYPES, process, update
 from .context import LoadingContext
 from .errors import GraphTargetMissingException
@@ -43,16 +44,16 @@ from .process import Process, get_schema, shortname
 from .update import ALLUPDATES
 from .utils import CWLObjectType, ResolverType, visit_class
 
-jobloaderctx = {
+jobloaderctx: ContextType = {
     "cwl": "https://w3id.org/cwl/cwl#",
     "cwltool": "http://commonwl.org/cwltool#",
     "path": {"@type": "@id"},
     "location": {"@type": "@id"},
     "id": "@id",
-}  # type: ContextType
+}
 
 
-overrides_ctx = {
+overrides_ctx: ContextType = {
     "overrideTarget": {"@type": "@id"},
     "cwltool": "http://commonwl.org/cwltool#",
     "http://commonwl.org/cwltool#overrides": {
@@ -63,7 +64,7 @@ overrides_ctx = {
         "@id": "https://w3id.org/cwl/cwl#requirements",
         "mapSubject": "class",
     },
-}  # type: ContextType
+}
 
 
 def default_loader(
@@ -171,7 +172,7 @@ def _convert_stdstreams_to_files(
                 ):
                     if not isinstance(out, CommentedMap):
                         raise ValidationException(
-                            f"Output '{out}' is not a valid OutputParameter."
+                            f"Output {out!r} is not a valid OutputParameter."
                         )
                     for streamtype in ["stdout", "stderr"]:
                         if out.get("type") == streamtype:

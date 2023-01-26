@@ -89,7 +89,7 @@ class PathMapper:
         separateDirs: bool = True,
     ) -> None:
         """Initialize the PathMapper."""
-        self._pathmap = {}  # type: Dict[str, MapperEnt]
+        self._pathmap: Dict[str, MapperEnt] = {}
         self.stagedir = stagedir
         self.separateDirs = separateDirs
         self.setup(dedup(referenced_files), basedir)

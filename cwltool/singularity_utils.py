@@ -5,7 +5,7 @@ import os.path
 from subprocess import DEVNULL, PIPE, Popen, TimeoutExpired  # nosec
 from typing import Optional
 
-_USERNS = None  # type: Optional[bool]
+_USERNS: Optional[bool] = None
 
 
 def singularity_supports_userns() -> bool:

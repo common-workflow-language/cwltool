@@ -14,8 +14,7 @@ import sys
 import time
 import urllib
 import warnings
-from codecs import StreamWriter, getwriter
-from collections.abc import MutableMapping, MutableSequence
+from codecs import getwriter
 from typing import (
     IO,
     Any,
@@ -27,7 +26,6 @@ from typing import (
     MutableSequence,
     Optional,
     Sized,
-    TextIO,
     Tuple,
     Union,
     cast,
@@ -36,9 +34,6 @@ from typing import (
 import argcomplete
 import coloredlogs
 import pkg_resources  # part of setuptools
-import ruamel.yaml
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import cmap, strip_dup_lineno
@@ -49,6 +44,10 @@ from schema_salad.utils import (
     json_dumps,
     yaml_no_ts,
 )
+
+import ruamel.yaml
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.main import YAML
 
 from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
@@ -253,17 +252,17 @@ def generate_example_input(
                 example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
         elif "default" in inptype:
             example = inptype["default"]
-            comment = 'default value of type "{}".'.format(inptype["type"])
+            comment = f"default value of type {inptype['type']!r}"
         else:
             example = defaults.get(cast(str, inptype["type"]), str(inptype))
-            comment = 'type "{}".'.format(inptype["type"])
+            comment = f"type {inptype['type']!r}"
     else:
         if not default:
             example = defaults.get(str(inptype), str(inptype))
-            comment = f'type "{inptype}"'
+            comment = f"type {inptype!r}"
         else:
             example = default
-            comment = f'default value of type "{inptype}".'
+            comment = f"default value of type {inptype!r}."
     return example, comment
 
 

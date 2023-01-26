@@ -218,7 +218,11 @@ def test_argparser_without_doc() -> None:
 def test_argparse_append_with_default(
     job_order: List[str], expected_values: List[str]
 ) -> None:
-    """The appended arguments must not include the default. But if no appended argument, then the default is used."""
+    """
+    Confirm that the appended arguments must not include the default.
+
+    But if no appended argument, then the default is used.
+    """
     loadingContext = LoadingContext()
     tool = load_tool(get_data("tests/default_values_list.cwl"), loadingContext)
     toolparser = generate_parser(

@@ -4,9 +4,10 @@ from typing import IO, Any, Dict, Iterator, Optional, TextIO, Union, cast
 
 from rdflib import Graph
 from rdflib.query import ResultRow
-from ruamel.yaml.comments import CommentedMap
 from schema_salad.jsonld_context import makerdf
 from schema_salad.utils import ContextType
+
+from ruamel.yaml.comments import CommentedMap
 
 from .cwlviewer import CWLViewer
 from .process import Process
@@ -160,7 +161,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
         ),
     )  # ResultRow because the query is of type SELECT
 
-    currentwf = None  # type: Optional[str]
+    currentwf: Optional[str] = None
     for wf, step, _run, runtype in qres:
         if step not in dotname:
             dotname[step] = lastpart(step)
@@ -171,7 +172,9 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
             if wf in subworkflows:
                 if wf not in dotname:
                     dotname[wf] = "cluster_" + lastpart(wf)
-                stdout.write(f'subgraph "{dotname[wf]}" {{ label="{lastpart(wf)}"\n')
+                stdout.write(
+                    f'subgraph "{dotname[wf]}" {{ label="{lastpart(wf)}"\n'  # noqa: B907
+                )
                 currentwf = wf
                 clusternode[wf] = step
             else:
@@ -210,7 +213,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
         if sinkrun in clusternode:
             attr += ' lhead="%s"' % dotname[sinkrun]
             sink = clusternode[sinkrun]
-        stdout.write(f'"{dotname[src]}" -> "{dotname[sink]}" [{attr}]\n')
+        stdout.write(f'"{dotname[src]}" -> "{dotname[sink]}" [{attr}]\n')  # noqa: B907
 
 
 def printdot(

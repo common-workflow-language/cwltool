@@ -16,7 +16,6 @@ LINUX = sys.platform in ("linux", "linux2")
 @pytest.fixture(scope="session")
 def udocker(tmp_path_factory: TempPathFactory) -> str:
     """Udocker fixture, returns the path to the udocker script."""
-    test_cwd = os.getcwd()
     test_environ = copy.copy(os.environ)
     docker_install_dir = str(tmp_path_factory.mktemp("udocker"))
     with working_directory(docker_install_dir):

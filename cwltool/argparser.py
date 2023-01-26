@@ -42,7 +42,8 @@ def arg_parser() -> argparse.ArgumentParser:
         type=str,
         default="",
         help="Log your tools stdout/stderr to this location outside of container "
-        "This will only log stdout/stderr if you specify stdout/stderr in their respective fields or capture it as an output",
+        "This will only log stdout/stderr if you specify stdout/stderr in their "
+        "respective fields or capture it as an output",
     )
 
     parser.add_argument(
@@ -741,7 +742,7 @@ def get_default_args() -> Dict[str, Any]:
 
 
 class FSAction(argparse.Action):
-    objclass = None  # type: str
+    objclass: Optional[str] = None
 
     def __init__(
         self,
@@ -777,7 +778,7 @@ class FSAction(argparse.Action):
 
 
 class FSAppendAction(argparse.Action):
-    objclass = None  # type: str
+    objclass: Optional[str] = None
 
     def __init__(
         self,
@@ -815,19 +816,19 @@ class FSAppendAction(argparse.Action):
 
 
 class FileAction(FSAction):
-    objclass = "File"
+    objclass: Optional[str] = "File"
 
 
 class DirectoryAction(FSAction):
-    objclass = "Directory"
+    objclass: Optional[str] = "Directory"
 
 
 class FileAppendAction(FSAppendAction):
-    objclass = "File"
+    objclass: Optional[str] = "File"
 
 
 class DirectoryAppendAction(FSAppendAction):
-    objclass = "Directory"
+    objclass: Optional[str] = "Directory"
 
 
 class AppendAction(argparse.Action):
@@ -900,9 +901,9 @@ def add_argument(
             return None
 
     ahelp = description.replace("%", "%%")
-    action = None  # type: Optional[Union[Type[argparse.Action], str]]
-    atype = None  # type: Any
-    typekw = {}  # type: Dict[str, Any]
+    action: Optional[Union[Type[argparse.Action], str]] = None
+    atype: Optional[Any] = None
+    typekw: Dict[str, Any] = {}
 
     if inptype == "File":
         action = FileAction

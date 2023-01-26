@@ -24,7 +24,7 @@ def test_check_version() -> None:
 
     Attempting to execute without updating to the internal version should raise an error.
     """
-    joborder = {"inp": "abc"}  # type: CWLObjectType
+    joborder: CWLObjectType = {"inp": "abc"}
     loadingContext = LoadingContext({"do_update": True})
     tool = load_tool(get_data("tests/echo.cwl"), loadingContext)
     for _ in tool.job(joborder, None, RuntimeContext()):
@@ -126,7 +126,7 @@ def test_load_graph_fragment_from_packed() -> None:
             Path(get_data("tests/wf/packed-with-loadlisting.cwl")).as_uri()
             + "#16169-step.cwl"
         )
-        tool2 = load_tool(uri2, loadingContext)
+        load_tool(uri2, loadingContext)
 
     finally:
         use_standard_schema("v1.0")

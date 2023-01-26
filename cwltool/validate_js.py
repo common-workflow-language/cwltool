@@ -19,7 +19,6 @@ from cwl_utils.errors import SubstitutionError
 from cwl_utils.expression import scanner as scan_expression
 from cwl_utils.sandboxjs import code_fragment_to_js, exec_js_process
 from pkg_resources import resource_stream
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import (
     ArraySchema,
     EnumSchema,
@@ -31,12 +30,14 @@ from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+
 from .errors import WorkflowException
 from .loghandler import _logger
 
 
-def is_expression(tool, schema):
-    # type: (Any, Optional[Schema]) -> bool
+def is_expression(tool: Any, schema: Optional[Schema]) -> bool:
+    """Test a field/schema combo to see if it is a CWL Expression."""
     return (
         isinstance(schema, EnumSchema)
         and schema.name == "org.w3id.cwl.cwl.Expression"
@@ -45,12 +46,13 @@ def is_expression(tool, schema):
 
 
 class SuppressLog(logging.Filter):
-    def __init__(self, name):  # type: (str) -> None
+    def __init__(self, name: str) -> None:
         """Initialize this log suppressor."""
         name = str(name)
         super().__init__(name)
 
-    def filter(self, record):  # type: (logging.LogRecord) -> bool
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Never accept a record."""
         return False
 
 
@@ -170,8 +172,7 @@ def jshint_js(
         container_engine=container_engine,
     )
 
-    def dump_jshint_error():
-        # type: () -> None
+    def dump_jshint_error() -> None:
         raise RuntimeError(
             'jshint failed to run successfully\nreturncode: %d\nstdout: "%s"\nstderr: "%s"'
             % (returncode, stdout, stderr)
@@ -188,7 +189,7 @@ def jshint_js(
     except ValueError:
         dump_jshint_error()
 
-    jshint_errors = []  # type: List[str]
+    jshint_errors: List[str] = []
 
     js_text_lines = js_text.split("\n")
 
@@ -259,7 +260,7 @@ def validate_js_expressions(
         except SubstitutionError as se:
             if source_line:
                 source_line.raise_type = WorkflowException
-                raise source_line.makeError(str(se))
+                raise source_line.makeError(str(se)) from se
             else:
                 raise se
 

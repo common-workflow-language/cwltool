@@ -18,6 +18,7 @@ from abc import ABCMeta, abstractmethod
 from threading import Timer
 from typing import (
     IO,
+    TYPE_CHECKING,
     Callable,
     Dict,
     Iterable,
@@ -38,7 +39,6 @@ import shellescape
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
-from typing_extensions import TYPE_CHECKING
 
 from . import env_to_stdout, run_job
 from .builder import Builder
@@ -129,41 +129,41 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         super().__init__()
         self.builder = builder
         self.joborder = joborder
-        self.stdin = None  # type: Optional[str]
-        self.stderr = None  # type: Optional[str]
-        self.stdout = None  # type: Optional[str]
-        self.successCodes = []  # type: Iterable[int]
-        self.temporaryFailCodes = []  # type: Iterable[int]
-        self.permanentFailCodes = []  # type: Iterable[int]
+        self.stdin: Optional[str] = None
+        self.stderr: Optional[str] = None
+        self.stdout: Optional[str] = None
+        self.successCodes: Iterable[int] = []
+        self.temporaryFailCodes: Iterable[int] = []
+        self.permanentFailCodes: Iterable[int] = []
         self.requirements = requirements
         self.hints = hints
         self.name = name
-        self.command_line = []  # type: List[str]
+        self.command_line: List[str] = []
         self.pathmapper = PathMapper([], "", "")
         self.make_path_mapper = make_path_mapper
-        self.generatemapper = None  # type: Optional[PathMapper]
+        self.generatemapper: Optional[PathMapper] = None
 
         # set in CommandLineTool.job(i)
         self.collect_outputs = cast(CollectOutputsType, None)
-        self.output_callback = None  # type: Optional[OutputCallbackType]
+        self.output_callback: Optional[OutputCallbackType] = None
         self.outdir = ""
         self.tmpdir = ""
 
-        self.environment = {}  # type: MutableMapping[str, str]
-        self.generatefiles = {
+        self.environment: MutableMapping[str, str] = {}
+        self.generatefiles: DirectoryType = {
             "class": "Directory",
             "listing": [],
             "basename": "",
-        }  # type: DirectoryType
-        self.stagedir = None  # type: Optional[str]
+        }
+        self.stagedir: Optional[str] = None
         self.inplace_update = False
-        self.prov_obj = None  # type: Optional[ProvenanceProfile]
-        self.parent_wf = None  # type: Optional[ProvenanceProfile]
-        self.timelimit = None  # type: Optional[int]
-        self.networkaccess = False  # type: bool
-        self.mpi_procs = None  # type: Optional[int]
+        self.prov_obj: Optional[ProvenanceProfile] = None
+        self.parent_wf: Optional[ProvenanceProfile] = None
+        self.timelimit: Optional[int] = None
+        self.networkaccess: bool = False
+        self.mpi_procs: Optional[int] = None
 
-    def __repr__(self):  # type: () -> str
+    def __repr__(self) -> str:
         """Represent this Job object."""
         return "CommandLineJob(%s)" % self.name
 
@@ -239,7 +239,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         runtime: List[str],
         env: MutableMapping[str, str],
         runtimeContext: RuntimeContext,
-        monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
+        monitor_function: Optional[Callable[["subprocess.Popen[str]"], None]] = None,
     ) -> None:
         """Execute the tool, either directly or via script.
 
@@ -307,7 +307,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     "or prov_obj is missing from runtimeContext: "
                     "{}".format(runtimeContext)
                 )
-        outputs = {}  # type: CWLObjectType
+        outputs: CWLObjectType = {}
         try:
             stdin_path = None
             if self.stdin is not None:
@@ -341,7 +341,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     runtimeContext.secret_store.retrieve(cast(CWLOutputType, env)),
                 )
 
-            job_script_contents = None  # type: Optional[str]
+            job_script_contents: Optional[str] = None
             builder: Optional[Builder] = getattr(self, "builder", None)
             if builder is not None:
                 job_script_contents = builder.build_job_script(commands)
@@ -515,7 +515,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     env[key] = os.environ[key]
                 except KeyError:
                     _logger.warning(
-                        f"Attempting to preserve environment variable '{key}' which is not present"
+                        f"Attempting to preserve environment variable {key!r} which is not present"
                     )
 
         # Set required env vars
@@ -527,10 +527,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # Set on ourselves
         self.environment = env
 
-    def process_monitor(self, sproc):  # type: (subprocess.Popen[str]) -> None
+    def process_monitor(self, sproc: "subprocess.Popen[str]") -> None:
+        """Watch a process, logging its max memory usage."""
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
-        memory_usage = [None]  # type: MutableSequence[Optional[int]]
+        memory_usage: MutableSequence[Optional[int]] = [None]
 
         def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
             children = monitor.children()
@@ -683,7 +684,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             flags = "--preserve-environment={" + ", ".join(varnames) + "}"
 
         _logger.warning(
-            f"You have specified `{flags}` while running a container which will override variables set in the container. This may break the container, be non-portable, and/or affect reproducibility."
+            f"You have specified {flags!r} while running a container which will "
+            "override variables set in the container. This may break the "
+            "container, be non-portable, and/or affect reproducibility."
         )
 
     def create_file_and_add_volume(
@@ -728,7 +731,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         """Append volume mappings to the runtime option list."""
         container_outdir = self.builder.outdir
         for key, vol in (itm for itm in pathmapper.items() if itm[1].staged):
-            host_outdir_tgt = None  # type: Optional[str]
+            host_outdir_tgt: Optional[str] = None
             if vol.target.startswith(container_outdir + "/"):
                 host_outdir_tgt = os.path.join(
                     self.outdir, vol.target[len(container_outdir) + 1 :]
@@ -784,14 +787,14 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 _logger.info(str(cmd))
                 try:
                     subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
-                except OSError:
+                except OSError as exc:
                     raise SourceLine(
                         docker_req, None, WorkflowException, debug
                     ).makeError(
                         f"Either Docker container {img_id} is not available with "
                         f"user space docker implementation {user_space_docker_cmd} "
                         f" or {user_space_docker_cmd} is missing or broken."
-                    )
+                    ) from exc
             else:
                 raise SourceLine(docker_req, None, WorkflowException, debug).makeError(
                     "Docker image must be specified as 'dockerImageId' or "
@@ -858,7 +861,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                         "--no-container to disable {0}, or install "
                         "a user space Docker replacement like uDocker with "
                         "--user-space-docker-cmd.: {1}".format(container, err)
-                    )
+                    ) from err
 
         self._setup(runtimeContext)
 
@@ -886,7 +889,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         tmpdir_prefix: str,
         cleanup_cidfile: bool,
         docker_exe: str,
-        process,  # type: subprocess.Popen[str]
+        process: "subprocess.Popen[str]",
     ) -> None:
         """Record memory usage of the running Docker container."""
         # Todo: consider switching to `docker create` / `docker start`
@@ -894,7 +897,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         # to stdout, but the container is frozen, thus allowing us to start the
         # monitoring process without dealing with the cidfile or too-fast
         # container execution
-        cid = None  # type: Optional[str]
+        cid: Optional[str] = None
         while cid is None:
             time.sleep(1)
             if process.returncode is not None:
@@ -931,8 +934,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         except OSError as exc:
             _logger.warning("Ignored error with %s stats: %s", docker_exe, exc)
             return
-        max_mem_percent = 0  # type: float
-        mem_percent = 0  # type: float
+        max_mem_percent: float = 0
+        mem_percent: float = 0
         with open(stats_file_name) as stats:
             while True:
                 line = stats.readline()
@@ -968,14 +971,14 @@ def _job_popen(
     job_script_contents: Optional[str] = None,
     timelimit: Optional[int] = None,
     name: Optional[str] = None,
-    monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
-    default_stdout=None,  # type: Optional[Union[IO[bytes], TextIO]]
-    default_stderr=None,  # type: Optional[Union[IO[bytes], TextIO]]
+    monitor_function: Optional[Callable[["subprocess.Popen[str]"], None]] = None,
+    default_stdout: Optional[Union[IO[bytes], TextIO]] = None,
+    default_stderr: Optional[Union[IO[bytes], TextIO]] = None,
 ) -> int:
 
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
 
-        stdin = subprocess.PIPE  # type: Union[IO[bytes], int]
+        stdin: Union[IO[bytes], int] = subprocess.PIPE
         if stdin_path is not None:
             stdin = open(stdin_path, "rb")
 
