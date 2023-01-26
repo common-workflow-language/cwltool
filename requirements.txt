@@ -16,4 +16,4 @@ argcomplete>=1.12.0
 pyparsing != 3.0.2  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
 pyparsing < 3;python_version<='3.6'  # breaks --print-dot
 cwl-utils>=0.22
-git+https://github.com/common-workflow-language/schema_salad.git@import-include-tracking#egg=proj
+git+https://github.com/common-workflow-language/schema_salad.git@import-include-tracking#egg=schema_salad
