@@ -130,3 +130,19 @@ def test_load_graph_fragment_from_packed() -> None:
 
     finally:
         use_standard_schema("v1.0")
+
+
+def test_import_tracked() -> None:
+    """Test that $import and $include are tracked in the index."""
+
+    loadingContext = LoadingContext({"fast_parser": True})
+    tool = load_tool(get_data("tests/wf/811-12.cwl"), loadingContext)
+    path = "import:file://%s" % get_data("tests/wf/schemadef-type.yml")
+
+    assert path in tool.doc_loader.idx
+
+    loadingContext = LoadingContext({"fast_parser": False})
+    tool = load_tool(get_data("tests/wf/811.cwl"), loadingContext)
+    path = "import:file://%s" % get_data("tests/wf/schemadef-type.yml")
+
+    assert path in tool.doc_loader.idx
