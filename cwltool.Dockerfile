@@ -5,7 +5,7 @@ RUN apk add --no-cache git gcc python3-dev libxml2-dev libxslt-dev libc-dev linu
 WORKDIR /cwltool
 COPY . .
 
-RUN pip install toml -rmypy-requirements.txt
+RUN pip install toml -rmypy-requirements.txt -rrequirements.txt
 RUN CWLTOOL_USE_MYPYC=1 MYPYPATH=mypy-stubs pip wheel --no-binary schema-salad --wheel-dir=/wheels .[deps]
 RUN rm /wheels/schema_salad*
 RUN pip install black
@@ -15,13 +15,13 @@ RUN pip install --force-reinstall --no-index --no-warn-script-location --root=/p
 # --force-reinstall to install our new mypyc compiled schema-salad package
 
 FROM python:3.11-alpine as module
-LABEL maintainer peter.amstutz@curri.com
+LABEL maintainer peter.amstutz@curii.com
 
 RUN apk add --no-cache docker nodejs graphviz libxml2 libxslt
 COPY --from=builder /pythonroot/ /
 
 FROM python:3.11-alpine
-LABEL maintainer peter.amstutz@curri.com
+LABEL maintainer peter.amstutz@curii.com
 
 RUN apk add --no-cache docker nodejs graphviz libxml2 libxslt
 COPY --from=builder /pythonroot/ /

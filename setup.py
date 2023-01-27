@@ -110,7 +110,7 @@ setup(
         "rdflib >= 4.2.2, < 6.3.0",
         "rdflib >= 4.2.2, < 6.0.0;python_version<='3.6'",
         "shellescape >= 3.4.1, < 3.9",
-        "schema-salad >= 8.2.20211104054942, < 9",
+        "schema-salad >= 8.4, < 9",
         "mypy-extensions",
         "psutil >= 5.6.6",
         "prov == 1.5.1",
@@ -121,7 +121,7 @@ setup(
         "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
         "pyparsing < 3 ;python_version<='3.6'",  # breaks --print-dot (pydot)
         "argcomplete",
-        "cwl-utils >= 0.19",
+        "cwl-utils >= 0.22",
     ],
     extras_require={
         "deps": ["galaxy-tool-util >= 22.1.2, <23"],
