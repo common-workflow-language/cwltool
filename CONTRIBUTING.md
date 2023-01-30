@@ -9,6 +9,9 @@ To get the code and start working on the changes you can start a console and:
 - Clone the cwltool: `git clone https://github.com/common-workflow-language/cwltool.git`
 - Switch to cwltool directory: `cd cwltool`
 
+It is suggested that you run `git config blame.ignoreRevsFile .git-blame-ignore-revs`
+to filter out mass-formatting commits from `git blame`.
+
 In order to contribute to the development of `cwltool`, the source code needs to
 pass the test before your changes are accepted. There are a couple ways to test
 the code with your changes: let `tox` manage installation and test running in
