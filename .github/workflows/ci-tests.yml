@@ -57,7 +57,7 @@ jobs:
       - name: Upgrade setuptools and install tox
         run: |
           pip install -U pip setuptools wheel
-          pip install "tox<4" tox-gh-actions
+          pip install "tox<4" "tox-gh-actions<3"
 
       - name: MyPy cache
         if: ${{ matrix.step == 'mypy' }}
@@ -102,7 +102,7 @@ jobs:
       - name: Upgrade setuptools and install tox
         run: |
           pip install -U pip setuptools wheel
-          pip install tox tox-gh-actions
+          pip install "tox<4" "tox-gh-actions<3"
 
       - if: ${{ matrix.step == 'pydocstyle' && github.event_name == 'pull_request'}}
         name: Create local branch for diff-quality for PRs
@@ -224,7 +224,7 @@ jobs:
       - name: Upgrade setuptools and install tox
         run: |
           pip install -U pip setuptools wheel
-          pip install tox tox-gh-actions
+          pip install "tox<4" "tox-gh-actions<3"
       # # docker for mac install is not currently stable
       # - name: 'SETUP MacOS: load Homebrew cache'
       #   uses: actions/cache@v3
