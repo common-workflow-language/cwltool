@@ -1136,7 +1136,6 @@ def main(
                 workflowobj,
                 uri,
                 preprocess_only=(args.print_pre or args.pack),
-                skip_schemas=args.skip_schemas,
             )
 
             if loadingContext.loader is None:

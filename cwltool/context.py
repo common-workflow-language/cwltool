@@ -120,6 +120,7 @@ class LoadingContext(ContextBase):
         self.codegen_idx: Dict[str, Tuple[Any, "LoadingOptions"]] = {}
         self.fast_parser = False
         self.skip_resolve_all = False
+        self.skip_schemas = False
 
         super().__init__(kwargs)
 
