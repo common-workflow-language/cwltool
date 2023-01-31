@@ -1203,10 +1203,8 @@ def scandeps(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,
 ) -> MutableSequence[CWLObjectType]:
-
-    """Given a CWL document or input object, search for dependencies
-    (references to external files) of 'doc' and return them as a list
-    of File or Directory objects.
+    """
+    Search for external files references in a CWL document or input object.
 
     Looks for objects with 'class: File' or 'class: Directory' and
     adds them to the list of dependencies.
@@ -1224,7 +1222,6 @@ def scandeps(
       produce the same relative file system locations.
     :returns: A list of File or Directory dependencies
     """
-
     r: MutableSequence[CWLObjectType] = []
     if isinstance(doc, MutableMapping):
         if "id" in doc:

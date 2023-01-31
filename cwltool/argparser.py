@@ -742,6 +742,8 @@ def get_default_args() -> Dict[str, Any]:
 
 
 class FSAction(argparse.Action):
+    """Base action for our custom actions."""
+
     objclass: Optional[str] = None
 
     def __init__(
@@ -778,6 +780,8 @@ class FSAction(argparse.Action):
 
 
 class FSAppendAction(argparse.Action):
+    """Appending version of the base action for our custom actions."""
+
     objclass: Optional[str] = None
 
     def __init__(
@@ -832,11 +836,10 @@ class DirectoryAppendAction(FSAppendAction):
 
 
 class AppendAction(argparse.Action):
-    """An argparse action that clears the default values if any value is provided.
+    """An argparse action that clears the default values if any value is provided."""
 
-    Attributes:
-        _called (bool): Initially set to ``False``, changed if any value is appended.
-    """
+    _called: bool
+    """Initially set to ``False``, changed if any value is appended."""
 
     def __init__(
         self,
