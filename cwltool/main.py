@@ -1125,18 +1125,18 @@ def main(
 
             loadingContext, workflowobj, uri = fetch_document(uri, loadingContext)
 
-            if args.print_deps and loadingContext.loader:
-                printdeps(
-                    workflowobj, loadingContext.loader, stdout, args.relative_deps, uri
-                )
-                return 0
-
             loadingContext, uri = resolve_and_validate_document(
                 loadingContext,
                 workflowobj,
                 uri,
                 preprocess_only=(args.print_pre or args.pack),
             )
+
+            if args.print_deps and loadingContext.loader:
+                printdeps(
+                    workflowobj, loadingContext.loader, stdout, args.relative_deps, uri
+                )
+                return 0
 
             if loadingContext.loader is None:
                 raise Exception("Impossible code path.")

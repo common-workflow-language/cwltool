@@ -585,6 +585,29 @@ def test_scandeps_defaults_with_secondaryfiles() -> None:
     ].endswith(os.path.join("tests", "wf", "indir1"))
 
 
+def test_issue_1765_print_deps_with_workflows_having_namespace_location_steps() -> None:
+    """Test for issue 1765.
+
+    An external workflow step passed the validation, but failed to print-deps.
+    """
+    stream = StringIO()
+
+    main(
+        [
+            "--print-deps",
+            "--relative-deps=primary",
+            "--debug",
+            get_data(
+                "tests/wf/print_deps_with_workflows_having_namespace_location_steps.cwl"
+            ),
+        ],
+        stdout=stream,
+    )
+    assert json.loads(stream.getvalue())["secondaryFiles"][0]["secondaryFiles"][0][
+        "location"
+    ].endswith("EDAM_1.18.owl")
+
+
 def test_dedupe() -> None:
     not_deduped = [
         {"class": "File", "location": "file:///example/a"},
