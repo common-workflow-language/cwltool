@@ -22,6 +22,7 @@ from typing import (
 
 from cwl_utils.parser import cwl_v1_2, cwl_v1_2_utils
 from schema_salad.exceptions import ValidationException
+from schema_salad.fetcher import Fetcher
 from schema_salad.ref_resolver import Loader, file_uri
 from schema_salad.schema import validate_doc
 from schema_salad.sourceline import SourceLine, cmap
@@ -32,7 +33,6 @@ from schema_salad.utils import (
     ResolveType,
     json_dumps,
 )
-from schema_salad.fetcher import Fetcher
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
@@ -395,7 +395,6 @@ def resolve_and_validate_document(
     workflowobj: Union[CommentedMap, CommentedSeq],
     uri: str,
     preprocess_only: bool = False,
-    skip_schemas: Optional[bool] = None,
 ) -> Tuple[LoadingContext, str]:
     """Validate a CWL document."""
     if not loadingContext.loader:
@@ -502,7 +501,7 @@ def resolve_and_validate_document(
         idx=loader.idx,
         cache=sch_document_loader.cache,
         fetcher_constructor=loadingContext.fetcher_constructor,
-        skip_schemas=skip_schemas,
+        skip_schemas=loadingContext.skip_schemas,
         doc_cache=loadingContext.doc_cache,
     )
 
@@ -652,7 +651,9 @@ def load_tool(
     loadingContext, workflowobj, uri = fetch_document(argsworkflow, loadingContext)
 
     loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
+        loadingContext,
+        workflowobj,
+        uri,
     )
 
     return make_tool(uri, loadingContext)
@@ -682,7 +683,6 @@ def recursive_resolve_and_validate_document(
     workflowobj: Union[CommentedMap, CommentedSeq],
     uri: str,
     preprocess_only: bool = False,
-    skip_schemas: Optional[bool] = None,
 ) -> Tuple[LoadingContext, str, Process]:
     """Validate a CWL document, checking that a tool object can be built."""
     loadingContext, uri = resolve_and_validate_document(
@@ -690,7 +690,6 @@ def recursive_resolve_and_validate_document(
         workflowobj,
         uri,
         preprocess_only=preprocess_only,
-        skip_schemas=skip_schemas,
     )
     tool = make_tool(uri, loadingContext)
     return loadingContext, uri, tool

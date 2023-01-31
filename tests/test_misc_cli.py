@@ -67,3 +67,23 @@ def test_error_graph_with_no_default() -> None:
         "Tool file contains graph of multiple objects, must specify one of #echo, #cat, #collision"
         in stderr
     )
+
+
+def test_skip_schemas_external_step() -> None:
+    """Test that --skip-schemas works even for bad schemas in external docs."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--print-rdf",
+            "--skip-schemas",
+            get_data("tests/wf/revsort_step_bad_schema.cwl"),
+        ]
+    )
+    assert exit_code == 0
+    assert (
+        "Repeat node-elements inside property elements: "
+        "http://www.w3.org/1999/xhtmlmeta"
+    ) not in stderr
+    assert (
+        "Could not load extension schema https://bad.example.com/missing.ttl: "
+        "Error fetching https://bad.example.com/missing.ttl"
+    ) not in stderr
