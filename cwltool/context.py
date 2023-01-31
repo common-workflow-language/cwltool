@@ -79,7 +79,7 @@ def log_handler(
 
 
 def set_log_dir(outdir: str, log_dir: str, subdir_name: str) -> str:
-    """Default handler for setting the log directory."""
+    """Set the log directory."""
     if log_dir == "":
         return outdir
     else:

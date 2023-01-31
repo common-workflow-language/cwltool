@@ -9,6 +9,7 @@
    CWLProv
    pythonversions
    processgen
+   autoapi/index
 
 Indices and tables
 ==================

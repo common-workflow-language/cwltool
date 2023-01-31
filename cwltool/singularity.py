@@ -32,15 +32,13 @@ _SINGULARITY_FLAVOR: str = ""
 
 def get_version() -> Tuple[List[int], str]:
     """
-    Parse the output of 'singularity --version' to determine the singularity flavor /
-    distribution (singularity, singularity-ce or apptainer) and the singularity version.
+    Parse the output of 'singularity --version' to determine the flavor and version.
+
     Both pieces of information will be cached.
 
-    Returns
-    -------
-    A tuple containing:
-    - A tuple with major and minor version numbers as integer.
-    - A string with the name of the singularity flavor.
+    :returns: A tuple containing:
+              - A tuple with major and minor version numbers as integer.
+              - A string with the name of the singularity flavor.
     """
     global _SINGULARITY_VERSION  # pylint: disable=global-statement
     global _SINGULARITY_FLAVOR  # pylint: disable=global-statement

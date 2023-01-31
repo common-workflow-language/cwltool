@@ -253,7 +253,6 @@ def revmap_file(
     outside the container. Recognizes files in the pathmapper or remaps
     internal output directories to the external directory.
     """
-
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
 
