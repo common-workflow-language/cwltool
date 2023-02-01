@@ -26,7 +26,7 @@ run_tests() {
 		--pyargs -x ${module} -n auto --dist=loadfile
 }
 pipver=20.3.3 # minimum required version of pip for Python 3.10
-setuptoolsver=50.0.0 # required for Python 3.10
+setuptoolsver=50.0.1  # fix for "AttributeError: module 'importlib.util' has no attribute 'abc'"
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 rm -Rf testenv? || /bin/true
@@ -42,7 +42,7 @@ then
 	rm -f testenv1/lib/python-wheels/setuptools* \
 		&& pip install --force-reinstall -U pip==${pipver} \
 		&& pip install setuptools==${setuptoolsver} wheel
-	pip install -rtest-requirements.txt ".${extras}"
+	pip install  --no-build-isolation -rtest-requirements.txt ".${extras}"
 	#make test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 	# mkdir testenv1/not-${module}
