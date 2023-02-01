@@ -183,9 +183,7 @@ def generate_example_input(
         "float": 0.1,
         "double": 0.1,
         "string": "a_string",
-        "File": ruamel.yaml.comments.CommentedMap(
-            [("class", "File"), ("path", "a/file/path")]
-        ),
+        "File": ruamel.yaml.comments.CommentedMap([("class", "File"), ("path", "a/file/path")]),
         "Directory": ruamel.yaml.comments.CommentedMap(
             [("class", "Directory"), ("path", "a/directory/path")]
         ),
@@ -304,16 +302,10 @@ def realize_input_schema(
             if isinstance(entry["type"], Mapping):
                 entry["type"] = cast(
                     CWLOutputAtomType,
-                    realize_input_schema(
-                        [cast(CWLObjectType, entry["type"])], schema_defs
-                    ),
+                    realize_input_schema([cast(CWLObjectType, entry["type"])], schema_defs),
                 )
             if entry["type"] == "array":
-                items = (
-                    entry["items"]
-                    if not isinstance(entry["items"], str)
-                    else [entry["items"]]
-                )
+                items = entry["items"] if not isinstance(entry["items"], str) else [entry["items"]]
                 entry["items"] = cast(
                     CWLOutputAtomType,
                     realize_input_schema(
@@ -325,9 +317,7 @@ def realize_input_schema(
                 entry["fields"] = cast(
                     CWLOutputAtomType,
                     realize_input_schema(
-                        cast(
-                            MutableSequence[Union[str, CWLObjectType]], entry["fields"]
-                        ),
+                        cast(MutableSequence[Union[str, CWLObjectType]], entry["fields"]),
                         schema_defs,
                     ),
                 )
@@ -354,7 +344,6 @@ def load_job_order(
     overrides_list: List[CWLObjectType],
     tool_file_uri: str,
 ) -> Tuple[Optional[CWLObjectType], str, Loader]:
-
     job_order_object = None
     job_order_file = None
 
@@ -366,9 +355,7 @@ def load_job_order(
     elif len(args.job_order) == 1 and args.job_order[0] == "-":
         yaml = yaml_no_ts()
         job_order_object = yaml.load(stdin)
-        job_order_object, _ = loader.resolve_all(
-            job_order_object, file_uri(os.getcwd()) + "/"
-        )
+        job_order_object, _ = loader.resolve_all(job_order_object, file_uri(os.getcwd()) + "/")
     else:
         job_order_file = None
 
@@ -376,9 +363,7 @@ def load_job_order(
         input_basedir = args.basedir if args.basedir else os.getcwd()
     elif job_order_file is not None:
         input_basedir = (
-            args.basedir
-            if args.basedir
-            else os.path.abspath(os.path.dirname(job_order_file))
+            args.basedir if args.basedir else os.path.abspath(os.path.dirname(job_order_file))
         )
         job_order_object, _ = loader.resolve_ref(
             job_order_file,
@@ -386,22 +371,15 @@ def load_job_order(
             content_types=CWL_CONTENT_TYPES,
         )
 
-    if (
-        job_order_object is not None
-        and "http://commonwl.org/cwltool#overrides" in job_order_object
-    ):
+    if job_order_object is not None and "http://commonwl.org/cwltool#overrides" in job_order_object:
         ov_uri = file_uri(job_order_file or input_basedir)
-        overrides_list.extend(
-            resolve_overrides(job_order_object, ov_uri, tool_file_uri)
-        )
+        overrides_list.extend(resolve_overrides(job_order_object, ov_uri, tool_file_uri))
         del job_order_object["http://commonwl.org/cwltool#overrides"]
 
     if job_order_object is None:
         input_basedir = args.basedir if args.basedir else os.getcwd()
 
-    if job_order_object is not None and not isinstance(
-        job_order_object, MutableMapping
-    ):
+    if job_order_object is not None and not isinstance(job_order_object, MutableMapping):
         _logger.error(
             "CWL input object at %s is not formatted correctly, it should be a "
             "JSON/YAML dictionary, not %s.\n"
@@ -447,9 +425,7 @@ def init_job_order(
         cmd_line = vars(toolparser.parse_args(args.job_order))
         for record_name in records:
             record = {}
-            record_items = {
-                k: v for k, v in cmd_line.items() if k.startswith(record_name)
-            }
+            record_items = {k: v for k, v in cmd_line.items() if k.startswith(record_name)}
             for key, value in record_items.items():
                 record[key[len(record_name) + 1 :]] = value
                 del cmd_line[key]
@@ -461,9 +437,7 @@ def init_job_order(
                     loader.resolve_ref(cmd_line["job_order"])[0],
                 )
             except Exception:
-                _logger.exception(
-                    "Failed to resolv job_order: %s", cmd_line["job_order"]
-                )
+                _logger.exception("Failed to resolv job_order: %s", cmd_line["job_order"])
                 exit(1)
         else:
             job_order_object = {"id": args.workflow}
@@ -631,9 +605,7 @@ def find_deps(
         nestdirs=nestdirs,
     )
     if sfs is not None:
-        deps["secondaryFiles"] = cast(
-            MutableSequence[CWLOutputAtomType], mergedirs(sfs)
-        )
+        deps["secondaryFiles"] = cast(MutableSequence[CWLOutputAtomType], mergedirs(sfs))
 
     return deps
 
@@ -695,12 +667,9 @@ class ProvLogFormatter(logging.Formatter):
         """Use the default formatter with our custom formatstring."""
         super().__init__("[%(asctime)sZ] %(message)s")
 
-    def formatTime(
-        self, record: logging.LogRecord, datefmt: Optional[str] = None
-    ) -> str:
-        formatted_time = time.strftime(
-            "%Y-%m-%dT%H:%M:%S", time.gmtime(float(record.created))
-        )
+    def formatTime(self, record: logging.LogRecord, datefmt: Optional[str] = None) -> str:
+        """Override the default formatTime to include the timezone."""
+        formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(float(record.created)))
         with_msecs = f"{formatted_time},{record.msecs:03f}"
         return with_msecs
 
@@ -754,9 +723,7 @@ def setup_loadingContext(
         doc_cache=args.doc_cache,
     )
     loadingContext.research_obj = runtimeContext.research_obj
-    loadingContext.disable_js_validation = args.disable_js_validation or (
-        not args.do_validate
-    )
+    loadingContext.disable_js_validation = args.disable_js_validation or (not args.do_validate)
     loadingContext.construct_tool_object = getdefault(
         loadingContext.construct_tool_object, workflow.default_make_tool
     )
@@ -770,15 +737,11 @@ def setup_loadingContext(
 def make_template(tool: Process, target: IO[str]) -> None:
     """Make a template CWL input object for the give Process."""
 
-    def my_represent_none(
-        self: Any, data: Any
-    ) -> Any:  # pylint: disable=unused-argument
+    def my_represent_none(self: Any, data: Any) -> Any:  # pylint: disable=unused-argument
         """Force clean representation of 'null'."""
         return self.represent_scalar("tag:yaml.org,2002:null", "null")
 
-    ruamel.yaml.representer.RoundTripRepresenter.add_representer(
-        type(None), my_represent_none
-    )
+    ruamel.yaml.representer.RoundTripRepresenter.add_representer(type(None), my_represent_none)
     yaml = YAML()
     yaml.default_flow_style = False
     yaml.indent = 4
@@ -927,8 +890,7 @@ def check_working_directories(
         ):
             sl = (
                 "/"
-                if getattr(runtimeContext, dirprefix).endswith("/")
-                or dirprefix == "cachedir"
+                if getattr(runtimeContext, dirprefix).endswith("/") or dirprefix == "cachedir"
                 else ""
             )
             setattr(
@@ -956,8 +918,7 @@ def print_targets(
         if tool.tool[f]:
             _logger.info("%s %s%s targets:", prefix[:-1], f[0].upper(), f[1:-1])
             print(
-                "  "
-                + "\n  ".join([f"{prefix}{shortname(t['id'])}" for t in tool.tool[f]]),
+                "  " + "\n  ".join([f"{prefix}{shortname(t['id'])}" for t in tool.tool[f]]),
                 file=stdout,
             )
     if "steps" in tool.tool:
@@ -974,9 +935,7 @@ def print_targets(
                 process = make_tool(cast(CommentedMap, cmap(run)), loading_context)
             else:
                 process = run
-            print_targets(
-                process, stdout, loading_context, f"{prefix}{shortname(t['id'])}/"
-            )
+            print_targets(process, stdout, loading_context, f"{prefix}{shortname(t['id'])}/")
 
 
 def main(
@@ -1089,9 +1048,7 @@ def main(
             if argsl is None:
                 raise Exception("argsl cannot be None")
             try:
-                prov_log_stream, prov_log_handler = setup_provenance(
-                    args, argsl, runtimeContext
-                )
+                prov_log_stream, prov_log_handler = setup_provenance(args, argsl, runtimeContext)
             except ArgumentException:
                 return 1
 
@@ -1103,9 +1060,7 @@ def main(
             fetcher_constructor=loadingContext.fetcher_constructor,
         )
 
-        try_again_msg = (
-            "" if args.debug else ", try again with --debug for more information"
-        )
+        try_again_msg = "" if args.debug else ", try again with --debug for more information"
 
         try:
             job_order_object, input_basedir, jobloader = load_job_order(
@@ -1118,17 +1073,13 @@ def main(
 
             if args.overrides:
                 loadingContext.overrides_list.extend(
-                    load_overrides(
-                        file_uri(os.path.abspath(args.overrides)), tool_file_uri
-                    )
+                    load_overrides(file_uri(os.path.abspath(args.overrides)), tool_file_uri)
                 )
 
             loadingContext, workflowobj, uri = fetch_document(uri, loadingContext)
 
             if args.print_deps and loadingContext.loader:
-                printdeps(
-                    workflowobj, loadingContext.loader, stdout, args.relative_deps, uri
-                )
+                printdeps(workflowobj, loadingContext.loader, stdout, args.relative_deps, uri)
                 return 0
 
             loadingContext, uri = resolve_and_validate_document(
@@ -1148,9 +1099,7 @@ def main(
 
             if args.provenance and runtimeContext.research_obj:
                 # Can't really be combined with args.pack at same time
-                runtimeContext.research_obj.packed_workflow(
-                    print_pack(loadingContext, uri)
-                )
+                runtimeContext.research_obj.packed_workflow(print_pack(loadingContext, uri))
 
             if args.print_pre:
                 json_dump(
@@ -1235,10 +1184,8 @@ def main(
                 )
                 return 0
 
-        except (ValidationException) as exc:
-            _logger.error(
-                "Tool definition failed validation:\n%s", str(exc), exc_info=args.debug
-            )
+        except ValidationException as exc:
+            _logger.error("Tool definition failed validation:\n%s", str(exc), exc_info=args.debug)
             return 1
         except (RuntimeError, WorkflowException) as exc:
             _logger.error(
@@ -1279,12 +1226,8 @@ def main(
 
         runtimeContext.log_dir = args.log_dir
 
-        runtimeContext.secret_store = getdefault(
-            runtimeContext.secret_store, SecretStore()
-        )
-        runtimeContext.make_fs_access = getdefault(
-            runtimeContext.make_fs_access, StdFsAccess
-        )
+        runtimeContext.secret_store = getdefault(runtimeContext.secret_store, SecretStore())
+        runtimeContext.make_fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)
 
         if not executor:
             if args.parallel:
@@ -1305,13 +1248,9 @@ def main(
                     tfjob_order.update(loadingContext.jobdefaults)
                 if job_order_object:
                     tfjob_order.update(job_order_object)
-                tfout, tfstatus = real_executor(
-                    tool.embedded_tool, tfjob_order, runtimeContext
-                )
+                tfout, tfstatus = real_executor(tool.embedded_tool, tfjob_order, runtimeContext)
                 if not tfout or tfstatus != "success":
-                    raise WorkflowException(
-                        "ProcessGenerator failed to generate workflow"
-                    )
+                    raise WorkflowException("ProcessGenerator failed to generate workflow")
                 tool, job_order_object = tool.result(tfjob_order, tfout, runtimeContext)
                 if not job_order_object:
                     job_order_object = None
@@ -1340,12 +1279,8 @@ def main(
             del args.workflow
             del args.job_order
 
-            conf_file = getattr(
-                args, "beta_dependency_resolvers_configuration", None
-            )  # str
-            use_conda_dependencies = getattr(
-                args, "beta_conda_dependencies", None
-            )  # str
+            conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)  # str
+            use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # str
 
             if conf_file or use_conda_dependencies:
                 runtimeContext.job_script_provider = DependenciesConfiguration(args)
@@ -1398,9 +1333,7 @@ def main(
 
                 if args.write_summary:
                     with open(args.write_summary, "w") as output_file:
-                        json_dump(
-                            out, output_file, indent=4, ensure_ascii=False, default=str
-                        )
+                        json_dump(out, output_file, indent=4, ensure_ascii=False, default=str)
                 else:
                     json_dump(out, stdout, indent=4, ensure_ascii=False, default=str)
                     if hasattr(stdout, "flush"):
@@ -1412,10 +1345,8 @@ def main(
             _logger.info("Final process status is %s", status)
             return 0
 
-        except (ValidationException) as exc:
-            _logger.error(
-                "Input object failed validation:\n%s", str(exc), exc_info=args.debug
-            )
+        except ValidationException as exc:
+            _logger.error("Input object failed validation:\n%s", str(exc), exc_info=args.debug)
             return 1
         except UnsupportedRequirement as exc:
             _logger.error(
@@ -1451,9 +1382,7 @@ def main(
         ):
             research_obj = runtimeContext.research_obj
             if loadingContext.loader is not None:
-                research_obj.generate_snapshot(
-                    prov_deps(workflowobj, loadingContext.loader, uri)
-                )
+                research_obj.generate_snapshot(prov_deps(workflowobj, loadingContext.loader, uri))
             else:
                 _logger.warning(
                     "Unable to generate provenance snapshot "
@@ -1461,9 +1390,7 @@ def main(
                 )
             if prov_log_handler is not None:
                 # Stop logging so we won't half-log adding ourself to RO
-                _logger.debug(
-                    "[provenance] Closing provenance log file %s", prov_log_handler
-                )
+                _logger.debug("[provenance] Closing provenance log file %s", prov_log_handler)
                 _logger.removeHandler(prov_log_handler)
                 # Ensure last log lines are written out
                 prov_log_handler.flush()
@@ -1486,9 +1413,7 @@ def find_default_container(
 ) -> Optional[str]:
     """Find a container."""
     if not default_container and use_biocontainers:
-        default_container = get_container_from_software_requirements(
-            use_biocontainers, builder
-        )
+        default_container = get_container_from_software_requirements(use_biocontainers, builder)
     return default_container
 
 

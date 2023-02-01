@@ -4,9 +4,7 @@
 
 from typing import Any, Optional
 
-def random_geometric_graph(
-    n, radius, dim: int = ..., pos: Optional[Any] = ..., p: int = ...
-): ...
+def random_geometric_graph(n, radius, dim: int = ..., pos: Optional[Any] = ..., p: int = ...): ...
 def soft_random_geometric_graph(
     n,
     radius,

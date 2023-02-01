@@ -191,9 +191,7 @@ class Builder(HasReqsHints):
         bindings: List[MutableMapping[str, Union[str, List[int]]]] = []
         binding: Union[MutableMapping[str, Union[str, List[int]]], CommentedMap] = {}
         value_from_expression = False
-        if "inputBinding" in schema and isinstance(
-            schema["inputBinding"], MutableMapping
-        ):
+        if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
             binding = CommentedMap(schema["inputBinding"].items())
 
             bp = list(aslist(lead_pos))
@@ -303,8 +301,7 @@ class Builder(HasReqsHints):
                     else:
                         schema["type"] = "record"
                         schema["fields"] = [
-                            {"name": field_name, "type": "Any"}
-                            for field_name in datum.keys()
+                            {"name": field_name, "type": "Any"} for field_name in datum.keys()
                         ]
                 elif isinstance(datum, list):
                     schema["type"] = "array"
@@ -378,14 +375,10 @@ class Builder(HasReqsHints):
                         debug,
                     ):
                         try:
-                            with self.fs_access.open(
-                                cast(str, datum["location"]), "rb"
-                            ) as f2:
+                            with self.fs_access.open(cast(str, datum["location"]), "rb") as f2:
                                 datum["contents"] = content_limit_respected_read(f2)
                         except Exception as e:
-                            raise Exception(
-                                "Reading {}\n{}".format(datum["location"], e)
-                            ) from e
+                            raise Exception("Reading {}\n{}".format(datum["location"], e)) from e
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
@@ -398,13 +391,8 @@ class Builder(HasReqsHints):
 
                     for num, sf_entry in enumerate(sf_schema):
                         if "required" in sf_entry and sf_entry["required"] is not None:
-                            required_result = self.do_eval(
-                                sf_entry["required"], context=datum
-                            )
-                            if not (
-                                isinstance(required_result, bool)
-                                or required_result is None
-                            ):
+                            required_result = self.do_eval(sf_entry["required"], context=datum)
+                            if not (isinstance(required_result, bool) or required_result is None):
                                 if sf_schema == schema["secondaryFiles"]:
                                     sf_item: Any = sf_schema[num]
                                 else:
@@ -425,9 +413,7 @@ class Builder(HasReqsHints):
                         if "$(" in sf_entry["pattern"] or "${" in sf_entry["pattern"]:
                             sfpath = self.do_eval(sf_entry["pattern"], context=datum)
                         else:
-                            sfpath = substitute(
-                                cast(str, datum["basename"]), sf_entry["pattern"]
-                            )
+                            sfpath = substitute(cast(str, datum["basename"]), sf_entry["pattern"])
 
                         for sfname in aslist(sfpath):
                             if not sfname:
@@ -438,8 +424,7 @@ class Builder(HasReqsHints):
                                 d_location = cast(str, datum["location"])
                                 if "/" in d_location:
                                     sf_location = (
-                                        d_location[0 : d_location.rindex("/") + 1]
-                                        + sfname
+                                        d_location[0 : d_location.rindex("/") + 1] + sfname
                                     )
                                 else:
                                     sf_location = d_location + sfname
@@ -462,9 +447,7 @@ class Builder(HasReqsHints):
                                 datum["secondaryFiles"],
                             ):
                                 if not d.get("basename"):
-                                    d["basename"] = d["location"][
-                                        d["location"].rindex("/") + 1 :
-                                    ]
+                                    d["basename"] = d["location"][d["location"].rindex("/") + 1 :]
                                 if d["basename"] == sfbasename:
                                     found = True
 
@@ -488,9 +471,7 @@ class Builder(HasReqsHints):
                                         ),
                                         sfname,
                                     )
-                                elif discover_secondaryFiles and self.fs_access.exists(
-                                    sf_location
-                                ):
+                                elif discover_secondaryFiles and self.fs_access.exists(sf_location):
                                     addsf(
                                         cast(
                                             MutableSequence[CWLObjectType],
@@ -550,9 +531,7 @@ class Builder(HasReqsHints):
                                 ).makeError(message)
                         evaluated_format = cast(List[str], eval_format)
                     else:
-                        raise SourceLine(
-                            schema, "format", WorkflowException, debug
-                        ).makeError(
+                        raise SourceLine(schema, "format", WorkflowException, debug).makeError(
                             "An expression in the 'format' field must "
                             "evaluate to a string, or list of strings. "
                             "However the type of the expression result was "
@@ -642,9 +621,7 @@ class Builder(HasReqsHints):
                 WorkflowException,
                 debug,
             ):
-                raise WorkflowException(
-                    "'separate' option can not be specified without prefix"
-                )
+                raise WorkflowException("'separate' option can not be specified without prefix")
 
         argl: MutableSequence[CWLOutputType] = []
         if isinstance(value, MutableSequence):
@@ -653,9 +630,7 @@ class Builder(HasReqsHints):
                 argl = [itemSeparator.join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
                 value = [self.tostr(v) for v in value]
-                return cast(List[str], ([prefix] if prefix else [])) + cast(
-                    List[str], value
-                )
+                return cast(List[str], ([prefix] if prefix else [])) + cast(List[str], value)
             elif prefix and value:
                 return [prefix]
             else:

@@ -73,9 +73,7 @@ class MutationManager:
                 )
             )
 
-        self.generations[loc] = MutationState(
-            current.generation + 1, current.readers, stepname
-        )
+        self.generations[loc] = MutationState(current.generation + 1, current.readers, stepname)
 
     def set_generation(self, obj: CWLObjectType) -> None:
         loc = cast(str, obj["location"])

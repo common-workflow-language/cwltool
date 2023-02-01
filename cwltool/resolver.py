@@ -25,13 +25,9 @@ def resolve_local(document_loader: Optional[Loader], uri: str) -> Optional[str]:
         return pathobj.as_uri()
 
     sharepaths = [
-        os.environ.get(
-            "XDG_DATA_HOME", os.path.join(os.path.expanduser("~"), ".local", "share")
-        )
+        os.environ.get("XDG_DATA_HOME", os.path.join(os.path.expanduser("~"), ".local", "share"))
     ]
-    sharepaths.extend(
-        os.environ.get("XDG_DATA_DIRS", "/usr/local/share/:/usr/share/").split(":")
-    )
+    sharepaths.extend(os.environ.get("XDG_DATA_DIRS", "/usr/local/share/:/usr/share/").split(":"))
     shares = [os.path.join(s, "commonwl", uri) for s in sharepaths]
 
     _logger.debug("Search path is %s", shares)
@@ -63,9 +59,7 @@ ga4gh_tool_registries = ["https://dockstore.org/api"]
 # TODO not stripping off "descriptor" when looking for local imports would also
 # work https://github.com/ga4gh/tool-registry-service-schemas/blob/2.0.0-beta.2/src/main/resources/swagger/ga4gh-tool-discovery.yaml#L273  # noqa: B950
 GA4GH_TRS_FILES = "{0}/api/ga4gh/v2/tools/{1}/versions/{2}/CWL/files"
-GA4GH_TRS_PRIMARY_DESCRIPTOR = (
-    "{0}/api/ga4gh/v2/tools/{1}/versions/{2}/plain-CWL/descriptor/{3}"
-)
+GA4GH_TRS_PRIMARY_DESCRIPTOR = "{0}/api/ga4gh/v2/tools/{1}/versions/{2}/plain-CWL/descriptor/{3}"
 
 
 def resolve_ga4gh_tool(document_loader: Loader, uri: str) -> Optional[str]:

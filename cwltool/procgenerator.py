@@ -23,9 +23,8 @@ class ProcessGeneratorJob:
         self.jobout = None  # type: Optional[CWLObjectType]
         self.processStatus = None  # type: Optional[str]
 
-    def receive_output(
-        self, jobout: Optional[CWLObjectType], processStatus: str
-    ) -> None:
+    def receive_output(self, jobout: Optional[CWLObjectType], processStatus: str) -> None:
+        """Process the results."""
         self.jobout = jobout
         self.processStatus = processStatus
 
@@ -35,7 +34,6 @@ class ProcessGeneratorJob:
         output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
-
         try:
             yield from self.procgenerator.embedded_tool.job(
                 job_order, self.receive_output, runtimeContext
@@ -95,9 +93,7 @@ class ProcessGenerator(Process):
         output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
-        return ProcessGeneratorJob(self).job(
-            job_order, output_callbacks, runtimeContext
-        )
+        return ProcessGeneratorJob(self).job(job_order, output_callbacks, runtimeContext)
 
     def result(
         self,

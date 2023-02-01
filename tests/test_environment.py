@@ -210,9 +210,7 @@ def test_basic(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> Non
 
 
 @CRT_PARAMS
-def test_preserve_single(
-    crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any
-) -> None:
+def test_preserve_single(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> None:
     """Test that preserving a single env var works."""
     tmp_prefix = str(tmp_path / "canary")
     extra_env = {
@@ -236,9 +234,7 @@ def test_preserve_single(
 
 
 @CRT_PARAMS
-def test_preserve_all(
-    crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any
-) -> None:
+def test_preserve_all(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> None:
     """Test that preserving all works."""
     tmp_prefix = str(tmp_path / "canary")
     extra_env = {

@@ -96,9 +96,7 @@ class LogAsDebugFilter(logging.Filter):
 
 _logger_validation_warnings = logging.getLogger("cwltool.validation_warnings")
 _logger_validation_warnings.setLevel(_logger.getEffectiveLevel())
-_logger_validation_warnings.addFilter(
-    LogAsDebugFilter("cwltool.validation_warnings", _logger)
-)
+_logger_validation_warnings.addFilter(LogAsDebugFilter("cwltool.validation_warnings", _logger))
 
 supportedProcessRequirements = [
     "DockerRequirement",
@@ -188,7 +186,6 @@ def use_custom_schema(version: str, name: str, text: str) -> None:
 def get_schema(
     version: str,
 ) -> Tuple[Loader, Union[Names, SchemaParseException], CWLObjectType, Loader]:
-
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
@@ -210,9 +207,9 @@ def get_schema(
                 __name__,
                 f"schemas/{version}/salad/schema_salad/metaschema/{f}",
             )
-            cache[
-                "https://w3id.org/cwl/salad/schema_salad/metaschema/" + f
-            ] = res.read().decode("UTF-8")
+            cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = res.read().decode(
+                "UTF-8"
+            )
             res.close()
         except OSError:
             pass
@@ -265,9 +262,7 @@ def stage_files(
                 while tgt in targets:
                     i += 1
                     tgt = f"{entry.target}_{i}"
-                targets[tgt] = pathmapper.update(
-                    key, entry.resolved, tgt, entry.type, entry.staged
-                )
+                targets[tgt] = pathmapper.update(key, entry.resolved, tgt, entry.type, entry.staged)
             else:
                 raise WorkflowException(
                     "File staging conflict, trying to stage both %s and %s to the same target %s"
@@ -347,9 +342,7 @@ def relocateOutputs(
             return
 
         # If the source is not contained in source_directories we're not allowed to delete it
-        src_can_deleted = any(
-            os.path.commonprefix([p, src]) == p for p in source_directories
-        )
+        src_can_deleted = any(os.path.commonprefix([p, src]) == p for p in source_directories)
 
         _action = "move" if action == "move" and src_can_deleted else "copy"
 
@@ -398,9 +391,7 @@ def relocateOutputs(
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
 
     if compute_checksum:
-        visit_class(
-            outputObj, ("File",), functools.partial(compute_checksums, fs_access)
-        )
+        visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
     return outputObj
 
 
@@ -445,8 +436,7 @@ def fill_in_defaults(
                 job[fieldname] = None
             else:
                 raise WorkflowException(
-                    "Missing required input parameter '%s'"
-                    % shortname(cast(str, inp["id"]))
+                    "Missing required input parameter '%s'" % shortname(cast(str, inp["id"]))
                 )
 
 
@@ -471,9 +461,7 @@ def avroize_type(
                 cast(MutableSequence[CWLOutputType], field_type["items"]), name_prefix
             )
         else:
-            field_type["type"] = avroize_type(
-                cast(CWLOutputType, field_type["type"]), name_prefix
-            )
+            field_type["type"] = avroize_type(cast(CWLOutputType, field_type["type"]), name_prefix)
     elif field_type == "File":
         return "org.w3id.cwl.cwl.File"
     elif field_type == "Directory":
@@ -481,14 +469,11 @@ def avroize_type(
     return field_type
 
 
-def get_overrides(
-    overrides: MutableSequence[CWLObjectType], toolid: str
-) -> CWLObjectType:
+def get_overrides(overrides: MutableSequence[CWLObjectType], toolid: str) -> CWLObjectType:
+    """Combine overrides for the target tool ID."""
     req: CWLObjectType = {}
     if not isinstance(overrides, MutableSequence):
-        raise ValidationException(
-            "Expected overrides to be a list, but was %s" % type(overrides)
-        )
+        raise ValidationException("Expected overrides to be a list, but was %s" % type(overrides))
     for ov in overrides:
         if ov["overrideTarget"] == toolid:
             req.update(ov)
@@ -550,9 +535,9 @@ FILE_COUNT_WARNING = 5000
 
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Process(HasReqsHints, metaclass=abc.ABCMeta):
-    def __init__(
-        self, toolpath_object: CommentedMap, loadingContext: LoadingContext
-    ) -> None:
+    """Abstract CWL Process."""
+
+    def __init__(self, toolpath_object: CommentedMap, loadingContext: LoadingContext) -> None:
         """Build a Process object from the provided dictionary."""
         super().__init__()
         self.metadata: CWLObjectType = getdefault(loadingContext.metadata, {})
@@ -580,9 +565,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         self.requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
         tool_requirements = self.tool.get("requirements", [])
         if tool_requirements is None:
-            raise SourceLine(
-                self.tool, "requirements", ValidationException, debug
-            ).makeError(
+            raise SourceLine(self.tool, "requirements", ValidationException, debug).makeError(
                 "If 'requirements' is present then it must be a list "
                 "or map/dictionary, not empty."
             )
@@ -592,17 +575,16 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         self.requirements.extend(
             cast(
                 List[CWLObjectType],
-                get_overrides(
-                    getdefault(loadingContext.overrides_list, []), self.tool["id"]
-                ).get("requirements", []),
+                get_overrides(getdefault(loadingContext.overrides_list, []), self.tool["id"]).get(
+                    "requirements", []
+                ),
             )
         )
         self.hints = copy.deepcopy(getdefault(loadingContext.hints, []))
         tool_hints = self.tool.get("hints", [])
         if tool_hints is None:
             raise SourceLine(self.tool, "hints", ValidationException, debug).makeError(
-                "If 'hints' is present then it must be a list "
-                "or map/dictionary, not empty."
+                "If 'hints' is present then it must be a list " "or map/dictionary, not empty."
             )
         self.hints.extend(tool_hints)
         # Versions of requirements and hints which aren't mutated.
@@ -658,9 +640,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                 del c["id"]
 
                 if "type" not in c:
-                    raise ValidationException(
-                        "Missing 'type' in parameter '{}'".format(c["name"])
-                    )
+                    raise ValidationException("Missing 'type' in parameter '{}'".format(c["name"]))
 
                 if "default" in c and "null" not in aslist(c["type"]):
                     nullable = ["null"]
@@ -671,13 +651,9 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
 
                 c["type"] = avroize_type(c["type"], c["name"])
                 if key == "inputs":
-                    cast(
-                        List[CWLObjectType], self.inputs_record_schema["fields"]
-                    ).append(c)
+                    cast(List[CWLObjectType], self.inputs_record_schema["fields"]).append(c)
                 elif key == "outputs":
-                    cast(
-                        List[CWLObjectType], self.outputs_record_schema["fields"]
-                    ).append(c)
+                    cast(List[CWLObjectType], self.outputs_record_schema["fields"]).append(c)
 
         with SourceLine(toolpath_object, "inputs", ValidationException, debug):
             self.inputs_record_schema = cast(
@@ -755,10 +731,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         else:
             var_spool_cwl_detector(self.tool)
 
-    def _init_job(
-        self, joborder: CWLObjectType, runtime_context: RuntimeContext
-    ) -> Builder:
-
+    def _init_job(self, joborder: CWLObjectType, runtime_context: RuntimeContext) -> Builder:
         if self.metadata.get("cwlVersion") != INTERNAL_VERSION:
             raise WorkflowException(
                 "Process object loaded with version '%s', must update to '%s' in order to execute."
@@ -785,9 +758,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             normalizeFilesDirs(job)
             schema = self.names.get_name("input_record_schema", None)
             if schema is None:
-                raise WorkflowException(
-                    "Missing input record schema: " "{}".format(self.names)
-                )
+                raise WorkflowException("Missing input record schema: " "{}".format(self.names))
             validate_ex(
                 schema,
                 job,
@@ -812,9 +783,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     def inc(d: List[int]) -> None:
                         d[0] += 1
 
-                    visit_class(
-                        v, ("Directory",), lambda x: inc(dircount)  # noqa: B023
-                    )
+                    visit_class(v, ("Directory",), lambda x: inc(dircount))  # noqa: B023
                     if dircount[0] == 0:
                         continue
                     filecount = [0]
@@ -1013,16 +982,12 @@ hints:
             if rsc.get(a + "Min"):
                 mn = cast(
                     Union[int, float],
-                    eval_resource(
-                        builder, cast(Union[str, int, float], rsc[a + "Min"])
-                    ),
+                    eval_resource(builder, cast(Union[str, int, float], rsc[a + "Min"])),
                 )
             if rsc.get(a + "Max"):
                 mx = cast(
                     Union[int, float],
-                    eval_resource(
-                        builder, cast(Union[str, int, float], rsc[a + "Max"])
-                    ),
+                    eval_resource(builder, cast(Union[str, int, float], rsc[a + "Max"])),
                 )
             if mn is None:
                 mn = mx
@@ -1060,20 +1025,14 @@ hints:
                 for i, entry in enumerate(
                     cast(MutableSequence[CWLObjectType], rec["requirements"])
                 ):
-                    with SourceLine(
-                        rec["requirements"], i, UnsupportedRequirement, debug
-                    ):
-                        if (
-                            cast(str, entry["class"])
-                            not in supported_process_requirements
-                        ):
+                    with SourceLine(rec["requirements"], i, UnsupportedRequirement, debug):
+                        if cast(str, entry["class"]) not in supported_process_requirements:
                             raise UnsupportedRequirement(
                                 f"Unsupported requirement {entry['class']}."
                             )
 
-    def validate_hints(
-        self, avsc_names: Names, hints: List[CWLObjectType], strict: bool
-    ) -> None:
+    def validate_hints(self, avsc_names: Names, hints: List[CWLObjectType], strict: bool) -> None:
+        """Process the hints field."""
         if self.doc_loader is None:
             return
         debug = _logger.isEnabledFor(logging.DEBUG)
@@ -1090,9 +1049,7 @@ hints:
                     avroname = avro_type_name(self.doc_loader.vocab[classname])
                 if avsc_names.get_name(avroname, None) is not None:
                     plain_hint = {
-                        key: r[key]
-                        for key in r
-                        if key not in self.doc_loader.identifiers
+                        key: r[key] for key in r if key not in self.doc_loader.identifiers
                     }  # strip identifiers
                     validate_ex(
                         cast(
@@ -1178,9 +1135,9 @@ def mergedirs(
             if e.get("listing"):
                 # name already in entries
                 # merge it into the existing listing
-                cast(
-                    List[CWLObjectType], ents[basename].setdefault("listing", [])
-                ).extend(cast(List[CWLObjectType], e["listing"]))
+                cast(List[CWLObjectType], ents[basename].setdefault("listing", [])).extend(
+                    cast(List[CWLObjectType], e["listing"])
+                )
     for e in ents.values():
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = cast(

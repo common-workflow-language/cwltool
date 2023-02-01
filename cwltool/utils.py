@@ -66,15 +66,11 @@ CWLOutputAtomType = Union[
     int,
     float,
     MutableSequence[
-        Union[
-            None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]
-        ]
+        Union[None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]]
     ],
     MutableMapping[
         str,
-        Union[
-            None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]
-        ],
+        Union[None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]],
     ],
 ]
 CWLOutputType = Union[
@@ -88,9 +84,7 @@ CWLOutputType = Union[
 CWLObjectType = MutableMapping[str, Optional[CWLOutputType]]
 """Typical raw dictionary found in lightly parsed CWL."""
 
-JobsType = Union[
-    "CommandLineJob", "JobBase", "WorkflowJob", "ExpressionJob", "CallbackJob"
-]
+JobsType = Union["CommandLineJob", "JobBase", "WorkflowJob", "ExpressionJob", "CallbackJob"]
 JobsGeneratorType = Generator[Optional[JobsType], None, None]
 OutputCallbackType = Callable[[Optional[CWLObjectType], str], None]
 ResolverType = Callable[["Loader", str], Optional[str]]
@@ -102,9 +96,7 @@ DirectoryType = TypedDict(
     "DirectoryType", {"class": str, "listing": List[CWLObjectType], "basename": str}
 )
 JSONAtomType = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
-JSONType = Union[
-    Dict[str, JSONAtomType], List[JSONAtomType], str, int, float, bool, None
-]
+JSONType = Union[Dict[str, JSONAtomType], List[JSONAtomType], str, int, float, bool, None]
 WorkflowStateItem = NamedTuple(
     "WorkflowStateItem",
     [
@@ -117,9 +109,7 @@ WorkflowStateItem = NamedTuple(
 ParametersType = List[CWLObjectType]
 StepType = CWLObjectType  # WorkflowStep
 
-LoadListingType = Union[
-    Literal["no_listing"], Literal["shallow_listing"], Literal["deep_listing"]
-]
+LoadListingType = Union[Literal["no_listing"], Literal["shallow_listing"], Literal["deep_listing"]]
 
 
 def versionstring() -> str:
@@ -306,9 +296,8 @@ def dedup(listing: List[CWLObjectType]) -> List[CWLObjectType]:
     return dd
 
 
-def get_listing(
-    fs_access: "StdFsAccess", rec: CWLObjectType, recursive: bool = True
-) -> None:
+def get_listing(fs_access: "StdFsAccess", rec: CWLObjectType, recursive: bool = True) -> None:
+    """Expand, recursively, any 'listing' fields in a Directory."""
     if rec.get("class") != "Directory":
         finddirs: List[CWLObjectType] = []
         visit_class(rec, ("Directory",), finddirs.append)
@@ -446,9 +435,7 @@ def normalizeFilesDirs(
                 raise ValidationException(
                     "Anonymous file object must have 'contents' and 'basename' fields."
                 )
-            if d["class"] == "Directory" and (
-                "listing" not in d or "basename" not in d
-            ):
+            if d["class"] == "Directory" and ("listing" not in d or "basename" not in d):
                 raise ValidationException(
                     "Anonymous directory object must have 'listing' and 'basename' fields."
                 )
@@ -515,9 +502,8 @@ class HasReqsHints:
         self.requirements: List[CWLObjectType] = []
         self.hints: List[CWLObjectType] = []
 
-    def get_requirement(
-        self, feature: str
-    ) -> Tuple[Optional[CWLObjectType], Optional[bool]]:
+    def get_requirement(self, feature: str) -> Tuple[Optional[CWLObjectType], Optional[bool]]:
+        """Retrieve the named feature from the requirements field, or the hints field."""
         for item in reversed(self.requirements):
             if item["class"] == feature:
                 return (item, True)

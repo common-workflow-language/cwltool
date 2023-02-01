@@ -215,9 +215,7 @@ def test_argparser_without_doc() -> None:
         ),
     ],
 )
-def test_argparse_append_with_default(
-    job_order: List[str], expected_values: List[str]
-) -> None:
+def test_argparse_append_with_default(job_order: List[str], expected_values: List[str]) -> None:
     """
     Confirm that the appended arguments must not include the default.
 
@@ -225,9 +223,7 @@ def test_argparse_append_with_default(
     """
     loadingContext = LoadingContext()
     tool = load_tool(get_data("tests/default_values_list.cwl"), loadingContext)
-    toolparser = generate_parser(
-        argparse.ArgumentParser(prog="test"), tool, {}, [], False
-    )
+    toolparser = generate_parser(argparse.ArgumentParser(prog="test"), tool, {}, [], False)
     cmd_line = vars(toolparser.parse_args(job_order))
     file_paths = list(cmd_line["file_paths"])
     assert expected_values == file_paths

@@ -23,7 +23,7 @@ def draw_networkx_nodes(
     linewidths: Optional[Any] = ...,
     edgecolors: Optional[Any] = ...,
     label: Optional[Any] = ...,
-    **kwds
+    **kwds,
 ): ...
 def draw_networkx_edges(
     G,
@@ -44,7 +44,7 @@ def draw_networkx_edges(
     node_size: int = ...,
     nodelist: Optional[Any] = ...,
     node_shape: str = ...,
-    **kwds
+    **kwds,
 ): ...
 def draw_networkx_labels(
     G,
@@ -57,7 +57,7 @@ def draw_networkx_labels(
     alpha: float = ...,
     bbox: Optional[Any] = ...,
     ax: Optional[Any] = ...,
-    **kwds
+    **kwds,
 ): ...
 def draw_networkx_edge_labels(
     G,
@@ -72,7 +72,7 @@ def draw_networkx_edge_labels(
     bbox: Optional[Any] = ...,
     ax: Optional[Any] = ...,
     rotate: bool = ...,
-    **kwds
+    **kwds,
 ): ...
 def draw_circular(G, **kwargs): ...
 def draw_kamada_kawai(G, **kwargs): ...

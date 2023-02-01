@@ -37,7 +37,7 @@ class Dot(files.File):
         name,
         label: Optional[Any] = ...,
         _attributes: Optional[Any] = ...,
-        **attrs
+        **attrs,
     ): ...
     def edge(
         self,
@@ -45,12 +45,10 @@ class Dot(files.File):
         head_name,
         label: Optional[Any] = ...,
         _attributes: Optional[Any] = ...,
-        **attrs
+        **attrs,
     ): ...
     def edges(self, tail_head_iter): ...
-    def attr(
-        self, kw: Optional[Any] = ..., _attributes: Optional[Any] = ..., **attrs
-    ): ...
+    def attr(self, kw: Optional[Any] = ..., _attributes: Optional[Any] = ..., **attrs): ...
     def subgraph(
         self,
         graph: Optional[Any] = ...,
