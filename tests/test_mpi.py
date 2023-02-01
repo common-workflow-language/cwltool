@@ -140,8 +140,7 @@ class TestMpiRun:
         stderr = StringIO()
         with working_directory(tmp_path):
             rc = main(
-                argsl=cwltool_args(fake_mpi_conf)
-                + [get_data("tests/wf/mpi_simple.cwl")],
+                argsl=cwltool_args(fake_mpi_conf) + [get_data("tests/wf/mpi_simple.cwl")],
                 stdout=stdout,
                 stderr=stderr,
             )
@@ -292,9 +291,7 @@ def schema_ext11() -> Generator[Names, None, None]:
 
 mpiReq = CommentedMap({"class": MPIRequirementName, "processes": 1})
 containerReq = CommentedMap({"class": "DockerRequirement"})
-basetool = CommentedMap(
-    {"cwlVersion": "v1.1", "inputs": CommentedSeq(), "outputs": CommentedSeq()}
-)
+basetool = CommentedMap({"cwlVersion": "v1.1", "inputs": CommentedSeq(), "outputs": CommentedSeq()})
 
 
 def mk_tool(

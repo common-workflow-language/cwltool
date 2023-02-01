@@ -54,9 +54,7 @@ if TYPE_CHECKING:
     from .provenance import ResearchObject
 
 
-def copy_job_order(
-    job: Union[Process, JobsType], job_order_object: CWLObjectType
-) -> CWLObjectType:
+def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectType) -> CWLObjectType:
     """Create copy of job object for provenance."""
     if not isinstance(job, WorkflowJob):
         # direct command line tool execution
@@ -172,9 +170,7 @@ class ProvenanceProfile:
         )
         ro_identifier_workflow = self.research_object.base_uri + "workflow/packed.cwl#"
         self.wf_ns = self.document.add_namespace("wf", ro_identifier_workflow)
-        ro_identifier_input = (
-            self.research_object.base_uri + "workflow/primary-job.json#"
-        )
+        ro_identifier_input = self.research_object.base_uri + "workflow/primary-job.json#"
         self.document.add_namespace("input", ro_identifier_input)
 
         # More info about the account (e.g. username, fullname)
@@ -225,9 +221,7 @@ class ProvenanceProfile:
         )
         # association between SoftwareAgent and WorkflowRun
         main_workflow = "wf:main"
-        self.document.wasAssociatedWith(
-            self.workflow_run_uri, self.engine_uuid, main_workflow
-        )
+        self.document.wasAssociatedWith(self.workflow_run_uri, self.engine_uuid, main_workflow)
         self.document.wasStartedBy(
             self.workflow_run_uri, None, self.engine_uuid, datetime.datetime.now()
         )
@@ -286,9 +280,7 @@ class ProvenanceProfile:
         self.document.wasAssociatedWith(
             process_run_id, self.engine_uuid, str("wf:main/" + process_name)
         )
-        self.document.wasStartedBy(
-            process_run_id, None, self.workflow_run_uri, when, None, None
-        )
+        self.document.wasStartedBy(process_run_id, None, self.workflow_run_uri, when, None, None)
         return process_run_id
 
     def record_process_end(
@@ -320,9 +312,7 @@ class ProvenanceProfile:
                 relative_path = self.research_object.add_data_file(fhandle)
                 # FIXME: This naively relies on add_data_file setting hash as filename
                 checksum = PurePath(relative_path).name
-                entity = self.document.entity(
-                    "data:" + checksum, {PROV_TYPE: WFPROV["Artifact"]}
-                )
+                entity = self.document.entity("data:" + checksum, {PROV_TYPE: WFPROV["Artifact"]})
                 if "checksum" not in value:
                     value["checksum"] = f"{SHA1}${checksum}"
 
@@ -332,9 +322,7 @@ class ProvenanceProfile:
 
         # By here one of them should have worked!
         if not entity or not checksum:
-            raise ValueError(
-                "class:File but missing checksum/location/content: %r" % value
-            )
+            raise ValueError("class:File but missing checksum/location/content: %r" % value)
 
         # Track filename and extension, this is generally useful only for
         # secondaryFiles. Note that multiple uses of a file might thus record
@@ -348,23 +336,15 @@ class ProvenanceProfile:
         )
 
         if "basename" in value:
-            file_entity.add_attributes(
-                {CWLPROV["basename"]: cast(str, value["basename"])}
-            )
+            file_entity.add_attributes({CWLPROV["basename"]: cast(str, value["basename"])})
         if "nameroot" in value:
-            file_entity.add_attributes(
-                {CWLPROV["nameroot"]: cast(str, value["nameroot"])}
-            )
+            file_entity.add_attributes({CWLPROV["nameroot"]: cast(str, value["nameroot"])})
         if "nameext" in value:
-            file_entity.add_attributes(
-                {CWLPROV["nameext"]: cast(str, value["nameext"])}
-            )
+            file_entity.add_attributes({CWLPROV["nameext"]: cast(str, value["nameext"])})
         self.document.specializationOf(file_entity, entity)
 
         # Check for secondaries
-        for sec in cast(
-            MutableSequence[CWLObjectType], value.get("secondaryFiles", [])
-        ):
+        for sec in cast(MutableSequence[CWLObjectType], value.get("secondaryFiles", [])):
             # TODO: Record these in a specializationOf entity with UUID?
             if sec["class"] == "File":
                 (sec_entity, _, _) = self.declare_file(sec)
@@ -478,9 +458,7 @@ class ProvenanceProfile:
         ore_doc_path = str(PurePosixPath(METADATA, ore_doc_fn))
         with self.research_object.write_bag_file(ore_doc_path) as provenance_file:
             ore_doc.serialize(provenance_file, format="rdf", rdf_format="turtle")
-        self.research_object.add_annotation(
-            dir_id, [ore_doc_fn], ORE["isDescribedBy"].uri
-        )
+        self.research_object.add_annotation(dir_id, [ore_doc_fn], ORE["isDescribedBy"].uri)
 
         if is_empty:
             # Empty directory
@@ -570,7 +548,7 @@ class ProvenanceProfile:
 
             # Let's iterate and recurse
             coll_attribs: List[Tuple[Union[str, Identifier], Any]] = []
-            for (key, val) in value.items():
+            for key, val in value.items():
                 v_ent = self.declare_artefact(val)
                 self.document.membership(coll, v_ent)
                 m_entity = self.document.entity(uuid.uuid4().urn)
@@ -578,9 +556,7 @@ class ProvenanceProfile:
                 # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
                 # as prov.py do not easily allow PROV-N extensions
                 m_entity.add_asserted_type(PROV["KeyEntityPair"])
-                m_entity.add_attributes(
-                    {PROV["pairKey"]: str(key), PROV["pairEntity"]: v_ent}
-                )
+                m_entity.add_attributes({PROV["pairKey"]: str(key), PROV["pairEntity"]: v_ent})
                 coll_attribs.append((PROV["hadDictionaryMember"], m_entity))
             coll.add_attributes(coll_attribs)
             self.research_object.add_uri(coll.identifier.uri)
@@ -722,9 +698,7 @@ class ProvenanceProfile:
             )
         # TODO: Declare roles/parameters as well
 
-    def activity_has_provenance(
-        self, activity: str, prov_ids: Sequence[Identifier]
-    ) -> None:
+    def activity_has_provenance(self, activity: str, prov_ids: Sequence[Identifier]) -> None:
         """Add http://www.w3.org/TR/prov-aq/ relations to nested PROV files."""
         # NOTE: The below will only work if the corresponding metadata/provenance arcp URI
         # is a pre-registered namespace in the PROV Document
@@ -765,9 +739,7 @@ class ProvenanceProfile:
             prov_ids.append(self.provenance_ns[filename + ".xml"])
 
         # https://www.w3.org/TR/prov-n/
-        with self.research_object.write_bag_file(
-            basename + ".provn"
-        ) as provenance_file:
+        with self.research_object.write_bag_file(basename + ".provn") as provenance_file:
             self.document.serialize(provenance_file, format="provn", indent=2)
             prov_ids.append(self.provenance_ns[filename + ".provn"])
 
@@ -786,18 +758,14 @@ class ProvenanceProfile:
 
         # https://www.w3.org/TR/n-triples/
         with self.research_object.write_bag_file(basename + ".nt") as provenance_file:
-            self.document.serialize(
-                provenance_file, format="rdf", rdf_format="ntriples"
-            )
+            self.document.serialize(provenance_file, format="rdf", rdf_format="ntriples")
             prov_ids.append(self.provenance_ns[filename + ".nt"])
 
         # https://www.w3.org/TR/json-ld/
         # TODO: Use a nice JSON-LD context
         # see also https://eprints.soton.ac.uk/395985/
         # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
-        with self.research_object.write_bag_file(
-            basename + ".jsonld"
-        ) as provenance_file:
+        with self.research_object.write_bag_file(basename + ".jsonld") as provenance_file:
             self.document.serialize(provenance_file, format="rdf", rdf_format="json-ld")
             prov_ids.append(self.provenance_ns[filename + ".jsonld"])
 

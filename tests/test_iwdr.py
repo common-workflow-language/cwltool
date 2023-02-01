@@ -35,9 +35,7 @@ def test_passthrough_successive(tmp_path: Path) -> None:
         ]
     )
     assert err_code == 0
-    children = sorted(
-        tmp_path.glob("*")
-    )  # This input directory should be left pristine.
+    children = sorted(tmp_path.glob("*"))  # This input directory should be left pristine.
     assert len(children) == 1
     subdir = tmp_path / children[0]
     assert len(sorted(subdir.glob("*"))) == 1

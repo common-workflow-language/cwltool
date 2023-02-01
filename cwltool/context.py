@@ -53,9 +53,7 @@ class ContextBase:
                     setattr(self, k, v)
 
 
-def make_tool_notimpl(
-    toolpath_object: CommentedMap, loadingContext: "LoadingContext"
-) -> "Process":
+def make_tool_notimpl(toolpath_object: CommentedMap, loadingContext: "LoadingContext") -> "Process":
     raise NotImplementedError()
 
 
@@ -155,9 +153,7 @@ class RuntimeContext(ContextBase):
         self.rm_tmpdir: bool = True
         self.pull_image: bool = True
         self.rm_container: bool = True
-        self.move_outputs: Union[
-            Literal["move"], Literal["leave"], Literal["copy"]
-        ] = "move"
+        self.move_outputs: Union[Literal["move"], Literal["leave"], Literal["copy"]] = "move"
         self.log_dir: str = ""
         self.set_log_dir = set_log_dir
         self.log_dir_handler = log_handler
@@ -169,9 +165,7 @@ class RuntimeContext(ContextBase):
         self.compute_checksum: bool = True
         self.name: str = ""
         self.default_container: Optional[str] = ""
-        self.find_default_container: Optional[
-            Callable[[HasReqsHints], Optional[str]]
-        ] = None
+        self.find_default_container: Optional[Callable[[HasReqsHints], Optional[str]]] = None
         self.cachedir: Optional[str] = None
         self.part_of: str = ""
         self.basedir: str = ""
@@ -187,9 +181,7 @@ class RuntimeContext(ContextBase):
         self.job_script_provider: Optional[DependenciesConfiguration] = None
         self.select_resources: Optional[select_resources_callable] = None
         self.eval_timeout: float = 60
-        self.postScatterEval: Optional[
-            Callable[[CWLObjectType], Optional[CWLObjectType]]
-        ] = None
+        self.postScatterEval: Optional[Callable[[CWLObjectType], Optional[CWLObjectType]]] = None
         self.on_error: Union[Literal["stop"], Literal["continue"]] = "stop"
         self.strict_memory_limit: bool = False
         self.strict_cpu_limit: bool = False

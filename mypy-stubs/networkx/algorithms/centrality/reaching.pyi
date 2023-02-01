@@ -4,9 +4,7 @@
 
 from typing import Any, Optional
 
-def global_reaching_centrality(
-    G, weight: Optional[Any] = ..., normalized: bool = ...
-): ...
+def global_reaching_centrality(G, weight: Optional[Any] = ..., normalized: bool = ...): ...
 def local_reaching_centrality(
     G,
     v,

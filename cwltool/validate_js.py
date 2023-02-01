@@ -159,14 +159,11 @@ def jshint_js(
         # NOTE: we need to assign to ob, as the expression {validateJS: validateJS} as an expression
         # is interpreted as a block with a label `validateJS`
         jshint_functions_text += (
-            "\n"
-            + res2.read().decode("utf-8")
-            + "\nvar ob = {validateJS: validateJS}; ob"
+            "\n" + res2.read().decode("utf-8") + "\nvar ob = {validateJS: validateJS}; ob"
         )
 
     returncode, stdout, stderr = exec_js_process(
-        "validateJS(%s)"
-        % json_dumps({"code": js_text, "options": options, "globals": globals}),
+        "validateJS(%s)" % json_dumps({"code": js_text, "options": options, "globals": globals}),
         timeout=eval_timeout,
         context=jshint_functions_text,
         container_engine=container_engine,
@@ -205,9 +202,7 @@ def jshint_js(
     return JSHintJSReturn(jshint_errors, jshint_json.get("globals", []))
 
 
-def print_js_hint_messages(
-    js_hint_messages: List[str], source_line: Optional[SourceLine]
-) -> None:
+def print_js_hint_messages(js_hint_messages: List[str], source_line: Optional[SourceLine]) -> None:
     if source_line is not None:
         for js_hint_message in js_hint_messages:
             _logger.warning(source_line.makeError(js_hint_message))
@@ -220,7 +215,6 @@ def validate_js_expressions(
     container_engine: str = "docker",
     eval_timeout: float = 60,
 ) -> None:
-
     if tool.get("requirements") is None:
         return
     debug = _logger.isEnabledFor(logging.DEBUG)

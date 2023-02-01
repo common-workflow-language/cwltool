@@ -30,14 +30,10 @@ def cuda_check(cuda_req: CWLObjectType, requestCount: int) -> int:
             return 0
         versionf = float(version)
         if versionf < vmin:
-            _logger.warning(
-                "CUDA version '%s' is less than minimum version '%s'", version, vmin
-            )
+            _logger.warning("CUDA version '%s' is less than minimum version '%s'", version, vmin)
             return 0
         if requestCount > devices:
-            _logger.warning(
-                "Requested %d GPU devices but only %d available", requestCount, devices
-            )
+            _logger.warning("Requested %d GPU devices but only %d available", requestCount, devices)
             return 0
         return requestCount
     except Exception as e:

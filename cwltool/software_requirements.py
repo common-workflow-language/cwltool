@@ -86,12 +86,10 @@ class DependenciesConfiguration:
             "conda_auto_install": True,
             "conda_auto_init": True,
         }
-        tool_dependency_manager: "deps.DependencyManager" = (
-            deps.build_dependency_manager(
-                app_config_dict=app_config,
-                resolution_config_dict=resolution_config_dict,
-                conf_file=self.dependency_resolvers_config_file,
-            )
+        tool_dependency_manager: "deps.DependencyManager" = deps.build_dependency_manager(
+            app_config_dict=app_config,
+            resolution_config_dict=resolution_config_dict,
+            conf_file=self.dependency_resolvers_config_file,
         )
         dependencies = get_dependencies(builder)
         handle_dependencies = ""  # str

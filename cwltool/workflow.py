@@ -41,9 +41,7 @@ from .utils import (
 from .workflow_job import WorkflowJob
 
 
-def default_make_tool(
-    toolpath_object: CommentedMap, loadingContext: LoadingContext
-) -> Process:
+def default_make_tool(toolpath_object: CommentedMap, loadingContext: LoadingContext) -> Process:
     if not isinstance(toolpath_object, MutableMapping):
         raise WorkflowException("Not a dict: '%s'" % toolpath_object)
     if "class" in toolpath_object:
@@ -60,8 +58,7 @@ def default_make_tool(
 
     raise WorkflowException(
         "Missing or invalid 'class' field in "
-        "%s, expecting one of: CommandLineTool, ExpressionTool, Workflow"
-        % toolpath_object["id"]
+        "%s, expecting one of: CommandLineTool, ExpressionTool, Workflow" % toolpath_object["id"]
     )
 
 
@@ -106,9 +103,7 @@ class Workflow(Process):
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
                 self.steps.append(
-                    self.make_workflow_step(
-                        step, index, loadingContext, loadingContext.prov_obj
-                    )
+                    self.make_workflow_step(step, index, loadingContext, loadingContext.prov_obj)
                 )
             except ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
@@ -213,9 +208,7 @@ class WorkflowStep(Process):
         loadingContext = loadingContext.copy()
 
         parent_requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
-        loadingContext.requirements = copy.deepcopy(
-            toolpath_object.get("requirements", [])
-        )
+        loadingContext.requirements = copy.deepcopy(toolpath_object.get("requirements", []))
         assert loadingContext.requirements is not None  # nosec
         for parent_req in parent_requirements:
             found_in_step = False
@@ -223,17 +216,14 @@ class WorkflowStep(Process):
                 if parent_req["class"] == step_req["class"]:
                     found_in_step = True
                     break
-            if (
-                not found_in_step
-                and parent_req.get("class") != "http://commonwl.org/cwltool#Loop"
-            ):
+            if not found_in_step and parent_req.get("class") != "http://commonwl.org/cwltool#Loop":
                 loadingContext.requirements.append(parent_req)
         loadingContext.requirements.extend(
             cast(
                 List[CWLObjectType],
-                get_overrides(
-                    getdefault(loadingContext.overrides_list, []), self.id
-                ).get("requirements", []),
+                get_overrides(getdefault(loadingContext.overrides_list, []), self.id).get(
+                    "requirements", []
+                ),
             )
         )
 
@@ -306,9 +296,7 @@ class WorkflowStep(Process):
                         else:
                             step_entry_name = step_entry
                         validation_errors.append(
-                            SourceLine(
-                                self.tool["out"], index, include_traceback=debug
-                            ).makeError(
+                            SourceLine(self.tool["out"], index, include_traceback=debug).makeError(
                                 "Workflow step output '%s' does not correspond to"
                                 % shortname(step_entry_name)
                             )
@@ -323,9 +311,7 @@ class WorkflowStep(Process):
                                     "', '".join(
                                         [
                                             shortname(tool_entry["id"])
-                                            for tool_entry in self.embedded_tool.tool[
-                                                "outputs"
-                                            ]
+                                            for tool_entry in self.embedded_tool.tool["outputs"]
                                         ]
                                     )
                                 )
@@ -371,8 +357,7 @@ class WorkflowStep(Process):
             (feature, _) = self.get_requirement("ScatterFeatureRequirement")
             if not feature:
                 raise WorkflowException(
-                    "Workflow contains scatter but ScatterFeatureRequirement "
-                    "not in requirements"
+                    "Workflow contains scatter but ScatterFeatureRequirement " "not in requirements"
                 )
 
             inputparms = copy.deepcopy(self.tool["inputs"])
@@ -388,9 +373,7 @@ class WorkflowStep(Process):
             inp_map = {i["id"]: i for i in inputparms}
             for inp in scatter:
                 if inp not in inp_map:
-                    SourceLine(
-                        self.tool, "scatter", ValidationException, debug
-                    ).makeError(
+                    SourceLine(self.tool, "scatter", ValidationException, debug).makeError(
                         "Scatter parameter '%s' does not correspond to "
                         "an input parameter of this step, expecting '%s'"
                         % (

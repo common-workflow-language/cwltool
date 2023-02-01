@@ -94,9 +94,7 @@ class ReceiveScatterOutput:
         self.output_callback = output_callback
         self.steps: List[Optional[JobsGeneratorType]] = []
 
-    def receive_scatter_output(
-        self, index: int, jobout: CWLObjectType, processStatus: str
-    ) -> None:
+    def receive_scatter_output(self, index: int, jobout: CWLObjectType, processStatus: str) -> None:
         for key, val in jobout.items():
             self.dest[key][index] = val
 
@@ -138,9 +136,10 @@ def parallel_steps(
     while rc.completed < rc.total:
         made_progress = False
         for index, step in enumerate(steps):
-            if getdefault(
-                runtimeContext.on_error, "stop"
-            ) == "stop" and rc.processStatus not in ("success", "skipped"):
+            if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus not in (
+                "success",
+                "skipped",
+            ):
                 break
             if step is None:
                 continue
@@ -184,9 +183,7 @@ def nested_crossproduct_scatter(
     for index in range(0, jobl):
         sjob: Optional[CWLObjectType] = copy.copy(joborder)
         assert sjob is not None  # nosec
-        sjob[scatter_key] = cast(
-            MutableMapping[int, CWLObjectType], joborder[scatter_key]
-        )[index]
+        sjob[scatter_key] = cast(MutableMapping[int, CWLObjectType], joborder[scatter_key])[index]
 
         if len(scatter_keys) == 1:
             if runtimeContext.postScatterEval is not None:
@@ -212,9 +209,7 @@ def nested_crossproduct_scatter(
     return parallel_steps(steps, rc, runtimeContext)
 
 
-def crossproduct_size(
-    joborder: CWLObjectType, scatter_keys: MutableSequence[str]
-) -> int:
+def crossproduct_size(joborder: CWLObjectType, scatter_keys: MutableSequence[str]) -> int:
     scatter_key = scatter_keys[0]
     if len(scatter_keys) == 1:
         ssum = len(cast(Sized, joborder[scatter_key]))
@@ -259,9 +254,7 @@ def _flat_crossproduct_scatter(
     for index in range(0, jobl):
         sjob: Optional[CWLObjectType] = copy.copy(joborder)
         assert sjob is not None  # nosec
-        sjob[scatter_key] = cast(
-            MutableMapping[int, CWLObjectType], joborder[scatter_key]
-        )[index]
+        sjob[scatter_key] = cast(MutableMapping[int, CWLObjectType], joborder[scatter_key])[index]
 
         if len(scatter_keys) == 1:
             if runtimeContext.postScatterEval is not None:
@@ -296,8 +289,7 @@ def dotproduct_scatter(
             jobl = len(cast(Sized, joborder[key]))
         elif jobl != len(cast(Sized, joborder[key])):
             raise WorkflowException(
-                "Length of input arrays must be equal when performing "
-                "dotproduct scatter."
+                "Length of input arrays must be equal when performing " "dotproduct scatter."
             )
     if jobl is None:
         raise Exception("Impossible codepath")
@@ -508,7 +500,6 @@ class WorkflowJob:
         )
 
     def do_output_callback(self, final_output_callback: OutputCallbackType) -> None:
-
         supportsMultipleInput = bool(
             self.workflow.get_requirement("MultipleInputFeatureRequirement")[0]
         )
@@ -524,9 +515,7 @@ class WorkflowJob:
                 incomplete=True,
             )
         except WorkflowException as err:
-            _logger.error(
-                "[%s] Cannot collect workflow output: %s", self.name, str(err)
-            )
+            _logger.error("[%s] Cannot collect workflow output: %s", self.name, str(err))
             self.processStatus = "permanentFail"
         if (
             self.prov_obj
@@ -543,9 +532,7 @@ class WorkflowJob:
             )
             prov_ids = self.prov_obj.finalize_prov_profile(self.name)
             # Tell parent to associate our provenance files with our wf run
-            self.parent_wf.activity_has_provenance(
-                self.prov_obj.workflow_run_uri, prov_ids
-            )
+            self.parent_wf.activity_has_provenance(self.prov_obj.workflow_run_uri, prov_ids)
 
         _logger.info("[%s] completed %s", self.name, self.processStatus)
         if _logger.isEnabledFor(logging.DEBUG):
@@ -563,21 +550,16 @@ class WorkflowJob:
         jobout: CWLObjectType,
         processStatus: str,
     ) -> None:
-
         for i in outputparms:
             if "id" in i:
                 iid = cast(str, i["id"])
                 if iid in jobout:
                     self.state[iid] = WorkflowStateItem(i, jobout[iid], processStatus)
                 else:
-                    _logger.error(
-                        "[%s] Output is missing expected field %s", step.name, iid
-                    )
+                    _logger.error("[%s] Output is missing expected field %s", step.name, iid)
                     processStatus = "permanentFail"
         if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(
-                "[%s] produced output %s", step.name, json_dumps(jobout, indent=4)
-            )
+            _logger.debug("[%s] produced output %s", step.name, json_dumps(jobout, indent=4))
 
         if processStatus not in ("success", "skipped"):
             if self.processStatus != "permanentFail":
@@ -632,13 +614,9 @@ class WorkflowJob:
                 self.receive_output, step, outputparms, final_output_callback
             )
 
-            valueFrom = {
-                i["id"]: i["valueFrom"] for i in step.tool["inputs"] if "valueFrom" in i
-            }
+            valueFrom = {i["id"]: i["valueFrom"] for i in step.tool["inputs"] if "valueFrom" in i}
 
-            loadContents = {
-                i["id"] for i in step.tool["inputs"] if i.get("loadContents")
-            }
+            loadContents = {i["id"] for i in step.tool["inputs"] if i.get("loadContents")}
 
             if len(valueFrom) > 0 and not bool(
                 self.workflow.get_requirement("StepInputExpressionRequirement")[0]
@@ -658,13 +636,9 @@ class WorkflowJob:
                             with fs_access.open(cast(str, val["location"]), "rb") as f:
                                 val["contents"] = content_limit_respected_read(f)
 
-                def valueFromFunc(
-                    k: str, v: Optional[CWLOutputType]
-                ) -> Optional[CWLOutputType]:
+                def valueFromFunc(k: str, v: Optional[CWLOutputType]) -> Optional[CWLOutputType]:
                     if k in valueFrom:
-                        adjustDirObjs(
-                            v, functools.partial(get_listing, fs_access, recursive=True)
-                        )
+                        adjustDirObjs(v, functools.partial(get_listing, fs_access, recursive=True))
 
                         return expression.do_eval(
                             valueFrom[k],
@@ -727,9 +701,7 @@ class WorkflowJob:
                 runtimeContext = runtimeContext.copy()
                 runtimeContext.postScatterEval = postScatterEval
 
-                emptyscatter = [
-                    shortname(s) for s in scatter if len(cast(Sized, inputobj[s])) == 0
-                ]
+                emptyscatter = [shortname(s) for s in scatter if len(cast(Sized, inputobj[s])) == 0]
                 if emptyscatter:
                     _logger.warning(
                         "[job %s] Notice: scattering over empty input in "
@@ -739,9 +711,7 @@ class WorkflowJob:
                     )
 
                 if method == "dotproduct" or method is None:
-                    jobs = dotproduct_scatter(
-                        step, inputobj, scatter, callback, runtimeContext
-                    )
+                    jobs = dotproduct_scatter(step, inputobj, scatter, callback, runtimeContext)
                 elif method == "nested_crossproduct":
                     jobs = nested_crossproduct_scatter(
                         step, inputobj, scatter, callback, runtimeContext
@@ -752,9 +722,7 @@ class WorkflowJob:
                     )
             else:
                 if _logger.isEnabledFor(logging.DEBUG):
-                    _logger.debug(
-                        "[%s] job input %s", step.name, json_dumps(inputobj, indent=4)
-                    )
+                    _logger.debug("[%s] job input %s", step.name, json_dumps(inputobj, indent=4))
 
                 inputobj = postScatterEval(inputobj)
                 if inputobj is not None:
@@ -814,13 +782,9 @@ class WorkflowJob:
             with SourceLine(self.tool["inputs"], index, WorkflowException, debug):
                 inp_id = shortname(inp["id"])
                 if inp_id in joborder:
-                    self.state[inp["id"]] = WorkflowStateItem(
-                        inp, joborder[inp_id], "success"
-                    )
+                    self.state[inp["id"]] = WorkflowStateItem(inp, joborder[inp_id], "success")
                 elif "default" in inp:
-                    self.state[inp["id"]] = WorkflowStateItem(
-                        inp, inp["default"], "success"
-                    )
+                    self.state[inp["id"]] = WorkflowStateItem(inp, inp["default"], "success")
                 else:
                     raise WorkflowException(
                         "Input '%s' not in input object and does not have a "
@@ -844,9 +808,7 @@ class WorkflowJob:
 
                 if not step.submitted:
                     try:
-                        step.iterable = self.try_make_job(
-                            step, output_callback, runtimeContext
-                        )
+                        step.iterable = self.try_make_job(step, output_callback, runtimeContext)
                     except WorkflowException as exc:
                         _logger.error("[%s] Cannot make job: %s", step.name, str(exc))
                         _logger.debug("", exc_info=True)
@@ -905,9 +867,7 @@ class WorkflowJobLoopStep:
             if "id" in i:
                 iid = cast(str, i["id"])
                 if loop_req.get("outputMethod") == "all":
-                    self.output_buffer[iid] = cast(
-                        MutableSequence[Optional[CWLOutputType]], []
-                    )
+                    self.output_buffer[iid] = cast(MutableSequence[Optional[CWLOutputType]], [])
                 else:
                     self.output_buffer[iid] = None
 
@@ -1033,7 +993,6 @@ class WorkflowJobLoopStep:
                 self.processStatus = processStatus
 
             if processStatus not in ("success", "skipped"):
-
                 _logger.warning(
                     "[%s] Iteration %i completed %s",
                     self.step.name,
@@ -1087,9 +1046,7 @@ class WorkflowJobLoopStep:
 
             for k, v in inputobj.items():
                 if k in valueFrom:
-                    adjustDirObjs(
-                        v, functools.partial(get_listing, fs_access, recursive=True)
-                    )
+                    adjustDirObjs(v, functools.partial(get_listing, fs_access, recursive=True))
                     inputobj[k] = cast(
                         CWLObjectType,
                         expression.do_eval(

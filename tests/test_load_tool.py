@@ -51,9 +51,7 @@ def test_use_metadata() -> None:
 
 def test_checklink_outputSource() -> None:
     """Is outputSource resolved correctly independent of value of do_validate."""
-    outsrc = (
-        Path(get_data("tests/wf/1st-workflow.cwl")).as_uri() + "#argument/classfile"
-    )
+    outsrc = Path(get_data("tests/wf/1st-workflow.cwl")).as_uri() + "#argument/classfile"
 
     loadingContext = LoadingContext({"do_validate": True})
     tool = load_tool(get_data("tests/wf/1st-workflow.cwl"), loadingContext)
@@ -122,10 +120,7 @@ def test_load_graph_fragment_from_packed() -> None:
         # This was solved by making a shallow copy of the metadata
         # dict to ensure that the updater did not modify the original
         # document.
-        uri2 = (
-            Path(get_data("tests/wf/packed-with-loadlisting.cwl")).as_uri()
-            + "#16169-step.cwl"
-        )
+        uri2 = Path(get_data("tests/wf/packed-with-loadlisting.cwl")).as_uri() + "#16169-step.cwl"
         load_tool(uri2, loadingContext)
 
     finally:

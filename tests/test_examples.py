@@ -195,9 +195,7 @@ param_to_expr_interpolate_escapebehavior = (
 )
 
 
-@pytest.mark.parametrize(
-    "pattern,expected,behavior", param_to_expr_interpolate_escapebehavior
-)
+@pytest.mark.parametrize("pattern,expected,behavior", param_to_expr_interpolate_escapebehavior)
 def test_parameter_to_expression_interpolate_escapebehavior(
     pattern: str, expected: str, behavior: int
 ) -> None:
@@ -279,14 +277,9 @@ interpolate_escapebehavior = (
 
 
 @pytest.mark.parametrize("pattern,expected,behavior", interpolate_escapebehavior)
-def test_expression_interpolate_escapebehavior(
-    pattern: str, expected: str, behavior: int
-) -> None:
+def test_expression_interpolate_escapebehavior(pattern: str, expected: str, behavior: int) -> None:
     """Test escaping behavior in an interpolation context."""
-    assert (
-        expr.interpolate(pattern, interpolate_input, escaping_behavior=behavior)
-        == expected
-    )
+    assert expr.interpolate(pattern, interpolate_input, escaping_behavior=behavior) == expected
 
 
 def test_factory() -> None:
@@ -330,13 +323,9 @@ def test_factory_partial_scatter() -> None:
 
     result = err_info.value.out
     assert isinstance(result, dict)
-    assert (
-        result["out"][0]["checksum"] == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
-    )
+    assert result["out"][0]["checksum"] == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
     assert result["out"][1] is None
-    assert (
-        result["out"][2]["checksum"] == "sha1$a3db5c13ff90a36963278c6a39e4ee3c22e2a436"
-    )
+    assert result["out"][2]["checksum"] == "sha1$a3db5c13ff90a36963278c6a39e4ee3c22e2a436"
 
 
 def test_factory_partial_output() -> None:
@@ -812,16 +801,12 @@ typechecks = [
 ]
 
 
-@pytest.mark.parametrize(
-    "src_type,sink_type,link_merge,value_from,expected_type", typechecks
-)
+@pytest.mark.parametrize("src_type,sink_type,link_merge,value_from,expected_type", typechecks)
 def test_typechecking(
     src_type: Any, sink_type: Any, link_merge: str, value_from: Any, expected_type: str
 ) -> None:
     assert (
-        cwltool.checker.check_types(
-            src_type, sink_type, linkMerge=link_merge, valueFrom=value_from
-        )
+        cwltool.checker.check_types(src_type, sink_type, linkMerge=link_merge, valueFrom=value_from)
         == expected_type
     )
 
@@ -1002,9 +987,7 @@ def test_var_spool_cwl_checker3() -> None:
     factory = cwltool.factory.Factory()
     try:
         factory.make(get_data("tests/portable.cwl"))
-        assert (
-            "Non-portable reference to /var/spool/cwl detected" not in stream.getvalue()
-        )
+        assert "Non-portable reference to /var/spool/cwl detected" not in stream.getvalue()
     finally:
         _logger.removeHandler(streamhandler)
 
@@ -1062,12 +1045,8 @@ def test_print_dot() -> None:
     stdout = StringIO()
     assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
-    computed_edges = sorted(
-        (source, target) for source, target in computed_dot.obj_dict["edges"]
-    )
-    expected_edges = sorted(
-        (source, target) for source, target in expected_dot.obj_dict["edges"]
-    )
+    computed_edges = sorted((source, target) for source, target in computed_dot.obj_dict["edges"])
+    expected_edges = sorted((source, target) for source, target in expected_dot.obj_dict["edges"])
     assert computed_edges == expected_edges
 
     # print CommandLineTool
@@ -1080,14 +1059,10 @@ test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
 
 
 @pytest.mark.parametrize("factor", test_factors)
-def test_js_console_cmd_line_tool(
-    factor: str, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_js_console_cmd_line_tool(factor: str, caplog: pytest.LogCaptureFixture) -> None:
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
         commands = factor.split()
-        commands.extend(
-            ["--js-console", "--no-container", get_data("tests/wf/" + test_file)]
-        )
+        commands.extend(["--js-console", "--no-container", get_data("tests/wf/" + test_file)])
         error_code, _, _ = get_main_output(commands)
         logging_output = "\n".join([record.message for record in caplog.records])
         assert "[log] Log message" in logging_output
@@ -1115,9 +1090,7 @@ def test_cid_file_dir(tmp_path: Path, factor: str) -> None:
     test_file = "cache_test_workflow.cwl"
     with working_directory(tmp_path):
         commands = factor.split()
-        commands.extend(
-            ["--cidfile-dir", str(tmp_path), get_data("tests/wf/" + test_file)]
-        )
+        commands.extend(["--cidfile-dir", str(tmp_path), get_data("tests/wf/" + test_file)])
         error_code, stdout, stderr = get_main_output(commands)
         stderr = re.sub(r"\s\s+", " ", stderr)
         assert "completed success" in stderr
@@ -1135,9 +1108,7 @@ def test_cid_file_dir_arg_is_file_instead_of_dir(tmp_path: Path, factor: str) ->
     bad_cidfile_dir = tmp_path / "cidfile-dir-actually-a-file"
     bad_cidfile_dir.touch()
     commands = factor.split()
-    commands.extend(
-        ["--cidfile-dir", str(bad_cidfile_dir), get_data("tests/wf/" + test_file)]
-    )
+    commands.extend(["--cidfile-dir", str(bad_cidfile_dir), get_data("tests/wf/" + test_file)])
     error_code, _, stderr = get_main_output(commands)
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "is not a directory, please check it first" in stderr, stderr
@@ -1421,8 +1392,7 @@ def test_bad_stderr_expr_error() -> None:
     assert error_code == 1
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
-        "'stderr' expression must return a string. Got 1111 for '$(inputs.file1.size)'."
-        in stderr
+        "'stderr' expression must return a string. Got 1111 for '$(inputs.file1.size)'." in stderr
     )
 
 
@@ -1438,8 +1408,7 @@ def test_bad_stdout_expr_error() -> None:
     assert error_code == 1
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
-        "'stdout' expression must return a string. Got 1111 for '$(inputs.file1.size)'."
-        in stderr
+        "'stdout' expression must return a string. Got 1111 for '$(inputs.file1.size)'." in stderr
     )
 
 
@@ -1613,9 +1582,7 @@ def test_env_filtering(factor: str) -> None:
 
 def test_v1_0_arg_empty_prefix_separate_false() -> None:
     test_file = "tests/arg-empty-prefix-separate-false.cwl"
-    error_code, stdout, stderr = get_main_output(
-        ["--debug", get_data(test_file), "--echo"]
-    )
+    error_code, stdout, stderr = get_main_output(["--debug", get_data(test_file), "--echo"])
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
@@ -1683,10 +1650,7 @@ def test_arguments_self() -> None:
     outputs = cast(Dict[str, Any], check())
     assert "self_review" in outputs
     assert len(outputs) == 1
-    assert (
-        outputs["self_review"]["checksum"]
-        == "sha1$724ba28f4a9a1b472057ff99511ed393a45552e1"
-    )
+    assert outputs["self_review"]["checksum"] == "sha1$724ba28f4a9a1b472057ff99511ed393a45552e1"
 
 
 def test_bad_timelimit_expr() -> None:
@@ -1776,9 +1740,7 @@ def test_record_default_with_long() -> None:
     assert result["sixth"]["class"] == "File"
     assert result["sixth"]["basename"] == "whale.txt"
     assert result["sixth"]["size"] == 1111
-    assert (
-        result["sixth"]["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
-    )
+    assert result["sixth"]["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
 
 
 def test_record_outputeval(tmp_path: Path) -> None:
@@ -1790,21 +1752,12 @@ def test_record_outputeval(tmp_path: Path) -> None:
     assert "genome_fa" in result
     assert result["genome_fa"]["class"] == "File"
     assert result["genome_fa"]["basename"] == "GRCm38.primary_assembly.genome.fa"
-    assert (
-        result["genome_fa"]["checksum"]
-        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
-    )
+    assert result["genome_fa"]["checksum"] == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
     assert result["genome_fa"]["size"] == 0
     assert "annotation_gtf" in result
     assert result["annotation_gtf"]["class"] == "File"
-    assert (
-        result["annotation_gtf"]["basename"]
-        == "gencode.vM21.primary_assembly.annotation.gtf"
-    )
-    assert (
-        result["annotation_gtf"]["checksum"]
-        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
-    )
+    assert result["annotation_gtf"]["basename"] == "gencode.vM21.primary_assembly.annotation.gtf"
+    assert result["annotation_gtf"]["checksum"] == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
     assert result["annotation_gtf"]["size"] == 0
 
 

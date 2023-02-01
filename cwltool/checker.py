@@ -59,9 +59,7 @@ def check_types(
             None,
         )
     if linkMerge == "merge_flattened":
-        return check_types(
-            merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None
-        )
+        return check_types(merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None)
     raise WorkflowException(f"Unrecognized linkMerge enum {linkMerge!r}")
 
 
@@ -74,9 +72,7 @@ def merge_flatten_type(src: SinkType) -> CWLOutputType:
     return {"items": src, "type": "array"}
 
 
-def can_assign_src_to_sink(
-    src: SinkType, sink: Optional[SinkType], strict: bool = False
-) -> bool:
+def can_assign_src_to_sink(src: SinkType, sink: Optional[SinkType], strict: bool = False) -> bool:
     """
     Check for identical type specifications, ignoring extra keys like inputBinding.
 
@@ -104,9 +100,7 @@ def can_assign_src_to_sink(
             for sinksf in cast(List[CWLObjectType], sink.get("secondaryFiles", [])):
                 if not [
                     1
-                    for srcsf in cast(
-                        List[CWLObjectType], src.get("secondaryFiles", [])
-                    )
+                    for srcsf in cast(List[CWLObjectType], src.get("secondaryFiles", []))
                     if sinksf == srcsf
                 ]:
                     if strict:
@@ -122,9 +116,7 @@ def can_assign_src_to_sink(
                     return False
             return True
         for this_src in src:
-            if this_src != "null" and can_assign_src_to_sink(
-                cast(SinkType, this_src), sink
-            ):
+            if this_src != "null" and can_assign_src_to_sink(cast(SinkType, this_src), sink):
                 return True
         return False
     if isinstance(sink, MutableSequence):
@@ -135,9 +127,7 @@ def can_assign_src_to_sink(
     return bool(src == sink)
 
 
-def _compare_records(
-    src: CWLObjectType, sink: CWLObjectType, strict: bool = False
-) -> bool:
+def _compare_records(src: CWLObjectType, sink: CWLObjectType, strict: bool = False) -> bool:
     """
     Compare two records, ensuring they have compatible fields.
 
@@ -219,9 +209,7 @@ def static_checker(
         sink = warning.sink
         linkMerge = warning.linkMerge
         sinksf = sorted(
-            p["pattern"]
-            for p in sink.get("secondaryFiles", [])
-            if p.get("required", True)
+            p["pattern"] for p in sink.get("secondaryFiles", []) if p.get("required", True)
         )
         srcsf = sorted(p["pattern"] for p in src.get("secondaryFiles", []))
         # Every secondaryFile required by the sink, should be declared
@@ -233,16 +221,13 @@ def static_checker(
                 missing,
             )
             msg3 = SourceLine(src, "id").makeError(
-                "source '%s' does not provide those secondaryFiles."
-                % (shortname(src["id"]))
+                "source '%s' does not provide those secondaryFiles." % (shortname(src["id"]))
             )
             msg4 = SourceLine(src.get("_tool_entry", src), "secondaryFiles").makeError(
                 "To resolve, add missing secondaryFiles patterns to definition of '%s' or"
                 % (shortname(src["id"]))
             )
-            msg5 = SourceLine(
-                sink.get("_tool_entry", sink), "secondaryFiles"
-            ).makeError(
+            msg5 = SourceLine(sink.get("_tool_entry", sink), "secondaryFiles").makeError(
                 "mark missing secondaryFiles in definition of '%s' as optional."
                 % shortname(sink["id"])
             )
@@ -303,17 +288,14 @@ def static_checker(
             )
             + "\n"
             + SourceLine(sink, "type").makeError(
-                "  with sink '%s' of type %s"
-                % (shortname(sink["id"]), json_dumps(sink["type"]))
+                "  with sink '%s' of type %s" % (shortname(sink["id"]), json_dumps(sink["type"]))
             )
         )
         if extra_message is not None:
             msg += "\n" + SourceLine(sink).makeError("  " + extra_message)
 
         if linkMerge is not None:
-            msg += "\n" + SourceLine(sink).makeError(
-                "  source has linkMerge method %s" % linkMerge
-            )
+            msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         exception_msgs.append(msg)
 
     for sink in step_inputs:
@@ -358,7 +340,6 @@ def check_all_types(
     validation = {"warning": [], "exception": []}  # type: Dict[str, List[SrcSink]]
     for sink in sinks:
         if sourceField in sink:
-
             valueFrom = cast(Optional[str], sink.get("valueFrom"))
             pickValue = cast(Optional[str], sink.get("pickValue"))
 
@@ -371,11 +352,7 @@ def check_all_types(
                     Optional[str],
                     sink.get(
                         "linkMerge",
-                        (
-                            "merge_nested"
-                            if len(cast(Sized, sink[sourceField])) > 1
-                            else None
-                        ),
+                        ("merge_nested" if len(cast(Sized, sink[sourceField])) > 1 else None),
                     ),
                 )  # type: Optional[str]
 
@@ -385,10 +362,7 @@ def check_all_types(
                 srcs_of_sink = []  # type: List[CWLObjectType]
                 for parm_id in cast(MutableSequence[str], sink[sourceField]):
                     srcs_of_sink += [src_dict[parm_id]]
-                    if (
-                        is_conditional_step(param_to_step, parm_id)
-                        and pickValue is None
-                    ):
+                    if is_conditional_step(param_to_step, parm_id) and pickValue is None:
                         validation["warning"].append(
                             SrcSink(
                                 src_dict[parm_id],
@@ -490,9 +464,7 @@ def get_dependency_tree(step_inputs: List[CWLObjectType]) -> Dict[str, List[str]
     for step_input in step_inputs:
         if "source" in step_input:
             if isinstance(step_input["source"], list):
-                vertices_in = [
-                    get_step_id(cast(str, src)) for src in step_input["source"]
-                ]
+                vertices_in = [get_step_id(cast(str, src)) for src in step_input["source"]]
             else:
                 vertices_in = [get_step_id(cast(str, step_input["source"]))]
             vertex_out = get_step_id(cast(str, step_input["id"]))
@@ -542,9 +514,7 @@ def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -
     return False
 
 
-def is_all_output_method_loop_step(
-    param_to_step: Dict[str, CWLObjectType], parm_id: str
-) -> bool:
+def is_all_output_method_loop_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -> bool:
     """Check if a step contains a http://commonwl.org/cwltool#Loop requirement with `all` outputMethod."""
     source_step: Optional[MutableMapping[str, Any]] = param_to_step.get(parm_id)
     if source_step is not None:

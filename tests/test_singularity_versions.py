@@ -38,12 +38,8 @@ def test_get_version() -> None:
     assert isinstance(v, tuple)
     assert isinstance(v[0], list)
     assert isinstance(v[1], str)
-    assert (
-        cwltool.singularity._SINGULARITY_VERSION is not None
-    )  # pylint: disable=protected-access
-    assert (
-        len(cwltool.singularity._SINGULARITY_FLAVOR) > 0
-    )  # pylint: disable=protected-access
+    assert cwltool.singularity._SINGULARITY_VERSION is not None  # pylint: disable=protected-access
+    assert len(cwltool.singularity._SINGULARITY_FLAVOR) > 0  # pylint: disable=protected-access
     v_cached = get_version()
     assert v == v_cached
 

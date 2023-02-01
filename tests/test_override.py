@@ -103,11 +103,7 @@ failing_override_parameters = [
         "enable support for development and deprecated versions.",
     ),
     (
-        [
-            get_data(
-                "tests/override/env-tool_cwl-requirement_override_default_wrongver.yaml"
-            )
-        ],
+        [get_data("tests/override/env-tool_cwl-requirement_override_default_wrongver.yaml")],
         "`cwl:requirements` in the input object is not part of CWL v1.0. You can "
         "adjust to use `cwltool:overrides` instead; or you can set the cwlVersion to "
         "v1.1 or greater.",

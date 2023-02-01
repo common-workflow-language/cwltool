@@ -126,9 +126,7 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Path prefix for temporary directories. If --tmpdir-prefix is not "
         "provided, then the prefix for temporary directories is influenced by "
         "the value of the TMPDIR, TEMP, or TMP environment variables. Taking "
-        "those into consideration, the current default is {}.".format(
-            DEFAULT_TMP_PREFIX
-        ),
+        "those into consideration, the current default is {}.".format(DEFAULT_TMP_PREFIX),
         default=DEFAULT_TMP_PREFIX,
     )
 
@@ -318,12 +316,8 @@ def arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Combine components into single document and print.",
     )
-    printgroup.add_argument(
-        "--version", action="store_true", help="Print version and exit"
-    )
-    printgroup.add_argument(
-        "--validate", action="store_true", help="Validate CWL document only."
-    )
+    printgroup.add_argument("--version", action="store_true", help="Print version and exit")
+    printgroup.add_argument("--validate", action="store_true", help="Validate CWL document only.")
     printgroup.add_argument(
         "--print-supported-versions",
         action="store_true",
@@ -384,12 +378,8 @@ def arg_parser() -> argparse.ArgumentParser:
 
     volumegroup = parser.add_mutually_exclusive_group()
     volumegroup.add_argument("--verbose", action="store_true", help="Default logging")
-    volumegroup.add_argument(
-        "--quiet", action="store_true", help="Only print warnings and errors."
-    )
-    volumegroup.add_argument(
-        "--debug", action="store_true", help="Print even more logging"
-    )
+    volumegroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
+    volumegroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
     parser.add_argument(
         "--write-summary",
@@ -494,12 +484,9 @@ def arg_parser() -> argparse.ArgumentParser:
             "Default root directory used by dependency resolvers configuration."
         )
         use_biocontainers_help = (
-            "Use biocontainers for tools without an "
-            "explicitly annotated Docker container."
+            "Use biocontainers for tools without an " "explicitly annotated Docker container."
         )
-        conda_dependencies = (
-            "Short cut to use Conda to resolve 'SoftwareRequirement' packages."
-        )
+        conda_dependencies = "Short cut to use Conda to resolve 'SoftwareRequirement' packages."
 
     parser.add_argument(
         "--beta-dependency-resolvers-configuration",
@@ -522,9 +509,7 @@ def arg_parser() -> argparse.ArgumentParser:
         action="store_true",
     )
 
-    parser.add_argument(
-        "--tool-help", action="store_true", help="Print command line help for tool"
-    )
+    parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
 
     parser.add_argument(
         "--relative-deps",
@@ -537,8 +522,7 @@ def arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--enable-dev",
         action="store_true",
-        help="Enable loading and running unofficial development versions of "
-        "the CWL standards.",
+        help="Enable loading and running unofficial development versions of " "the CWL standards.",
         default=False,
     )
 
@@ -647,8 +631,7 @@ def arg_parser() -> argparse.ArgumentParser:
         "--relax-path-checks",
         action="store_true",
         default=False,
-        help="Relax requirements on path names to permit "
-        "spaces and hash characters.",
+        help="Relax requirements on path names to permit " "spaces and hash characters.",
         dest="relax_path_checks",
     )
 
@@ -933,9 +916,7 @@ def add_argument(
                 fieldtype,
                 records,
                 fielddescription,
-                default=default.get(shortname(field["name"]), None)
-                if default
-                else None,
+                default=default.get(shortname(field["name"]), None) if default else None,
                 input_required=required,
             )
         return

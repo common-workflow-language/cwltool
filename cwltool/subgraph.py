@@ -36,7 +36,6 @@ def subgraph_visit(
     visited: Set[str],
     direction: str,
 ) -> None:
-
     if current in visited:
         return
     visited.add(current)
@@ -175,12 +174,8 @@ def get_subgraph(
                     if nodes[v].type == STEP:
                         wfstep = find_step(tool.steps, v, loading_context)[0]
                         if wfstep is not None:
-                            for inp in cast(
-                                MutableSequence[CWLObjectType], wfstep["inputs"]
-                            ):
-                                if "source" in inp and u in cast(
-                                    CWLObjectType, inp["source"]
-                                ):
+                            for inp in cast(MutableSequence[CWLObjectType], wfstep["inputs"]):
+                                if "source" in inp and u in cast(CWLObjectType, inp["source"]):
                                     rewire[u] = (rn, cast(CWLObjectType, inp["type"]))
                                     break
                         else:
@@ -198,11 +193,7 @@ def get_subgraph(
                                 continue
                             if isinstance(in_port["source"], MutableSequence):
                                 in_port["source"] = CommentedSeq(
-                                    [
-                                        rewire[s][0]
-                                        for s in in_port["source"]
-                                        if s in rewire
-                                    ]
+                                    [rewire[s][0] for s in in_port["source"] if s in rewire]
                                 )
                             elif in_port["source"] in rewire:
                                 in_port["source"] = rewire[in_port["source"]][0]
@@ -216,9 +207,7 @@ def get_subgraph(
     return extracted
 
 
-def get_step(
-    tool: Workflow, step_id: str, loading_context: LoadingContext
-) -> CommentedMap:
+def get_step(tool: Workflow, step_id: str, loading_context: LoadingContext) -> CommentedMap:
     """Extract a single WorkflowStep for the given step_id."""
     extracted = CommentedMap()
 

@@ -55,9 +55,7 @@ def get_version() -> Tuple[List[int], str]:
         _SINGULARITY_VERSION = [int(i) for i in version_string.split(".")]
         _SINGULARITY_FLAVOR = version_match.group(1)
 
-        _logger.debug(
-            f"Singularity version: {version_string}" " ({_SINGULARITY_FLAVOR}."
-        )
+        _logger.debug(f"Singularity version: {version_string}" " ({_SINGULARITY_FLAVOR}.")
     return (_SINGULARITY_VERSION, _SINGULARITY_FLAVOR)
 
 
@@ -157,13 +155,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         elif is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
             cache_folder = os.environ["SINGULARITY_PULLFOLDER"]
 
-        if (
-            "dockerImageId" not in dockerRequirement
-            and "dockerPull" in dockerRequirement
-        ):
-            match = re.search(
-                pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"]
-            )
+        if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
+            match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
             img_name = _normalize_image_id(dockerRequirement["dockerPull"])
             candidates.append(img_name)
             if is_version_3_or_newer():
@@ -173,9 +166,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             else:
                 dockerRequirement["dockerImageId"] = img_name
             if not match:
-                dockerRequirement["dockerPull"] = (
-                    "docker://" + dockerRequirement["dockerPull"]
-                )
+                dockerRequirement["dockerPull"] = "docker://" + dockerRequirement["dockerPull"]
         elif "dockerImageId" in dockerRequirement:
             if os.path.isfile(dockerRequirement["dockerImageId"]):
                 found = True
@@ -222,9 +213,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                             "pull",
                             "--force",
                             "--name",
-                            "{}/{}".format(
-                                cache_folder, dockerRequirement["dockerImageId"]
-                            ),
+                            "{}/{}".format(cache_folder, dockerRequirement["dockerImageId"]),
                             str(dockerRequirement["dockerPull"]),
                         ]
 
@@ -303,16 +292,12 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             raise WorkflowException("singularity executable is not available")
 
         if not self.get_image(cast(Dict[str, str], r), pull_image, force_pull):
-            raise WorkflowException(
-                "Container image {} not found".format(r["dockerImageId"])
-            )
+            raise WorkflowException("Container image {} not found".format(r["dockerImageId"]))
 
         return os.path.abspath(cast(str, r["dockerImageId"]))
 
     @staticmethod
-    def append_volume(
-        runtime: List[str], source: str, target: str, writable: bool = False
-    ) -> None:
+    def append_volume(runtime: List[str], source: str, target: str, writable: bool = False) -> None:
         runtime.append("--bind")
         # Mounts are writable by default, so 'rw' is optional and not
         # supported (due to a bug) in some 3.6 series releases.
@@ -399,19 +384,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 ensure_writable(host_outdir_tgt)
             else:
                 if self.inplace_update:
-                    self.append_volume(
-                        runtime, volume.resolved, volume.target, writable=True
-                    )
+                    self.append_volume(runtime, volume.resolved, volume.target, writable=True)
                 else:
                     if not host_outdir_tgt:
                         tmpdir = create_tmp_dir(tmpdir_prefix)
-                        new_dir = os.path.join(
-                            tmpdir, os.path.basename(volume.resolved)
-                        )
+                        new_dir = os.path.join(tmpdir, os.path.basename(volume.resolved))
                         shutil.copytree(volume.resolved, new_dir)
-                        self.append_volume(
-                            runtime, new_dir, volume.target, writable=True
-                        )
+                        self.append_volume(runtime, new_dir, volume.target, writable=True)
                     else:
                         shutil.copytree(volume.resolved, host_outdir_tgt)
                     ensure_writable(host_outdir_tgt or new_dir)

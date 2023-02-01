@@ -15,9 +15,7 @@ from .loghandler import _logger
 from .stdfsaccess import abspath
 from .utils import CWLObjectType, dedup, downloadHttpFile
 
-MapperEnt = collections.namedtuple(
-    "MapperEnt", ["resolved", "target", "type", "staged"]
-)
+MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "staged"])
 """ Mapper entries.
 
 .. py:attribute:: resolved
@@ -188,7 +186,6 @@ class PathMapper:
             )
 
     def setup(self, referenced_files: List[CWLObjectType], basedir: str) -> None:
-
         # Go through each file and set the target to its own directory along
         # with any secondary files.
         stagedir = self.stagedir
@@ -236,9 +233,7 @@ class PathMapper:
                 return (k, v[0])
         return None
 
-    def update(
-        self, key: str, resolved: str, target: str, ctype: str, stage: bool
-    ) -> MapperEnt:
+    def update(self, key: str, resolved: str, target: str, ctype: str, stage: bool) -> MapperEnt:
         m = MapperEnt(resolved, target, ctype, stage)
         self._pathmap[key] = m
         return m

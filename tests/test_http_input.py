@@ -12,8 +12,9 @@ from cwltool.utils import CWLObjectType
 
 
 def test_http_path_mapping(tmp_path: Path) -> None:
-
-    input_file_path = "https://raw.githubusercontent.com/common-workflow-language/cwltool/main/tests/2.fasta"
+    input_file_path = (
+        "https://raw.githubusercontent.com/common-workflow-language/cwltool/main/tests/2.fasta"
+    )
     base_file: List[CWLObjectType] = [
         {
             "class": "File",

@@ -99,9 +99,7 @@ class WritableBagFile(FileIO):
             SHA512: hashlib.sha512(),
         }
         # Open file in Research Object folder
-        path = os.path.abspath(
-            os.path.join(research_object.folder, local_path(rel_path))
-        )
+        path = os.path.abspath(os.path.join(research_object.folder, local_path(rel_path)))
         if not path.startswith(os.path.abspath(research_object.folder)):
             raise ValueError("Path is outside Research Object: %s" % path)
         _logger.debug("[provenance] Creating WritableBagFile at %s.", path)
@@ -334,9 +332,7 @@ class ResearchObject:
             bag_it_file.write("BagIt-Version: 0.97\n")
             bag_it_file.write("Tag-File-Character-Encoding: %s\n" % ENCODING)
 
-    def open_log_file_for_activity(
-        self, uuid_uri: str
-    ) -> Union[TextIOWrapper, WritableBagFile]:
+    def open_log_file_for_activity(self, uuid_uri: str) -> Union[TextIOWrapper, WritableBagFile]:
         self.self_check()
         # Ensure valid UUID for safe filenames
         activity_uuid = uuid.UUID(uuid_uri)
@@ -405,14 +401,10 @@ class ResearchObject:
         bag_file = WritableBagFile(self, path)
         if encoding is not None:
             # encoding: match Tag-File-Character-Encoding: UTF-8
-            return TextIOWrapper(
-                cast(BinaryIO, bag_file), encoding=encoding, newline="\n"
-            )
+            return TextIOWrapper(cast(BinaryIO, bag_file), encoding=encoding, newline="\n")
         return bag_file
 
-    def add_tagfile(
-        self, path: str, timestamp: Optional[datetime.datetime] = None
-    ) -> None:
+    def add_tagfile(self, path: str, timestamp: Optional[datetime.datetime] = None) -> None:
         """Add tag files to our research object."""
         self.self_check()
         checksums = {}
@@ -498,10 +490,7 @@ class ResearchObject:
                 # cwlVersion = "v1.0"
                 conformsTo = conforms_to[extension]
 
-            if (
-                rel_path.startswith(posix_path(PROVENANCE))
-                and extension in prov_conforms_to
-            ):
+            if rel_path.startswith(posix_path(PROVENANCE)) and extension in prov_conforms_to:
                 if ".cwlprov" in rel_path:
                     # Our own!
                     conformsTo = [
@@ -516,7 +505,6 @@ class ResearchObject:
 
         aggregates = []  # type: List[Aggregate]
         for path in self.bagged_size.keys():
-
             temp_path = PurePosixPath(path)
             folder = temp_path.parent
             filename = temp_path.name
@@ -557,9 +545,7 @@ class ResearchObject:
 
         for path in self.tagfiles:
             if not (
-                path.startswith(METADATA)
-                or path.startswith(WORKFLOW)
-                or path.startswith(SNAPSHOT)
+                path.startswith(METADATA) or path.startswith(WORKFLOW) or path.startswith(SNAPSHOT)
             ):
                 # probably a bagit file
                 continue
@@ -591,9 +577,7 @@ class ResearchObject:
         aggregates.extend(self._external_aggregates)
         return aggregates
 
-    def add_uri(
-        self, uri: str, timestamp: Optional[datetime.datetime] = None
-    ) -> Aggregate:
+    def add_uri(self, uri: str, timestamp: Optional[datetime.datetime] = None) -> Aggregate:
         self.self_check()
         aggr = {"uri": uri}  # type: Aggregate
         aggr["createdOn"], aggr["createdBy"] = self._self_made(timestamp=timestamp)
@@ -685,7 +669,6 @@ class ResearchObject:
         return None
 
     def _write_ro_manifest(self) -> None:
-
         # Does not have to be this order, but it's nice to be consistent
         filename = "manifest.json"
         createdOn, createdBy = self._self_made()
@@ -713,18 +696,13 @@ class ResearchObject:
             manifest_file.write(json_manifest)
 
     def _write_bag_info(self) -> None:
-
         with self.write_bag_file("bag-info.txt") as info_file:
             info_file.write("Bag-Software-Agent: %s\n" % self.cwltool_version)
             # FIXME: require sha-512 of payload to comply with profile?
             # FIXME: Update profile
-            info_file.write(
-                "BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n"
-            )
+            info_file.write("BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n")
             info_file.write("Bagging-Date: %s\n" % datetime.date.today().isoformat())
-            info_file.write(
-                "External-Description: Research Object of CWL workflow run\n"
-            )
+            info_file.write("External-Description: Research Object of CWL workflow run\n")
             if self.full_name:
                 info_file.write("Contact-Name: %s\n" % self.full_name)
 
@@ -759,9 +737,7 @@ class ResearchObject:
                             shutil.copytree(filepath, path)
                         else:
                             shutil.copy(filepath, path)
-                        timestamp = datetime.datetime.fromtimestamp(
-                            os.path.getmtime(filepath)
-                        )
+                        timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))
                         self.add_tagfile(path, timestamp)
                     except PermissionError:
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
@@ -796,9 +772,7 @@ class ResearchObject:
         """Copy inputs to data/ folder."""
         self.self_check()
         tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
-        with tempfile.NamedTemporaryFile(
-            prefix=tmp_prefix, dir=tmp_dir, delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
             checksum = checksum_copy(from_fp, tmp)
 
         # Calculate hash-based file path
@@ -817,9 +791,7 @@ class ResearchObject:
         if Hasher == hashlib.sha1:
             self._add_to_bagit(rel_path, sha1=checksum)
         else:
-            _logger.warning(
-                "[provenance] Unknown hash method %s for bagit manifest", Hasher
-            )
+            _logger.warning("[provenance] Unknown hash method %s for bagit manifest", Hasher)
             # Inefficient, bagit support need to checksum again
             self._add_to_bagit(rel_path)
         _logger.debug("[provenance] Added data file %s", path)
@@ -859,14 +831,12 @@ class ResearchObject:
             manifest = "tagmanifest"
 
         # Add checksums to corresponding manifest files
-        for (method, hash_value) in checksums.items():
+        for method, hash_value in checksums.items():
             # File not in manifest because we bailed out on
             # existence in bagged_size above
             manifestpath = os.path.join(self.folder, f"{manifest}-{method.lower()}.txt")
             # encoding: match Tag-File-Character-Encoding: UTF-8
-            with open(
-                manifestpath, "a", encoding=ENCODING, newline="\n"
-            ) as checksum_file:
+            with open(manifestpath, "a", encoding=ENCODING, newline="\n") as checksum_file:
                 line = f"{hash_value}  {rel_path}\n"
                 _logger.debug("[provenance] Added to %s: %s", manifestpath, line)
                 checksum_file.write(line)
@@ -892,9 +862,7 @@ class ResearchObject:
 
         self.add_to_manifest(rel_path, checksums)
 
-    def create_job(
-        self, builder_job: CWLObjectType, is_output: bool = False
-    ) -> CWLObjectType:
+    def create_job(self, builder_job: CWLObjectType, is_output: bool = False) -> CWLObjectType:
         # TODO customise the file
         """Generate the new job object with RO specific relative paths."""
         copied = copy.deepcopy(builder_job)
@@ -954,9 +922,7 @@ class ResearchObject:
                     # Register in RO; but why was this not picked
                     # up by used_artefacts?
                     _logger.info("[provenance] Adding to RO %s", structure["location"])
-                    with self.fsaccess.open(
-                        cast(str, structure["location"]), "rb"
-                    ) as fp:
+                    with self.fsaccess.open(cast(str, structure["location"]), "rb") as fp:
                         relative_path = self.add_data_file(fp)
                         checksum = PurePosixPath(relative_path).name
                         structure["checksum"] = f"{SHA1}${checksum}"

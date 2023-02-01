@@ -38,8 +38,7 @@ def test_biocontainers_resolution(tmp_path: Path) -> None:
     """Confirm expected container name for --beta-use-biocontainers."""
     tool = load_tool(get_data("tests/seqtk_seq.cwl"), LoadingContext())
     assert (
-        get_container_from_software_requirements(True, tool)
-        == "quay.io/biocontainers/seqtk:r93--0"
+        get_container_from_software_requirements(True, tool) == "quay.io/biocontainers/seqtk:r93--0"
     )
 
 
@@ -60,9 +59,7 @@ def test_modules(monkeypatch: pytest.MonkeyPatch) -> None:
     """Do a basic smoke test using environment modules to satisfy a SoftwareRequirement."""
     wflow = get_data("tests/random_lines.cwl")
     job = get_data("tests/random_lines_job.json")
-    monkeypatch.setenv(
-        "MODULEPATH", os.path.join(os.getcwd(), "tests/test_deps_env/modulefiles")
-    )
+    monkeypatch.setenv("MODULEPATH", os.path.join(os.getcwd(), "tests/test_deps_env/modulefiles"))
     error_code, _, stderr = get_main_output(
         [
             "--beta-dependency-resolvers-configuration",
@@ -84,9 +81,7 @@ def test_modules_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 
     Do so by  by running `env` as the tool and parsing its output.
     """
-    monkeypatch.setenv(
-        "MODULEPATH", os.path.join(os.getcwd(), "tests/test_deps_env/modulefiles")
-    )
+    monkeypatch.setenv("MODULEPATH", os.path.join(os.getcwd(), "tests/test_deps_env/modulefiles"))
     tool_env = get_tool_env(
         tmp_path,
         [
