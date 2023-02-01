@@ -297,6 +297,7 @@ def dedup(listing: List[CWLObjectType]) -> List[CWLObjectType]:
 
 
 def get_listing(fs_access: "StdFsAccess", rec: CWLObjectType, recursive: bool = True) -> None:
+    """Expand, recursively, any 'listing' fields in a Directory."""
     if rec.get("class") != "Directory":
         finddirs: List[CWLObjectType] = []
         visit_class(rec, ("Directory",), finddirs.append)
@@ -502,6 +503,7 @@ class HasReqsHints:
         self.hints: List[CWLObjectType] = []
 
     def get_requirement(self, feature: str) -> Tuple[Optional[CWLObjectType], Optional[bool]]:
+        """Retrieve the named feature from the requirements field, or the hints field."""
         for item in reversed(self.requirements):
             if item["class"] == feature:
                 return (item, True)

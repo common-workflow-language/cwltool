@@ -42,6 +42,7 @@ from .workflow_job import WorkflowJob
 
 
 def default_make_tool(toolpath_object: CommentedMap, loadingContext: LoadingContext) -> Process:
+    """Instatiate the given CWL Process."""
     if not isinstance(toolpath_object, MutableMapping):
         raise WorkflowException("Not a dict: '%s'" % toolpath_object)
     if "class" in toolpath_object:

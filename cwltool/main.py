@@ -668,6 +668,7 @@ class ProvLogFormatter(logging.Formatter):
         super().__init__("[%(asctime)sZ] %(message)s")
 
     def formatTime(self, record: logging.LogRecord, datefmt: Optional[str] = None) -> str:
+        """Override the default formatTime to include the timezone."""
         formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(float(record.created)))
         with_msecs = f"{formatted_time},{record.msecs:03f}"
         return with_msecs

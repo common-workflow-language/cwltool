@@ -54,6 +54,7 @@ class ContextBase:
 
 
 def make_tool_notimpl(toolpath_object: CommentedMap, loadingContext: "LoadingContext") -> "Process":
+    """Fake implementation of the make tool function."""
     raise NotImplementedError()
 
 

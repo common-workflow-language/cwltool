@@ -203,6 +203,7 @@ def jshint_js(
 
 
 def print_js_hint_messages(js_hint_messages: List[str], source_line: Optional[SourceLine]) -> None:
+    """Log the message from JSHint, using the line number."""
     if source_line is not None:
         for js_hint_message in js_hint_messages:
             _logger.warning(source_line.makeError(js_hint_message))

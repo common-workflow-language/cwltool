@@ -24,6 +24,7 @@ class ProcessGeneratorJob:
         self.processStatus = None  # type: Optional[str]
 
     def receive_output(self, jobout: Optional[CWLObjectType], processStatus: str) -> None:
+        """Process the results."""
         self.jobout = jobout
         self.processStatus = processStatus
 

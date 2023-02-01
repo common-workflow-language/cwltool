@@ -95,6 +95,7 @@ class ReceiveScatterOutput:
         self.steps: List[Optional[JobsGeneratorType]] = []
 
     def receive_scatter_output(self, index: int, jobout: CWLObjectType, processStatus: str) -> None:
+        """Record the results of a scatter operation."""
         for key, val in jobout.items():
             self.dest[key][index] = val
 
@@ -210,6 +211,7 @@ def nested_crossproduct_scatter(
 
 
 def crossproduct_size(joborder: CWLObjectType, scatter_keys: MutableSequence[str]) -> int:
+    """Compute the size of a cross product."""
     scatter_key = scatter_keys[0]
     if len(scatter_keys) == 1:
         ssum = len(cast(Sized, joborder[scatter_key]))

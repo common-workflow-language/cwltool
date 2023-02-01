@@ -480,6 +480,7 @@ class CommandLineTool(Process):
         return PathMapper(reffiles, runtimeContext.basedir, stagedir, separateDirs)
 
     def updatePathmap(self, outdir: str, pathmap: PathMapper, fn: CWLObjectType) -> None:
+        """Update a PathMapper with a CWL File or Directory object."""
         if not isinstance(fn, MutableMapping):
             raise WorkflowException("Expected File or Directory object, was %s" % type(fn))
         basename = cast(str, fn["basename"])

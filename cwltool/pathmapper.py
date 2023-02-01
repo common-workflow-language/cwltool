@@ -234,6 +234,7 @@ class PathMapper:
         return None
 
     def update(self, key: str, resolved: str, target: str, ctype: str, stage: bool) -> MapperEnt:
+        """Update an existine entry."""
         m = MapperEnt(resolved, target, ctype, stage)
         self._pathmap[key] = m
         return m

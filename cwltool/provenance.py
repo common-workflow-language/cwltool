@@ -333,6 +333,7 @@ class ResearchObject:
             bag_it_file.write("Tag-File-Character-Encoding: %s\n" % ENCODING)
 
     def open_log_file_for_activity(self, uuid_uri: str) -> Union[TextIOWrapper, WritableBagFile]:
+        """Begin the per-activity log."""
         self.self_check()
         # Ensure valid UUID for safe filenames
         activity_uuid = uuid.UUID(uuid_uri)
@@ -578,6 +579,7 @@ class ResearchObject:
         return aggregates
 
     def add_uri(self, uri: str, timestamp: Optional[datetime.datetime] = None) -> Aggregate:
+        """Create and store an aggreate for the given URI."""
         self.self_check()
         aggr = {"uri": uri}  # type: Aggregate
         aggr["createdOn"], aggr["createdBy"] = self._self_made(timestamp=timestamp)

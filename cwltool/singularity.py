@@ -298,6 +298,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     @staticmethod
     def append_volume(runtime: List[str], source: str, target: str, writable: bool = False) -> None:
+        """Add binding arguments to the runtime list."""
         runtime.append("--bind")
         # Mounts are writable by default, so 'rw' is optional and not
         # supported (due to a bug) in some 3.6 series releases.

@@ -470,6 +470,7 @@ def avroize_type(
 
 
 def get_overrides(overrides: MutableSequence[CWLObjectType], toolid: str) -> CWLObjectType:
+    """Combine overrides for the target tool ID."""
     req: CWLObjectType = {}
     if not isinstance(overrides, MutableSequence):
         raise ValidationException("Expected overrides to be a list, but was %s" % type(overrides))
@@ -534,6 +535,8 @@ FILE_COUNT_WARNING = 5000
 
 @mypyc_attr(allow_interpreted_subclasses=True)
 class Process(HasReqsHints, metaclass=abc.ABCMeta):
+    """Abstract CWL Process."""
+
     def __init__(self, toolpath_object: CommentedMap, loadingContext: LoadingContext) -> None:
         """Build a Process object from the provided dictionary."""
         super().__init__()
@@ -1029,6 +1032,7 @@ hints:
                             )
 
     def validate_hints(self, avsc_names: Names, hints: List[CWLObjectType], strict: bool) -> None:
+        """Process the hints field."""
         if self.doc_loader is None:
             return
         debug = _logger.isEnabledFor(logging.DEBUG)
