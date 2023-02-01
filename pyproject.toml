@@ -1,0 +1,18 @@
+[build-system]
+requires = [
+    "setuptools>=45",
+    'mypy==0.971; python_version == "3.6"',  # last version for Python 3.6
+    'mypy==0.991; python_version >= "3.7"',
+    "types-pkg_resources",
+    "types-requests",
+    "types-psutil",
+    "ruamel.yaml>=0.16.0,<0.17.22",
+    "schema-salad>=8.2.20211104054942,<9",
+    "cwl-utils >=0.19",
+    'toml',
+]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 100
+target-version = [ "py36" ]
