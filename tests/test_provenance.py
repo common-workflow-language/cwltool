@@ -186,10 +186,10 @@ def test_directory_workflow(tmp_path: Path) -> None:
 
     # Input files should be captured by hash value,
     # even if they were inside a class: Directory
-    for l, l_hash in sha1.items():
+    for letter, l_hash in sha1.items():
         prefix = l_hash[:2]  # first 2 letters
         p = folder / "data" / prefix / l_hash
-        assert p.is_file(), f"Could not find {l} as {p}"
+        assert p.is_file(), f"Could not find {letter} as {p}"
 
 
 @needs_docker
