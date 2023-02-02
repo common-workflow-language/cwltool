@@ -386,6 +386,10 @@ class ProvenanceProfile:
                 (PROV_TYPE, RO["Folder"]),
             ],
         )
+
+        if "basename" in value:
+            coll.add_attributes({CWLPROV["basename"]: cast(str, value["basename"])})
+
         # ORE description of ro:Folder, saved separately
         coll_b = dir_bundle.entity(
             dir_id,
