@@ -539,6 +539,7 @@ def check_prov(
             assert (d, RDF.type, PROV.Dictionary) in g
             assert (d, RDF.type, PROV.Collection) in g
             assert (d, RDF.type, PROV.Entity) in g
+            assert len(list(g.objects(d, CWLPROV.basename))) == 1
 
             files = set()
             for entry in g.objects(d, PROV.hadDictionaryMember):
