@@ -245,9 +245,9 @@ def random_outdir() -> str:
 fcntl: Optional[ModuleType] = None
 msvcrt: Optional[ModuleType] = None
 try:
-    import fcntl  # type: ignore
+    import fcntl
 except ImportError:
-    import msvcrt  # type: ignore
+    import msvcrt
 
 
 def shared_file_lock(fd: IO[Any]) -> None:
