@@ -136,7 +136,7 @@ def get_dependencies(builder: HasReqsHints) -> ToolRequirements:
 
 
 def get_container_from_software_requirements(
-    use_biocontainers: bool, builder: HasReqsHints
+    use_biocontainers: bool, builder: HasReqsHints, container_image_cache_path: Optional[str] = "."
 ) -> Optional[str]:
     if use_biocontainers:
         ensure_galaxy_lib_available()
@@ -147,7 +147,7 @@ def get_container_from_software_requirements(
         app_info: AppInfo = AppInfo(
             involucro_auto_init=True,
             enable_mulled_containers=True,
-            container_image_cache_path=".",
+            container_image_cache_path=container_image_cache_path,
         )
         container_registry: ContainerRegistry = ContainerRegistry(app_info)
         requirements = get_dependencies(builder)
