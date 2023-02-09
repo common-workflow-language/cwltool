@@ -1289,6 +1289,7 @@ def main(
                     find_default_container,
                     default_container=runtimeContext.default_container,
                     use_biocontainers=args.beta_use_biocontainers,
+                    container_image_cache_path=args.beta_dependencies_directory,
                 )
 
             (out, status) = real_executor(
@@ -1410,10 +1411,13 @@ def find_default_container(
     builder: HasReqsHints,
     default_container: Optional[str] = None,
     use_biocontainers: Optional[bool] = None,
+    container_image_cache_path: Optional[str] = None,
 ) -> Optional[str]:
     """Find a container."""
     if not default_container and use_biocontainers:
-        default_container = get_container_from_software_requirements(use_biocontainers, builder)
+        default_container = get_container_from_software_requirements(
+            use_biocontainers, builder, container_image_cache_path
+        )
     return default_container
 
 
