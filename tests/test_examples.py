@@ -1291,6 +1291,8 @@ def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
     commands = factor.split()
     commands.extend(
         [
+            "--out",
+            str(tmp_path / "out"),
             "--cachedir",
             cache_dir,
             get_data(f"tests/{test_file}"),
@@ -1306,6 +1308,8 @@ def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
     commands = factor.split()
     commands.extend(
         [
+            "--out",
+            str(tmp_path / "out2"),
             "--cachedir",
             cache_dir,
             get_data(f"tests/{test_file}"),
@@ -1324,6 +1328,8 @@ def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
 def test_write_summary(tmp_path: Path) -> None:
     """Test --write-summary."""
     commands = [
+        "--out",
+        str(tmp_path / "out1"),
         get_data("tests/wf/no-parameters-echo.cwl"),
     ]
     error_code, stdout, stderr = get_main_output(commands)
@@ -1332,6 +1338,8 @@ def test_write_summary(tmp_path: Path) -> None:
 
     final_output_path = str(tmp_path / "final-output.json")
     commands_no = [
+        "--out",
+        str(tmp_path / "out2"),
         "--write-summary",
         final_output_path,
         get_data("tests/wf/no-parameters-echo.cwl"),
@@ -1347,10 +1355,11 @@ def test_write_summary(tmp_path: Path) -> None:
 
 
 @needs_docker
-def test_compute_checksum() -> None:
+def test_compute_checksum(tmp_path: Path) -> None:
     runtime_context = RuntimeContext()
     runtime_context.compute_checksum = True
     runtime_context.use_container = False
+    runtime_context.outdir = str(tmp_path)
     factory = cwltool.factory.Factory(runtime_context=runtime_context)
     echo = factory.make(get_data("tests/wf/cat-tool.cwl"))
     output = echo(
@@ -1413,10 +1422,12 @@ def test_bad_stdout_expr_error() -> None:
 
 
 @needs_docker
-def test_stdin_with_id_preset() -> None:
+def test_stdin_with_id_preset(tmp_path: Path) -> None:
     """Confirm that a type: stdin with a preset id does not give an error."""
     error_code, _, stderr = get_main_output(
         [
+            "--out",
+            str(tmp_path),
             get_data("tests/wf/1590.cwl"),
             "--file1",
             get_data("tests/wf/whale.txt"),
@@ -1590,7 +1601,7 @@ def test_v1_0_arg_empty_prefix_separate_false() -> None:
 
 def test_scatter_output_filenames(tmp_path: Path) -> None:
     """Confirm that the final output is renamed correctly from identically named scatter outputs."""
-    cwd = Path.cwd()
+    cwd = tmp_path
     with working_directory(tmp_path):
         rtc = RuntimeContext()
         rtc.outdir = str(cwd)
@@ -1726,10 +1737,10 @@ def test_command_line_tool_class() -> None:
     assert str(expression_tool) == f"CommandLineTool: file://{tool_path}"
 
 
-def test_record_default_with_long() -> None:
+def test_record_default_with_long(tmp_path: Path) -> None:
     """Confirm that record defaults are respected."""
     tool_path = get_data("tests/wf/paramref_arguments_roundtrip.cwl")
-    err_code, stdout, stderr = get_main_output([tool_path])
+    err_code, stdout, stderr = get_main_output(["--outdir", str(tmp_path), tool_path])
     assert err_code == 0
     result = json.loads(stdout)["same_record"]
     assert result["first"] == "y"

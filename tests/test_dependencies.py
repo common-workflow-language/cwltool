@@ -1,11 +1,12 @@
 """Tests of satisfying SoftwareRequirement via dependencies."""
 import os
 import tempfile
+from getpass import getuser
 from pathlib import Path
 from shutil import which
 from types import ModuleType
-from typing import Optional, Tuple, Callable
-from getpass import getuser
+from typing import Optional, Tuple
+
 import pytest
 
 from cwltool.context import LoadingContext
@@ -63,6 +64,7 @@ def bioconda_setup(request: pytest.FixtureRequest) -> Tuple[Optional[int], str]:
     :py:method:`pytest.TempPathFactory.getbasetemp`.
     """
 
+    assert request.config.cache
     deps_dir = request.config.cache.get("bioconda_deps", None)
     if deps_dir is not None and not Path(deps_dir).exists():
         # cache value set, but cache is gone :( ... recreate
@@ -86,7 +88,7 @@ def bioconda_setup(request: pytest.FixtureRequest) -> Tuple[Optional[int], str]:
         request.config.cache.set("bioconda_deps", str(deps_dir))
 
     deps_dirpath = Path(deps_dir)
-    deps_dirpath.mkdir(exist_ok=True)
+    deps_dirpath.mkdir(parents=True, exist_ok=True)
 
     wflow = get_data("tests/seqtk_seq.cwl")
     job = get_data("tests/seqtk_seq_job.json")
@@ -106,7 +108,7 @@ def bioconda_setup(request: pytest.FixtureRequest) -> Tuple[Optional[int], str]:
 
 
 @pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
-def test_bioconda(bioconda_setup: Callable[[], Tuple[Optional[int], str]]) -> None:
+def test_bioconda(bioconda_setup: Tuple[Optional[int], str]) -> None:
     error_code, stderr = bioconda_setup
     assert error_code == 0, stderr
 
