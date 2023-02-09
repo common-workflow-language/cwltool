@@ -591,8 +591,8 @@ def check_prov(
 
 
 @pytest.fixture
-def research_object() -> Generator[ResearchObject, None, None]:
-    re_ob = ResearchObject(StdFsAccess(""))
+def research_object(tmp_path: Path) -> Generator[ResearchObject, None, None]:
+    re_ob = ResearchObject(StdFsAccess(str(tmp_path / "ro")), temp_prefix_ro=str(tmp_path / "tmp"))
     yield re_ob
     re_ob.close()
 

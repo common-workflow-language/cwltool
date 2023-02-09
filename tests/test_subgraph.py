@@ -219,10 +219,12 @@ def test_single_process_packed_subwf_step(tmp_path: Path) -> None:
 
 
 @needs_docker
-def test_single_process_subwf_subwf_inline_step() -> None:
+def test_single_process_subwf_subwf_inline_step(tmp_path: Path) -> None:
     """Test --single-process on an inline sub-sub-workflow step."""
     err_code, stdout, stderr = get_main_output(
         [
+            "--outdir",
+            str(tmp_path),
             "--single-process",
             "step1/stepX/stepY",
             get_data("tests/subgraph/count-lines17-wf.cwl.json"),

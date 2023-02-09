@@ -114,6 +114,44 @@ jobs:
       - name: Test with tox
         run: tox
 
+  clean_working_dir:
+    name: No leftovers
+    runs-on: ubuntu-22.04
+    env:
+      py-semver: "3.11"
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Singularity
+        run: |
+          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v3.10.4/singularity-ce_3.10.4-focal_amd64.deb
+          sudo apt-get install -y ./singularity-ce_3.10.4-focal_amd64.deb
+
+      - name: Give the test runner user a name to make provenance happy.
+        run: sudo usermod -c 'CI Runner' $(whoami)
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.py-semver }}
+          cache: pip
+
+      - name: install with test dependencies
+        run: |
+          pip install -U pip setuptools wheel
+          pip install --no-build-isolation -rtest-requirements.txt .[deps]
+
+      - name: make working directory read-only
+        run: |
+          mkdir .pytest_cache
+          chmod a-w .
+
+      - name: run tests
+        run: make test
+
+
   conformance_tests:
     name: CWL conformance
     runs-on: ubuntu-22.04
