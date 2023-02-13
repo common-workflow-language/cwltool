@@ -46,7 +46,7 @@ jobs:
 
       - name: Give the test runner user a name to make provenance happy.
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
-        run: sudo usermod -c 'CI Runner' $(whoami)
+        run: sudo usermod -c 'CI Runner' "$(whoami)"
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -130,7 +130,7 @@ jobs:
           sudo apt-get install -y ./singularity-ce_3.10.4-focal_amd64.deb
 
       - name: Give the test runner user a name to make provenance happy.
-        run: sudo usermod -c 'CI Runner' $(whoami)
+        run: sudo usermod -c 'CI Runner' "$(whoami)"
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -192,7 +192,7 @@ jobs:
           python-version: 3.11
           cache: pip
 
-      - name: "Test CWL ${{ matrix.version }} conformance"
+      - name: "Test CWL ${{ matrix.cwl-version }} conformance"
         env:
           VERSION: ${{ matrix.cwl-version }}
           CONTAINER: ${{ matrix.container }}
@@ -226,7 +226,7 @@ jobs:
             test-requirements.txt
 
       - name: Give the test runner user a name to make provenance happy.
-        run: sudo usermod -c 'CI Runner' $(whoami)
+        run: sudo usermod -c 'CI Runner' "$(whoami)"
 
       - name: Install packages
         run: |
@@ -249,7 +249,7 @@ jobs:
     name: Test on macos-latest
     runs-on: macos-latest
     env:
-      TOXENV: py310-unit
+      TOXENV: py311-unit
     steps:
       - uses: actions/checkout@v3
         with:
@@ -280,7 +280,6 @@ jobs:
       - name: Test with tox
         run: tox
       - name: Upload coverage to Codecov
-        if: ${{ matrix.step == 'unit' }}
         uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: true
