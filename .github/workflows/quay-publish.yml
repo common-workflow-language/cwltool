@@ -12,7 +12,7 @@ jobs:
       - name: Get image tags
         id: image_tags
         run: |
-          echo -n ::set-output name=IMAGE_TAGS::${GITHUB_REF#refs/*/}
+          echo -n ::set-output "name=IMAGE_TAGS::${GITHUB_REF#refs/*/}"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
