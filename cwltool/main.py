@@ -1433,7 +1433,8 @@ def windows_check() -> None:
             "Windows Subsystem for Linux 2 (WSL2). If don't need to execute "
             "CWL documents, then you can ignore this warning, but please "
             "consider migrating to https://pypi.org/project/cwl-utils/ "
-            "for your CWL document processing needs."
+            "for your CWL document processing needs.",
+            stacklevel=1,
         )
 
 
