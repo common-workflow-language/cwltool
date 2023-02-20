@@ -2,7 +2,7 @@
 requires = [
     "setuptools>=45",
     'mypy==0.971; python_version == "3.6"',  # last version for Python 3.6
-    'mypy==1.0; python_version >= "3.7"',  # also update mypy-requirements.txt
+    'mypy==1.0.1; python_version >= "3.7"',  # also update mypy-requirements.txt
     "types-pkg_resources",
     "types-requests",
     "types-psutil",
