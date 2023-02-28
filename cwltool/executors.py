@@ -84,8 +84,8 @@ class JobExecutor(metaclass=ABCMeta):
     ) -> Tuple[Union[Optional[CWLObjectType]], str]:
         """Execute the process."""
 
-        self.final_output = []  # type: MutableSequence[Optional[CWLObjectType]]
-        self.final_status = []  # type: List[str]
+        self.final_output = []
+        self.final_status = []
 
         if not runtime_context.basedir:
             raise WorkflowException("Must provide 'basedir' in runtimeContext")
