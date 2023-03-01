@@ -769,8 +769,6 @@ def test_research_object() -> None:
     pass
 
 
-# Research object may need to be pickled (for Toil)
-
-
 def test_research_object_picklability(research_object: ResearchObject) -> None:
+    """Research object may need to be pickled (for Toil)."""
     assert pickle.dumps(research_object) is not None

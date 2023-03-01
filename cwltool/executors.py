@@ -20,6 +20,7 @@ from typing import (
 )
 
 import psutil
+from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
 
@@ -40,6 +41,7 @@ from .workflow_job import WorkflowJob, WorkflowJobStep
 TMPDIR_LOCK = Lock()
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class JobExecutor(metaclass=ABCMeta):
     """Abstract base job executor."""
 
@@ -178,6 +180,7 @@ class JobExecutor(metaclass=ABCMeta):
         return (None, "permanentFail")
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class SingleJobExecutor(JobExecutor):
     """Default single-threaded CWL reference executor."""
 

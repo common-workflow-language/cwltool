@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple, cast
 
+from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
@@ -42,6 +43,7 @@ MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "
 """
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class PathMapper:
     """
     Mapping of files from relative path provided in the file to a tuple.
@@ -192,11 +194,12 @@ class PathMapper:
         for fob in referenced_files:
             if self.separateDirs:
                 stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
+            copy = cast(bool, fob.get("writable", False) or False)
             self.visit(
                 fob,
                 stagedir,
                 basedir,
-                copy=cast(bool, fob.get("writable", False)),
+                copy=copy,
                 staged=True,
             )
 

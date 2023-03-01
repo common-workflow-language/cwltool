@@ -5,13 +5,13 @@ import pytest
 from schema_salad.avro import schema
 
 from cwltool.builder import Builder
+from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.cuda import cuda_version_and_device_count
 from cwltool.errors import WorkflowException
 from cwltool.job import CommandLineJob
 from cwltool.load_tool import load_tool
 from cwltool.main import main
-from cwltool.pathmapper import PathMapper
 from cwltool.process import use_custom_schema
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
@@ -108,7 +108,7 @@ def test_cuda_job_setup_check(makedirs: MagicMock, check_output: MagicMock) -> N
 </nvidia>
 """
 
-    jb = CommandLineJob(builder, {}, PathMapper, [], [], "")
+    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
     jb._setup(runtime_context)
 
 
@@ -130,7 +130,7 @@ def test_cuda_job_setup_check_err(makedirs: MagicMock, check_output: MagicMock) 
 <cuda_version>1.0</cuda_version>
 </nvidia>
 """
-    jb = CommandLineJob(builder, {}, PathMapper, [], [], "")
+    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
     with pytest.raises(WorkflowException):
         jb._setup(runtime_context)
 
