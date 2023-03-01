@@ -64,7 +64,7 @@ if USE_MYPYC:
         "cwltool/main.py",
         "cwltool/mutation.py",
         "cwltool/pack.py",
-        # "cwltool/pathmapper.py",  # class PathMapper needs to be subclassable
+        "cwltool/pathmapper.py",
         "cwltool/process.py",
         "cwltool/procgenerator.py",
         # "cwltool/provenance.py",  # WritableBag is having issues

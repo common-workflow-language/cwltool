@@ -118,7 +118,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[..., PathMapper],
+        make_path_mapper: Callable[[List[CWLObjectType], str, RuntimeContext, bool], PathMapper],
         requirements: List[CWLObjectType],
         hints: List[CWLObjectType],
         name: str,

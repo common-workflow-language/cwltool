@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, cast
 
 import pytest
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro import schema
 from schema_salad.sourceline import cmap
 
@@ -14,11 +15,10 @@ from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.docker import DockerCommandLineJob
 from cwltool.job import JobBase
 from cwltool.main import main
-from cwltool.pathmapper import MapperEnt, PathMapper
+from cwltool.pathmapper import MapperEnt
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from cwltool.utils import create_tmp_dir
-from ruamel.yaml.comments import CommentedMap
 
 from .util import get_data, needs_docker
 
@@ -144,7 +144,9 @@ def test_dockerfile_tmpdir_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
         INTERNAL_VERSION,
         "docker",
     )
-    assert DockerCommandLineJob(builder, {}, PathMapper, [], [], "").get_image(
+    assert DockerCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_image(
         {
             "class": "DockerRequirement",
             "dockerFile": "FROM debian:stable-slim",
@@ -193,7 +195,7 @@ def test_docker_tmpdir_prefix(tmp_path: Path) -> None:
         INTERNAL_VERSION,
         "docker",
     )
-    job = DockerCommandLineJob(builder, {}, PathMapper, [], [], "")
+    job = DockerCommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
     runtime: List[str] = []
 
     volume_writable_file = MapperEnt(

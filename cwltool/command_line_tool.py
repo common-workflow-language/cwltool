@@ -32,14 +32,14 @@ from typing import (
 )
 
 import shellescape
+from mypy_extensions import mypyc_attr
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Schema
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .builder import (
     INPUT_OBJ_VOCAB,
@@ -208,6 +208,7 @@ class ExpressionJob:
                 self.output_callback({}, "permanentFail")
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class ExpressionTool(Process):
     def job(
         self,
@@ -315,6 +316,7 @@ def revmap_file(builder: Builder, outdir: str, f: CWLObjectType) -> Optional[CWL
     )
 
 
+@mypyc_attr(serializable=True)
 class CallbackJob:
     """Callback Job class, used by :py:func:`CommandLineTool.job`."""
 
@@ -401,6 +403,7 @@ class ParameterOutputWorkflowException(WorkflowException):
         )
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class CommandLineTool(Process):
     def __init__(self, toolpath_object: CommentedMap, loadingContext: LoadingContext) -> None:
         """Initialize this CommandLineTool."""
@@ -470,8 +473,8 @@ class CommandLineTool(Process):
             )
         return CommandLineJob
 
+    @staticmethod
     def make_path_mapper(
-        self,
         reffiles: List[CWLObjectType],
         stagedir: str,
         runtimeContext: RuntimeContext,

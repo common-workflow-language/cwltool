@@ -19,14 +19,14 @@ from typing import (  # pylint: disable=unused-import
 
 from cwl_utils import expression
 from cwl_utils.file_formats import check_format
+from mypy_extensions import mypyc_attr
 from rdflib import Graph
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names, Schema, make_avsc_object
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import convert_to_dict, json_dumps
 from schema_salad.validate import validate
-
-from ruamel.yaml.comments import CommentedMap
 
 from .errors import WorkflowException
 from .loghandler import _logger
@@ -94,6 +94,7 @@ def substitute(value: str, replace: str) -> str:
     return value + replace
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class Builder(HasReqsHints):
     """Helper class to construct a command line from a CWL CommandLineTool."""
 
