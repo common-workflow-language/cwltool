@@ -1799,3 +1799,33 @@ def test_validate_optional_src_with_mandatory_sink() -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert 'Source \'opt_file\' of type ["null", "File"] may be incompatible' in stderr
     assert "with sink 'r' of type \"File\"" in stderr
+
+
+def test_res_req_expr_float_1_0() -> None:
+    """Confirm expected error when returning a float value from a ResourceRequirement expr in CWL v1.0."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            get_data("tests/wf/resreq_expr_float_v1_0.cwl"),
+            "--input_bam",
+            get_data("tests/wf/whale.txt"),
+        ]
+    )
+    assert exit_code == 1
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Floats are not valid in resource requirement expressions" in stderr
+    assert "prior to CWL v1.2" in stderr
+    assert "$((2 * inputs.input_bam.size) / 3.14159) returned" in stderr
+
+
+def test_res_req_expr_float_1_2() -> None:
+    """Confirm no error when returning a float value from a ResourceRequirement expr in CWL v1.0."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            get_data("tests/wf/resreq_expr_float_v1_2.cwl"),
+            "--input_bam",
+            get_data("tests/wf/whale.txt"),
+        ]
+    )
+    assert exit_code == 0, stderr
+    assert json.loads(stdout)["result"]["outdirSize"] >= 708
+    assert json.loads(stdout)["result"]["tmpdirSize"] >= 708

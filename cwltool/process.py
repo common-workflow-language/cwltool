@@ -58,7 +58,7 @@ from .mpi import MPIRequirementName
 from .pathmapper import MapperEnt, PathMapper
 from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
-from .update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
+from .update import INTERNAL_VERSION, ORDERED_VERSIONS, ORIGINAL_CWLVERSION
 from .utils import (
     CWLObjectType,
     CWLOutputAtomType,
@@ -518,12 +518,17 @@ def eval_resource(
 ) -> Optional[Union[str, int, float]]:
     if isinstance(resource_req, str) and expression.needs_parsing(resource_req):
         result = builder.do_eval(resource_req)
+        if isinstance(result, float):
+            if ORDERED_VERSIONS.index(builder.cwlVersion) >= ORDERED_VERSIONS.index("v1.2.0-dev4"):
+                return result
+            raise WorkflowException(
+                "Floats are not valid in resource requirement expressions prior "
+                f"to CWL v1.2: {resource_req} returned {result}."
+            )
         if isinstance(result, (str, int)) or result is None:
             return result
         raise WorkflowException(
-            "Got incorrect return type {} from resource expression evaluation of {}.".format(
-                type(result), resource_req
-            )
+            f"Got incorrect return type {type(result)} from resource expression evaluation of {resource_req}."
         )
     return resource_req
 
@@ -979,15 +984,17 @@ hints:
                 continue
             mn = mx = None  # type: Optional[Union[int, float]]
             if rsc.get(a + "Min"):
-                mn = cast(
-                    Union[int, float],
-                    eval_resource(builder, cast(Union[str, int, float], rsc[a + "Min"])),
-                )
+                with SourceLine(rsc, f"{a}Min", WorkflowException, runtimeContext.debug):
+                    mn = cast(
+                        Union[int, float],
+                        eval_resource(builder, cast(Union[str, int, float], rsc[a + "Min"])),
+                    )
             if rsc.get(a + "Max"):
-                mx = cast(
-                    Union[int, float],
-                    eval_resource(builder, cast(Union[str, int, float], rsc[a + "Max"])),
-                )
+                with SourceLine(rsc, f"{a}Max", WorkflowException, runtimeContext.debug):
+                    mx = cast(
+                        Union[int, float],
+                        eval_resource(builder, cast(Union[str, int, float], rsc[a + "Max"])),
+                    )
             if mn is None:
                 mn = mx
             elif mx is None:
