@@ -98,15 +98,8 @@ def relink_initialworkdir(
                 # directory, so therefore ineligable for being an output file.
                 # Thus, none of our business
                 continue
-            host_outdir_tgt = os.path.join(
-                host_outdir, vol.target[len(container_outdir) + 1 :]
-            )
-            mode = (
-                os.stat(host_outdir_tgt).st_mode
-                | stat.S_IWUSR
-                | stat.S_IWGRP
-                | stat.S_IWOTH
-            )
+            host_outdir_tgt = os.path.join(host_outdir, vol.target[len(container_outdir) + 1 :])
+            mode = os.stat(host_outdir_tgt).st_mode | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
             mode = 0o664  # Doesn't work for my code
             mode = 0o777  # works for my code
             if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
