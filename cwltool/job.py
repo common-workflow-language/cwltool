@@ -99,17 +99,14 @@ def relink_initialworkdir(
                 # Thus, none of our business
                 continue
             host_outdir_tgt = os.path.join(host_outdir, vol.target[len(container_outdir) + 1 :])
-            mode = os.stat(host_outdir_tgt).st_mode | stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
-            mode = 0o664  # Doesn't work for my code
-            mode = 0o777  # works for my code
             if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
                 try:
-                    os.chmod(host_outdir_tgt, mode)
+                    ensure_writable(host_outdir_tgt, include_root=True)
                     os.remove(host_outdir_tgt)
                 except PermissionError:
                     pass
             elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
-                os.chmod(host_outdir_tgt, mode)
+                ensure_writable(host_outdir_tgt, include_root=True)
                 shutil.rmtree(host_outdir_tgt)
             if not vol.resolved.startswith("_:"):
                 try:
