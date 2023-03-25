@@ -1,9 +1,10 @@
 import copy
 from typing import Dict, Optional, Tuple, cast
 
-from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import indent
+
+from ruamel.yaml.comments import CommentedMap
 
 from .context import LoadingContext, RuntimeContext
 from .errors import WorkflowException
