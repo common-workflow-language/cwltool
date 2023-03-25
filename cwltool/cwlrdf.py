@@ -4,9 +4,10 @@ from typing import IO, Any, Dict, Iterator, Optional, TextIO, Union, cast
 
 from rdflib import Graph
 from rdflib.query import ResultRow
-from ruamel.yaml.comments import CommentedMap
 from schema_salad.jsonld_context import makerdf
 from schema_salad.utils import ContextType
+
+from ruamel.yaml.comments import CommentedMap
 
 from .cwlviewer import CWLViewer
 from .process import Process

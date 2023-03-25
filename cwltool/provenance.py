@@ -8,7 +8,13 @@ import copy
 import datetime
 import hashlib
 import os
-import pwd
+
+try:
+    import pwd
+except ImportError:
+    # Guard against `from .provenance import ...` on windows.
+    # See windows_check() in main.py
+    pass
 import re
 import shutil
 import tempfile
