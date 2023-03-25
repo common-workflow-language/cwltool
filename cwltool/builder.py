@@ -124,7 +124,12 @@ class Builder(HasReqsHints):
         cwlVersion: str,
         container_engine: str,
     ) -> None:
-        """Initialize this Builder."""
+        """
+        Initialize this Builder.
+
+        :param timeout: Maximum number of seconds to wait while evaluating CWL
+                        expressions.
+        """
         super().__init__()
         self.job = job
         self.files = files
