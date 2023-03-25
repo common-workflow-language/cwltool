@@ -180,7 +180,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     )
                     assert loadproc.stdin is not None  # nosec
                     _logger.info("Sending GET request to %s", docker_requirement["dockerLoad"])
-                    req = requests.get(docker_requirement["dockerLoad"], stream=True)
+                    req = requests.get(docker_requirement["dockerLoad"], stream=True, timeout=60)
                     size = 0
                     for chunk in req.iter_content(1024 * 1024):
                         size += len(chunk)
