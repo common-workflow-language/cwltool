@@ -1,7 +1,7 @@
 mypy==1.1.1  # also update pyproject.toml
 ruamel.yaml>=0.16.0,<0.17.22
-schema-salad>=8.2.20211104054942,<9
-cwl-utils >=0.19
+schema-salad>=8.4,<9
+cwl-utils >=0.22
 types-requests
 types-setuptools
 types-psutil
