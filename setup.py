@@ -131,7 +131,7 @@ setup(
     setup_requires=PYTEST_RUNNER,
     test_suite="tests",
     tests_require=[
-        "pytest >= 6.2, < 7.3",
+        "pytest >= 6.2, < 7.4",
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
         "pytest-httpserver",
