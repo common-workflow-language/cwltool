@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 import pytest
+from schema_salad.exceptions import ValidationException
 
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.errors import WorkflowException
@@ -143,3 +144,25 @@ def test_import_tracked() -> None:
 
     assert tool.doc_loader is not None
     assert path in tool.doc_loader.idx
+
+
+def test_load_badhints() -> None:
+    """Check for expected error while update a bads hints list."""
+    loadingContext = LoadingContext()
+    uri = Path(get_data("tests/wf/hello-workflow-badhints.cwl")).as_uri()
+    with pytest.raises(
+        ValidationException,
+        match=r".*tests\/wf\/hello-workflow-badhints\.cwl\:18:4:\s*'hints'\s*entry\s*missing\s*required\s*key\s*'class'\.",
+    ):
+        load_tool(uri, loadingContext)
+
+
+def test_load_badhints_nodict() -> None:
+    """Check for expected error while update a hints list with a numerical entry."""
+    loadingContext = LoadingContext()
+    uri = Path(get_data("tests/wf/hello-workflow-badhints2.cwl")).as_uri()
+    with pytest.raises(
+        ValidationException,
+        match=r".*tests\/wf\/hello-workflow-badhints2\.cwl:41:5:\s*'hints'\s*entries\s*must\s*be\s*dictionaries:\s*<class\s*'int'>\s*42\.",
+    ):
+        load_tool(uri, loadingContext)

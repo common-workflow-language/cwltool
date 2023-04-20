@@ -55,28 +55,26 @@ def v1_0to1_1(
     def rewrite_requirements(t: CWLObjectType) -> None:
         if "requirements" in t:
             for r in cast(MutableSequence[CWLObjectType], t["requirements"]):
-                if isinstance(r, MutableMapping):
-                    cls = cast(str, r["class"])
-                    if cls in rewrite:
-                        r["class"] = rewrite[cls]
-                else:
-                    raise ValidationException(
-                        "requirements entries must be dictionaries: {} {}.".format(type(r), r)
-                    )
+                cls = cast(str, r["class"])
+                if cls in rewrite:
+                    r["class"] = rewrite[cls]
         if "hints" in t:
-            for r in cast(MutableSequence[CWLObjectType], t["hints"]):
+            for index, r in enumerate(cast(MutableSequence[CWLObjectType], t["hints"])):
                 if isinstance(r, MutableMapping):
+                    if "class" not in r:
+                        raise SourceLine(r, None, ValidationException).makeError(
+                            "'hints' entry missing required key 'class'."
+                        )
                     cls = cast(str, r["class"])
                     if cls in rewrite:
                         r["class"] = rewrite[cls]
                 else:
-                    raise ValidationException(f"hints entries must be dictionaries: {type(r)} {r}.")
+                    raise SourceLine(t["hints"], index, ValidationException).makeError(
+                        f"'hints' entries must be dictionaries: {type(r)} {r}."
+                    )
         if "steps" in t:
             for s in cast(MutableSequence[CWLObjectType], t["steps"]):
-                if isinstance(s, MutableMapping):
-                    rewrite_requirements(s)
-                else:
-                    raise ValidationException(f"steps entries must be dictionaries: {type(s)} {s}.")
+                rewrite_requirements(s)
 
     def update_secondaryFiles(
         t: CWLOutputType, top: bool = False
