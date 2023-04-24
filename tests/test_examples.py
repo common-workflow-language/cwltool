@@ -1829,3 +1829,14 @@ def test_res_req_expr_float_1_2() -> None:
     assert exit_code == 0, stderr
     assert json.loads(stdout)["result"]["outdirSize"] >= 708
     assert json.loads(stdout)["result"]["tmpdirSize"] >= 708
+
+
+def test_very_small_and_large_floats() -> None:
+    """Confirm that very small or large numbers are not transformed into scientific notation."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            get_data("tests/wf/floats_small_and_large.cwl"),
+        ]
+    )
+    assert exit_code == 0, stderr
+    assert json.loads(stdout)["result"] == "0.00001 0.0000123 123000 1230000"

@@ -2,7 +2,8 @@
 import copy
 import logging
 import math
-from typing import (  # pylint: disable=unused-import
+from decimal import Decimal
+from typing import (
     IO,
     TYPE_CHECKING,
     Any,
@@ -28,6 +29,8 @@ from schema_salad.utils import convert_to_dict, json_dumps
 from schema_salad.validate import validate
 
 from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.representer import RoundTripRepresenter
+from ruamel.yaml.scalarfloat import ScalarFloat
 
 from .errors import WorkflowException
 from .loghandler import _logger
@@ -604,6 +607,12 @@ class Builder(HasReqsHints):
                     '{} object missing "path": {}'.format(value["class"], value)
                 )
             return value["path"]
+        elif isinstance(value, ScalarFloat):
+            rep = RoundTripRepresenter()
+            dec_value = Decimal(rep.represent_scalar_float(value).value)
+            if "E" in str(dec_value):
+                return str(dec_value.quantize(1))
+            return str(dec_value)
         else:
             return str(value)
 
