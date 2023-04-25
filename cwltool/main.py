@@ -961,7 +961,7 @@ def main(
             if hasattr(sys.stdout, "detach"):
                 stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
             else:
-                stdout = getwriter("utf-8")(sys.stdout)  # type: ignore[assignment,arg-type]
+                stdout = getwriter("utf-8")(sys.stdout)  # type: ignore
         else:
             stdout = sys.stdout
         stdout = cast(IO[str], stdout)
