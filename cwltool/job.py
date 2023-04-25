@@ -886,8 +886,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         except OSError as exc:
             _logger.warning("Ignored error with %s stats: %s", docker_exe, exc)
             return
-        max_mem_percent: float = 0
-        mem_percent: float = 0
+        max_mem_percent: float = 0.0
+        mem_percent: float = 0.0
         with open(stats_file_name) as stats:
             while True:
                 line = stats.readline()
