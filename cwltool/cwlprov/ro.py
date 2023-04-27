@@ -86,7 +86,7 @@ class ResearchObject:
         self.ro_uuid = uuid.uuid4()
         self.base_uri = f"arcp://uuid,{self.ro_uuid}/"
         self.cwltool_version = f"cwltool {versionstring().split()[-1]}"
-        ##
+        self.has_manifest = False
         self.relativised_input_object: CWLObjectType = {}
 
         self._initialize()
@@ -524,6 +524,7 @@ class ResearchObject:
         if os.path.commonprefix(["data/", rel_path]) == "data/":
             # payload file, go to manifest
             manifest = "manifest"
+            self.has_manifest = True
         else:
             # metadata file, go to tag manifest
             manifest = "tagmanifest"

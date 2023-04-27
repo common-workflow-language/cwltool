@@ -189,10 +189,10 @@ def _write_bag_info(research_object: "ResearchObject") -> None:
 
 
 def _finalize(research_object: "ResearchObject") -> None:
-    # self._write_ro_manifest()
     _write_ro_manifest(research_object)
-    # self._write_bag_info()
     _write_bag_info(research_object)
+    if not research_object.has_manifest:
+        (Path(research_object.folder) / "manifest-sha1.txt").touch()
 
 
 def close_ro(research_object: "ResearchObject", save_to: Optional[str] = None) -> None:
