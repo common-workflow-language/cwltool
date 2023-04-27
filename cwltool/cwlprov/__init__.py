@@ -10,8 +10,6 @@ from typing import IO, Any, Callable, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import TypedDict
 
-from .provenance_constants import Hasher
-
 
 def _whoami() -> Tuple[str, str]:
     """Return the current operating system account as (username, fullname)."""
@@ -137,12 +135,17 @@ AuthoredBy = TypedDict(
 def checksum_copy(
     src_file: IO[Any],
     dst_file: Optional[IO[Any]] = None,
-    hasher: Callable[[], "hashlib._Hash"] = Hasher,
+    hasher: Optional[Callable[[], "hashlib._Hash"]] = None,
     buffersize: int = 1024 * 1024,
 ) -> str:
     """Compute checksums while copying a file."""
     # TODO: Use hashlib.new(Hasher_str) instead?
-    checksum = hasher()
+    if hasher:
+        checksum = hasher()
+    else:
+        from .provenance_constants import Hasher
+
+        checksum = Hasher()
     contents = src_file.read(buffersize)
     if dst_file and hasattr(dst_file, "name") and hasattr(src_file, "name"):
         temp_location = os.path.join(os.path.dirname(dst_file.name), str(uuid.uuid4()))

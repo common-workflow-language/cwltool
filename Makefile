@@ -85,7 +85,7 @@ docs: FORCE
 
 ## clean                  : clean up all temporary / machine-generated files
 clean: check-python3 FORCE
-	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so
+	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so cwltool/cwlprov/*.so
 	rm -Rf ${MODULE}/__pycache__/
 	python setup.py clean --all || true
 	rm -Rf .coverage

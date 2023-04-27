@@ -67,7 +67,11 @@ if USE_MYPYC:
         "cwltool/pathmapper.py",
         "cwltool/process.py",
         "cwltool/procgenerator.py",
-        # "cwltool/provenance.py",  # WritableBag is having issues
+        # "cwltool/cwlprov/__init__.py",
+        "cwltool/cwlprov/provenance_constants.py",
+        "cwltool/cwlprov/provenance_profile.py",
+        "cwltool/cwlprov/ro.py",
+        # "cwltool/cwlprov/writablebagfile.py",  # WritableBag is having issues
         "cwltool/resolver.py",
         "cwltool/secrets.py",
         "cwltool/singularity.py",
@@ -100,7 +104,7 @@ setup(
     ext_modules=ext_modules,
     # platforms='',  # empty as is conveyed by the classifier below
     # license='',  # empty as is conveyed by the classifier below
-    packages=["cwltool", "cwltool.tests"],
+    packages=["cwltool", "cwltool.tests", "cwltool.cwlprov"],
     package_dir={"cwltool.tests": "tests"},
     include_package_data=True,
     install_requires=[
