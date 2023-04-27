@@ -52,6 +52,14 @@ from ruamel.yaml.main import YAML
 from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
 from .context import LoadingContext, RuntimeContext, getdefault
+from .cwlprov.ro import ResearchObject  # , WritableBagFile
+from .cwlprov.writablebagfile import (  # change this later
+    WritableBagFile,
+    close_ro,
+    create_job,
+    open_log_file_for_activity,
+    packed_workflow,
+)
 from .cwlrdf import printdot, printrdf
 from .errors import (
     ArgumentException,
@@ -85,8 +93,6 @@ from .process import (
     use_standard_schema,
 )
 from .procgenerator import ProcessGenerator
-from .cwlprov.ro import ResearchObject#, WritableBagFile
-from .cwlprov.writablebagfile import WritableBagFile, create_job, open_log_file_for_activity, close_ro, packed_workflow # change this later
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
 from .software_requirements import (
@@ -1100,10 +1106,7 @@ def main(
 
             if args.provenance and runtimeContext.research_obj:
                 # Can't really be combined with args.pack at same time
-                 packed_workflow(
-                    runtimeContext.research_obj,
-                    print_pack(loadingContext, uri)
-                )
+                packed_workflow(runtimeContext.research_obj, print_pack(loadingContext, uri))
 
             if args.print_pre:
                 json_dump(

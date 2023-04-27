@@ -13,16 +13,17 @@ from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DC, DCTERMS, RDF
 from rdflib.term import Literal
 
-
 import cwltool.cwlprov as provenance
 from cwltool.cwlprov import provenance_constants
-from cwltool.cwlprov.writablebagfile import close_ro, write_bag_file # change this later
-from cwltool.main import main
 from cwltool.cwlprov.ro import ResearchObject
+from cwltool.cwlprov.writablebagfile import (  # change this later
+    close_ro,
+    write_bag_file,
+)
+from cwltool.main import main
 from cwltool.stdfsaccess import StdFsAccess
 
 from .util import get_data, needs_docker, working_directory
-
 
 # RDF namespaces we'll query for later
 ORE = Namespace("http://www.openarchives.org/ore/terms/")
@@ -598,7 +599,6 @@ def check_prov(
 def research_object(tmp_path: Path) -> Generator[ResearchObject, None, None]:
     re_ob = ResearchObject(StdFsAccess(str(tmp_path / "ro")), temp_prefix_ro=str(tmp_path / "tmp"))
     yield re_ob
-    # re_ob.close()
     close_ro(re_ob)
 
 

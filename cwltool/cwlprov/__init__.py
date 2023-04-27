@@ -1,81 +1,16 @@
 """Stores Research Object including provenance."""
 
-# import copy
-# import datetime
 import hashlib
 import os
 import pwd
 import re
-# import shutil
-# import tempfile
 import uuid
-# from array import array
-# from collections import OrderedDict
 from getpass import getuser
-# from io import FileIO#, TextIOWrapper
-# from mmap import mmap
-from pathlib import Path#, PurePosixPath
-from typing import (
-    IO,
-    Any,
-    # BinaryIO,
-    Callable,
-    Dict,
-    List,
-    # MutableMapping,
-    # MutableSequence,
-    Optional,
-    # Set,
-    Tuple,
-    Union,
-    # cast,
-)
+from typing import IO, Any, Callable, Dict, List, Optional, Tuple, Union
 
-import prov.model as provM
-from prov.model import PROV, ProvDocument
-# from schema_salad.utils import json_dumps
-from typing_extensions import TYPE_CHECKING, TypedDict
+from typing_extensions import TypedDict
 
-# from .loghandler import _logger
-from .provenance_constants import (
-    # ACCOUNT_UUID,
-    # CWLPROV,
-    # CWLPROV_VERSION,
-    # DATA,
-    # ENCODING,
-    # FOAF,
-    # LOGS,
-    # METADATA,
-    # ORCID,
-    # PROVENANCE,
-    # SHA1,
-    # SHA256,
-    # SHA512,
-    # SNAPSHOT,
-    # TEXT_PLAIN,
-    # USER_UUID,
-    # UUID,
-    # WORKFLOW,
-    Hasher,
-)
-# from .stdfsaccess import StdFsAccess
-# from .utils import (
-#     # CWLObjectType,
-#     # CWLOutputType,
-#     # create_tmp_dir,
-#     # local_path,
-#     # posix_path,
-#     # versionstring,
-# )
-
-# from .cwlprov.ro import ResearchObject
-
-# if TYPE_CHECKING:
-#     from .command_line_tool import (  # pylint: disable=unused-import
-#         CommandLineTool,
-#         ExpressionTool,
-#     )
-#     from .workflow import Workflow  # pylint: disable=unused-import
+from .provenance_constants import Hasher
 
 
 def _whoami() -> Tuple[str, str]:
@@ -87,8 +22,6 @@ def _whoami() -> Tuple[str, str]:
         fullname = username
 
     return (username, fullname)
-
-
 
 
 def _check_mod_11_2(numeric_string: str) -> bool:
@@ -200,10 +133,11 @@ AuthoredBy = TypedDict(
     total=False,
 )
 
+
 def checksum_copy(
     src_file: IO[Any],
     dst_file: Optional[IO[Any]] = None,
-    hasher=Hasher,  # type: Callable[[], hashlib._Hash]
+    hasher: Callable[[], "hashlib._Hash"] = Hasher,
     buffersize: int = 1024 * 1024,
 ) -> str:
     """Compute checksums while copying a file."""
@@ -229,4 +163,3 @@ def checksum_copy(
     if dst_file is not None:
         dst_file.flush()
     return checksum.hexdigest().lower()
-

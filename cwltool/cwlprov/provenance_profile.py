@@ -28,6 +28,9 @@ from ..errors import WorkflowException
 from ..job import CommandLineJob, JobBase
 from ..loghandler import _logger
 from ..process import Process, shortname
+from ..stdfsaccess import StdFsAccess
+from ..utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
+from ..workflow_job import WorkflowJob
 from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV,
@@ -46,14 +49,11 @@ from .provenance_constants import (
     WFDESC,
     WFPROV,
 )
-from ..stdfsaccess import StdFsAccess
-from ..utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
-from ..workflow_job import WorkflowJob
+from .writablebagfile import create_job, write_bag_file  # change this later
 
 if TYPE_CHECKING:
     from .ro import ResearchObject
 
-from .writablebagfile import write_bag_file, create_job # change this later
 
 def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectType) -> CWLObjectType:
     """Create copy of job object for provenance."""
@@ -115,10 +115,7 @@ class ProvenanceProfile:
 
     def __str__(self) -> str:
         """Represent this Provenvance profile as a string."""
-        return "ProvenanceProfile <{}> in <{}>".format(
-            self.workflow_run_uri,
-            self.research_object,
-        )
+        return f"ProvenanceProfile <{self.workflow_run_uri}> in <{self.research_object}>"
 
     def generate_prov_doc(self) -> Tuple[str, ProvDocument]:
         """Add basic namespaces."""
@@ -141,7 +138,7 @@ class ProvenanceProfile:
                 },
             )
 
-        self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
+        self.cwltool_version = f"cwltool {versionstring().split()[-1]}"
         self.document.add_namespace("wfprov", "http://purl.org/wf4ever/wfprov#")
         # document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
         self.document.add_namespace("wfdesc", "http://purl.org/wf4ever/wfdesc#")
@@ -222,9 +219,7 @@ class ProvenanceProfile:
         )
         # association between SoftwareAgent and WorkflowRun
         main_workflow = "wf:main"
-        self.document.wasAssociatedWith(
-            self.workflow_run_uri, self.engine_uuid, main_workflow
-        )
+        self.document.wasAssociatedWith(self.workflow_run_uri, self.engine_uuid, main_workflow)
         self.document.wasStartedBy(
             self.workflow_run_uri, None, self.engine_uuid, datetime.datetime.now()
         )
@@ -480,7 +475,7 @@ class ProvenanceProfile:
         data_file = self.research_object.add_data_file(byte_s, content_type=TEXT_PLAIN)
         checksum = PurePosixPath(data_file).name
         # FIXME: Don't naively assume add_data_file uses hash in filename!
-        data_id = "data:%s" % PurePosixPath(data_file).stem
+        data_id = f"data:{PurePosixPath(data_file).stem}"
         entity = self.document.entity(
             data_id, {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)}
         )
@@ -512,7 +507,7 @@ class ProvenanceProfile:
             byte_s = BytesIO(value)
             data_file = self.research_object.add_data_file(byte_s)
             # FIXME: Don't naively assume add_data_file uses hash in filename!
-            data_id = "data:%s" % PurePosixPath(data_file).stem
+            data_id = f"data:{PurePosixPath(data_file).stem}"
             return self.document.entity(
                 data_id,
                 {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)},
@@ -657,7 +652,7 @@ class ProvenanceProfile:
                     # FIXME: Probably not "main" in nested workflows
                     role = self.wf_ns[f"main/{name}/{output}"]
                 else:
-                    role = self.wf_ns["main/%s" % output]
+                    role = self.wf_ns[f"main/{output}"]
 
                 if not process_run_id:
                     process_run_id = self.workflow_run_uri
@@ -746,9 +741,7 @@ class ProvenanceProfile:
             prov_ids.append(self.provenance_ns[filename + ".xml"])
 
         # https://www.w3.org/TR/prov-n/
-        with write_bag_file(
-            self.research_object, basename + ".provn"
-        ) as provenance_file:
+        with write_bag_file(self.research_object, basename + ".provn") as provenance_file:
             self.document.serialize(provenance_file, format="provn", indent=2)
             prov_ids.append(self.provenance_ns[filename + ".provn"])
 
@@ -767,19 +760,14 @@ class ProvenanceProfile:
 
         # https://www.w3.org/TR/n-triples/
         with write_bag_file(self.research_object, basename + ".nt") as provenance_file:
-            self.document.serialize(
-                provenance_file, format="rdf", rdf_format="ntriples"
-            )
+            self.document.serialize(provenance_file, format="rdf", rdf_format="ntriples")
             prov_ids.append(self.provenance_ns[filename + ".nt"])
 
         # https://www.w3.org/TR/json-ld/
         # TODO: Use a nice JSON-LD context
         # see also https://eprints.soton.ac.uk/395985/
         # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
-        with write_bag_file(
-            self.research_object,
-            basename + ".jsonld"
-        ) as provenance_file:
+        with write_bag_file(self.research_object, basename + ".jsonld") as provenance_file:
             self.document.serialize(provenance_file, format="rdf", rdf_format="json-ld")
             prov_ids.append(self.provenance_ns[filename + ".jsonld"])
 

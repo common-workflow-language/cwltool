@@ -26,12 +26,12 @@ from schema_salad.sourceline import SourceLine
 
 from .command_line_tool import CallbackJob, ExpressionJob
 from .context import RuntimeContext, getdefault
+from .cwlprov.provenance_profile import ProvenanceProfile
 from .errors import WorkflowException
 from .job import JobBase
 from .loghandler import _logger
 from .mutation import MutationManager
 from .process import Process, cleanIntermediate, relocateOutputs
-from .cwlprov.provenance_profile import ProvenanceProfile
 from .task_queue import TaskQueue
 from .update import ORIGINAL_CWLVERSION
 from .utils import CWLObjectType, JobsType

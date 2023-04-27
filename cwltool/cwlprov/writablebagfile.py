@@ -4,73 +4,32 @@ import copy
 import datetime
 import hashlib
 import os
-# import pwd
-import re
 import shutil
-import tempfile
 import uuid
 from array import array
 from collections import OrderedDict
-# from getpass import getuser
-from io import TextIOWrapper, FileIO
+from io import FileIO, TextIOWrapper
 from mmap import mmap
 from pathlib import Path, PurePosixPath
-from typing import (
-    IO,
-    Any,
-    BinaryIO,
-    # Callable,
-    Dict,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Any, BinaryIO, Dict, MutableMapping, Optional, Union, cast
 
-import prov.model as provM
-from prov.model import PROV, ProvDocument
 from schema_salad.utils import json_dumps
-# from typing_extensions import TYPE_CHECKING, TypedDict
 
 from ..loghandler import _logger
+from ..utils import CWLObjectType, local_path, posix_path
 from .provenance_constants import (
-    ACCOUNT_UUID,
     CWLPROV,
     CWLPROV_VERSION,
-    DATA,
     ENCODING,
-    FOAF,
     LOGS,
     METADATA,
-    ORCID,
-    PROVENANCE,
     SHA1,
     SHA256,
     SHA512,
-    SNAPSHOT,
-    TEXT_PLAIN,
-    USER_UUID,
-    UUID,
     WORKFLOW,
-    Hasher,
 )
-from ..stdfsaccess import StdFsAccess
-from ..utils import (
-    CWLObjectType,
-    CWLOutputType,
-    create_tmp_dir,
-    local_path,
-    posix_path,
-    versionstring,
-)
-
-from . import Annotation, Aggregate, AuthoredBy, _valid_orcid, _whoami, checksum_copy
-
 from .ro import ResearchObject
+
 
 class WritableBagFile(FileIO):
     """Writes files in research object."""
@@ -87,9 +46,7 @@ class WritableBagFile(FileIO):
             SHA512: hashlib.sha512(),
         }
         # Open file in Research Object folder
-        path = os.path.abspath(
-            os.path.join(research_object.folder, local_path(rel_path))
-        )
+        path = os.path.abspath(os.path.join(research_object.folder, local_path(rel_path)))
         if not path.startswith(os.path.abspath(research_object.folder)):
             raise ValueError("Path is outside Research Object: %s" % path)
         _logger.debug("[provenance] Creating WritableBagFile at %s.", path)
@@ -105,11 +62,15 @@ class WritableBagFile(FileIO):
             if ret:
                 total += ret
         for val in self.hashes.values():
-            # print("Updating hasher %s ", val)
             val.update(real_b)
         return total
 
     def close(self) -> None:
+        """
+        Flush and close this stream.
+
+        Finalize checksums and manifests.
+        """
         # FIXME: Convert below block to a ResearchObject method?
         if self.rel_path.startswith("data/"):
             self.research_object.bagged_size[self.rel_path] = self.tell()
@@ -119,8 +80,8 @@ class WritableBagFile(FileIO):
         super().close()
         # { "sha1": "f572d396fae9206628714fb2ce00f72e94f2258f" }
         checksums = {}
-        for name in self.hashes:
-            checksums[name] = self.hashes[name].hexdigest().lower()
+        for name, val in self.hashes.items():
+            checksums[name] = val.hexdigest().lower()
         self.research_object.add_to_manifest(self.rel_path, checksums)
 
     # To simplify our hash calculation we won't support
@@ -129,19 +90,25 @@ class WritableBagFile(FileIO):
     # TODO: Support these? At the expense of invalidating
     # the current hash, then having to recalculate at close()
     def seekable(self) -> bool:
+        """Return False, seeking is not supported."""
         return False
 
     def readable(self) -> bool:
+        """Return False, reading is not supported."""
         return False
 
     def truncate(self, size: Optional[int] = None) -> int:
+        """Resize the stream, only if we haven't started writing."""
         # FIXME: This breaks contract IOBase,
         # as it means we would have to recalculate the hash
         if size is not None:
             raise OSError("WritableBagFile can't truncate")
         return self.tell()
 
-def write_bag_file(research_object: "ResearchObject", path: str, encoding: Optional[str] = ENCODING) -> Union[TextIOWrapper, WritableBagFile]:
+
+def write_bag_file(
+    research_object: "ResearchObject", path: str, encoding: Optional[str] = ENCODING
+) -> Union[TextIOWrapper, WritableBagFile]:
     """Write the bag file into our research object."""
     research_object.self_check()
     # For some reason below throws BlockingIOError
@@ -149,14 +116,14 @@ def write_bag_file(research_object: "ResearchObject", path: str, encoding: Optio
     bag_file = WritableBagFile(research_object, path)
     if encoding is not None:
         # encoding: match Tag-File-Character-Encoding: UTF-8
-        return TextIOWrapper(
-            cast(BinaryIO, bag_file), encoding=encoding, newline="\n"
-        )
+        return TextIOWrapper(cast(BinaryIO, bag_file), encoding=encoding, newline="\n")
     return bag_file
+
 
 def open_log_file_for_activity(
     research_object: "ResearchObject", uuid_uri: str
 ) -> Union[TextIOWrapper, WritableBagFile]:
+    """Begin the per-activity log."""
     research_object.self_check()
     # Ensure valid UUID for safe filenames
     activity_uuid = uuid.UUID(uuid_uri)
@@ -168,11 +135,10 @@ def open_log_file_for_activity(
     p = os.path.join(LOGS, f"{name}.{activity_uuid}.txt")
     _logger.debug(f"[provenance] Opening log file for {name}: {p}")
     research_object.add_annotation(activity_uuid.urn, [p], CWLPROV["log"].uri)
-    # return self.write_bag_file(p)
     return write_bag_file(research_object, p)
 
-def _write_ro_manifest(research_object: "ResearchObject") -> None:
 
+def _write_ro_manifest(research_object: "ResearchObject") -> None:
     # Does not have to be this order, but it's nice to be consistent
     filename = "manifest.json"
     createdOn, createdBy = research_object._self_made()
@@ -196,24 +162,18 @@ def _write_ro_manifest(research_object: "ResearchObject") -> None:
     json_manifest = json_dumps(manifest, indent=4, ensure_ascii=False)
     rel_path = str(PurePosixPath(METADATA) / filename)
     json_manifest += "\n"
-    # with self.write_bag_file(rel_path) as manifest_file:
     with write_bag_file(research_object, rel_path) as manifest_file:
         manifest_file.write(json_manifest)
 
-def _write_bag_info(research_object: "ResearchObject") -> None:
 
-    # with self.write_bag_file("bag-info.txt") as info_file:
+def _write_bag_info(research_object: "ResearchObject") -> None:
     with write_bag_file(research_object, "bag-info.txt") as info_file:
         info_file.write("Bag-Software-Agent: %s\n" % research_object.cwltool_version)
         # FIXME: require sha-512 of payload to comply with profile?
         # FIXME: Update profile
-        info_file.write(
-            "BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n"
-        )
+        info_file.write("BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n")
         info_file.write("Bagging-Date: %s\n" % datetime.date.today().isoformat())
-        info_file.write(
-            "External-Description: Research Object of CWL workflow run\n"
-        )
+        info_file.write("External-Description: Research Object of CWL workflow run\n")
         if research_object.full_name:
             info_file.write("Contact-Name: %s\n" % research_object.full_name)
 
@@ -227,13 +187,15 @@ def _write_bag_info(research_object: "ResearchObject") -> None:
         info_file.write("Payload-Oxum: %d.%d\n" % (total_size, num_files))
     _logger.debug("[provenance] Generated bagit metadata: %s", research_object.folder)
 
+
 def _finalize(research_object: "ResearchObject") -> None:
     # self._write_ro_manifest()
     _write_ro_manifest(research_object)
     # self._write_bag_info()
     _write_bag_info(research_object)
 
-def close_ro(research_object: "ResearchObject", save_to: Optional[str] = None) -> None: # this used to be ro.close()
+
+def close_ro(research_object: "ResearchObject", save_to: Optional[str] = None) -> None:
     """Close the Research Object, optionally saving to specified folder.
 
     Closing will remove any temporary files used by this research object.
@@ -264,15 +226,16 @@ def close_ro(research_object: "ResearchObject", save_to: Optional[str] = None) -
         research_object.folder = save_to
     research_object.closed = True
 
+
 def packed_workflow(research_object: "ResearchObject", packed: str) -> None:
     """Pack CWL description to generate re-runnable CWL object in RO."""
     research_object.self_check()
     rel_path = str(PurePosixPath(WORKFLOW) / "packed.cwl")
     # Write as binary
-    # with self.write_bag_file(rel_path, encoding=None) as write_pack:
     with write_bag_file(research_object, rel_path, encoding=None) as write_pack:
         write_pack.write(packed)
     _logger.debug("[provenance] Added packed workflow: %s", rel_path)
+
 
 def create_job(
     research_object: "ResearchObject", builder_job: CWLObjectType, is_output: bool = False
@@ -280,7 +243,7 @@ def create_job(
     # TODO customise the file
     """Generate the new job object with RO specific relative paths."""
     copied = copy.deepcopy(builder_job)
-    relativised_input_objecttemp = {}  # type: CWLObjectType
+    relativised_input_objecttemp: CWLObjectType = {}
     research_object._relativise_files(copied)
 
     def jdefault(o: Any) -> Dict[Any, Any]:
@@ -291,7 +254,6 @@ def create_job(
     else:
         rel_path = PurePosixPath(WORKFLOW) / "primary-job.json"
     j = json_dumps(copied, indent=4, ensure_ascii=False, default=jdefault)
-    # with self.write_bag_file(str(rel_path)) as file_path:
     with write_bag_file(research_object, str(rel_path)) as file_path:
         file_path.write(j + "\n")
     _logger.debug("[provenance] Generated customised job file: %s", rel_path)

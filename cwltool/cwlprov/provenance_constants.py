@@ -38,7 +38,7 @@ UUID = Namespace("id", "urn:uuid:")
 
 # BagIt and YAML always use UTF-8
 ENCODING = "UTF-8"
-TEXT_PLAIN = 'text/plain; charset="%s"' % ENCODING
+TEXT_PLAIN = f"text/plain; charset={ENCODING!r}"
 
 # sha1, compatible with the File type's "checksum" field
 # e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
