@@ -6,7 +6,7 @@ requires = [
     "types-pkg_resources",
     "types-requests",
     "types-psutil",
-    "ruamel.yaml>=0.16.0,<0.17.22",
+    "ruamel.yaml>=0.16.0,<0.17.27",
     "schema-salad>=8.2.20211104054942,<9",
     "cwl-utils >=0.19",
     'toml',
