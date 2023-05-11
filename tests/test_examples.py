@@ -816,8 +816,7 @@ def test_lifting() -> None:
     # fails if the step 'out' doesn't match.
     factory = cwltool.factory.Factory()
     with pytest.raises(ValidationException):
-        echo = factory.make(get_data("tests/test_bad_outputs_wf.cwl"))
-        assert echo(inp="foo") == {"out": "foo\n"}
+        factory.make(get_data("tests/test_bad_outputs_wf.cwl"))
 
 
 def test_malformed_outputs() -> None:
