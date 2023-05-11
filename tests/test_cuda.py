@@ -135,6 +135,154 @@ def test_cuda_job_setup_check_err(makedirs: MagicMock, check_output: MagicMock) 
         jb._setup(runtime_context)
 
 
+@mock.patch("subprocess.check_output")
+@mock.patch("os.makedirs")
+def test_cuda_job_setup_check_err_empty_attached_gpus(
+    makedirs: MagicMock, check_output: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    runtime_context = RuntimeContext({})
+
+    cudaReq: CWLObjectType = {
+        "class": "http://commonwl.org/cwltool#CUDARequirement",
+        "cudaVersionMin": "1.0",
+        "cudaComputeCapability": "1.0",
+    }
+    builder = _makebuilder(cudaReq)
+
+    check_output.return_value = """
+<nvidia>
+<attached_gpus></attached_gpus>
+<cuda_version>1.0</cuda_version>
+</nvidia>
+"""
+
+    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    with pytest.raises(WorkflowException):
+        jb._setup(runtime_context)
+    assert (
+        "Error checking CUDA version with nvidia-smi. Missing 'attached_gpus' or it is empty."
+        in caplog.text
+    )
+
+
+@mock.patch("subprocess.check_output")
+@mock.patch("os.makedirs")
+def test_cuda_job_setup_check_err_empty_missing_attached_gpus(
+    makedirs: MagicMock, check_output: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    runtime_context = RuntimeContext({})
+
+    cudaReq: CWLObjectType = {
+        "class": "http://commonwl.org/cwltool#CUDARequirement",
+        "cudaVersionMin": "1.0",
+        "cudaComputeCapability": "1.0",
+    }
+    builder = _makebuilder(cudaReq)
+
+    check_output.return_value = """
+<nvidia>
+<cuda_version>1.0</cuda_version>
+</nvidia>
+"""
+
+    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    with pytest.raises(WorkflowException):
+        jb._setup(runtime_context)
+    assert (
+        "Error checking CUDA version with nvidia-smi. Missing 'attached_gpus' or it is empty."
+        in caplog.text
+    )
+
+
+@mock.patch("subprocess.check_output")
+@mock.patch("os.makedirs")
+def test_cuda_job_setup_check_err_empty_cuda_version(
+    makedirs: MagicMock, check_output: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    runtime_context = RuntimeContext({})
+
+    cudaReq: CWLObjectType = {
+        "class": "http://commonwl.org/cwltool#CUDARequirement",
+        "cudaVersionMin": "1.0",
+        "cudaComputeCapability": "1.0",
+    }
+    builder = _makebuilder(cudaReq)
+
+    check_output.return_value = """
+<nvidia>
+<attached_gpus>1</attached_gpus>
+<cuda_version></cuda_version>
+</nvidia>
+"""
+
+    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    with pytest.raises(WorkflowException):
+        jb._setup(runtime_context)
+    assert (
+        "Error checking CUDA version with nvidia-smi. Missing 'cuda_version' or it is empty."
+        in caplog.text
+    )
+
+
+@mock.patch("subprocess.check_output")
+@mock.patch("os.makedirs")
+def test_cuda_job_setup_check_err_missing_cuda_version(
+    makedirs: MagicMock, check_output: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    runtime_context = RuntimeContext({})
+
+    cudaReq: CWLObjectType = {
+        "class": "http://commonwl.org/cwltool#CUDARequirement",
+        "cudaVersionMin": "1.0",
+        "cudaComputeCapability": "1.0",
+    }
+    builder = _makebuilder(cudaReq)
+
+    check_output.return_value = """
+<nvidia>
+<attached_gpus>1</attached_gpus>
+</nvidia>
+"""
+
+    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    with pytest.raises(WorkflowException):
+        jb._setup(runtime_context)
+    assert (
+        "Error checking CUDA version with nvidia-smi. Missing 'cuda_version' or it is empty."
+        in caplog.text
+    )
+
+
+@mock.patch("subprocess.check_output")
+@mock.patch("os.makedirs")
+def test_cuda_job_setup_check_err_wrong_type_cuda_version(
+    makedirs: MagicMock, check_output: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    runtime_context = RuntimeContext({})
+
+    cudaReq: CWLObjectType = {
+        "class": "http://commonwl.org/cwltool#CUDARequirement",
+        "cudaVersionMin": "1.0",
+        "cudaComputeCapability": "1.0",
+    }
+    builder = _makebuilder(cudaReq)
+
+    check_output.return_value = """
+<nvidia>
+<attached_gpus>1</attached_gpus>
+<cuda_version><subelement /></cuda_version>
+</nvidia>
+"""
+
+    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    with pytest.raises(WorkflowException):
+        jb._setup(runtime_context)
+    assert (
+        "Error checking CUDA version with nvidia-smi. "
+        "Either 'attached_gpus' or 'cuda_version' was not a text node" in caplog.text
+    )
+
+
 def test_cuda_eval_resource_range() -> None:
     with open(get_data("cwltool/extensions-v1.1.yml")) as res:
         use_custom_schema("v1.2", "http://commonwl.org/cwltool", res.read())
