@@ -82,9 +82,12 @@ from .utils import (
 def _whoami() -> Tuple[str, str]:
     """Return the current operating system account as (username, fullname)."""
     username = getuser()
+    fullname = ""
     try:
         fullname = pwd.getpwuid(os.getuid())[4].split(",")[0]
     except (KeyError, IndexError):
+        pass
+    if fullname == "":
         fullname = username
 
     return (username, fullname)
