@@ -523,7 +523,7 @@ class ResearchObject:
             # TODO: Change to nih:sha-256; hashes
             #  https://tools.ietf.org/html/rfc6920#section-7
             aggregate_dict = {
-                "uri": "urn:hash::sha1:" + filename,
+                "uri": "urn:hash:sha1:" + filename,
                 "bundledAs": {
                     # The arcp URI is suitable ORE proxy; local to this Research Object.
                     # (as long as we don't also aggregate it by relative path!)
