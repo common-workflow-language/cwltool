@@ -50,8 +50,10 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
+    from .cwlprov.provenance_profile import (
+        ProvenanceProfile,  # pylint: disable=unused-import
+    )
     from .pathmapper import PathMapper
-    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
 INPUT_OBJ_VOCAB: Dict[str, str] = {
     "Any": "https://w3id.org/cwl/salad#Any",

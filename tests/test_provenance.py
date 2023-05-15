@@ -13,9 +13,14 @@ from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DC, DCTERMS, RDF
 from rdflib.term import Literal
 
-from cwltool import provenance, provenance_constants
+import cwltool.cwlprov as provenance
+from cwltool.cwlprov import provenance_constants
+from cwltool.cwlprov.ro import ResearchObject
+from cwltool.cwlprov.writablebagfile import (
+    close_ro,
+    write_bag_file,
+)
 from cwltool.main import main
-from cwltool.provenance import ResearchObject
 from cwltool.stdfsaccess import StdFsAccess
 
 from .util import get_data, needs_docker, working_directory
@@ -594,21 +599,21 @@ def check_prov(
 def research_object(tmp_path: Path) -> Generator[ResearchObject, None, None]:
     re_ob = ResearchObject(StdFsAccess(str(tmp_path / "ro")), temp_prefix_ro=str(tmp_path / "tmp"))
     yield re_ob
-    re_ob.close()
+    close_ro(re_ob)
 
 
 def test_absolute_path_fails(research_object: ResearchObject) -> None:
     with pytest.raises(ValueError):
-        research_object.write_bag_file("/absolute/path/fails")
+        write_bag_file(research_object, "/absolute/path/fails")
 
 
 def test_climboutfails(research_object: ResearchObject) -> None:
     with pytest.raises(ValueError):
-        research_object.write_bag_file("../../outside-ro")
+        write_bag_file(research_object, "../../outside-ro")
 
 
 def test_writable_string(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("file.txt") as fh:
+    with write_bag_file(research_object, "file.txt") as fh:
         assert fh.writable()
         fh.write("Hello\n")
 
@@ -640,19 +645,19 @@ def test_writable_string(research_object: ResearchObject) -> None:
 
 
 def test_writable_unicode_string(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("file.txt") as fh:
+    with write_bag_file(research_object, "file.txt") as fh:
         assert fh.writable()
         fh.write("Here is a snowman: \u2603 \n")
 
 
 def test_writable_bytes(research_object: ResearchObject) -> None:
     string = "Here is a snowman: \u2603 \n".encode()
-    with research_object.write_bag_file("file.txt", encoding=None) as fh:
+    with write_bag_file(research_object, "file.txt", encoding=None) as fh:
         fh.write(string)  # type: ignore
 
 
 def test_data(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("data/file.txt") as fh:
+    with write_bag_file(research_object, "data/file.txt") as fh:
         assert fh.writable()
         fh.write("Hello\n")
 
@@ -666,21 +671,21 @@ def test_data(research_object: ResearchObject) -> None:
 
 
 def test_not_seekable(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("file.txt") as fh:
+    with write_bag_file(research_object, "file.txt") as fh:
         assert not fh.seekable()
         with pytest.raises(OSError):
             fh.seek(0)
 
 
 def test_not_readable(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("file.txt") as fh:
+    with write_bag_file(research_object, "file.txt") as fh:
         assert not fh.readable()
         with pytest.raises(OSError):
             fh.read()
 
 
 def test_truncate_fails(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("file.txt") as fh:
+    with write_bag_file(research_object, "file.txt") as fh:
         fh.write("Hello there")
         fh.truncate()  # OK as we're always at end
         # Will fail because the checksum can't rewind

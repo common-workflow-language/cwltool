@@ -80,7 +80,7 @@ from .utils import (
 from .validate_js import validate_js_expressions
 
 if TYPE_CHECKING:
-    from .provenance_profile import ProvenanceProfile
+    from .cwlprov.provenance_profile import ProvenanceProfile
 
 
 class LogAsDebugFilter(logging.Filter):

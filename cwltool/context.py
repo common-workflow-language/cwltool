@@ -34,10 +34,10 @@ if TYPE_CHECKING:
     from cwl_utils.parser.cwl_v1_2 import LoadingOptions
 
     from .builder import Builder
+    from .cwlprov.provenance_profile import ProvenanceProfile
+    from .cwlprov.ro import ResearchObject
     from .mutation import MutationManager
     from .process import Process
-    from .provenance import ResearchObject
-    from .provenance_profile import ProvenanceProfile
     from .secrets import SecretStore
     from .software_requirements import DependenciesConfiguration
 

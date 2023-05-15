@@ -52,6 +52,14 @@ from ruamel.yaml.main import YAML
 from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
 from .context import LoadingContext, RuntimeContext, getdefault
+from .cwlprov.ro import ResearchObject  # , WritableBagFile
+from .cwlprov.writablebagfile import (  # change this later
+    WritableBagFile,
+    close_ro,
+    create_job,
+    open_log_file_for_activity,
+    packed_workflow,
+)
 from .cwlrdf import printdot, printrdf
 from .errors import (
     ArgumentException,
@@ -85,7 +93,6 @@ from .process import (
     use_standard_schema,
 )
 from .procgenerator import ProcessGenerator
-from .provenance import ResearchObject, WritableBagFile
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
 from .software_requirements import (
@@ -692,7 +699,7 @@ def setup_provenance(
         full_name=args.cwl_full_name,
     )
     runtimeContext.research_obj = ro
-    log_file_io = ro.open_log_file_for_activity(ro.engine_uuid)
+    log_file_io = open_log_file_for_activity(ro, ro.engine_uuid)
     prov_log_handler = logging.StreamHandler(log_file_io)
 
     prov_log_handler.setFormatter(ProvLogFormatter())
@@ -1099,7 +1106,7 @@ def main(
 
             if args.provenance and runtimeContext.research_obj:
                 # Can't really be combined with args.pack at same time
-                runtimeContext.research_obj.packed_workflow(print_pack(loadingContext, uri))
+                packed_workflow(runtimeContext.research_obj, print_pack(loadingContext, uri))
 
             if args.print_pre:
                 json_dump(
@@ -1298,7 +1305,7 @@ def main(
 
             if out is not None:
                 if runtimeContext.research_obj is not None:
-                    runtimeContext.research_obj.create_job(out, True)
+                    create_job(runtimeContext.research_obj, out, True)
 
                     def remove_at_id(doc: CWLObjectType) -> None:
                         for key in list(doc.keys()):
@@ -1401,7 +1408,7 @@ def main(
                 # Why not use prov_log_handler.stream ? That is not part of the
                 # public API for logging.StreamHandler
                 prov_log_handler.close()
-            research_obj.close(args.provenance)
+            close_ro(research_obj, args.provenance)
 
         _logger.removeHandler(stderr_handler)
         _logger.addHandler(defaultStreamHandler)

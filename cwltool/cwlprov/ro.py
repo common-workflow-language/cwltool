@@ -1,35 +1,15 @@
-"""
-Stores Research Object including provenance.
+"""Stores class definition of ResearchObject and WritableBagFile."""
 
-See :doc:`/CWLProv`
-"""
-
-import copy
 import datetime
 import hashlib
 import os
-
-try:
-    import pwd
-except ImportError:
-    # Guard against `from .provenance import ...` on windows.
-    # See windows_check() in main.py
-    pass
-import re
 import shutil
 import tempfile
 import uuid
-from array import array
-from collections import OrderedDict
-from getpass import getuser
-from io import FileIO, TextIOWrapper
-from mmap import mmap
 from pathlib import Path, PurePosixPath
 from typing import (
     IO,
     Any,
-    BinaryIO,
-    Callable,
     Dict,
     List,
     MutableMapping,
@@ -43,13 +23,20 @@ from typing import (
 
 import prov.model as provM
 from prov.model import PROV, ProvDocument
-from schema_salad.utils import json_dumps
-from typing_extensions import TypedDict
 
-from .loghandler import _logger
+from ..loghandler import _logger
+from ..stdfsaccess import StdFsAccess
+from ..utils import (
+    CWLObjectType,
+    CWLOutputType,
+    create_tmp_dir,
+    local_path,
+    posix_path,
+    versionstring,
+)
+from . import Aggregate, Annotation, AuthoredBy, _valid_orcid, _whoami, checksum_copy
 from .provenance_constants import (
     ACCOUNT_UUID,
-    CWLPROV,
     CWLPROV_VERSION,
     DATA,
     ENCODING,
@@ -67,204 +54,6 @@ from .provenance_constants import (
     UUID,
     WORKFLOW,
     Hasher,
-)
-from .stdfsaccess import StdFsAccess
-from .utils import (
-    CWLObjectType,
-    CWLOutputType,
-    create_tmp_dir,
-    local_path,
-    posix_path,
-    versionstring,
-)
-
-
-def _whoami() -> Tuple[str, str]:
-    """Return the current operating system account as (username, fullname)."""
-    username = getuser()
-    try:
-        fullname = pwd.getpwuid(os.getuid())[4].split(",")[0]
-    except (KeyError, IndexError):
-        fullname = username
-
-    return (username, fullname)
-
-
-class WritableBagFile(FileIO):
-    """Writes files in research object."""
-
-    def __init__(self, research_object: "ResearchObject", rel_path: str) -> None:
-        """Initialize an ROBagIt."""
-        self.research_object = research_object
-        if Path(rel_path).is_absolute():
-            raise ValueError("rel_path must be relative: %s" % rel_path)
-        self.rel_path = rel_path
-        self.hashes = {
-            SHA1: hashlib.sha1(),  # nosec
-            SHA256: hashlib.sha256(),
-            SHA512: hashlib.sha512(),
-        }
-        # Open file in Research Object folder
-        path = os.path.abspath(os.path.join(research_object.folder, local_path(rel_path)))
-        if not path.startswith(os.path.abspath(research_object.folder)):
-            raise ValueError("Path is outside Research Object: %s" % path)
-        _logger.debug("[provenance] Creating WritableBagFile at %s.", path)
-        super().__init__(path, mode="w")
-
-    def write(self, b: Any) -> int:
-        """Write some content to the Bag."""
-        real_b = b if isinstance(b, (bytes, mmap, array)) else b.encode("utf-8")
-        total = 0
-        length = len(real_b)
-        while total < length:
-            ret = super().write(real_b)
-            if ret:
-                total += ret
-        for val in self.hashes.values():
-            # print("Updating hasher %s ", val)
-            val.update(real_b)
-        return total
-
-    def close(self) -> None:
-        # FIXME: Convert below block to a ResearchObject method?
-        if self.rel_path.startswith("data/"):
-            self.research_object.bagged_size[self.rel_path] = self.tell()
-        else:
-            self.research_object.tagfiles.add(self.rel_path)
-
-        super().close()
-        # { "sha1": "f572d396fae9206628714fb2ce00f72e94f2258f" }
-        checksums = {}
-        for name in self.hashes:
-            checksums[name] = self.hashes[name].hexdigest().lower()
-        self.research_object.add_to_manifest(self.rel_path, checksums)
-
-    # To simplify our hash calculation we won't support
-    # seeking, reading or truncating, as we can't do
-    # similar seeks in the current hash.
-    # TODO: Support these? At the expense of invalidating
-    # the current hash, then having to recalculate at close()
-    def seekable(self) -> bool:
-        return False
-
-    def readable(self) -> bool:
-        return False
-
-    def truncate(self, size: Optional[int] = None) -> int:
-        # FIXME: This breaks contract IOBase,
-        # as it means we would have to recalculate the hash
-        if size is not None:
-            raise OSError("WritableBagFile can't truncate")
-        return self.tell()
-
-
-def _check_mod_11_2(numeric_string: str) -> bool:
-    """
-    Validate numeric_string for its MOD-11-2 checksum.
-
-    Any "-" in the numeric_string are ignored.
-
-    The last digit of numeric_string is assumed to be the checksum, 0-9 or X.
-
-    See ISO/IEC 7064:2003 and
-    https://support.orcid.org/knowledgebase/articles/116780-structure-of-the-orcid-identifier
-    """
-    # Strip -
-    nums = numeric_string.replace("-", "")
-    total = 0
-    # skip last (check)digit
-    for num in nums[:-1]:
-        digit = int(num)
-        total = (total + digit) * 2
-    remainder = total % 11
-    result = (12 - remainder) % 11
-    if result == 10:
-        checkdigit = "X"
-    else:
-        checkdigit = str(result)
-    # Compare against last digit or X
-    return nums[-1].upper() == checkdigit
-
-
-def _valid_orcid(orcid: Optional[str]) -> str:
-    """
-    Ensure orcid is a valid ORCID identifier.
-
-    The string must be equivalent to one of these forms:
-
-    0000-0002-1825-0097
-    orcid.org/0000-0002-1825-0097
-    http://orcid.org/0000-0002-1825-0097
-    https://orcid.org/0000-0002-1825-0097
-
-    If the ORCID number or prefix is invalid, a ValueError is raised.
-
-    The returned ORCID string is always in the form of:
-    https://orcid.org/0000-0002-1825-0097
-    """
-    if orcid is None or not orcid:
-        raise ValueError("ORCID cannot be unspecified")
-    # Liberal in what we consume, e.g. ORCID.org/0000-0002-1825-009x
-    orcid = orcid.lower()
-    match = re.match(
-        # Note: concatenated r"" r"" below so we can add comments to pattern
-        # Optional hostname, with or without protocol
-        r"(http://orcid\.org/|https://orcid\.org/|orcid\.org/)?"
-        # alternative pattern, but probably messier
-        # r"^((https?://)?orcid.org/)?"
-        # ORCID number is always 4x4 numerical digits,
-        # but last digit (modulus 11 checksum)
-        # can also be X (but we made it lowercase above).
-        # e.g. 0000-0002-1825-0097
-        # or   0000-0002-1694-233x
-        r"(?P<orcid>(\d{4}-\d{4}-\d{4}-\d{3}[0-9x]))$",
-        orcid,
-    )
-
-    help_url = (
-        "https://support.orcid.org/knowledgebase/articles/"
-        "116780-structure-of-the-orcid-identifier"
-    )
-    if not match:
-        raise ValueError(f"Invalid ORCID: {orcid}\n{help_url}")
-
-    # Conservative in what we produce:
-    # a) Ensure any checksum digit is uppercase
-    orcid_num = match.group("orcid").upper()
-    # b) ..and correct
-    if not _check_mod_11_2(orcid_num):
-        raise ValueError(f"Invalid ORCID checksum: {orcid_num}\n{help_url}")
-
-    # c) Re-add the official prefix https://orcid.org/
-    return "https://orcid.org/%s" % orcid_num
-
-
-Annotation = TypedDict(
-    "Annotation",
-    {
-        "uri": str,
-        "about": str,
-        "content": Optional[Union[str, List[str]]],
-        "oa:motivatedBy": Dict[str, str],
-    },
-)
-Aggregate = TypedDict(
-    "Aggregate",
-    {
-        "uri": Optional[str],
-        "bundledAs": Optional[Dict[str, Any]],
-        "mediatype": Optional[str],
-        "conformsTo": Optional[Union[str, List[str]]],
-        "createdOn": Optional[str],
-        "createdBy": Optional[Dict[str, str]],
-    },
-    total=False,
-)
-# Aggregate.bundledAs is actually type Aggregate, but cyclic definitions are not supported
-AuthoredBy = TypedDict(
-    "AuthoredBy",
-    {"orcid": Optional[str], "name": Optional[str], "uri": Optional[str]},
-    total=False,
 )
 
 
@@ -293,13 +82,12 @@ class ResearchObject:
         self._content_types: Dict[str, str] = {}
         self.fsaccess = fsaccess
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
-        self.engine_uuid = "urn:uuid:%s" % uuid.uuid4()
+        self.engine_uuid = f"urn:uuid:{uuid.uuid4()}"
         self.ro_uuid = uuid.uuid4()
-        self.base_uri = "arcp://uuid,%s/" % self.ro_uuid
-        self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
-        ##
-        self.relativised_input_object: CWLObjectType = {}
+        self.base_uri = f"arcp://uuid,{self.ro_uuid}/"
+        self.cwltool_version = f"cwltool {versionstring().split()[-1]}"
         self.has_manifest = False
+        self.relativised_input_object: CWLObjectType = {}
 
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
@@ -336,28 +124,7 @@ class ResearchObject:
         with open(bagit, "w", encoding=ENCODING, newline="\n") as bag_it_file:
             # TODO: \n or \r\n ?
             bag_it_file.write("BagIt-Version: 0.97\n")
-            bag_it_file.write("Tag-File-Character-Encoding: %s\n" % ENCODING)
-
-    def open_log_file_for_activity(self, uuid_uri: str) -> Union[TextIOWrapper, WritableBagFile]:
-        """Begin the per-activity log."""
-        self.self_check()
-        # Ensure valid UUID for safe filenames
-        activity_uuid = uuid.UUID(uuid_uri)
-        if activity_uuid.urn == self.engine_uuid:
-            # It's the engine aka cwltool!
-            name = "engine"
-        else:
-            name = "activity"
-        p = os.path.join(LOGS, f"{name}.{activity_uuid}.txt")
-        _logger.debug(f"[provenance] Opening log file for {name}: {p}")
-        self.add_annotation(activity_uuid.urn, [p], CWLPROV["log"].uri)
-        return self.write_bag_file(p)
-
-    def _finalize(self) -> None:
-        self._write_ro_manifest()
-        self._write_bag_info()
-        if not self.has_manifest:
-            (Path(self.folder) / "manifest-sha1.txt").touch()
+            bag_it_file.write(f"Tag-File-Character-Encoding: {ENCODING}\n")
 
     def user_provenance(self, document: ProvDocument) -> None:
         """Add the user provenance."""
@@ -397,19 +164,6 @@ class ResearchObject:
         # acting in behalf of that user (even if we might
         # get their name wrong!)
         document.actedOnBehalfOf(account, user)
-
-    def write_bag_file(
-        self, path: str, encoding: Optional[str] = ENCODING
-    ) -> Union[TextIOWrapper, WritableBagFile]:
-        """Write the bag file into our research object."""
-        self.self_check()
-        # For some reason below throws BlockingIOError
-        # fp = BufferedWriter(WritableBagFile(self, path))
-        bag_file = WritableBagFile(self, path)
-        if encoding is not None:
-            # encoding: match Tag-File-Character-Encoding: UTF-8
-            return TextIOWrapper(cast(BinaryIO, bag_file), encoding=encoding, newline="\n")
-        return bag_file
 
     def add_tagfile(self, path: str, timestamp: Optional[datetime.datetime] = None) -> None:
         """Add tag files to our research object."""
@@ -453,7 +207,7 @@ class ResearchObject:
             rel_path: str,
         ) -> Tuple[Optional[str], Optional[Union[str, List[str]]]]:
             """Return the mediatypes."""
-            media_types: Dict[str, str] = {
+            media_types: Dict[Union[str, None], str] = {
                 # Adapted from
                 # https://w3id.org/bundle/2014-11-05/#media-types
                 "txt": TEXT_PLAIN,
@@ -467,7 +221,7 @@ class ResearchObject:
                 "provn": 'text/provenance-notation; charset="UTF-8"',
                 "nt": "application/n-triples",
             }
-            conforms_to: Dict[str, str] = {
+            conforms_to: Dict[Union[str, None], str] = {
                 "provn": "http://www.w3.org/TR/2013/REC-prov-n-20130430/",
                 "cwl": "https://w3id.org/cwl/",
             }
@@ -487,15 +241,10 @@ class ResearchObject:
                 # No ".", no extension
                 extension = None
 
-            mediatype = None  # type: Optional[str]
-            conformsTo = None  # type: Optional[Union[str, List[str]]]
-            if extension in media_types:
-                mediatype = media_types[extension]
-
-            if extension in conforms_to:
-                # TODO: Open CWL file to read its declared "cwlVersion", e.g.
-                # cwlVersion = "v1.0"
-                conformsTo = conforms_to[extension]
+            mediatype: Optional[str] = media_types.get(extension, None)
+            conformsTo: Optional[Union[str, List[str]]] = conforms_to.get(extension, None)
+            # TODO: Open CWL file to read its declared "cwlVersion", e.g.
+            # cwlVersion = "v1.0"
 
             if rel_path.startswith(posix_path(PROVENANCE)) and extension in prov_conforms_to:
                 if ".cwlprov" in rel_path:
@@ -510,7 +259,7 @@ class ResearchObject:
                     conformsTo = prov_conforms_to[extension]
             return (mediatype, conformsTo)
 
-        aggregates = []  # type: List[Aggregate]
+        aggregates: List[Aggregate] = []
         for path in self.bagged_size.keys():
             temp_path = PurePosixPath(path)
             folder = temp_path.parent
@@ -522,17 +271,17 @@ class ResearchObject:
 
             # TODO: Change to nih:sha-256; hashes
             #  https://tools.ietf.org/html/rfc6920#section-7
-            aggregate_dict = {
+            aggregate_dict: Aggregate = {
                 "uri": "urn:hash::sha1:" + filename,
                 "bundledAs": {
                     # The arcp URI is suitable ORE proxy; local to this Research Object.
                     # (as long as we don't also aggregate it by relative path!)
                     "uri": self.base_uri + path,
                     # relate it to the data/ path
-                    "folder": "/%s/" % folder,
+                    "folder": f"/{folder}/",
                     "filename": filename,
                 },
-            }  # type: Aggregate
+            }
             if path in self._file_provenance:
                 # Made by workflow run, merge captured provenance
                 bundledAs = aggregate_dict["bundledAs"]
@@ -565,11 +314,11 @@ class ResearchObject:
             # we need to relativize them for our current directory for
             # as we are saved in metadata/manifest.json
             mediatype, conformsTo = guess_mediatype(path)
-            rel_aggregates = {
+            rel_aggregates: Aggregate = {
                 "uri": str(Path(os.pardir) / path),
                 "mediatype": mediatype,
                 "conformsTo": conformsTo,
-            }  # type: Aggregate
+            }
 
             if path in self._file_provenance:
                 # Propagate file provenance (e.g. timestamp)
@@ -585,9 +334,8 @@ class ResearchObject:
         return aggregates
 
     def add_uri(self, uri: str, timestamp: Optional[datetime.datetime] = None) -> Aggregate:
-        """Create and store an aggreate for the given URI."""
         self.self_check()
-        aggr = {"uri": uri}  # type: Aggregate
+        aggr: Aggregate = {"uri": uri}
         aggr["createdOn"], aggr["createdBy"] = self._self_made(timestamp=timestamp)
         self._external_aggregates.append(aggr)
         return aggr
@@ -600,17 +348,17 @@ class ResearchObject:
         curr = self.base_uri + METADATA + "/"
         content = [c.replace(curr, "").replace(self.base_uri, "../") for c in content]
         uri = uuid.uuid4().urn
-        ann = {
+        ann: Annotation = {
             "uri": uri,
             "about": about,
             "content": content,
             "oa:motivatedBy": {"@id": motivated_by},
-        }  # type: Annotation
+        }
         self.annotations.append(ann)
         return uri
 
     def _ro_annotations(self) -> List[Annotation]:
-        annotations = []  # type: List[Annotation]
+        annotations: List[Annotation] = []
         annotations.append(
             {
                 "uri": uuid.uuid4().urn,
@@ -664,7 +412,7 @@ class ResearchObject:
         return annotations
 
     def _authored_by(self) -> Optional[AuthoredBy]:
-        authored_by = {}  # type: AuthoredBy
+        authored_by: AuthoredBy = {}
         if self.orcid:
             authored_by["orcid"] = self.orcid
         if self.full_name:
@@ -675,54 +423,6 @@ class ResearchObject:
         if authored_by:
             return authored_by
         return None
-
-    def _write_ro_manifest(self) -> None:
-        # Does not have to be this order, but it's nice to be consistent
-        filename = "manifest.json"
-        createdOn, createdBy = self._self_made()
-        manifest = OrderedDict(
-            {
-                "@context": [
-                    {"@base": f"{self.base_uri}{posix_path(METADATA)}/"},
-                    "https://w3id.org/bundle/context",
-                ],
-                "id": "/",
-                "conformsTo": CWLPROV_VERSION,
-                "manifest": filename,
-                "createdOn": createdOn,
-                "createdBy": createdBy,
-                "authoredBy": self._authored_by(),
-                "aggregates": self._ro_aggregates(),
-                "annotations": self._ro_annotations(),
-            }
-        )
-
-        json_manifest = json_dumps(manifest, indent=4, ensure_ascii=False)
-        rel_path = str(PurePosixPath(METADATA) / filename)
-        json_manifest += "\n"
-        with self.write_bag_file(rel_path) as manifest_file:
-            manifest_file.write(json_manifest)
-
-    def _write_bag_info(self) -> None:
-        with self.write_bag_file("bag-info.txt") as info_file:
-            info_file.write("Bag-Software-Agent: %s\n" % self.cwltool_version)
-            # FIXME: require sha-512 of payload to comply with profile?
-            # FIXME: Update profile
-            info_file.write("BagIt-Profile-Identifier: https://w3id.org/ro/bagit/profile\n")
-            info_file.write("Bagging-Date: %s\n" % datetime.date.today().isoformat())
-            info_file.write("External-Description: Research Object of CWL workflow run\n")
-            if self.full_name:
-                info_file.write("Contact-Name: %s\n" % self.full_name)
-
-            # NOTE: We can't use the urn:uuid:{UUID} of the workflow run (a prov:Activity)
-            # as identifier for the RO/bagit (a prov:Entity). However the arcp base URI is good.
-            info_file.write("External-Identifier: %s\n" % self.base_uri)
-
-            # Calculate size of data/ (assuming no external fetch.txt files)
-            total_size = sum(self.bagged_size.values())
-            num_files = len(self.bagged_size)
-            info_file.write("Payload-Oxum: %d.%d\n" % (total_size, num_files))
-        _logger.debug("[provenance] Generated bagit metadata: %s", self.folder)
 
     def generate_snapshot(self, prov_dep: CWLObjectType) -> None:
         """Copy all of the CWL files to the snapshot/ directory."""
@@ -755,15 +455,6 @@ class ResearchObject:
                         self.generate_snapshot(files)
             else:
                 pass
-
-    def packed_workflow(self, packed: str) -> None:
-        """Pack CWL description to generate re-runnable CWL object in RO."""
-        self.self_check()
-        rel_path = str(PurePosixPath(WORKFLOW) / "packed.cwl")
-        # Write as binary
-        with self.write_bag_file(rel_path, encoding=None) as write_pack:
-            write_pack.write(packed)
-        _logger.debug("[provenance] Added packed workflow: %s", rel_path)
 
     def has_data_file(self, sha1hash: str) -> bool:
         """Confirm the presence of the given file in the RO."""
@@ -828,7 +519,7 @@ class ResearchObject:
         """Add files to the research object manifest."""
         self.self_check()
         if PurePosixPath(rel_path).is_absolute():
-            raise ValueError("rel_path must be relative: %s" % rel_path)
+            raise ValueError(f"rel_path must be relative: {rel_path}")
 
         if os.path.commonprefix(["data/", rel_path]) == "data/":
             # payload file, go to manifest
@@ -851,7 +542,7 @@ class ResearchObject:
 
     def _add_to_bagit(self, rel_path: str, **checksums: str) -> None:
         if PurePosixPath(rel_path).is_absolute():
-            raise ValueError("rel_path must be relative: %s" % rel_path)
+            raise ValueError(f"rel_path must be relative: {rel_path}")
         lpath = os.path.join(self.folder, local_path(rel_path))
         if not os.path.exists(lpath):
             raise OSError(f"File {rel_path} does not exist within RO: {lpath}")
@@ -870,39 +561,6 @@ class ResearchObject:
 
         self.add_to_manifest(rel_path, checksums)
 
-    def create_job(self, builder_job: CWLObjectType, is_output: bool = False) -> CWLObjectType:
-        # TODO customise the file
-        """Generate the new job object with RO specific relative paths."""
-        copied = copy.deepcopy(builder_job)
-        relativised_input_objecttemp = {}  # type: CWLObjectType
-        self._relativise_files(copied)
-
-        def jdefault(o: Any) -> Dict[Any, Any]:
-            return dict(o)
-
-        if is_output:
-            rel_path = PurePosixPath(WORKFLOW) / "primary-output.json"
-        else:
-            rel_path = PurePosixPath(WORKFLOW) / "primary-job.json"
-        j = json_dumps(copied, indent=4, ensure_ascii=False, default=jdefault)
-        with self.write_bag_file(str(rel_path)) as file_path:
-            file_path.write(j + "\n")
-        _logger.debug("[provenance] Generated customised job file: %s", rel_path)
-        # Generate dictionary with keys as workflow level input IDs and values
-        # as
-        # 1) for files the relativised location containing hash
-        # 2) for other attributes, the actual value.
-        for key, value in copied.items():
-            if isinstance(value, MutableMapping):
-                if value.get("class") in ("File", "Directory"):
-                    relativised_input_objecttemp[key] = value
-            else:
-                relativised_input_objecttemp[key] = value
-        self.relativised_input_object.update(
-            {k: v for k, v in relativised_input_objecttemp.items() if v}
-        )
-        return self.relativised_input_object
-
     def _relativise_files(
         self,
         structure: Union[CWLObjectType, CWLOutputType, MutableSequence[CWLObjectType]],
@@ -913,14 +571,13 @@ class ResearchObject:
 
         if isinstance(structure, MutableMapping):
             if structure.get("class") == "File":
-                relative_path = None  # type: Optional[Union[str, PurePosixPath]]
+                relative_path: Optional[Union[str, PurePosixPath]] = None
                 if "checksum" in structure:
                     raw_checksum = cast(str, structure["checksum"])
                     alg, checksum = raw_checksum.split("$")
                     if alg != SHA1:
                         raise TypeError(
-                            "Only SHA1 CWL checksums are currently supported: "
-                            "{}".format(structure)
+                            f"Only SHA1 CWL checksums are currently supported: {structure}"
                         )
                     if self.has_data_file(checksum):
                         prefix = checksum[0:2]
@@ -955,65 +612,3 @@ class ResearchObject:
             for obj in structure:
                 # Recurse and rewrite any nested File objects
                 self._relativise_files(cast(CWLOutputType, obj))
-
-    def close(self, save_to: Optional[str] = None) -> None:
-        """Close the Research Object, optionally saving to specified folder.
-
-        Closing will remove any temporary files used by this research object.
-        After calling this method, this ResearchObject instance can no longer
-        be used, except for no-op calls to .close().
-
-        The 'saveTo' folder should not exist - if it does, it will be deleted.
-
-        It is safe to call this function multiple times without the
-        'saveTo' argument, e.g. within a try..finally block to
-        ensure the temporary files of this Research Object are removed.
-        """
-        if save_to is None:
-            if not self.closed:
-                _logger.debug("[provenance] Deleting temporary %s", self.folder)
-                shutil.rmtree(self.folder, ignore_errors=True)
-        else:
-            save_to = os.path.abspath(save_to)
-            _logger.info("[provenance] Finalizing Research Object")
-            self._finalize()  # write manifest etc.
-            # TODO: Write as archive (.zip or .tar) based on extension?
-
-            if os.path.isdir(save_to):
-                _logger.info("[provenance] Deleting existing %s", save_to)
-                shutil.rmtree(save_to)
-            shutil.move(self.folder, save_to)
-            _logger.info("[provenance] Research Object saved to %s", save_to)
-            self.folder = save_to
-        self.closed = True
-
-
-def checksum_copy(
-    src_file: IO[Any],
-    dst_file: Optional[IO[Any]] = None,
-    hasher: Callable[[], "hashlib._Hash"] = Hasher,
-    buffersize: int = 1024 * 1024,
-) -> str:
-    """Compute checksums while copying a file."""
-    # TODO: Use hashlib.new(Hasher_str) instead?
-    checksum = hasher()
-    contents = src_file.read(buffersize)
-    if dst_file and hasattr(dst_file, "name") and hasattr(src_file, "name"):
-        temp_location = os.path.join(os.path.dirname(dst_file.name), str(uuid.uuid4()))
-        try:
-            os.rename(dst_file.name, temp_location)
-            os.link(src_file.name, dst_file.name)
-            dst_file = None
-            os.unlink(temp_location)
-        except OSError:
-            pass
-        if os.path.exists(temp_location):
-            os.rename(temp_location, dst_file.name)  # type: ignore
-    while contents != b"":
-        if dst_file is not None:
-            dst_file.write(contents)
-        checksum.update(contents)
-        contents = src_file.read(buffersize)
-    if dst_file is not None:
-        dst_file.flush()
-    return checksum.hexdigest().lower()

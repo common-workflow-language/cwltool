@@ -24,10 +24,13 @@ from prov.identifier import Identifier, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
 
-from .errors import WorkflowException
-from .job import CommandLineJob, JobBase
-from .loghandler import _logger
-from .process import Process, shortname
+from ..errors import WorkflowException
+from ..job import CommandLineJob, JobBase
+from ..loghandler import _logger
+from ..process import Process, shortname
+from ..stdfsaccess import StdFsAccess
+from ..utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
+from ..workflow_job import WorkflowJob
 from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV,
@@ -46,12 +49,10 @@ from .provenance_constants import (
     WFDESC,
     WFPROV,
 )
-from .stdfsaccess import StdFsAccess
-from .utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
-from .workflow_job import WorkflowJob
+from .writablebagfile import create_job, write_bag_file  # change this later
 
 if TYPE_CHECKING:
-    from .provenance import ResearchObject
+    from .ro import ResearchObject
 
 
 def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectType) -> CWLObjectType:
@@ -114,10 +115,7 @@ class ProvenanceProfile:
 
     def __str__(self) -> str:
         """Represent this Provenvance profile as a string."""
-        return "ProvenanceProfile <{}> in <{}>".format(
-            self.workflow_run_uri,
-            self.research_object,
-        )
+        return f"ProvenanceProfile <{self.workflow_run_uri}> in <{self.research_object}>"
 
     def generate_prov_doc(self) -> Tuple[str, ProvDocument]:
         """Add basic namespaces."""
@@ -140,7 +138,7 @@ class ProvenanceProfile:
                 },
             )
 
-        self.cwltool_version = "cwltool %s" % versionstring().split()[-1]
+        self.cwltool_version = f"cwltool {versionstring().split()[-1]}"
         self.document.add_namespace("wfprov", "http://purl.org/wf4ever/wfprov#")
         # document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
         self.document.add_namespace("wfdesc", "http://purl.org/wf4ever/wfdesc#")
@@ -240,7 +238,7 @@ class ProvenanceProfile:
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
-            research_obj.create_job(customised_job)
+            create_job(research_obj, customised_job)
         elif hasattr(job, "workflow"):
             # record provenance of workflow executions
             self.prospective_prov(job)
@@ -460,7 +458,7 @@ class ProvenanceProfile:
         ore_doc.add_bundle(dir_bundle)
         ore_doc = ore_doc.flattened()
         ore_doc_path = str(PurePosixPath(METADATA, ore_doc_fn))
-        with self.research_object.write_bag_file(ore_doc_path) as provenance_file:
+        with write_bag_file(self.research_object, ore_doc_path) as provenance_file:
             ore_doc.serialize(provenance_file, format="rdf", rdf_format="turtle")
         self.research_object.add_annotation(dir_id, [ore_doc_fn], ORE["isDescribedBy"].uri)
 
@@ -477,7 +475,7 @@ class ProvenanceProfile:
         data_file = self.research_object.add_data_file(byte_s, content_type=TEXT_PLAIN)
         checksum = PurePosixPath(data_file).name
         # FIXME: Don't naively assume add_data_file uses hash in filename!
-        data_id = "data:%s" % PurePosixPath(data_file).stem
+        data_id = f"data:{PurePosixPath(data_file).stem}"
         entity = self.document.entity(
             data_id, {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)}
         )
@@ -509,7 +507,7 @@ class ProvenanceProfile:
             byte_s = BytesIO(value)
             data_file = self.research_object.add_data_file(byte_s)
             # FIXME: Don't naively assume add_data_file uses hash in filename!
-            data_id = "data:%s" % PurePosixPath(data_file).stem
+            data_id = f"data:{PurePosixPath(data_file).stem}"
             return self.document.entity(
                 data_id,
                 {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)},
@@ -654,7 +652,7 @@ class ProvenanceProfile:
                     # FIXME: Probably not "main" in nested workflows
                     role = self.wf_ns[f"main/{name}/{output}"]
                 else:
-                    role = self.wf_ns["main/%s" % output]
+                    role = self.wf_ns[f"main/{output}"]
 
                 if not process_run_id:
                     process_run_id = self.workflow_run_uri
@@ -738,17 +736,17 @@ class ProvenanceProfile:
         prov_ids = []
 
         # https://www.w3.org/TR/prov-xml/
-        with self.research_object.write_bag_file(basename + ".xml") as provenance_file:
+        with write_bag_file(self.research_object, basename + ".xml") as provenance_file:
             self.document.serialize(provenance_file, format="xml", indent=4)
             prov_ids.append(self.provenance_ns[filename + ".xml"])
 
         # https://www.w3.org/TR/prov-n/
-        with self.research_object.write_bag_file(basename + ".provn") as provenance_file:
+        with write_bag_file(self.research_object, basename + ".provn") as provenance_file:
             self.document.serialize(provenance_file, format="provn", indent=2)
             prov_ids.append(self.provenance_ns[filename + ".provn"])
 
         # https://www.w3.org/Submission/prov-json/
-        with self.research_object.write_bag_file(basename + ".json") as provenance_file:
+        with write_bag_file(self.research_object, basename + ".json") as provenance_file:
             self.document.serialize(provenance_file, format="json", indent=2)
             prov_ids.append(self.provenance_ns[filename + ".json"])
 
@@ -756,12 +754,12 @@ class ProvenanceProfile:
         # which can be serialized to ttl/nt/jsonld (and more!)
 
         # https://www.w3.org/TR/turtle/
-        with self.research_object.write_bag_file(basename + ".ttl") as provenance_file:
+        with write_bag_file(self.research_object, basename + ".ttl") as provenance_file:
             self.document.serialize(provenance_file, format="rdf", rdf_format="turtle")
             prov_ids.append(self.provenance_ns[filename + ".ttl"])
 
         # https://www.w3.org/TR/n-triples/
-        with self.research_object.write_bag_file(basename + ".nt") as provenance_file:
+        with write_bag_file(self.research_object, basename + ".nt") as provenance_file:
             self.document.serialize(provenance_file, format="rdf", rdf_format="ntriples")
             prov_ids.append(self.provenance_ns[filename + ".nt"])
 
@@ -769,7 +767,7 @@ class ProvenanceProfile:
         # TODO: Use a nice JSON-LD context
         # see also https://eprints.soton.ac.uk/395985/
         # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
-        with self.research_object.write_bag_file(basename + ".jsonld") as provenance_file:
+        with write_bag_file(self.research_object, basename + ".jsonld") as provenance_file:
             self.document.serialize(provenance_file, format="rdf", rdf_format="json-ld")
             prov_ids.append(self.provenance_ns[filename + ".jsonld"])
 

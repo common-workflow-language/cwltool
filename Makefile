@@ -24,7 +24,7 @@ MODULE=cwltool
 
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
-PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
+PYSOURCES=$(wildcard ${MODULE}/**.py cwltool/cwlprov/*.py tests/*.py) setup.py
 DEVPKGS=diff_cover pylint pep257 pydocstyle 'tox<4' tox-pyenv \
 	isort wheel autoflake pyupgrade bandit -rlint-requirements.txt\
 	-rtest-requirements.txt -rmypy-requirements.txt -rdocs/requirements.txt
@@ -85,7 +85,7 @@ docs: FORCE
 
 ## clean                  : clean up all temporary / machine-generated files
 clean: check-python3 FORCE
-	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so
+	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so cwltool/cwlprov/*.so
 	rm -Rf ${MODULE}/__pycache__/
 	python setup.py clean --all || true
 	rm -Rf .coverage
