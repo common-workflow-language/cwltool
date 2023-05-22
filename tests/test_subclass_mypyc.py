@@ -7,6 +7,7 @@ Especially if those classes are (or become) compiled with mypyc.
 import pickle
 
 import pytest
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro import schema
 
 from cwltool.builder import Builder
@@ -14,7 +15,6 @@ from cwltool.command_line_tool import CommandLineTool, ExpressionTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
-from ruamel.yaml.comments import CommentedMap
 
 from .test_anon_types import snippet
 

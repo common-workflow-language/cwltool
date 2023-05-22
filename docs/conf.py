@@ -20,13 +20,9 @@ sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-build_date = datetime.utcfromtimestamp(
-    int(os.environ.get("SOURCE_DATE_EPOCH", time.time()))
-)
+build_date = datetime.utcfromtimestamp(int(os.environ.get("SOURCE_DATE_EPOCH", time.time())))
 project = "Common Workflow Language reference implementation"
-copyright = (
-    f"2019 — {build_date.year}, Peter Amstutz and contributors to the CWL Project"
-)
+copyright = f"2019 — {build_date.year}, Peter Amstutz and contributors to the CWL Project"
 author = "Peter Amstutz and Common Workflow Language Project contributors"
 
 
@@ -53,7 +49,7 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "schema_salad": ("https://schema-salad.readthedocs.io/en/stable/", None),
     "rdflib": ("https://rdflib.readthedocs.io/en/6.2.0/", None),
-    #"ruamel.yaml": ("https://yaml.readthedocs.io/en/stable/", None),
+    # "ruamel.yaml": ("https://yaml.readthedocs.io/en/stable/", None),
 }
 
 
@@ -86,9 +82,11 @@ html_theme_options = {
 html_static_path = ["_static"]
 
 
-from pkg_resources import get_distribution
-
-release = get_distribution("cwltool").version
+if sys.version_info >= (3, 8):
+    import importlib.metadata as importlib_metadata
+else:
+    import importlib_metadata
+release = importlib_metadata.version("cwltool")
 version = ".".join(release.split(".")[:2])
 
 autoapi_dirs = ["../cwltool"]

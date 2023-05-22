@@ -33,7 +33,10 @@ from typing import (
 
 import argcomplete
 import coloredlogs
-import pkg_resources  # part of setuptools
+import ruamel.yaml
+from importlib_resources import files
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader, file_uri, uri_file_path
 from schema_salad.sourceline import cmap, strip_dup_lineno
@@ -44,10 +47,6 @@ from schema_salad.utils import (
     json_dumps,
     yaml_no_ts,
 )
-
-import ruamel.yaml
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from ruamel.yaml.main import YAML
 
 from . import CWL_CONTENT_TYPES, workflow
 from .argparser import arg_parser, generate_parser, get_default_args
@@ -646,12 +645,12 @@ def setup_schema(
     if custom_schema_callback is not None:
         custom_schema_callback()
     elif args.enable_ext:
-        with pkg_resources.resource_stream(__name__, "extensions.yml") as res:
-            ext10 = res.read().decode("utf-8")
-        with pkg_resources.resource_stream(__name__, "extensions-v1.1.yml") as res:
-            ext11 = res.read().decode("utf-8")
-        with pkg_resources.resource_stream(__name__, "extensions-v1.2.yml") as res:
-            ext12 = res.read().decode("utf-8")
+        with files("cwltool").joinpath("extensions.yml") as res:
+            ext10 = res.read_text("utf-8")
+        with files("cwltool").joinpath("extensions-v1.1.yml") as res:
+            ext11 = res.read_text("utf-8")
+        with files("cwltool").joinpath("extensions-v1.2.yml") as res:
+            ext12 = res.read_text("utf-8")
         use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext10)
         use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2", "http://commonwl.org/cwltool", ext12)
