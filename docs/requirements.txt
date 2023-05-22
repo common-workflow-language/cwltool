@@ -4,3 +4,4 @@ sphinx-autoapi
 sphinx-autodoc-typehints
 typed_ast;python_version<'3.8'
 sphinxcontrib-autoprogram
+importlib_resources

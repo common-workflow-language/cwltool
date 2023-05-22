@@ -36,7 +36,6 @@ from typing import (
     cast,
 )
 
-import pkg_resources
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
@@ -44,6 +43,11 @@ from mypy_extensions import TypedDict, mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from typing_extensions import Deque, Literal
+
+if sys.version_info >= (3, 8):
+    import importlib.metadata as importlib_metadata
+else:
+    import importlib_metadata
 
 if TYPE_CHECKING:
     from .command_line_tool import CallbackJob, ExpressionJob
@@ -114,9 +118,9 @@ LoadListingType = Union[Literal["no_listing"], Literal["shallow_listing"], Liter
 
 def versionstring() -> str:
     """Version of CWLtool used to execute the workflow."""
-    pkg = pkg_resources.require("cwltool")
+    pkg = importlib_metadata.version("cwltool")
     if pkg:
-        return f"{sys.argv[0]} {pkg[0].version}"
+        return f"{sys.argv[0]} {pkg}"
     return "{} {}".format(sys.argv[0], "unknown version")
 
 

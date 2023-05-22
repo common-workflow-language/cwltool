@@ -33,9 +33,10 @@ from typing import (
 )
 
 from cwl_utils import expression
+from importlib_resources import files
 from mypy_extensions import mypyc_attr
-from pkg_resources import resource_stream
 from rdflib import Graph
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import (
     Names,
     Schema,
@@ -48,8 +49,6 @@ from schema_salad.schema import load_schema, make_avro_schema, make_valid_avro
 from schema_salad.sourceline import SourceLine, strip_dup_lineno
 from schema_salad.utils import convert_to_dict
 from schema_salad.validate import avro_type_name, validate_ex
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .builder import INPUT_OBJ_VOCAB, Builder
 from .context import LoadingContext, RuntimeContext, getdefault
@@ -195,22 +194,19 @@ def get_schema(
         version = ".".join(version.split(".")[:-1])
     for f in cwl_files:
         try:
-            res = resource_stream(__name__, f"schemas/{version}/{f}")
-            cache["https://w3id.org/cwl/" + f] = res.read().decode("UTF-8")
-            res.close()
+            with files("cwltool").joinpath(f"schemas/{version}/{f}") as res:
+                cache["https://w3id.org/cwl/" + f] = res.read_text("UTF-8")
         except OSError:
             pass
 
     for f in salad_files:
         try:
-            res = resource_stream(
-                __name__,
+            with files("cwltool").joinpath(
                 f"schemas/{version}/salad/schema_salad/metaschema/{f}",
-            )
-            cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = res.read().decode(
-                "UTF-8"
-            )
-            res.close()
+            ) as res:
+                cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = res.read_text(
+                    "UTF-8"
+                )
         except OSError:
             pass
 

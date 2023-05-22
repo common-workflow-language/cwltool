@@ -177,7 +177,7 @@ list-author-emails:
 	@git log --format='%aN,%aE' | sort -u | grep -v 'root'
 
 mypy3: mypy
-mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
+mypy: $(PYSOURCES)
 	if ! test -f $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
 	then \
 		rm -Rf mypy-stubs/ruamel/yaml ; \

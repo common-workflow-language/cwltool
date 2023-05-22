@@ -22,15 +22,14 @@ from cwl_utils import expression
 from cwl_utils.file_formats import check_format
 from mypy_extensions import mypyc_attr
 from rdflib import Graph
+from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.representer import RoundTripRepresenter
+from ruamel.yaml.scalarfloat import ScalarFloat
 from schema_salad.avro.schema import Names, Schema, make_avsc_object
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import convert_to_dict, json_dumps
 from schema_salad.validate import validate
-
-from ruamel.yaml.comments import CommentedMap
-from ruamel.yaml.representer import RoundTripRepresenter
-from ruamel.yaml.scalarfloat import ScalarFloat
 
 from .errors import WorkflowException
 from .loghandler import _logger

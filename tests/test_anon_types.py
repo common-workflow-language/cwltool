@@ -1,11 +1,11 @@
 from typing import cast
 
 import pytest
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext
-from ruamel.yaml.comments import CommentedMap
 
 snippet = cast(
     CommentedMap,

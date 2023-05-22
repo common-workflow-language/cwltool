@@ -3,6 +3,7 @@
 import os
 import sys
 import warnings
+from typing import Type
 
 import setuptools.command.egg_info as egg_info_cmd
 from setuptools import setup
@@ -27,7 +28,7 @@ README = os.path.join(SETUP_DIR, "README.rst")
 try:
     import gittaggers
 
-    Tagger = gittaggers.EggInfoFromGit
+    Tagger: Type[egg_info_cmd.egg_info] = gittaggers.EggInfoFromGit
 except ImportError:
     Tagger = egg_info_cmd.egg_info
 
@@ -84,7 +85,7 @@ if USE_MYPYC:
         "cwltool/workflow.py",
     ]
 
-    from mypyc.build import mypycify
+    from mypyc.build import mypycify  # type: ignore[import]
 
     opt_level = os.getenv("MYPYC_OPT_LEVEL", "3")
     ext_modules = mypycify(mypyc_targets, opt_level=opt_level)

@@ -16,10 +16,7 @@ from rdflib.term import Literal
 import cwltool.cwlprov as provenance
 from cwltool.cwlprov import provenance_constants
 from cwltool.cwlprov.ro import ResearchObject
-from cwltool.cwlprov.writablebagfile import (
-    close_ro,
-    write_bag_file,
-)
+from cwltool.cwlprov.writablebagfile import close_ro, write_bag_file
 from cwltool.main import main
 from cwltool.stdfsaccess import StdFsAccess
 

@@ -18,7 +18,8 @@ from typing import (
 from cwl_utils.errors import SubstitutionError
 from cwl_utils.expression import scanner as scan_expression
 from cwl_utils.sandboxjs import code_fragment_to_js, exec_js_process
-from pkg_resources import resource_stream
+from importlib_resources import files
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import (
     ArraySchema,
     EnumSchema,
@@ -29,8 +30,6 @@ from schema_salad.avro.schema import (
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .errors import WorkflowException
 from .loghandler import _logger
@@ -151,15 +150,15 @@ def jshint_js(
             "esversion": 5,
         }
 
-    with resource_stream(__name__, "jshint/jshint.js") as res:
+    with files("cwltool").joinpath("jshint/jshint.js") as res:
         # NOTE: we need a global variable for lodash (which jshint depends on)
-        jshint_functions_text = "var global = this;" + res.read().decode("utf-8")
+        jshint_functions_text = "var global = this;" + res.read_text("utf-8")
 
-    with resource_stream(__name__, "jshint/jshint_wrapper.js") as res2:
+    with files("cwltool").joinpath("jshint/jshint_wrapper.js") as res2:
         # NOTE: we need to assign to ob, as the expression {validateJS: validateJS} as an expression
         # is interpreted as a block with a label `validateJS`
         jshint_functions_text += (
-            "\n" + res2.read().decode("utf-8") + "\nvar ob = {validateJS: validateJS}; ob"
+            "\n" + res2.read_text("utf-8") + "\nvar ob = {validateJS: validateJS}; ob"
         )
 
     returncode, stdout, stderr = exec_js_process(
