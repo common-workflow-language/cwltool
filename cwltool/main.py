@@ -1389,7 +1389,9 @@ def main(
         ):
             research_obj = runtimeContext.research_obj
             if loadingContext.loader is not None:
-                research_obj.generate_snapshot(prov_deps(workflowobj, loadingContext.loader, uri))
+                research_obj.generate_snapshot(
+                    prov_deps(cast(CWLObjectType, processobj), loadingContext.loader, uri)
+                )
             else:
                 _logger.warning(
                     "Unable to generate provenance snapshot "
