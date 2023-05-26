@@ -84,6 +84,19 @@ def test_revsort_workflow(tmp_path: Path) -> None:
 
 
 @needs_docker
+def test_revsort_workflow_shortcut(tmp_path: Path) -> None:
+    """Confirm that using 'cwl:tool' shortcut still snapshots the CWL files."""
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/revsort-job-shortcut.json"),
+    )
+    check_output_object(folder)
+    check_provenance(folder)
+    assert not (folder / "snapshot" / "revsort-job-shortcut.json").exists()
+    assert len(list((folder / "snapshot").iterdir())) == 4
+
+
+@needs_docker
 def test_nested_workflow(tmp_path: Path) -> None:
     check_provenance(cwltool(tmp_path, get_data("tests/wf/nested.cwl")), nested=True)
 
