@@ -119,7 +119,6 @@ setup(
         "shellescape >= 3.4.1, < 3.9",
         "schema-salad >= 8.4, < 9",
         "prov == 1.5.1",
-        "bagit >= 1.6.4",
         "mypy-extensions",
         "psutil >= 5.6.6",
         "typing-extensions",
@@ -139,6 +138,7 @@ setup(
     setup_requires=PYTEST_RUNNER,
     test_suite="tests",
     tests_require=[
+        "bagit >= 1.6.4, < 1.9",
         "pytest >= 6.2, < 7.4",
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
