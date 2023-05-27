@@ -111,9 +111,14 @@ pydocstyle_report.txt: $(PYSOURCES)
 diff_pydocstyle_report: pydocstyle_report.txt
 	diff-quality --compare-branch=main --violations=pydocstyle --fail-under=100 $^
 
-## codespell              : check for common misspellings
-codespell:
-	codespell -w $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs)
+## codespell-check        : check for common misspellings
+codespell-check:
+	@codespell $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs) \
+		|| (echo Probable typo foun. Run \"make codespell-fix\" to accept suggested fixes, or add the word to the ignore list in setup.cfg ; exit 1)
+
+## codespell-fix          : fix common misspellings
+codespell-fix:
+	@codespell -w $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs)
 
 ## format                 : check/fix all code indentation and formatting (runs black)
 format:
