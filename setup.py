@@ -113,20 +113,23 @@ setup(
         "requests >= 2.6.1",  # >= 2.6.1 to workaround
         # https://github.com/ionrock/cachecontrol/issues/137
         "ruamel.yaml >= 0.15, < 0.17.28",
+        "ruamel.yaml >= 0.16.0, <0.17.28;python_version>='3.10'",
         "rdflib >= 4.2.2, < 6.4.0",
         "rdflib >= 4.2.2, < 6.0.0;python_version<='3.6'",
         "shellescape >= 3.4.1, < 3.9",
         "schema-salad >= 8.4, < 9",
-        "mypy-extensions",
-        "psutil >= 5.6.6",
         "prov == 1.5.1",
         "bagit >= 1.6.4",
+        "mypy-extensions",
+        "psutil >= 5.6.6",
         "typing-extensions",
+        "importlib_resources>=1.4",
+        "importlib_metadata;python_version<'3.8'",
         "coloredlogs",
         "pydot >= 1.4.1",
+        "argcomplete",
         "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
         "pyparsing < 3 ;python_version<='3.6'",  # breaks --print-dot (pydot)
-        "argcomplete",
         "cwl-utils >= 0.22",
     ],
     extras_require={
