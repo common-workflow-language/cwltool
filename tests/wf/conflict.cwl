@@ -4,14 +4,13 @@ $graph:
   - class: CommandLineTool
     id: makebzz
     inputs: []
+    baseCommand: touch
     outputs:
       bzz:
         type: File
         outputBinding:
           glob: bzz
-    requirements:
-      ShellCommandRequirement: {}
-    arguments: [{shellQuote: false, valueFrom: "touch bzz"}]
+    arguments: [ bzz ]
   - class: Workflow
     id: main
     inputs: []

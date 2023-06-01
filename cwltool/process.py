@@ -264,7 +264,8 @@ def stage_files(
                     "File staging conflict, trying to stage both %s and %s to the same target %s"
                     % (targets[entry.target].resolved, entry.resolved, entry.target)
                 )
-
+    # refresh the items, since we may have updated the pathmapper due to file name clashes
+    items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
     for key, entry in items:
         if not entry.staged:
             continue
