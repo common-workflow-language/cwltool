@@ -194,19 +194,19 @@ def get_schema(
         version = ".".join(version.split(".")[:-1])
     for f in cwl_files:
         try:
-            with files("cwltool").joinpath(f"schemas/{version}/{f}") as res:
-                cache["https://w3id.org/cwl/" + f] = res.read_text("UTF-8")
+            res = files("cwltool").joinpath(f"schemas/{version}/{f}")
+            cache["https://w3id.org/cwl/" + f] = res.read_text("UTF-8")
         except OSError:
             pass
 
     for f in salad_files:
         try:
-            with files("cwltool").joinpath(
+            res = files("cwltool").joinpath(
                 f"schemas/{version}/salad/schema_salad/metaschema/{f}",
-            ) as res:
-                cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = res.read_text(
-                    "UTF-8"
-                )
+            )
+            cache["https://w3id.org/cwl/salad/schema_salad/metaschema/" + f] = res.read_text(
+                "UTF-8"
+            )
         except OSError:
             pass
 
