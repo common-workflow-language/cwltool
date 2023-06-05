@@ -206,6 +206,8 @@ def test_directory_workflow(tmp_path: Path) -> None:
         p = folder / "data" / prefix / l_hash
         assert p.is_file(), f"Could not find {letter} as {p}"
 
+    # List content
+    list_files(tmp_path)
 
 @needs_docker
 def test_no_data_files(tmp_path: Path) -> None:
@@ -787,3 +789,128 @@ def test_research_object() -> None:
 def test_research_object_picklability(research_object: ResearchObject) -> None:
     """Research object may need to be pickled (for Toil)."""
     assert pickle.dumps(research_object) is not None
+
+
+
+### Jasper
+
+import os
+
+def list_files(startpath):
+    startpath = str(startpath)
+    print("Root: ", startpath)
+    for root, dirs, files in os.walk(startpath):
+        level = root.replace(startpath, '').count(os.sep)
+        indent = ' ' * 4 * (level)
+        print('{}{}/'.format(indent, os.path.basename(root)))
+        subindent = ' ' * 4 * (level + 1)
+        for f in files:
+            print('{}{}'.format(subindent, f))
+
+
+@needs_docker
+def test_directory_workflow_no_listing(tmp_path: Path) -> None:
+    """
+    This test will check for 3 files that should be there and 3 files that should not be there.
+    @param tmp_path:
+    """
+
+    dir2 = tmp_path / "dir_deep_listing"
+    dir2.mkdir()
+    sha1 = {
+        # Expected hashes of ASCII letters (no linefeed)
+        # as returned from:
+        # for x in a b c ; do echo -n $x | sha1sum ; done
+        "a": "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8",
+        "b": "e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98",
+        "c": "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4",
+    }
+    for x in "abc":
+        # Make test files with predictable hashes
+        with open(dir2 / x, "w", encoding="ascii") as f:
+            f.write(x)
+
+    dir3 = tmp_path / "dir_no_listing"
+    dir3.mkdir()
+    sha1 = {
+        # Expected hashes of ASCII letters (no linefeed)
+        # as returned from:
+        # for x in d e f ; do echo -n $x | sha1sum ; done
+        "d": "3c363836cf4e16666669a25da280a1865c2d2874",
+        "e": "58e6b3a414a1e090dfc6029add0f3555ccba127f",
+        "f": "4a0a19218e082a343a1b17e5333409af9d98f0f5",
+    }
+    for x in "def":
+        # Make test files with predictable hashes
+        with open(dir3 / x, "w", encoding="ascii") as f:
+            f.write(x)
+
+    dir4 = tmp_path / "dir_no_info"
+    dir4.mkdir()
+    sha1 = {
+        # Expected hashes of ASCII letters (no linefeed)
+        # as returned from:
+        # for x in g h i ; do echo -n $x | sha1sum ; done
+        "g": "54fd1711209fb1c0781092374132c66e79e2241b",
+        "h": "27d5482eebd075de44389774fce28c69f45c8a75",
+        "i": "042dc4512fa3d391c5170cf3aa61e6a638f84342",
+    }
+    for x in "ghi":
+        # Make test files with predictable hashes
+        with open(dir4 / x, "w", encoding="ascii") as f:
+            f.write(x)
+
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/directory_no_listing.cwl"),
+        "--dir",
+        str(dir2),
+        "--ignore",
+        str(dir3),
+        "--ignore_no_info",
+        str(dir4),
+    )
+
+    # Visualize the path structure
+    list_files(tmp_path)
+
+    # check invert? as there should be no data in there
+    # check_provenance(folder, directory=True)
+
+    # Output should include ls stdout of filenames a b c on each line
+    file_list = (
+        folder
+        / "data"
+        / "84"
+        / "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4"
+        # checksum as returned from:
+        # echo -e "a\nb\nc" | sha1sum
+        # 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
+    )
+    # File should not exist...
+    assert not file_list.is_file()
+
+    # Input files should be captured by hash value,
+    # even if they were inside a class: Directory
+    for (l, l_hash) in sha1.items():
+        prefix = l_hash[:2]  # first 2 letters
+        p = folder / "data" / prefix / l_hash
+        # File should be empty and in the future not existing...
+        # assert os.path.getsize(p.absolute()) == 0
+        # To be discared when file really does not exist anymore
+        if l not in ['d', 'e', 'f', 'g', 'h', 'i']:
+            print("Analysing file %s", l)
+            assert p.is_file(), f"Could not find {l} as {p}"
+
+def cwltool_no_data(tmp_path: Path, *args: Any) -> Path:
+    prov_folder = tmp_path / "provenance"
+    prov_folder.mkdir()
+    new_args = ["--enable-ext", "--no-data", "--provenance", str(prov_folder)]
+    new_args.extend(args)
+    # Run within a temporary directory to not pollute git checkout
+    tmp_dir = tmp_path / "cwltool-run"
+    tmp_dir.mkdir()
+    with working_directory(tmp_dir):
+        status = main(new_args)
+        assert status == 0, f"Failed: cwltool.main({args})"
+    return prov_folder

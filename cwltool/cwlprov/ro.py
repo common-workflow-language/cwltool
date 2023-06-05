@@ -34,7 +34,7 @@ from ..utils import (
     posix_path,
     versionstring,
 )
-from . import Aggregate, Annotation, AuthoredBy, _valid_orcid, _whoami, checksum_copy
+from . import Aggregate, Annotation, AuthoredBy, _valid_orcid, _whoami, checksum_copy, checksum_only
 from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV_VERSION,
@@ -66,6 +66,7 @@ class ResearchObject:
         temp_prefix_ro: str = "tmp",
         orcid: str = "",
         full_name: str = "",
+        no_data: bool = False,
     ) -> None:
         """Initialize the ResearchObject."""
         self.temp_prefix = temp_prefix_ro
@@ -88,6 +89,7 @@ class ResearchObject:
         self.cwltool_version = f"cwltool {versionstring().split()[-1]}"
         self.has_manifest = False
         self.relativised_input_object: CWLObjectType = {}
+        self.no_data = no_data
 
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
@@ -180,13 +182,22 @@ class ResearchObject:
             # Below probably OK for now as metadata files
             # are not too large..?
 
-            checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
+            if self.no_data:
+                _logger.warning("NO DATA TO BE CAPTURED!!!")
 
-            tag_file.seek(0)
-            checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
+                checksums[SHA1] = checksum_only(tag_file, hasher=hashlib.sha1)
+                tag_file.seek(0)
+                checksums[SHA256] = checksum_only(tag_file, hasher=hashlib.sha256)
+                tag_file.seek(0)
+                checksums[SHA512] = checksum_only(tag_file, hasher=hashlib.sha512)
+            else:
+                checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
 
-            tag_file.seek(0)
-            checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
+                tag_file.seek(0)
+                checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
+
+                tag_file.seek(0)
+                checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
 
         rel_path = posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
@@ -469,10 +480,14 @@ class ResearchObject:
         content_type: Optional[str] = None,
     ) -> str:
         """Copy inputs to data/ folder."""
+        # TODO Skip if no-input or no-data is used...?
         self.self_check()
         tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
         with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
-            checksum = checksum_copy(from_fp, tmp)
+            if self.no_data:
+                checksum = checksum_only(from_fp)
+            else:
+                checksum = checksum_copy(from_fp, tmp)
 
         # Calculate hash-based file path
         folder = os.path.join(self.folder, DATA, checksum[0:2])
@@ -493,7 +508,10 @@ class ResearchObject:
             _logger.warning("[provenance] Unknown hash method %s for bagit manifest", Hasher)
             # Inefficient, bagit support need to checksum again
             self._add_to_bagit(rel_path)
-        _logger.debug("[provenance] Added data file %s", path)
+        if 'dir' in self.relativised_input_object:
+            _logger.debug("[provenance] Directory :%s", self.relativised_input_object['dir']['basename'])
+        else:
+            _logger.debug("[provenance] Added data file %s", path)
         if timestamp is not None:
             createdOn, createdBy = self._self_made(timestamp)
             self._file_provenance[rel_path] = cast(
@@ -557,7 +575,10 @@ class ResearchObject:
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
+                if self.no_data:
+                    checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
+                else:
+                    checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
 
         self.add_to_manifest(rel_path, checksums)
 
