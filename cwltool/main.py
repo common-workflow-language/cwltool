@@ -645,12 +645,9 @@ def setup_schema(
     if custom_schema_callback is not None:
         custom_schema_callback()
     elif args.enable_ext:
-        with files("cwltool").joinpath("extensions.yml") as res:
-            ext10 = res.read_text("utf-8")
-        with files("cwltool").joinpath("extensions-v1.1.yml") as res:
-            ext11 = res.read_text("utf-8")
-        with files("cwltool").joinpath("extensions-v1.2.yml") as res:
-            ext12 = res.read_text("utf-8")
+        ext10 = files("cwltool").joinpath("extensions.yml").read_text("utf-8")
+        ext11 = files("cwltool").joinpath("extensions-v1.1.yml").read_text("utf-8")
+        ext12 = files("cwltool").joinpath("extensions-v1.2.yml").read_text("utf-8")
         use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext10)
         use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2", "http://commonwl.org/cwltool", ext12)

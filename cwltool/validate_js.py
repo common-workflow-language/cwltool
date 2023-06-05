@@ -150,16 +150,16 @@ def jshint_js(
             "esversion": 5,
         }
 
-    with files("cwltool").joinpath("jshint/jshint.js") as res:
-        # NOTE: we need a global variable for lodash (which jshint depends on)
-        jshint_functions_text = "var global = this;" + res.read_text("utf-8")
+    res = files("cwltool").joinpath("jshint/jshint.js")
+    # NOTE: we need a global variable for lodash (which jshint depends on)
+    jshint_functions_text = "var global = this;" + res.read_text("utf-8")
 
-    with files("cwltool").joinpath("jshint/jshint_wrapper.js") as res2:
-        # NOTE: we need to assign to ob, as the expression {validateJS: validateJS} as an expression
-        # is interpreted as a block with a label `validateJS`
-        jshint_functions_text += (
-            "\n" + res2.read_text("utf-8") + "\nvar ob = {validateJS: validateJS}; ob"
-        )
+    res2 = files("cwltool").joinpath("jshint/jshint_wrapper.js")
+    # NOTE: we need to assign to ob, as the expression {validateJS: validateJS} as an expression
+    # is interpreted as a block with a label `validateJS`
+    jshint_functions_text += (
+        "\n" + res2.read_text("utf-8") + "\nvar ob = {validateJS: validateJS}; ob"
+    )
 
     returncode, stdout, stderr = exec_js_process(
         "validateJS(%s)" % json_dumps({"code": js_text, "options": options, "globals": globals}),
