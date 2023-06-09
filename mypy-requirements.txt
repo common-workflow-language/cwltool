@@ -5,3 +5,5 @@ types-requests
 types-setuptools
 types-psutil
 types-mock
+galaxy-tool-util>=22.1.2,<24
+galaxy-util<24
