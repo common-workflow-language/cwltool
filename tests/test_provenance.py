@@ -815,8 +815,6 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
     @param tmp_path:
     """
 
-    dir2 = tmp_path / "dir_deep_listing"
-    dir2.mkdir()
     sha1 = {
         # Expected hashes of ASCII letters (no linefeed)
         # as returned from:
@@ -824,30 +822,12 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         "a": "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8",
         "b": "e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98",
         "c": "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4",
-    }
-    for x in "abc":
-        # Make test files with predictable hashes
-        with open(dir2 / x, "w", encoding="ascii") as f:
-            f.write(x)
-
-    dir3 = tmp_path / "dir_no_listing"
-    dir3.mkdir()
-    sha1 = {
         # Expected hashes of ASCII letters (no linefeed)
         # as returned from:
         # for x in d e f ; do echo -n $x | sha1sum ; done
         "d": "3c363836cf4e16666669a25da280a1865c2d2874",
         "e": "58e6b3a414a1e090dfc6029add0f3555ccba127f",
         "f": "4a0a19218e082a343a1b17e5333409af9d98f0f5",
-    }
-    for x in "def":
-        # Make test files with predictable hashes
-        with open(dir3 / x, "w", encoding="ascii") as f:
-            f.write(x)
-
-    dir4 = tmp_path / "dir_no_info"
-    dir4.mkdir()
-    sha1 = {
         # Expected hashes of ASCII letters (no linefeed)
         # as returned from:
         # for x in g h i ; do echo -n $x | sha1sum ; done
@@ -855,6 +835,25 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         "h": "27d5482eebd075de44389774fce28c69f45c8a75",
         "i": "042dc4512fa3d391c5170cf3aa61e6a638f84342",
     }
+
+    dir2 = tmp_path / "dir_deep_listing"
+    dir2.mkdir()
+    for x in "abc":
+        # Make test files with predictable hashes
+        with open(dir2 / x, "w", encoding="ascii") as f:
+            f.write(x)
+
+    dir3 = tmp_path / "dir_no_listing"
+    dir3.mkdir()
+
+    for x in "def":
+        # Make test files with predictable hashes
+        with open(dir3 / x, "w", encoding="ascii") as f:
+            f.write(x)
+
+    dir4 = tmp_path / "dir_no_info"
+    dir4.mkdir()
+
     for x in "ghi":
         # Make test files with predictable hashes
         with open(dir4 / x, "w", encoding="ascii") as f:
@@ -874,9 +873,6 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
     # Visualize the path structure
     list_files(tmp_path)
 
-    # check invert? as there should be no data in there
-    # check_provenance(folder, directory=True)
-
     # Output should include ls stdout of filenames a b c on each line
     file_list = (
         folder
@@ -887,8 +883,8 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         # echo -e "a\nb\nc" | sha1sum
         # 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
     )
-    # File should not exist...
-    assert not file_list.is_file()
+
+    assert file_list.is_file()
 
     # Input files should be captured by hash value,
     # even if they were inside a class: Directory
@@ -898,8 +894,11 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         # File should be empty and in the future not existing...
         # assert os.path.getsize(p.absolute()) == 0
         # To be discared when file really does not exist anymore
-        if l not in ['d', 'e', 'f', 'g', 'h', 'i']:
-            print("Analysing file %s", l)
+        if l in ['d', 'e', 'f', 'g', 'h', 'i']:
+            print(f"Analysing file {l}")
+            assert not p.is_file(), f"Could find {l} as {p}"
+        else:
+            print(f"Analysing file {l}")
             assert p.is_file(), f"Could not find {l} as {p}"
 
 def cwltool_no_data(tmp_path: Path, *args: Any) -> Path:

@@ -410,8 +410,8 @@ class ProvenanceProfile:
         # a later call to this method will sort that
         is_empty = True
 
-        if "listing" not in value:
-            get_listing(self.fsaccess, value)
+        # if "listing" not in value:
+        #     get_listing(self.fsaccess, value)
         for entry in cast(MutableSequence[CWLObjectType], value.get("listing", [])):
             is_empty = False
             # Declare child-artifacts
