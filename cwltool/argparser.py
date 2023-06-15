@@ -289,19 +289,19 @@ def arg_parser() -> argparse.ArgumentParser:
 
     # TO DO: Not yet implemented
     provgroup.add_argument(
-        "--no-data", # Maybe change to no-input and no-intermediate to ignore those kind of files?...
+        "--no-data",  # Maybe change to no-input and no-intermediate to ignore those kind of files?...
         default=False,
         action="store_true",
-        help="Disables the storage of input and output data files of the workflow in the provenance data folder",
+        help="Disables the storage of input and output data files",
         dest="no_data",
     )
 
     # TO DO: Not yet implemented
     provgroup.add_argument(
-        "--no-input", # Maybe change to no-input and no-intermediate to ignore those kind of files?...
+        "--no-input",  # Maybe change to no-input and no-intermediate to ignore those kind of files?...
         default=False,
         action="store_true",
-        help="Disables the storage of input and output data files of the workflow in the provenance data folder",
+        help="Disables the storage of input data files",
         dest="no_input",
     )
 

@@ -1147,7 +1147,8 @@ def main(
                     temp_workflow_dir = tempfile.TemporaryDirectory()
                     os.makedirs(temp_workflow_dir.name, exist_ok=True)
                     workflow_provenance = temp_workflow_dir.name + "/workflow.ttl"
-                    # Sets up a turtle file for the workflow information (not yet in the provenance folder as it does
+                    # Sets up a turtle file for the workflow information
+                    # (not yet in the provenance folder as it does
                     # not exist and creating it will give issues).
                     output = open(workflow_provenance, "w")
                     _logger.info("Writing workflow rdf to %s", workflow_provenance)

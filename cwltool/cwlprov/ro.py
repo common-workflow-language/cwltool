@@ -34,7 +34,15 @@ from ..utils import (
     posix_path,
     versionstring,
 )
-from . import Aggregate, Annotation, AuthoredBy, _valid_orcid, _whoami, checksum_copy, checksum_only
+from . import (
+    Aggregate,
+    Annotation,
+    AuthoredBy,
+    _valid_orcid,
+    _whoami,
+    checksum_copy,
+    checksum_only,
+)
 from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV_VERSION,
@@ -508,8 +516,10 @@ class ResearchObject:
             _logger.warning("[provenance] Unknown hash method %s for bagit manifest", Hasher)
             # Inefficient, bagit support need to checksum again
             self._add_to_bagit(rel_path)
-        if 'dir' in self.relativised_input_object:
-            _logger.debug("[provenance] Directory :%s", self.relativised_input_object['dir']['basename'])
+        if "dir" in self.relativised_input_object:
+            _logger.debug(
+                "[provenance] Directory :%s", self.relativised_input_object["dir"]["basename"]
+            )
         else:
             _logger.debug("[provenance] Added data file %s", path)
         if timestamp is not None:

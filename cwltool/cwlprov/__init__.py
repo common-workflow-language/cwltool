@@ -6,13 +6,14 @@ import pwd
 import re
 import uuid
 from getpass import getuser
-from typing import IO, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import IO, Any, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import TypedDict
 
 from cwltool.cwlprov.provenance_constants import Hasher
 
 from ..loghandler import _logger
+
 
 def _whoami() -> Tuple[str, str]:
     """Return the current operating system account as (username, fullname)."""

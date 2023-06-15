@@ -29,7 +29,7 @@ from ..job import CommandLineJob, JobBase
 from ..loghandler import _logger
 from ..process import Process, shortname
 from ..stdfsaccess import StdFsAccess
-from ..utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
+from ..utils import CWLObjectType, JobsType, posix_path, versionstring
 from ..workflow_job import WorkflowJob
 from .provenance_constants import (
     ACCOUNT_UUID,
@@ -606,7 +606,7 @@ class ProvenanceProfile:
         job_order: Union[CWLObjectType, List[CWLObjectType]],
         process_run_id: str,
         name: Optional[str] = None,
-        load_listing = None,
+        load_listing=None,
     ) -> None:
         """Add used() for each data artefact."""
         if isinstance(job_order, list):
