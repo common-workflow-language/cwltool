@@ -209,6 +209,7 @@ def test_directory_workflow(tmp_path: Path) -> None:
     # List content
     list_files(tmp_path)
 
+
 @needs_docker
 def test_no_data_files(tmp_path: Path) -> None:
     folder = cwltool(
@@ -791,21 +792,17 @@ def test_research_object_picklability(research_object: ResearchObject) -> None:
     assert pickle.dumps(research_object) is not None
 
 
-
-### Jasper
-
-import os
-
+# Function to list filestructure
 def list_files(startpath):
     startpath = str(startpath)
     print("Root: ", startpath)
-    for root, dirs, files in os.walk(startpath):
-        level = root.replace(startpath, '').count(os.sep)
-        indent = ' ' * 4 * (level)
-        print('{}{}/'.format(indent, os.path.basename(root)))
-        subindent = ' ' * 4 * (level + 1)
+    for root, _dirs, files in os.walk(startpath):
+        level = root.replace(startpath, "").count(os.sep)
+        indent = " " * 4 * (level)
+        print("{}{}/".format(indent, os.path.basename(root)))
+        subindent = " " * 4 * (level + 1)
         for f in files:
-            print('{}{}'.format(subindent, f))
+            print("{}{}".format(subindent, f))
 
 
 @needs_docker
@@ -850,6 +847,12 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         # Make test files with predictable hashes
         with open(dir3 / x, "w", encoding="ascii") as f:
             f.write(x)
+        # Temporarily generate 10.000 files to test performance
+        for i in range(10000):
+            with open(dir3 / f"{x}_{i}", "w", encoding="ascii") as f:
+                f.write(x)
+        print("Created 10.000 files in dir_no_listing")
+        # list_files(dir3)
 
     dir4 = tmp_path / "dir_no_info"
     dir4.mkdir()
@@ -862,16 +865,16 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
     folder = cwltool(
         tmp_path,
         get_data("tests/wf/directory_no_listing.cwl"),
-        "--dir",
+        "--dir_deep_listing",
         str(dir2),
-        "--ignore",
+        "--dir_no_listing",
         str(dir3),
-        "--ignore_no_info",
+        "--dir_no_info",
         str(dir4),
     )
 
     # Visualize the path structure
-    list_files(tmp_path)
+    # list_files(tmp_path)
 
     # Output should include ls stdout of filenames a b c on each line
     file_list = (
@@ -888,18 +891,19 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
 
     # Input files should be captured by hash value,
     # even if they were inside a class: Directory
-    for (l, l_hash) in sha1.items():
-        prefix = l_hash[:2]  # first 2 letters
-        p = folder / "data" / prefix / l_hash
+    for f, file_hash in sha1.items():
+        prefix = file_hash[:2]  # first 2 letters
+        p = folder / "data" / prefix / file_hash
         # File should be empty and in the future not existing...
         # assert os.path.getsize(p.absolute()) == 0
         # To be discared when file really does not exist anymore
-        if l in ['d', 'e', 'f', 'g', 'h', 'i']:
-            print(f"Analysing file {l}")
-            assert not p.is_file(), f"Could find {l} as {p}"
+        if f in ["d", "e", "f", "g", "h", "i"]:
+            print(f"Analysing file {f}")
+            assert not p.is_file(), f"Could find {f} as {p}"
         else:
-            print(f"Analysing file {l}")
-            assert p.is_file(), f"Could not find {l} as {p}"
+            print(f"Analysing file {f}")
+            assert p.is_file(), f"Could not find {f} as {p}"
+
 
 def cwltool_no_data(tmp_path: Path, *args: Any) -> Path:
     prov_folder = tmp_path / "provenance"

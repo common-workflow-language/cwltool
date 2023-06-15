@@ -11,21 +11,21 @@ hints:
     dockerPull: docker.io/debian:stable-slim
 
 inputs:
-    dir:
+    dir_deep_listing:
         type: Directory
         loadListing: deep_listing
-    ignore:
+    dir_no_listing:
         type: Directory
         loadListing: no_listing
-    ignore_no_info:
+    dir_no_info:
         type: Directory
 
 
 steps:
     ls:
         in:
-            dir: dir
-            ignore: ignore
+            dir: dir_deep_listing
+            ignore: dir_no_listing
         out:
             [listing]
         run:
