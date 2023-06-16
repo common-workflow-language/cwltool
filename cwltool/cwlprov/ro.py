@@ -75,6 +75,7 @@ class ResearchObject:
         orcid: str = "",
         full_name: str = "",
         no_data: bool = False,
+        no_input: bool = False,
     ) -> None:
         """Initialize the ResearchObject."""
         self.temp_prefix = temp_prefix_ro
@@ -98,6 +99,7 @@ class ResearchObject:
         self.has_manifest = False
         self.relativised_input_object: CWLObjectType = {}
         self.no_data = no_data
+        self.no_input = no_input
 
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
@@ -190,8 +192,8 @@ class ResearchObject:
             # Below probably OK for now as metadata files
             # are not too large..?
 
-            if self.no_data:
-                _logger.warning("NO DATA TO BE CAPTURED!!!")
+            if self.no_input:
+                _logger.debug("NO INPUT DATA TO BE CAPTURED!!!")
 
                 checksums[SHA1] = checksum_only(tag_file, hasher=hashlib.sha1)
                 tag_file.seek(0)
@@ -585,7 +587,7 @@ class ResearchObject:
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                if self.no_data:
+                if self.data_option:
                     checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
                 else:
                     checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)

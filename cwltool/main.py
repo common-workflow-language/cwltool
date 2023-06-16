@@ -695,6 +695,7 @@ def setup_provenance(
         orcid=args.orcid,
         full_name=args.cwl_full_name,
         no_data=args.no_data,
+        no_input=args.no_input,
     )
     runtimeContext.research_obj = ro
     log_file_io = open_log_file_for_activity(ro, ro.engine_uuid)
