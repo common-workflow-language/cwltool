@@ -811,6 +811,8 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
     This test will check for 3 files that should be there and 3 files that should not be there.
     @param tmp_path:
     """
+    # TODO no data is currently manually set
+    data_option = "--no-input"
 
     sha1 = {
         # Expected hashes of ASCII letters (no linefeed)
@@ -862,8 +864,14 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         with open(dir4 / x, "w", encoding="ascii") as f:
             f.write(x)
 
+    # Run the workflow
     folder = cwltool(
         tmp_path,
+        # CWL Arguments
+        "--debug",
+        # No data argument based on boolean
+        data_option,
+        # Workflow arguments
         get_data("tests/wf/directory_no_listing.cwl"),
         "--dir_deep_listing",
         str(dir2),
