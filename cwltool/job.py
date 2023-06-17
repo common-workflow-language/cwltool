@@ -586,8 +586,9 @@ class CommandLineJob(JobBase):
         env["HOME"] = self.outdir
         env["TMPDIR"] = self.tmpdir
         env["PATH"] = os.environ["PATH"]
-        if "SYSTEMROOT" in os.environ:
-            env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+        for extra in ("SYSTEMROOT", "QEMU_LD_PREFIX"):
+            if extra in os.environ:
+                env[extra] = os.environ[extra]
         return env
 
 
