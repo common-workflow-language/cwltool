@@ -36,10 +36,10 @@ steps:
                     type: Directory
                     inputBinding:
                         position: 1
-                ignore:
-                    type: Directory
-                    inputBinding:
-                        position: 2
+#                ignore:
+#                    type: Directory
+#                    inputBinding:
+#                        position: 2
             outputs:
                 listing:
                     type: stdout
@@ -59,10 +59,10 @@ steps:
             - shellQuote: false
               valueFrom: >
                     pwd;
-                    mkdir -p dir1/a/b;
-                    echo -n a > dir1/a.txt;
-                    echo -n b > dir1/a/b.txt;
-                    echo -n c > dir1/a/b/c.txt;
+                    mkdir -p dir1/x/y;
+                    echo -n x > dir1/x.txt;
+                    echo -n y > dir1/x/y.txt;
+                    echo -n z > dir1/x/y/z.txt;
             inputs: []
             outputs:
                 dir1:

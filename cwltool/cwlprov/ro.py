@@ -41,12 +41,11 @@ from . import (
     _valid_orcid,
     _whoami,
     checksum_copy,
-    checksum_only,
+    checksum_only, provenance_constants,
 )
 from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV_VERSION,
-    DATA,
     ENCODING,
     FOAF,
     LOGS,
@@ -101,8 +100,12 @@ class ResearchObject:
         self.no_data = no_data
         self.no_input = no_input
 
+        # TODO Fix...? Set the INPUT_DATA to default for input
+        # modify_data("data/inputs")
+
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
+
 
     def self_check(self) -> None:
         """Raise ValueError if this RO is closed."""
@@ -119,7 +122,9 @@ class ResearchObject:
     def _initialize(self) -> None:
         for research_obj_folder in (
             METADATA,
-            DATA,
+            provenance_constants.INPUT_DATA,
+            provenance_constants.INTM_DATA,
+            provenance_constants.OUTPUT_DATA,
             WORKFLOW,
             SNAPSHOT,
             PROVENANCE,
@@ -477,9 +482,9 @@ class ResearchObject:
             else:
                 pass
 
-    def has_data_file(self, sha1hash: str) -> bool:
+    def has_data_file(self, location: str, sha1hash: str) -> bool:
         """Confirm the presence of the given file in the RO."""
-        folder = os.path.join(self.folder, DATA, sha1hash[0:2])
+        folder = os.path.join(self.folder, location, sha1hash[0:2])
         hash_path = os.path.join(folder, sha1hash)
         return os.path.isfile(hash_path)
 
@@ -490,20 +495,37 @@ class ResearchObject:
         content_type: Optional[str] = None,
     ) -> str:
         """Copy inputs to data/ folder."""
+        # TODO: This also copies the outputs?...
         # TODO Skip if no-input or no-data is used...?
         self.self_check()
         tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
         with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
-            if self.no_data:
+            if self.no_data or self.no_input:
                 checksum = checksum_only(from_fp)
             else:
                 checksum = checksum_copy(from_fp, tmp)
 
         # Calculate hash-based file path
-        folder = os.path.join(self.folder, DATA, checksum[0:2])
+        if "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8" in checksum: # This is the hash of an output file
+            print(provenance_constants.DATA)
+            x = provenance_constants.DATA
+            debug_stop = True
+        folder = os.path.join(self.folder, provenance_constants.DATA, checksum[0:2])
         path = os.path.join(folder, checksum)
         # os.rename assumed safe, as our temp file should
         # be in same file system as our temp folder
+
+        # Which files end up here? input, intermediate and output files?
+
+        # Test if no-input or no-data is used
+        # if self.no_data or self.no_input:
+        #     path = tmp.name
+
+        # Obtain the content of tmp.name for debugging
+        with open(tmp.name, "rb") as f:
+            content = f.read()
+            print(">>>", content)
+
         if not os.path.isdir(folder):
             os.makedirs(folder)
         os.rename(tmp.name, path)
@@ -530,6 +552,9 @@ class ResearchObject:
                 Aggregate, {"createdOn": createdOn, "createdBy": createdBy}
             )
         _logger.debug("[provenance] Relative path for data file %s", rel_path)
+        # This is an output hash
+        if "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8" in rel_path:
+            debug_stop = True
 
         if content_type is not None:
             self._content_types[rel_path] = content_type
@@ -598,6 +623,8 @@ class ResearchObject:
         self,
         structure: Union[CWLObjectType, CWLOutputType, MutableSequence[CWLObjectType]],
     ) -> None:
+        # TODO - Are there only input files arriving here?
+
         """Save any file objects into the RO and update the local paths."""
         # Base case - we found a File we need to update
         _logger.debug("[provenance] Relativising: %s", structure)
@@ -612,14 +639,17 @@ class ResearchObject:
                         raise TypeError(
                             f"Only SHA1 CWL checksums are currently supported: {structure}"
                         )
-                    if self.has_data_file(checksum):
+                    if "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8" in checksum:
+                        x = provenance_constants.DATA
+                        debug_stop = True
+                    if self.has_data_file(provenance_constants.DATA, checksum):
                         prefix = checksum[0:2]
-                        relative_path = PurePosixPath("data") / prefix / checksum
+                        relative_path = PurePosixPath("data/input") / prefix / checksum
 
                 if not (relative_path is not None and "location" in structure):
                     # Register in RO; but why was this not picked
                     # up by used_artefacts?
-                    _logger.info("[provenance] Adding to RO %s", structure["location"])
+                    _logger.info("[provenance] Adding to RO '%s' > %s", structure["basename"], structure["location"])
                     with self.fsaccess.open(cast(str, structure["location"]), "rb") as fp:
                         relative_path = self.add_data_file(fp)
                         checksum = PurePosixPath(relative_path).name

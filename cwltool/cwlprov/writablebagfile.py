@@ -244,7 +244,9 @@ def create_job(
     """Generate the new job object with RO specific relative paths."""
     copied = copy.deepcopy(builder_job)
     relativised_input_objecttemp: CWLObjectType = {}
-    research_object._relativise_files(copied)
+    # No inputs when either no_input or no_data is True
+    if not research_object.no_input and not research_object.no_data:
+        research_object._relativise_files(copied)
 
     def jdefault(o: Any) -> Dict[Any, Any]:
         return dict(o)

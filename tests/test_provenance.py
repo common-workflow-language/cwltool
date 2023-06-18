@@ -191,6 +191,7 @@ def test_directory_workflow(tmp_path: Path) -> None:
     file_list = (
         folder
         / "data"
+        / "output"
         / "3c"
         / "3ca69e8d6c234a469d16ac28a4a658c92267c423"
         # checksum as returned from:
@@ -203,7 +204,7 @@ def test_directory_workflow(tmp_path: Path) -> None:
     # even if they were inside a class: Directory
     for letter, l_hash in sha1.items():
         prefix = l_hash[:2]  # first 2 letters
-        p = folder / "data" / prefix / l_hash
+        p = folder / "data" / "output" / prefix / l_hash
         assert p.is_file(), f"Could not find {letter} as {p}"
 
     # List content
@@ -222,7 +223,7 @@ def test_no_data_files(tmp_path: Path) -> None:
 def check_output_object(base_path: Path) -> None:
     output_obj = base_path / "workflow" / "primary-output.json"
     compare_checksum = "sha1$b9214658cc453331b62c2282b772a5c063dbd284"
-    compare_location = "../data/b9/b9214658cc453331b62c2282b772a5c063dbd284"
+    compare_location = "../data/input/b9/b9214658cc453331b62c2282b772a5c063dbd284"
     with open(output_obj) as fp:
         out_json = json.load(fp)
     f1 = out_json["sorted_output"]
@@ -234,13 +235,14 @@ def check_secondary_files(base_path: Path) -> None:
     foo_data = (
         base_path
         / "data"
+        / "input"
         / "0b"
         / "0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"
         # checksum as returned from:
         # $ echo -n foo | sha1sum
         # 0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33  -
     )
-    bar_data = base_path / "data" / "62" / "62cdb7020ff920e5aa642c3d4066950dd1f01f4d"
+    bar_data = base_path / "data" / "input" / "62" / "62cdb7020ff920e5aa642c3d4066950dd1f01f4d"
     assert foo_data.is_file(), "Did not capture file.txt 'foo'"
     assert bar_data.is_file(), "Did not capture secondary file.txt.idx 'bar"
 
@@ -249,13 +251,13 @@ def check_secondary_files(base_path: Path) -> None:
         job_json = json.load(fp)
     # TODO: Verify secondaryFile in primary-job.json
     f1 = job_json["file1"]
-    assert f1["location"] == "../data/0b/0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"
+    assert f1["location"] == "../data/input/0b/0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"
     assert f1["basename"] == "foo1.txt"
 
     secondaries = f1["secondaryFiles"]
     assert secondaries
     f1idx = secondaries[0]
-    assert f1idx["location"] == "../data/62/62cdb7020ff920e5aa642c3d4066950dd1f01f4d"
+    assert f1idx["location"] == "../data/input/62/62cdb7020ff920e5aa642c3d4066950dd1f01f4d"
     assert f1idx["basename"], "foo1.txt.idx"
 
 
@@ -811,9 +813,63 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
     This test will check for 3 files that should be there and 3 files that should not be there.
     @param tmp_path:
     """
-    # TODO no data is currently manually set
-    data_option = "--no-input"
+    sha1, dir2, dir3, dir4 = prepare_input_files(tmp_path)
 
+    # Run the workflow
+    folder = cwltool(
+        tmp_path,
+        # CWL Arguments
+        "--debug",
+        # Workflow arguments
+        get_data("tests/wf/directory_no_listing.cwl"),
+        "--dir_deep_listing",
+        str(dir2),
+        "--dir_no_listing",
+        str(dir3),
+        "--dir_no_info",
+        str(dir4),
+    )
+
+    # Visualize the path structure
+    list_files(tmp_path)
+
+    # Output should include ls stdout of filenames a b c on each line
+    file_list = (
+        folder
+        / "data"
+        / "output"
+        / "3c"
+        / "3ca69e8d6c234a469d16ac28a4a658c92267c423"
+        # checksum as returned from:
+        # echo -e "a\nb\nc" | sha1sum
+        # 3ca69e8d6c234a469d16ac28a4a658c92267c423  -
+        # ,
+        # folder
+        # / "data"
+        # / "input"
+        # / "c6"
+        # / "c632ab5419b6b03f3fd31a0d29e70148c675bd80"
+    )
+
+    assert file_list.is_file()
+
+    # Input files should be captured by hash value,
+    # even if they were inside a class: Directory
+    for f, file_hash in sha1.items():
+        prefix = file_hash[:2]  # first 2 letters
+        p = folder / "data" / "input" / prefix / file_hash
+        # File should be empty and in the future not existing...
+        # assert os.path.getsize(p.absolute()) == 0
+        # To be discared when file really does not exist anymore
+        if f in ["d", "e", "f", "g", "h", "i"]:
+            print(f"Analysing file {f}")
+            assert not p.is_file(), f"Could find {f} as {p}"
+        else:
+            print(f"Analysing file {f}")
+            assert p.is_file(), f"Could not find {f} as {p}"
+
+
+def prepare_input_files(tmp_path: Path) -> None:
     sha1 = {
         # Expected hashes of ASCII letters (no linefeed)
         # as returned from:
@@ -850,10 +906,10 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         with open(dir3 / x, "w", encoding="ascii") as f:
             f.write(x)
         # Temporarily generate 10.000 files to test performance
-        for i in range(10000):
-            with open(dir3 / f"{x}_{i}", "w", encoding="ascii") as f:
-                f.write(x)
-        print("Created 10.000 files in dir_no_listing")
+        # for i in range(10): # 000):
+        #     with open(dir3 / f"{x}_{i}", "w", encoding="ascii") as f:
+        #         f.write(x)
+        # print("Created 10.000 files in dir_no_listing")
         # list_files(dir3)
 
     dir4 = tmp_path / "dir_no_info"
@@ -863,6 +919,21 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         # Make test files with predictable hashes
         with open(dir4 / x, "w", encoding="ascii") as f:
             f.write(x)
+
+    return sha1, dir2, dir3, dir4
+
+
+@needs_docker
+def test_directory_workflow_no_listing_no_input(tmp_path: Path) -> None:
+    """
+    This test will check for 3 files that should be there and 3 files that should not be there.
+    In addition it will not copy the input files due to the --no-input flag.
+    @param tmp_path:
+    """
+    # TODO no data is currently manually set
+    data_option = "--no-input"
+
+    sha1, dir2, dir3, dir4 = prepare_input_files(tmp_path)
 
     # Run the workflow
     folder = cwltool(
@@ -888,6 +959,7 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
     file_list = (
         folder
         / "data"
+        / "output"
         / "84"
         / "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4"
         # checksum as returned from:
@@ -897,20 +969,20 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
 
     assert file_list.is_file()
 
-    # Input files should be captured by hash value,
-    # even if they were inside a class: Directory
+    # Input files should be in the provenance location
     for f, file_hash in sha1.items():
         prefix = file_hash[:2]  # first 2 letters
         p = folder / "data" / prefix / file_hash
-        # File should be empty and in the future not existing...
-        # assert os.path.getsize(p.absolute()) == 0
-        # To be discared when file really does not exist anymore
-        if f in ["d", "e", "f", "g", "h", "i"]:
-            print(f"Analysing file {f}")
-            assert not p.is_file(), f"Could find {f} as {p}"
+
+        if p.is_file():
+            print("!!!!", os.path.getsize(p))
+            print(f"Analysing file '{f}' '{p}'")
+            with open(p, "r", encoding="ascii") as f:
+                content = f.read()
+                print(f"Content: '{content}'")
+            assert not p.is_file(), f"Could find '{f}' as '{p}'"
         else:
-            print(f"Analysing file {f}")
-            assert p.is_file(), f"Could not find {f} as {p}"
+            assert not p.is_file(), f"Could find '{f}' as '{p}'"
 
 
 def cwltool_no_data(tmp_path: Path, *args: Any) -> Path:
