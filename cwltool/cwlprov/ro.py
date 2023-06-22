@@ -637,7 +637,7 @@ class ResearchObject:
                             f"Only SHA1 CWL checksums are currently supported: {structure}"
                         )
 
-                    if self.has_data_file(provenance_constants.DATA, checksum):
+                    if self.has_data_file(DATAX, checksum):
                         prefix = checksum[0:2]
                         relative_path = PurePosixPath("data/input") / prefix / checksum
 
