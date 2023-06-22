@@ -24,6 +24,13 @@ from prov.identifier import Identifier, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
 
+from ..errors import WorkflowException
+from ..job import CommandLineJob, JobBase
+from ..loghandler import _logger
+from ..process import Process, shortname
+from ..stdfsaccess import StdFsAccess
+from ..utils import CWLObjectType, JobsType, posix_path, versionstring
+from ..workflow_job import WorkflowJob
 from . import provenance_constants
 from .provenance_constants import (
     ACCOUNT_UUID,
@@ -41,16 +48,9 @@ from .provenance_constants import (
     UUID,
     WF4EVER,
     WFDESC,
-    WFPROV, DATA,
+    WFPROV,
 )
 from .writablebagfile import create_job, write_bag_file  # change this later
-from ..errors import WorkflowException
-from ..job import CommandLineJob, JobBase
-from ..loghandler import _logger
-from ..process import Process, shortname
-from ..stdfsaccess import StdFsAccess
-from ..utils import CWLObjectType, JobsType, posix_path, versionstring
-from ..workflow_job import WorkflowJob
 
 if TYPE_CHECKING:
     from .ro import ResearchObject
@@ -304,7 +304,10 @@ class ProvenanceProfile:
             csum = cast(str, value["checksum"])
             (method, checksum) = csum.split("$", 1)
             # TODO Input, intermediate or output file?...
-            if method == SHA1 and self.research_object.has_data_file(provenance_constants.DATA, checksum):
+            # if provenance_constants.DATA == 'data/input'
+            if method == SHA1 and self.research_object.has_data_file(
+                provenance_constants.DATA, checksum
+            ):
                 entity = self.document.entity("data:" + checksum)
 
         if not entity and "location" in value:
@@ -640,10 +643,8 @@ class ProvenanceProfile:
         name: Optional[str],
     ) -> None:
         """Call wasGeneratedBy() for each output, copy the files into the RO."""
-
         # TODO: Change INPUT_DATA to OUTPUT_DATA?
         provenance_constants.DATA = provenance_constants.OUTPUT_DATA
-        x = provenance_constants.DATA
 
         if isinstance(final_output, MutableSequence):
             for entry in final_output:

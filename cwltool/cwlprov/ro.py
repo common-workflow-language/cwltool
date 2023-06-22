@@ -41,7 +41,8 @@ from . import (
     _valid_orcid,
     _whoami,
     checksum_copy,
-    checksum_only, provenance_constants,
+    checksum_only,
+    provenance_constants,
 )
 from .provenance_constants import (
     ACCOUNT_UUID,
@@ -105,7 +106,6 @@ class ResearchObject:
 
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
-
 
     def self_check(self) -> None:
         """Raise ValueError if this RO is closed."""
@@ -196,8 +196,8 @@ class ResearchObject:
             # adding checksums after closing.
             # Below probably OK for now as metadata files
             # are not too large..?
-
-            if self.no_input:
+            # x = provenance_constants.DATA
+            if self.no_input and provenance_constants.DATA == "data/input":
                 _logger.debug("NO INPUT DATA TO BE CAPTURED!!!")
 
                 checksums[SHA1] = checksum_only(tag_file, hasher=hashlib.sha1)
@@ -494,58 +494,56 @@ class ResearchObject:
         timestamp: Optional[datetime.datetime] = None,
         content_type: Optional[str] = None,
     ) -> str:
-        """Copy inputs to data/ folder."""
+        """Copy intermediate? inputs to data/ folder."""
+        # provenance_constants.DATA = "data/intermediate" # Change to that ???
         # TODO: This also copies the outputs?...
         # TODO Skip if no-input or no-data is used...?
         self.self_check()
         tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
-        with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
-            if self.no_data or self.no_input:
-                checksum = checksum_only(from_fp)
-            else:
+        if self.no_data:
+            checksum = checksum_only(from_fp)
+            # Create rel_path
+            folder = os.path.join(self.folder, provenance_constants.DATA, checksum[0:2])
+            path = os.path.join(folder, checksum)
+            # Relative posix path
+            rel_path = posix_path(os.path.relpath(path, self.folder))
+        elif self.no_input and provenance_constants.DATA == provenance_constants.INPUT_DATA:
+            checksum = checksum_only(from_fp)
+            # Create rel_path
+            folder = os.path.join(self.folder, provenance_constants.DATA, checksum[0:2])
+            path = os.path.join(folder, checksum)
+            # Relative posix path
+            rel_path = posix_path(os.path.relpath(path, self.folder))
+        else:
+            with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
                 checksum = checksum_copy(from_fp, tmp)
+                folder = os.path.join(self.folder, provenance_constants.DATA, checksum[0:2])
+                path = os.path.join(folder, checksum)
+                if not os.path.isdir(folder):
+                    os.makedirs(folder)
+                # Only rename when neither no data and no input is used
+                os.rename(tmp.name, path)
+                _logger.debug("Renaming %s to %s", tmp.name, path)
 
-        # Calculate hash-based file path
-        if "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8" in checksum: # This is the hash of an output file
-            print(provenance_constants.DATA)
-            x = provenance_constants.DATA
-            debug_stop = True
-        folder = os.path.join(self.folder, provenance_constants.DATA, checksum[0:2])
-        path = os.path.join(folder, checksum)
-        # os.rename assumed safe, as our temp file should
-        # be in same file system as our temp folder
+                # Relative posix path
+                rel_path = posix_path(os.path.relpath(path, self.folder))
 
-        # Which files end up here? input, intermediate and output files?
-
-        # Test if no-input or no-data is used
-        # if self.no_data or self.no_input:
-        #     path = tmp.name
-
-        # Obtain the content of tmp.name for debugging
-        with open(tmp.name, "rb") as f:
-            content = f.read()
-            print(">>>", content)
-
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
-        os.rename(tmp.name, path)
-
-        # Relative posix path
-        rel_path = posix_path(os.path.relpath(path, self.folder))
-
-        # Register in bagit checksum
-        if Hasher == hashlib.sha1:
-            self._add_to_bagit(rel_path, sha1=checksum)
-        else:
-            _logger.warning("[provenance] Unknown hash method %s for bagit manifest", Hasher)
-            # Inefficient, bagit support need to checksum again
-            self._add_to_bagit(rel_path)
-        if "dir" in self.relativised_input_object:
-            _logger.debug(
-                "[provenance] Directory :%s", self.relativised_input_object["dir"]["basename"]
-            )
-        else:
-            _logger.debug("[provenance] Added data file %s", path)
+                # Register in bagit checksum
+                if Hasher == hashlib.sha1:
+                    self._add_to_bagit(rel_path, sha1=checksum)
+                else:
+                    _logger.warning(
+                        "[provenance] Unknown hash method %s for bagit manifest", Hasher
+                    )
+                    # Inefficient, bagit support need to checksum again
+                    self._add_to_bagit(rel_path)
+                if "dir" in self.relativised_input_object:
+                    _logger.debug(
+                        "[provenance] Directory :%s",
+                        self.relativised_input_object["dir"]["basename"],
+                    )
+                else:
+                    _logger.debug("[provenance] Added data file %s", path)
         if timestamp is not None:
             createdOn, createdBy = self._self_made(timestamp)
             self._file_provenance[rel_path] = cast(
@@ -553,12 +551,11 @@ class ResearchObject:
             )
         _logger.debug("[provenance] Relative path for data file %s", rel_path)
         # This is an output hash
-        if "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8" in rel_path:
-            debug_stop = True
 
         if content_type is not None:
             self._content_types[rel_path] = content_type
         return rel_path
+
 
     def _self_made(
         self, timestamp: Optional[datetime.datetime] = None
@@ -639,9 +636,7 @@ class ResearchObject:
                         raise TypeError(
                             f"Only SHA1 CWL checksums are currently supported: {structure}"
                         )
-                    if "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8" in checksum:
-                        x = provenance_constants.DATA
-                        debug_stop = True
+
                     if self.has_data_file(provenance_constants.DATA, checksum):
                         prefix = checksum[0:2]
                         relative_path = PurePosixPath("data/input") / prefix / checksum
@@ -649,7 +644,11 @@ class ResearchObject:
                 if not (relative_path is not None and "location" in structure):
                     # Register in RO; but why was this not picked
                     # up by used_artefacts?
-                    _logger.info("[provenance] Adding to RO '%s' > %s", structure["basename"], structure["location"])
+                    _logger.info(
+                        "[provenance] Adding to RO '%s' > %s",
+                        structure["basename"],
+                        structure["location"],
+                    )
                     with self.fsaccess.open(cast(str, structure["location"]), "rb") as fp:
                         relative_path = self.add_data_file(fp)
                         checksum = PurePosixPath(relative_path).name

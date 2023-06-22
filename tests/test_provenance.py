@@ -910,7 +910,7 @@ def prepare_input_files(tmp_path: Path) -> None:
         #     with open(dir3 / f"{x}_{i}", "w", encoding="ascii") as f:
         #         f.write(x)
         # print("Created 10.000 files in dir_no_listing")
-        # list_files(dir3)
+    # list_files(dir3)
 
     dir4 = tmp_path / "dir_no_info"
     dir4.mkdir()
@@ -927,7 +927,7 @@ def prepare_input_files(tmp_path: Path) -> None:
 def test_directory_workflow_no_listing_no_input(tmp_path: Path) -> None:
     """
     This test will check for 3 files that should be there and 3 files that should not be there.
-    In addition it will not copy the input files due to the --no-input flag.
+    In addition, it will not copy the input files due to the --no-input flag.
     @param tmp_path:
     """
     # TODO no data is currently manually set
@@ -953,7 +953,7 @@ def test_directory_workflow_no_listing_no_input(tmp_path: Path) -> None:
     )
 
     # Visualize the path structure
-    # list_files(tmp_path)
+    list_files(tmp_path)
 
     # Output should include ls stdout of filenames a b c on each line
     file_list = (
@@ -975,14 +975,13 @@ def test_directory_workflow_no_listing_no_input(tmp_path: Path) -> None:
         p = folder / "data" / prefix / file_hash
 
         if p.is_file():
-            print("!!!!", os.path.getsize(p))
-            print(f"Analysing file '{f}' '{p}'")
+            print(f"Analysing file {f!r} {p!r}")
             with open(p, "r", encoding="ascii") as f:
                 content = f.read()
-                print(f"Content: '{content}'")
-            assert not p.is_file(), f"Could find '{f}' as '{p}'"
+                print(f"Content: {content!r}")
+            assert not p.is_file(), f"Could find {f!r} as {p!r}"
         else:
-            assert not p.is_file(), f"Could find '{f}' as '{p}'"
+            assert not p.is_file(), f"Could find {f!r} as {p!r}"
 
 
 def cwltool_no_data(tmp_path: Path, *args: Any) -> Path:
