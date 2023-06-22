@@ -306,7 +306,7 @@ class ProvenanceProfile:
             # TODO Input, intermediate or output file?...
             # if provenance_constants.DATA == 'data/input'
             if method == SHA1 and self.research_object.has_data_file(
-                DATAX, checksum
+                provenance_constants.DATA, checksum # DATAX
             ):
                 entity = self.document.entity("data:" + checksum)
 
