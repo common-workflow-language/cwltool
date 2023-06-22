@@ -20,6 +20,7 @@ CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.6.0"
 METADATA = "metadata"
 # sub-folders for data
 DATA = "data/input"
+DATAX = "data"
 INPUT_DATA = "data/input"
 INTM_DATA = "data/intermediate"
 OUTPUT_DATA = "data/output"

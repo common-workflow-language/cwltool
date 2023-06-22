@@ -48,7 +48,7 @@ from .provenance_constants import (
     UUID,
     WF4EVER,
     WFDESC,
-    WFPROV,
+    WFPROV, DATAX,
 )
 from .writablebagfile import create_job, write_bag_file  # change this later
 
@@ -306,7 +306,7 @@ class ProvenanceProfile:
             # TODO Input, intermediate or output file?...
             # if provenance_constants.DATA == 'data/input'
             if method == SHA1 and self.research_object.has_data_file(
-                provenance_constants.DATA, checksum
+                DATAX, checksum
             ):
                 entity = self.document.entity("data:" + checksum)
 

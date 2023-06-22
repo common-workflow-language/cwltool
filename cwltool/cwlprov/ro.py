@@ -61,7 +61,7 @@ from .provenance_constants import (
     USER_UUID,
     UUID,
     WORKFLOW,
-    Hasher,
+    Hasher, DATAX,
 )
 
 
@@ -503,21 +503,21 @@ class ResearchObject:
         if self.no_data:
             checksum = checksum_only(from_fp)
             # Create rel_path
-            folder = os.path.join(self.folder, provenance_constants.DATA, checksum[0:2])
+            folder = os.path.join(self.folder, DATAX, checksum[0:2])
             path = os.path.join(folder, checksum)
             # Relative posix path
             rel_path = posix_path(os.path.relpath(path, self.folder))
         elif self.no_input and provenance_constants.DATA == provenance_constants.INPUT_DATA:
             checksum = checksum_only(from_fp)
             # Create rel_path
-            folder = os.path.join(self.folder, provenance_constants.DATA, checksum[0:2])
+            folder = os.path.join(self.folder, DATAX, checksum[0:2])
             path = os.path.join(folder, checksum)
             # Relative posix path
             rel_path = posix_path(os.path.relpath(path, self.folder))
         else:
             with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
                 checksum = checksum_copy(from_fp, tmp)
-                folder = os.path.join(self.folder, provenance_constants.DATA, checksum[0:2])
+                folder = os.path.join(self.folder, DATAX, checksum[0:2])
                 path = os.path.join(folder, checksum)
                 if not os.path.isdir(folder):
                     os.makedirs(folder)
