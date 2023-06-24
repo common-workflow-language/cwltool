@@ -1,5 +1,5 @@
 bagit >= 1.6.4, <1.9
-pytest >= 6.2, < 7.4
+pytest >= 6.2, < 7.5
 pytest-xdist
 pytest-httpserver
 mock >= 2.0.0
