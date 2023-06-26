@@ -1839,3 +1839,19 @@ def test_very_small_and_large_floats() -> None:
     )
     assert exit_code == 0, stderr
     assert json.loads(stdout)["result"] == "0.00001 0.0000123 123000 1230000"
+
+
+def test_invalid_nested_array() -> None:
+    """Test feature proposed for CWL v1.3 in a CWL v1.2 document."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--validate",
+            get_data("tests/nested-array.cwl"),
+        ]
+    )
+    assert exit_code == 1, stderr
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Tool definition failed validation:" in stderr
+    assert (
+        "tests/nested-array.cwl:6:5: Field 'type' references unknown identifier 'string[][]'"
+    ) in stderr
