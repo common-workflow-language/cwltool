@@ -7,7 +7,7 @@ requires = [
     "types-psutil",
     "importlib_resources>=1.4",  # equivalent to Python 3.9
     "ruamel.yaml>=0.16.0,<0.18",
-    "schema-salad>=8.2.20211104054942,<9",
+    "schema-salad @ git+https://github.com/common-workflow-language/schema_salad.git@typedsl_multi_dimensional#egg=schema-salad",
     "cwl-utils >=0.19",
     'toml',
 ]
