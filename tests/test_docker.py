@@ -1,11 +1,18 @@
 """Tests for docker engine."""
+import json
 import re
 from pathlib import Path
 from shutil import which
 
 from cwltool.main import main
 
-from .util import get_data, get_main_output, needs_docker
+from .util import (
+    get_data,
+    get_main_output,
+    needs_docker,
+    needs_podman,
+    needs_singularity,
+)
 
 
 @needs_docker
@@ -136,3 +143,53 @@ def test_docker_strict_memory_limit_warning(tmp_path: Path) -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert result_code == 0
     assert "Skipping Docker software container '--memory' limit" in stderr
+
+
+@needs_docker
+def test_docker_required_secfile(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/secondary-files-required-container.cwl"),
+        ]
+    )
+    assert result_code == 0, stderr
+    assert (
+        json.loads(stdout)["output"]["secondaryFiles"][0]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
+
+
+@needs_podman
+def test_podman_required_secfile(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--podman",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/secondary-files-required-container.cwl"),
+        ]
+    )
+    assert result_code == 0, stderr
+    assert (
+        json.loads(stdout)["output"]["secondaryFiles"][0]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
+
+
+@needs_singularity
+def test_singularity_required_secfile(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--singularity",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/secondary-files-required-container.cwl"),
+        ]
+    )
+    assert result_code == 0, stderr
+    assert (
+        json.loads(stdout)["output"]["secondaryFiles"][0]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
