@@ -1454,10 +1454,18 @@ class CommandLineTool(Process):
                                         continue
                                     if isinstance(sfitem, str):
                                         sfitem = {"path": pathprefix + sfitem}
-                                    if not fs_access.exists(sfitem["path"]) and sf_required:
+                                    original_sfitem = copy.deepcopy(sfitem)
+                                    if (
+                                        not fs_access.exists(
+                                            cast(
+                                                str, cast(CWLObjectType, revmap(sfitem))["location"]
+                                            )
+                                        )
+                                        and sf_required
+                                    ):
                                         raise WorkflowException(
                                             "Missing required secondary file '%s'"
-                                            % (sfitem["path"])
+                                            % (original_sfitem["path"])
                                         )
                                     if "path" in sfitem and "location" not in sfitem:
                                         revmap(sfitem)
