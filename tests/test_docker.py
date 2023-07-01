@@ -4,6 +4,8 @@ import re
 from pathlib import Path
 from shutil import which
 
+import pytest
+
 from cwltool.main import main
 
 from .util import (
@@ -179,12 +181,16 @@ def test_podman_required_secfile(tmp_path: Path) -> None:
 
 
 @needs_singularity
-def test_singularity_required_secfile(tmp_path: Path) -> None:
+def test_singularity_required_secfile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    singularity_dir = tmp_path / "singularity"
+    singularity_dir.mkdir()
+    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
+
     result_code, stdout, stderr = get_main_output(
         [
             "--singularity",
             "--outdir",
-            str(tmp_path),
+            str(tmp_path / "out"),
             get_data("tests/secondary-files-required-container.cwl"),
         ]
     )
@@ -235,7 +241,12 @@ def test_podman_required_missing_secfile(tmp_path: Path) -> None:
 
 
 @needs_singularity
-def test_singularity_required_missing_secfile(tmp_path: Path) -> None:
+def test_singularity_required_missing_secfile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    singularity_dir = tmp_path / "singularity"
+    singularity_dir.mkdir()
+    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
     result_code, stdout, stderr = get_main_output(
         [
             "--singularity",
