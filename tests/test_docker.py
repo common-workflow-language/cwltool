@@ -193,3 +193,62 @@ def test_singularity_required_secfile(tmp_path: Path) -> None:
         json.loads(stdout)["output"]["secondaryFiles"][0]["checksum"]
         == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
     )
+
+
+@needs_docker
+def test_docker_required_missing_secfile(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/secondary-files-required-missing-container.cwl"),
+        ]
+    )
+    assert result_code == 1, stderr
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Job error:" in stderr
+    assert "Error collecting output for parameter 'output'" in stderr
+    assert (
+        "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
+    )
+    assert "file.ext3" in stderr
+
+
+@needs_podman
+def test_podman_required_missing_secfile(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--podman",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/secondary-files-required-missing-container.cwl"),
+        ]
+    )
+    assert result_code == 1, stderr
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Job error:" in stderr
+    assert "Error collecting output for parameter 'output'" in stderr
+    assert (
+        "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
+    )
+    assert "file.ext3" in stderr
+
+
+@needs_singularity
+def test_singularity_required_missing_secfile(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--singularity",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/secondary-files-required-missing-container.cwl"),
+        ]
+    )
+    assert result_code == 1, stderr
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Job error:" in stderr
+    assert "Error collecting output for parameter 'output'" in stderr
+    assert (
+        "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
+    )
+    assert "file.ext3" in stderr
