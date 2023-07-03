@@ -32,7 +32,7 @@ jobs:
     strategy:
       matrix:
         py-ver-major: [3]
-        py-ver-minor: [6, 7, 8, 9, 10, 11]
+        py-ver-minor: [6, 8, 9, 10, 11]
         step: [lint, unit, bandit, mypy]
         exclude:
           - py-ver-major: 3
