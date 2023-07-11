@@ -22,7 +22,7 @@ and downstream users before making the decision to drop support for a
 Python version before the date outlined in this policy.  The reasoning
 for dropping support for a Python version should be outlined here.
 
-As of February 2022, here are approximate cwltool support periods for
+As of 2023-07-03, here are approximate cwltool support periods for
 across Python versions:
 
 ====== ======================
@@ -30,11 +30,12 @@ Python cwltool end of support
 ====== ======================
 2.7    ended January 2020
 3.5    ended October 2020
-3.6    June 2024 (Centos 7 EOL)
-3.7    June 2023 (upstream EOL)
-3.8    April 2025 (Ubuntu 20.04 EOL)
-3.9    October 2025 (upstream EOL)
-3.10   October 2026 (upstream EOL)
+3.6    2024-06 (Centos 7 EOL)
+3.7    2023-06-27 (upstream EOL)
+3.8    2025-04-02 (Ubuntu 20.04 LTS EOL)
+3.9    2025-11-05 (upstream EOL)
+3.10   2027-04-01 (Ubuntu 22.04 LTS EOL))
+3.11   2027-11-24 (upstream EOL)
 ====== ======================
 
 Default Python version of supported Linux distributions, for reference
@@ -43,9 +44,10 @@ Default Python version of supported Linux distributions, for reference
 ====== =============================================
 Python Linux distros where it is the default version
 ====== =============================================
-3.6    Ubuntu 18.04, Centos 7
+3.6    Ubuntu 18.04 LTS, Centos 7
 3.7    Debian 10
-3.8    Ubuntu 20.04
+3.8    Ubuntu 20.04 LTS
 3.9    Debian 11
-3.10   None
+3.10   Ubuntu 22.04 LTS
+3.11   Debian 12
 ====== =============================================
