@@ -29,7 +29,7 @@ from ..job import CommandLineJob, JobBase
 from ..loghandler import _logger
 from ..process import Process, shortname
 from ..stdfsaccess import StdFsAccess
-from ..utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
+from ..utils import CWLObjectType, JobsType, posix_path, versionstring
 from ..workflow_job import WorkflowJob
 from .provenance_constants import (
     ACCOUNT_UUID,
@@ -243,6 +243,7 @@ class ProvenanceProfile:
             # record provenance of workflow executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
+            # Note to self: Listing goes ok here
             self.used_artefacts(customised_job, self.workflow_run_uri)
 
     def record_process_start(
@@ -287,6 +288,7 @@ class ProvenanceProfile:
         process_run_id: str,
         outputs: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
         when: datetime.datetime,
+        # load_listing: None,
     ) -> None:
         self.generate_output_prov(outputs, process_run_id, process_name)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
@@ -408,8 +410,8 @@ class ProvenanceProfile:
         # a later call to this method will sort that
         is_empty = True
 
-        if "listing" not in value:
-            get_listing(self.fsaccess, value)
+        # if "listing" not in value:
+        #     get_listing(self.fsaccess, value)
         for entry in cast(MutableSequence[CWLObjectType], value.get("listing", [])):
             is_empty = False
             # Declare child-artifacts
@@ -604,6 +606,7 @@ class ProvenanceProfile:
         job_order: Union[CWLObjectType, List[CWLObjectType]],
         process_run_id: str,
         name: Optional[str] = None,
+        load_listing=None,
     ) -> None:
         """Add used() for each data artefact."""
         if isinstance(job_order, list):

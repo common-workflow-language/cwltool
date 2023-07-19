@@ -287,6 +287,24 @@ def arg_parser() -> argparse.ArgumentParser:
         type=str,
     )
 
+    # TO DO: Not yet implemented
+    provgroup.add_argument(
+        "--no-data",  # Maybe change to no-input and no-intermediate to ignore those kind of files?...
+        default=False,
+        action="store_true",
+        help="Disables the storage of input and output data files",
+        dest="no_data",
+    )
+
+    # TO DO: Not yet implemented
+    provgroup.add_argument(
+        "--no-input",  # Maybe change to no-input and no-intermediate to ignore those kind of files?...
+        default=False,
+        action="store_true",
+        help="Disables the storage of input data files",
+        dest="no_input",
+    )
+
     printgroup = parser.add_mutually_exclusive_group()
     printgroup.add_argument(
         "--print-rdf",

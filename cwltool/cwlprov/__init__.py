@@ -6,9 +6,13 @@ import pwd
 import re
 import uuid
 from getpass import getuser
-from typing import IO, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import IO, Any, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import TypedDict
+
+from cwltool.cwlprov.provenance_constants import Hasher
+
+from ..loghandler import _logger
 
 
 def _whoami() -> Tuple[str, str]:
@@ -135,7 +139,7 @@ AuthoredBy = TypedDict(
 def checksum_copy(
     src_file: IO[Any],
     dst_file: Optional[IO[Any]] = None,
-    hasher: Optional[Callable[[], "hashlib._Hash"]] = None,
+    hasher=Hasher,  # type: Callable[[], hashlib._Hash]
     buffersize: int = 1024 * 1024,
 ) -> str:
     """Compute checksums while copying a file."""
@@ -158,6 +162,35 @@ def checksum_copy(
             pass
         if os.path.exists(temp_location):
             os.rename(temp_location, dst_file.name)  # type: ignore
+
+    return content_processor(contents, src_file, dst_file, checksum, buffersize)
+
+
+def checksum_only(
+    src_file: IO[Any],
+    dst_file: Optional[IO[Any]] = None,
+    hasher=Hasher,  # type: Callable[[], hashlib._Hash]
+    buffersize: int = 1024 * 1024,
+) -> str:
+    """Calculate the checksum only, does not copy the data files."""
+    if dst_file is not None:
+        _logger.error("Destination file should be None but it is %s", dst_file)
+    """Compute checksums while copying a file."""
+    # TODO: Use hashlib.new(Hasher_str) instead?
+    checksum = hasher()
+    contents = src_file.read(buffersize)
+    # TODO Could be a function for both checksum_only and checksum_copy?
+    return content_processor(contents, src_file, dst_file, checksum, buffersize)
+
+
+def content_processor(
+    contents: Any,
+    src_file: IO[Any],
+    dst_file: Optional[IO[Any]],
+    checksum: "hashlib._Hash",
+    buffersize: int,
+) -> str:
+    """Calculate the checksum based on the content."""
     while contents != b"":
         if dst_file is not None:
             dst_file.write(contents)
