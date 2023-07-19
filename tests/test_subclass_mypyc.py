@@ -15,6 +15,7 @@ from cwltool.command_line_tool import CommandLineTool, ExpressionTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
+from cwltool.workflow import Workflow
 
 from .test_anon_types import snippet
 
@@ -39,6 +40,16 @@ def test_subclass_exprtool(snippet: CommentedMap) -> None:
 
     a = TestExprTool(snippet, LoadingContext())
     assert a.test is False
+
+
+@pytest.mark.parametrize("snippet", snippet)
+def test_pickle_unpickle_workflow(snippet: CommentedMap) -> None:
+    """We can pickle & unpickle a Workflow."""
+
+    a = Workflow(snippet, LoadingContext())
+    stream = pickle.dumps(a)
+    assert stream
+    assert pickle.loads(stream)
 
 
 def test_serialize_builder() -> None:
