@@ -85,6 +85,7 @@ class DependenciesConfiguration:
         app_config = {
             "conda_auto_install": True,
             "conda_auto_init": True,
+            "debug": builder.debug,
         }
         tool_dependency_manager: "deps.DependencyManager" = deps.build_dependency_manager(
             app_config_dict=app_config,
