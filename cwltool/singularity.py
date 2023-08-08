@@ -43,9 +43,7 @@ def get_version() -> Tuple[List[int], str]:
     global _SINGULARITY_VERSION  # pylint: disable=global-statement
     global _SINGULARITY_FLAVOR  # pylint: disable=global-statement
     if _SINGULARITY_VERSION is None:
-        version_output = check_output(  # nosec
-            ["singularity", "--version"], universal_newlines=True
-        ).strip()
+        version_output = check_output(["singularity", "--version"], text=True).strip()  # nosec
 
         version_match = re.match(r"(.+) version ([0-9\.]+)", version_output)
         if version_match is None:

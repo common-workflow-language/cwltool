@@ -21,7 +21,7 @@ def reset_singularity_version_cache() -> None:
 def set_dummy_check_output(name: str, version: str) -> None:
     """Mock out subprocess.check_output."""
     cwltool.singularity.check_output = (  # type: ignore[attr-defined]
-        lambda c, universal_newlines: name + " version " + version
+        lambda c, text: name + " version " + version
     )
 
 

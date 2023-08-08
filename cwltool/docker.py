@@ -47,7 +47,7 @@ def _get_docker_machine_mounts() -> List[str]:
                             "-t",
                             "vboxsf",
                         ],
-                        universal_newlines=True,
+                        text=True,
                     ).splitlines()
                 ]
     return __docker_machine_mounts

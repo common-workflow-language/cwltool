@@ -12,6 +12,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Optional,
     TextIO,
     Tuple,
@@ -22,7 +23,6 @@ from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names
 from schema_salad.ref_resolver import Loader
 from schema_salad.utils import FetcherCallableType
-from typing_extensions import Literal
 
 from .mpi import MpiConfig
 from .pathmapper import PathMapper

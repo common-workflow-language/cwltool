@@ -25,7 +25,7 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py cwltool/cwlprov/*.py tests/*.py) setup.py
-DEVPKGS=diff_cover pylint pep257 pydocstyle 'tox<4' tox-pyenv \
+DEVPKGS=diff_cover pylint pep257 pydocstyle 'tox<4' tox-pyenv auto-walrus \
 	isort wheel autoflake pyupgrade bandit -rlint-requirements.txt\
 	-rtest-requirements.txt -rmypy-requirements.txt -rdocs/requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
@@ -191,16 +191,6 @@ mypy: $(PYSOURCES)
 	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
 	MYPYPATH=$$MYPYPATH:mypy-stubs mypy $^
 
-mypy_3.6: $(filter-out setup.py gittagger.py,$(PYSOURCES))
-	if ! test -f $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
-	then \
-		rm -Rf mypy-stubs/ruamel/yaml ; \
-		ln -s $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-			mypy-stubs/ruamel/ ; \
-	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
-	MYPYPATH=$$MYPYPATH:mypy-stubs mypy --python-version 3.6 $^
-
-
 mypyc: $(PYSOURCES)
 	MYPYPATH=mypy-stubs CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
 		 && pytest -rs -vv ${PYTEST_EXTRA}
@@ -210,7 +200,8 @@ shellcheck: FORCE
 		cwltool-in-docker.sh
 
 pyupgrade: $(PYSOURCES)
-	pyupgrade --exit-zero-even-if-changed --py36-plus $^
+	pyupgrade --exit-zero-even-if-changed --py38-plus $^
+	auto-walrus $^
 
 release-test: check-python3 FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommitted changes, please commit them and try again; false )

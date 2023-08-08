@@ -14,6 +14,7 @@ import os
 import sys
 from datetime import datetime
 import time
+import importlib.metadata
 
 sys.path.insert(0, os.path.abspath(".."))
 
@@ -81,12 +82,7 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
-
-if sys.version_info >= (3, 8):
-    import importlib.metadata as importlib_metadata
-else:
-    import importlib_metadata
-release = importlib_metadata.version("cwltool")
+release = importlib.metadata.version("cwltool")
 version = ".".join(release.split(".")[:2])
 
 autoapi_dirs = ["../cwltool"]
