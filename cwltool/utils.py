@@ -1,5 +1,6 @@
 """Shared functions and other definitions."""
 import collections
+import fcntl
 import importlib.metadata
 import os
 import random
@@ -17,7 +18,6 @@ from functools import partial
 from itertools import zip_longest
 from pathlib import Path, PurePosixPath
 from tempfile import NamedTemporaryFile
-from types import ModuleType
 from typing import (
     IO,
     TYPE_CHECKING,
@@ -241,29 +241,12 @@ def random_outdir() -> str:
     return __random_outdir
 
 
-#
-# Simple multi-platform (fcntl/msvrt) file locking wrapper
-#
-fcntl: Optional[ModuleType] = None
-msvcrt: Optional[ModuleType] = None
-try:
-    import fcntl
-except ImportError:
-    import msvcrt
-
-
 def shared_file_lock(fd: IO[Any]) -> None:
-    if fcntl:
-        fcntl.flock(fd.fileno(), fcntl.LOCK_SH)
-    elif msvcrt:
-        msvcrt.locking(fd.fileno(), msvcrt.LK_LOCK, 1024)
+    fcntl.flock(fd.fileno(), fcntl.LOCK_SH)
 
 
 def upgrade_lock(fd: IO[Any]) -> None:
-    if fcntl:
-        fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
-    elif msvcrt:
-        pass
+    fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
 
 
 def adjustFileObjs(rec: Any, op: Union[Callable[..., Any], "partial[Any]"]) -> None:
