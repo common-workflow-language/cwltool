@@ -379,9 +379,7 @@ def resolve_and_validate_document(
     loadingContext = loadingContext.copy()
 
     if not isinstance(workflowobj, MutableMapping):
-        raise ValueError(
-            "workflowjobj must be a dict, got '{}': {}".format(type(workflowobj), workflowobj)
-        )
+        raise ValueError(f"workflowjobj must be a dict, got {type(workflowobj)!r}: {workflowobj}")
 
     jobobj = None
     if "cwl:tool" in workflowobj:

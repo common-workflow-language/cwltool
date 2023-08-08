@@ -810,7 +810,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 _logger.debug("%s error", container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
-                        "{} is required to run this tool: {}".format(container, str(err))
+                        f"{container} is required to run this tool: {str(err)}"
                     ) from err
                 else:
                     raise WorkflowException(

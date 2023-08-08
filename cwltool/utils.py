@@ -1,5 +1,6 @@
 """Shared functions and other definitions."""
 import collections
+import importlib.metadata
 import os
 import random
 import shutil
@@ -22,16 +23,19 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Deque,
     Dict,
     Generator,
     Iterable,
     List,
+    Literal,
     MutableMapping,
     MutableSequence,
     NamedTuple,
     Optional,
     Set,
     Tuple,
+    TypedDict,
     Union,
     cast,
 )
@@ -39,15 +43,9 @@ from typing import (
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
-from mypy_extensions import TypedDict, mypyc_attr
+from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
-from typing_extensions import Deque, Literal
-
-if sys.version_info >= (3, 8):
-    import importlib.metadata as importlib_metadata
-else:
-    import importlib_metadata
 
 if TYPE_CHECKING:
     from .command_line_tool import CallbackJob, ExpressionJob
@@ -101,14 +99,15 @@ DirectoryType = TypedDict(
 )
 JSONAtomType = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
 JSONType = Union[Dict[str, JSONAtomType], List[JSONAtomType], str, int, float, bool, None]
-WorkflowStateItem = NamedTuple(
-    "WorkflowStateItem",
-    [
-        ("parameter", CWLObjectType),
-        ("value", Optional[CWLOutputType]),
-        ("success", str),
-    ],
-)
+
+
+class WorkflowStateItem(NamedTuple):
+    """Workflow state item."""
+
+    parameter: CWLObjectType
+    value: Optional[CWLOutputType]
+    success: str
+
 
 ParametersType = List[CWLObjectType]
 StepType = CWLObjectType  # WorkflowStep
@@ -118,8 +117,7 @@ LoadListingType = Union[Literal["no_listing"], Literal["shallow_listing"], Liter
 
 def versionstring() -> str:
     """Version of CWLtool used to execute the workflow."""
-    pkg = importlib_metadata.version("cwltool")
-    if pkg:
+    if pkg := importlib.metadata.version("cwltool"):
         return f"{sys.argv[0]} {pkg}"
     return "{} {}".format(sys.argv[0], "unknown version")
 

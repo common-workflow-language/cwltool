@@ -693,7 +693,7 @@ class CommandLineTool(Process):
         for i, t2 in enumerate(ls):
             if not isinstance(t2, Mapping):
                 raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
-                    "Entry at index %s of listing is not a record, was %s" % (i, type(t2))
+                    f"Entry at index {i} of listing is not a record, was {type(t2)}"
                 )
 
             if "entry" not in t2:
@@ -715,7 +715,9 @@ class CommandLineTool(Process):
 
             if not isinstance(t2["entry"], Mapping):
                 raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
-                    "Entry at index %s of listing is not a record, was %s" % (i, type(t2["entry"]))
+                    "Entry at index {} of listing is not a record, was {}".format(
+                        i, type(t2["entry"])
+                    )
                 )
 
             if t2["entry"].get("class") not in ("File", "Directory"):
