@@ -114,7 +114,7 @@ setup(
         # https://github.com/ionrock/cachecontrol/issues/137
         "ruamel.yaml >= 0.15, < 0.18",
         "ruamel.yaml >= 0.16.0;python_version>='3.10'",
-        "rdflib >= 4.2.2, < 6.4.0",
+        "rdflib >= 4.2.2, < 7.1.0",
         "shellescape >= 3.4.1, < 3.9",
         "schema-salad >= 8.4, < 9",
         "prov == 1.5.1",
