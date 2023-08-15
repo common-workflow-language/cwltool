@@ -183,12 +183,6 @@ list-author-emails:
 
 mypy3: mypy
 mypy: $(PYSOURCES)
-	if ! test -f $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
-	then \
-		rm -Rf mypy-stubs/ruamel/yaml ; \
-		ln -s $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-			mypy-stubs/ruamel/ ; \
-	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
 	MYPYPATH=$$MYPYPATH:mypy-stubs mypy $^
 
 mypyc: $(PYSOURCES)
