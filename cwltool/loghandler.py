@@ -11,6 +11,7 @@ _logger.setLevel(logging.INFO)
 
 def configure_logging(
     stderr_handler: logging.Handler,
+    no_warnings: bool,
     quiet: bool,
     debug: bool,
     enable_color: bool,
@@ -25,6 +26,8 @@ def configure_logging(
     deps_logger.addHandler(stderr_handler)
     ss_logger = logging.getLogger("salad")
     ss_logger.addHandler(stderr_handler)
+    if no_warnings:
+        stderr_handler.setLevel(logging.ERROR)
     if quiet:
         # Silence STDERR, not an eventual provenance log file
         stderr_handler.setLevel(logging.WARN)
