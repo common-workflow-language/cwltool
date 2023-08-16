@@ -1,6 +1,6 @@
 import urllib
 from codecs import StreamWriter
-from typing import Any, Dict, Iterator, Optional, TextIO, Union, cast
+from typing import IO, Any, Dict, Iterator, Optional, TextIO, Union, cast
 
 from rdflib import Graph
 from rdflib.query import ResultRow
@@ -51,8 +51,7 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
 
     for step, run, _ in qres:
         stdout.write(
-            '"%s" [label="%s"]\n'
-            % (lastpart(step), f"{lastpart(step)} ({lastpart(run)})")
+            '"{}" [label="{}"]\n'.format(lastpart(step), f"{lastpart(step)} ({lastpart(run)})")
         )
 
     qres = cast(
@@ -69,12 +68,8 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
 
     for step, inp, source in qres:
         stdout.write('"%s" [shape=box]\n' % (lastpart(inp)))
-        stdout.write(
-            '"{}" -> "{}" [label="{}"]\n'.format(lastpart(source), lastpart(inp), "")
-        )
-        stdout.write(
-            '"{}" -> "{}" [label="{}"]\n'.format(lastpart(inp), lastpart(step), "")
-        )
+        stdout.write('"{}" -> "{}" [label="{}"]\n'.format(lastpart(source), lastpart(inp), ""))
+        stdout.write('"{}" -> "{}" [label="{}"]\n'.format(lastpart(inp), lastpart(step), ""))
 
     qres = cast(
         Iterator[ResultRow],
@@ -89,9 +84,7 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
 
     for step, out in qres:
         stdout.write('"%s" [shape=box]\n' % (lastpart(out)))
-        stdout.write(
-            '"{}" -> "{}" [label="{}"]\n'.format(lastpart(step), lastpart(out), "")
-        )
+        stdout.write('"{}" -> "{}" [label="{}"]\n'.format(lastpart(step), lastpart(out), ""))
 
     qres = cast(
         Iterator[ResultRow],
@@ -106,9 +99,7 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
 
     for out, source in qres:
         stdout.write('"%s" [shape=octagon]\n' % (lastpart(out)))
-        stdout.write(
-            '"{}" -> "{}" [label="{}"]\n'.format(lastpart(source), lastpart(out), "")
-        )
+        stdout.write('"{}" -> "{}" [label="{}"]\n'.format(lastpart(source), lastpart(out), ""))
 
     qres = cast(
         Iterator[ResultRow],
@@ -126,7 +117,7 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
 
 
 def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
-    dotname = {}  # type: Dict[str,str]
+    dotname: Dict[str, str] = {}
     clusternode = {}
 
     stdout.write("compound=true\n")
@@ -160,7 +151,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
         ),
     )  # ResultRow because the query is of type SELECT
 
-    currentwf = None  # type: Optional[str]
+    currentwf: Optional[str] = None
     for wf, step, _run, runtype in qres:
         if step not in dotname:
             dotname[step] = lastpart(step)
@@ -171,7 +162,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
             if wf in subworkflows:
                 if wf not in dotname:
                     dotname[wf] = "cluster_" + lastpart(wf)
-                stdout.write(f'subgraph "{dotname[wf]}" {{ label="{lastpart(wf)}"\n')
+                stdout.write(f'subgraph "{dotname[wf]}" {{ label="{lastpart(wf)}"\n')  # noqa: B907
                 currentwf = wf
                 clusternode[wf] = step
             else:
@@ -179,8 +170,7 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
 
         if str(runtype) != "https://w3id.org/cwl/cwl#Workflow":
             stdout.write(
-                '"%s" [label="%s"]\n'
-                % (dotname[step], urllib.parse.urldefrag(str(step))[1])
+                f'"{dotname[step]}" [label="{urllib.parse.urldefrag(str(step))[1]}"]\n'  # noqa: B907
             )
 
     if currentwf is not None:
@@ -210,13 +200,13 @@ def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> Non
         if sinkrun in clusternode:
             attr += ' lhead="%s"' % dotname[sinkrun]
             sink = clusternode[sinkrun]
-        stdout.write(f'"{dotname[src]}" -> "{dotname[sink]}" [{attr}]\n')
+        stdout.write(f'"{dotname[src]}" -> "{dotname[sink]}" [{attr}]\n')  # noqa: B907
 
 
 def printdot(
     wf: Process,
     ctx: ContextType,
-    stdout: Union[TextIO, StreamWriter],
+    stdout: IO[str],
 ) -> None:
-    cwl_viewer = CWLViewer(printrdf(wf, ctx, "n3"))  # type: CWLViewer
+    cwl_viewer: CWLViewer = CWLViewer(printrdf(wf, ctx, "n3"))
     stdout.write(cwl_viewer.dot().replace(f"{wf.metadata['id']}#", ""))

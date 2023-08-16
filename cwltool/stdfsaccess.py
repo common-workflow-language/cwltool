@@ -32,9 +32,7 @@ class StdFsAccess:
         return abspath(p, self.basedir)
 
     def glob(self, pattern: str) -> List[str]:
-        return [
-            file_uri(str(self._abs(line))) for line in glob.glob(self._abs(pattern))
-        ]
+        return [file_uri(str(self._abs(line))) for line in glob.glob(self._abs(pattern))]
 
     def open(self, fn: str, mode: str) -> IO[Any]:
         return open(self._abs(fn), mode)
@@ -52,10 +50,7 @@ class StdFsAccess:
         return os.path.isdir(self._abs(fn))
 
     def listdir(self, fn: str) -> List[str]:
-        return [
-            abspath(urllib.parse.quote(entry), fn)
-            for entry in os.listdir(self._abs(fn))
-        ]
+        return [abspath(urllib.parse.quote(entry), fn) for entry in os.listdir(self._abs(fn))]
 
     def join(self, path, *paths):  # type: (str, *str) -> str
         return os.path.join(path, *paths)

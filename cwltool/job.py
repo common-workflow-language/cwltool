@@ -18,6 +18,7 @@ from abc import ABCMeta, abstractmethod
 from threading import Timer
 from typing import (
     IO,
+    TYPE_CHECKING,
     Callable,
     Dict,
     Iterable,
@@ -38,7 +39,6 @@ import shellescape
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
-from typing_extensions import TYPE_CHECKING
 
 from . import env_to_stdout, run_job
 from .builder import Builder
@@ -63,7 +63,9 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
+    from .cwlprov.provenance_profile import (
+        ProvenanceProfile,  # pylint: disable=unused-import
+    )
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
@@ -91,9 +93,7 @@ def relink_initialworkdir(
                 # directory, so therefore ineligable for being an output file.
                 # Thus, none of our business
                 continue
-            host_outdir_tgt = os.path.join(
-                host_outdir, vol.target[len(container_outdir) + 1 :]
-            )
+            host_outdir_tgt = os.path.join(host_outdir, vol.target[len(container_outdir) + 1 :])
             if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
                 try:
                     os.remove(host_outdir_tgt)
@@ -120,7 +120,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[..., PathMapper],
+        make_path_mapper: Callable[[List[CWLObjectType], str, RuntimeContext, bool], PathMapper],
         requirements: List[CWLObjectType],
         hints: List[CWLObjectType],
         name: str,
@@ -129,41 +129,41 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         super().__init__()
         self.builder = builder
         self.joborder = joborder
-        self.stdin = None  # type: Optional[str]
-        self.stderr = None  # type: Optional[str]
-        self.stdout = None  # type: Optional[str]
-        self.successCodes = []  # type: Iterable[int]
-        self.temporaryFailCodes = []  # type: Iterable[int]
-        self.permanentFailCodes = []  # type: Iterable[int]
+        self.stdin: Optional[str] = None
+        self.stderr: Optional[str] = None
+        self.stdout: Optional[str] = None
+        self.successCodes: Iterable[int] = []
+        self.temporaryFailCodes: Iterable[int] = []
+        self.permanentFailCodes: Iterable[int] = []
         self.requirements = requirements
         self.hints = hints
         self.name = name
-        self.command_line = []  # type: List[str]
+        self.command_line: List[str] = []
         self.pathmapper = PathMapper([], "", "")
         self.make_path_mapper = make_path_mapper
-        self.generatemapper = None  # type: Optional[PathMapper]
+        self.generatemapper: Optional[PathMapper] = None
 
         # set in CommandLineTool.job(i)
         self.collect_outputs = cast(CollectOutputsType, None)
-        self.output_callback = None  # type: Optional[OutputCallbackType]
+        self.output_callback: Optional[OutputCallbackType] = None
         self.outdir = ""
         self.tmpdir = ""
 
-        self.environment = {}  # type: MutableMapping[str, str]
-        self.generatefiles = {
+        self.environment: MutableMapping[str, str] = {}
+        self.generatefiles: DirectoryType = {
             "class": "Directory",
             "listing": [],
             "basename": "",
-        }  # type: DirectoryType
-        self.stagedir = None  # type: Optional[str]
+        }
+        self.stagedir: Optional[str] = None
         self.inplace_update = False
-        self.prov_obj = None  # type: Optional[ProvenanceProfile]
-        self.parent_wf = None  # type: Optional[ProvenanceProfile]
-        self.timelimit = None  # type: Optional[int]
-        self.networkaccess = False  # type: bool
-        self.mpi_procs = None  # type: Optional[int]
+        self.prov_obj: Optional[ProvenanceProfile] = None
+        self.parent_wf: Optional[ProvenanceProfile] = None
+        self.timelimit: Optional[int] = None
+        self.networkaccess: bool = False
+        self.mpi_procs: Optional[int] = None
 
-    def __repr__(self):  # type: () -> str
+    def __repr__(self) -> str:
         """Represent this Job object."""
         return "CommandLineJob(%s)" % self.name
 
@@ -176,14 +176,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         pass
 
     def _setup(self, runtimeContext: RuntimeContext) -> None:
-
-        cuda_req, _ = self.builder.get_requirement(
-            "http://commonwl.org/cwltool#CUDARequirement"
-        )
+        cuda_req, _ = self.builder.get_requirement("http://commonwl.org/cwltool#CUDARequirement")
         if cuda_req:
-            count = cuda_check(
-                cuda_req, math.ceil(self.builder.resources["cudaDeviceCount"])
-            )
+            count = cuda_check(cuda_req, math.ceil(self.builder.resources["cudaDeviceCount"]))
             if count == 0:
                 raise WorkflowException("Could not satisfy CUDARequirement")
 
@@ -201,9 +196,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         for knownfile in self.pathmapper.files():
             p = self.pathmapper.mapper(knownfile)
             if p.type == "File" and not os.path.isfile(p[0]) and p.staged:
-                if not (
-                    is_streamable(knownfile) and stat.S_ISFIFO(os.stat(p[0]).st_mode)
-                ):
+                if not (is_streamable(knownfile) and stat.S_ISFIFO(os.stat(p[0]).st_mode)):
                     raise WorkflowException(
                         "Input file %s (at %s) not found or is not a regular "
                         "file." % (knownfile, self.pathmapper.mapper(knownfile)[0])
@@ -223,10 +216,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     "[job %s] initial work dir %s",
                     self.name,
                     json_dumps(
-                        {
-                            p: self.generatemapper.mapper(p)
-                            for p in self.generatemapper.files()
-                        },
+                        {p: self.generatemapper.mapper(p) for p in self.generatemapper.files()},
                         indent=4,
                     ),
                 )
@@ -239,7 +229,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         runtime: List[str],
         env: MutableMapping[str, str],
         runtimeContext: RuntimeContext,
-        monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
+        monitor_function: Optional[Callable[["subprocess.Popen[str]"], None]] = None,
     ) -> None:
         """Execute the tool, either directly or via script.
 
@@ -284,12 +274,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 ]
             ),
             " < %s" % self.stdin if self.stdin else "",
-            " > %s" % os.path.join(self.base_path_logs, self.stdout)
-            if self.stdout
-            else "",
-            " 2> %s" % os.path.join(self.base_path_logs, self.stderr)
-            if self.stderr
-            else "",
+            " > %s" % os.path.join(self.base_path_logs, self.stdout) if self.stdout else "",
+            " 2> %s" % os.path.join(self.base_path_logs, self.stderr) if self.stderr else "",
         )
         if self.joborder is not None and runtimeContext.research_obj is not None:
             job_order = self.joborder
@@ -307,7 +293,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     "or prov_obj is missing from runtimeContext: "
                     "{}".format(runtimeContext)
                 )
-        outputs = {}  # type: CWLObjectType
+        outputs: CWLObjectType = {}
         try:
             stdin_path = None
             if self.stdin is not None:
@@ -341,7 +327,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     runtimeContext.secret_store.retrieve(cast(CWLOutputType, env)),
                 )
 
-            job_script_contents = None  # type: Optional[str]
+            job_script_contents: Optional[str] = None
             builder: Optional[Builder] = getattr(self, "builder", None)
             if builder is not None:
                 job_script_contents = builder.build_job_script(commands)
@@ -392,8 +378,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     )
                 else:
                     raise ValueError(
-                        "'listing' in self.generatefiles but no "
-                        "generatemapper was setup."
+                        "'listing' in self.generatefiles but no " "generatemapper was setup."
                     )
             runtimeContext.log_dir_handler(
                 self.outdir, self.base_path_logs, stdout_path, stderr_path
@@ -434,9 +419,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             _logger.info("[job %s] completed %s", self.name, processStatus)
 
         if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug(
-                "[job %s] outputs %s", self.name, json_dumps(outputs, indent=4)
-            )
+            _logger.debug("[job %s] outputs %s", self.name, json_dumps(outputs, indent=4))
 
         if self.generatemapper is not None and runtimeContext.secret_store is not None:
             # Delete any runtime-generated files containing secrets.
@@ -453,15 +436,13 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                         os.remove(host_outdir_tgt)
 
         if runtimeContext.workflow_eval_lock is None:
-            raise WorkflowException(
-                "runtimeContext.workflow_eval_lock must not be None"
-            )
+            raise WorkflowException("runtimeContext.workflow_eval_lock must not be None")
 
         if self.output_callback:
             with runtimeContext.workflow_eval_lock:
                 self.output_callback(outputs, processStatus)
 
-        if self.stagedir is not None and os.path.exists(self.stagedir):
+        if runtimeContext.rm_tmpdir and self.stagedir is not None and os.path.exists(self.stagedir):
             _logger.debug(
                 "[job %s] Removing input staging directory %s",
                 self.name,
@@ -470,9 +451,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             shutil.rmtree(self.stagedir, True)
 
         if runtimeContext.rm_tmpdir:
-            _logger.debug(
-                "[job %s] Removing temporary directory %s", self.name, self.tmpdir
-            )
+            _logger.debug("[job %s] Removing temporary directory %s", self.name, self.tmpdir)
             shutil.rmtree(self.tmpdir, True)
 
     @abstractmethod
@@ -508,15 +487,13 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             self._preserve_environment_on_containers_warning()
             env.update(os.environ)
         elif runtimeContext.preserve_environment:
-            self._preserve_environment_on_containers_warning(
-                runtimeContext.preserve_environment
-            )
+            self._preserve_environment_on_containers_warning(runtimeContext.preserve_environment)
             for key in runtimeContext.preserve_environment:
                 try:
                     env[key] = os.environ[key]
                 except KeyError:
                     _logger.warning(
-                        f"Attempting to preserve environment variable '{key}' which is not present"
+                        f"Attempting to preserve environment variable {key!r} which is not present"
                     )
 
         # Set required env vars
@@ -528,10 +505,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # Set on ourselves
         self.environment = env
 
-    def process_monitor(self, sproc):  # type: (subprocess.Popen[str]) -> None
+    def process_monitor(self, sproc: "subprocess.Popen[str]") -> None:
+        """Watch a process, logging its max memory usage."""
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
-        memory_usage = [None]  # type: MutableSequence[Optional[int]]
+        memory_usage: MutableSequence[Optional[int]] = [None]
 
         def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
             children = monitor.children()
@@ -539,9 +517,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 rss = monitor.memory_info().rss
                 while len(children):
                     rss += sum(process.memory_info().rss for process in children)
-                    children = list(
-                        itertools.chain(*(process.children() for process in children))
-                    )
+                    children = list(itertools.chain(*(process.children() for process in children)))
                 if memory_usage[0] is None or rss > memory_usage[0]:
                     memory_usage[0] = rss
             except psutil.NoSuchProcess:
@@ -559,9 +535,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 round(memory_usage[0] / (2**20)),
             )
         else:
-            _logger.debug(
-                "Could not collect memory usage, job ended before monitoring began."
-            )
+            _logger.debug("Could not collect memory usage, job ended before monitoring began.")
 
 
 class CommandLineJob(JobBase):
@@ -570,7 +544,6 @@ class CommandLineJob(JobBase):
         runtimeContext: RuntimeContext,
         tmpdir_lock: Optional[threading.Lock] = None,
     ) -> None:
-
         if tmpdir_lock:
             with tmpdir_lock:
                 if not os.path.exists(self.tmpdir):
@@ -610,8 +583,9 @@ class CommandLineJob(JobBase):
         env["HOME"] = self.outdir
         env["TMPDIR"] = self.tmpdir
         env["PATH"] = os.environ["PATH"]
-        if "SYSTEMROOT" in os.environ:
-            env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+        for extra in ("SYSTEMROOT", "QEMU_LD_PREFIX"):
+            if extra in os.environ:
+                env[extra] = os.environ[extra]
         return env
 
 
@@ -643,9 +617,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
     @staticmethod
     @abstractmethod
-    def append_volume(
-        runtime: List[str], source: str, target: str, writable: bool = False
-    ) -> None:
+    def append_volume(runtime: List[str], source: str, target: str, writable: bool = False) -> None:
         """Add binding arguments to the runtime list."""
 
     @abstractmethod
@@ -684,7 +656,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             flags = "--preserve-environment={" + ", ".join(varnames) + "}"
 
         _logger.warning(
-            f"You have specified `{flags}` while running a container which will override variables set in the container. This may break the container, be non-portable, and/or affect reproducibility."
+            f"You have specified {flags!r} while running a container which will "
+            "override variables set in the container. This may break the "
+            "container, be non-portable, and/or affect reproducibility."
         )
 
     def create_file_and_add_volume(
@@ -729,11 +703,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         """Append volume mappings to the runtime option list."""
         container_outdir = self.builder.outdir
         for key, vol in (itm for itm in pathmapper.items() if itm[1].staged):
-            host_outdir_tgt = None  # type: Optional[str]
+            host_outdir_tgt: Optional[str] = None
             if vol.target.startswith(container_outdir + "/"):
-                host_outdir_tgt = os.path.join(
-                    self.outdir, vol.target[len(container_outdir) + 1 :]
-                )
+                host_outdir_tgt = os.path.join(self.outdir, vol.target[len(container_outdir) + 1 :])
             if not host_outdir_tgt and not any_path_okay:
                 raise WorkflowException(
                     "No mandatory DockerRequirement, yet path is outside "
@@ -743,13 +715,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             if vol.type in ("File", "Directory"):
                 self.add_file_or_directory_volume(runtime, vol, host_outdir_tgt)
             elif vol.type == "WritableFile":
-                self.add_writable_file_volume(
-                    runtime, vol, host_outdir_tgt, tmpdir_prefix
-                )
+                self.add_writable_file_volume(runtime, vol, host_outdir_tgt, tmpdir_prefix)
             elif vol.type == "WritableDirectory":
-                self.add_writable_directory_volume(
-                    runtime, vol, host_outdir_tgt, tmpdir_prefix
-                )
+                self.add_writable_directory_volume(runtime, vol, host_outdir_tgt, tmpdir_prefix)
             elif vol.type in ["CreateFile", "CreateWritableFile"]:
                 new_path = self.create_file_and_add_volume(
                     runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix
@@ -785,14 +753,12 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 _logger.info(str(cmd))
                 try:
                     subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
-                except OSError:
-                    raise SourceLine(
-                        docker_req, None, WorkflowException, debug
-                    ).makeError(
+                except OSError as exc:
+                    raise SourceLine(docker_req, None, WorkflowException, debug).makeError(
                         f"Either Docker container {img_id} is not available with "
                         f"user space docker implementation {user_space_docker_cmd} "
                         f" or {user_space_docker_cmd} is missing or broken."
-                    )
+                    ) from exc
             else:
                 raise SourceLine(docker_req, None, WorkflowException, debug).makeError(
                     "Docker image must be specified as 'dockerImageId' or "
@@ -816,11 +782,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                         if default_container:
                             img_id = str(default_container)
 
-                if (
-                    docker_req is not None
-                    and img_id is None
-                    and runtimeContext.use_container
-                ):
+                if docker_req is not None and img_id is None and runtimeContext.use_container:
                     raise Exception("Docker image not available")
 
                 if (
@@ -849,9 +811,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 _logger.debug("%s error", container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
-                        "{} is required to run this tool: {}".format(
-                            container, str(err)
-                        )
+                        f"{container} is required to run this tool: {str(err)}"
                     ) from err
                 else:
                     raise WorkflowException(
@@ -859,7 +819,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                         "--no-container to disable {0}, or install "
                         "a user space Docker replacement like uDocker with "
                         "--user-space-docker-cmd.: {1}".format(container, err)
-                    )
+                    ) from err
 
         self._setup(runtimeContext)
 
@@ -875,6 +835,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 cidfile,
                 runtimeContext.tmpdir_prefix,
                 not bool(runtimeContext.cidfile_dir),
+                "podman" if runtimeContext.podman else "docker",
             )
         elif runtimeContext.user_space_docker_cmd:
             monitor_function = functools.partial(self.process_monitor)
@@ -885,7 +846,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         cidfile: str,
         tmpdir_prefix: str,
         cleanup_cidfile: bool,
-        process,  # type: subprocess.Popen[str]
+        docker_exe: str,
+        process: "subprocess.Popen[str]",
     ) -> None:
         """Record memory usage of the running Docker container."""
         # Todo: consider switching to `docker create` / `docker start`
@@ -893,7 +855,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         # to stdout, but the container is frozen, thus allowing us to start the
         # monitoring process without dealing with the cidfile or too-fast
         # container execution
-        cid = None  # type: Optional[str]
+        cid: Optional[str] = None
         while cid is None:
             time.sleep(1)
             if process.returncode is not None:
@@ -901,14 +863,12 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     try:
                         os.remove(cidfile)
                     except OSError as exc:
-                        _logger.warning(
-                            "Ignored error cleaning up Docker cidfile: %s", exc
-                        )
+                        _logger.warning("Ignored error cleaning up %s cidfile: %s", docker_exe, exc)
                     return
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
-            except (OSError):
+            except OSError:
                 cid = None
         max_mem = psutil.virtual_memory().total
         tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
@@ -916,31 +876,33 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         stats_file_name = stats_file.name
         try:
             with open(stats_file_name, mode="w") as stats_file_handle:
+                cmds = [docker_exe, "stats"]
+                if "podman" not in docker_exe:
+                    cmds.append("--no-trunc")
+                cmds.extend(["--format", "{{.MemPerc}}", cid])
                 stats_proc = subprocess.Popen(  # nosec
-                    ["docker", "stats", "--no-trunc", "--format", "{{.MemPerc}}", cid],
+                    cmds,
                     stdout=stats_file_handle,
                     stderr=subprocess.DEVNULL,
                 )
                 process.wait()
                 stats_proc.kill()
         except OSError as exc:
-            _logger.warning("Ignored error with docker stats: %s", exc)
+            _logger.warning("Ignored error with %s stats: %s", docker_exe, exc)
             return
-        max_mem_percent = 0  # type: float
-        mem_percent = 0  # type: float
+        max_mem_percent: float = 0.0
+        mem_percent: float = 0.0
         with open(stats_file_name) as stats:
             while True:
                 line = stats.readline()
                 if not line:
                     break
                 try:
-                    mem_percent = float(
-                        re.sub(CONTROL_CODE_RE, "", line).replace("%", "")
-                    )
+                    mem_percent = float(re.sub(CONTROL_CODE_RE, "", line).replace("%", ""))
                     if mem_percent > max_mem_percent:
                         max_mem_percent = mem_percent
-                except ValueError:
-                    break
+                except ValueError as exc:
+                    _logger.debug("%s stats parsing error in line %s: %s", docker_exe, line, exc)
         _logger.info(
             "[job %s] Max memory used: %iMiB",
             self.name,
@@ -961,14 +923,12 @@ def _job_popen(
     job_script_contents: Optional[str] = None,
     timelimit: Optional[int] = None,
     name: Optional[str] = None,
-    monitor_function=None,  # type: Optional[Callable[[subprocess.Popen[str]], None]]
-    default_stdout=None,  # type: Optional[Union[IO[bytes], TextIO]]
-    default_stderr=None,  # type: Optional[Union[IO[bytes], TextIO]]
+    monitor_function: Optional[Callable[["subprocess.Popen[str]"], None]] = None,
+    default_stdout: Optional[Union[IO[bytes], TextIO]] = None,
+    default_stderr: Optional[Union[IO[bytes], TextIO]] = None,
 ) -> int:
-
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
-
-        stdin = subprocess.PIPE  # type: Union[IO[bytes], int]
+        stdin: Union[IO[bytes], int] = subprocess.PIPE
         if stdin_path is not None:
             stdin = open(stdin_path, "rb")
 
@@ -1049,9 +1009,7 @@ def _job_popen(
 
         job_dir = make_job_dir()
         try:
-            with open(
-                os.path.join(job_dir, "job.json"), mode="w", encoding="utf-8"
-            ) as job_file:
+            with open(os.path.join(job_dir, "job.json"), mode="w", encoding="utf-8") as job_file:
                 json_dump(job_description, job_file, ensure_ascii=False)
             job_script = os.path.join(job_dir, "run_job.bash")
             with open(job_script, "w") as _:

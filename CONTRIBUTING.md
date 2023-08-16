@@ -1,6 +1,6 @@
 Style guide:
 - PEP-8 (as implemented by the `black` code formatting tool)
-- Python 3.6+ compatible code
+- Python 3.8+ compatible code
 - PEP-484 type hints
 
 The development is done using `git`, we encourage you to get familiar with it.
@@ -8,6 +8,9 @@ Here's a rough guide (improvements are welcome!)
 To get the code and start working on the changes you can start a console and:
 - Clone the cwltool: `git clone https://github.com/common-workflow-language/cwltool.git`
 - Switch to cwltool directory: `cd cwltool`
+
+It is suggested that you run `git config blame.ignoreRevsFile .git-blame-ignore-revs`
+to filter out mass-formatting commits from `git blame`.
 
 In order to contribute to the development of `cwltool`, the source code needs to
 pass the test before your changes are accepted. There are a couple ways to test

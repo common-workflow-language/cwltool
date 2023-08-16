@@ -32,7 +32,5 @@ def configure_logging(
     fmtclass = coloredlogs.ColoredFormatter if enable_color else logging.Formatter
     formatter = fmtclass("%(levelname)s %(message)s")
     if timestamps:
-        formatter = fmtclass(
-            "[%(asctime)s] %(levelname)s %(message)s", "%Y-%m-%d %H:%M:%S"
-        )
+        formatter = fmtclass("[%(asctime)s] %(levelname)s %(message)s", "%Y-%m-%d %H:%M:%S")
     stderr_handler.setFormatter(formatter)

@@ -13,9 +13,11 @@ from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DC, DCTERMS, RDF
 from rdflib.term import Literal
 
-from cwltool import provenance, provenance_constants
+import cwltool.cwlprov as provenance
+from cwltool.cwlprov import provenance_constants
+from cwltool.cwlprov.ro import ResearchObject
+from cwltool.cwlprov.writablebagfile import close_ro, write_bag_file
 from cwltool.main import main
-from cwltool.provenance import ResearchObject
 from cwltool.stdfsaccess import StdFsAccess
 
 from .util import get_data, needs_docker, working_directory
@@ -93,6 +95,19 @@ def test_revsort_workflow(tmp_path: Path) -> None:
     )
     check_output_object(folder)
     check_provenance(folder)
+
+
+@needs_docker
+def test_revsort_workflow_shortcut(tmp_path: Path) -> None:
+    """Confirm that using 'cwl:tool' shortcut still snapshots the CWL files."""
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/revsort-job-shortcut.json"),
+    )
+    check_output_object(folder)
+    check_provenance(folder)
+    assert not (folder / "snapshot" / "revsort-job-shortcut.json").exists()
+    assert len(list((folder / "snapshot").iterdir())) == 4
 
 
 @needs_docker
@@ -200,10 +215,10 @@ def test_directory_workflow(tmp_path: Path) -> None:
 
     # Input files should be captured by hash value,
     # even if they were inside a class: Directory
-    for (l, l_hash) in sha1.items():
+    for letter, l_hash in sha1.items():
         prefix = l_hash[:2]  # first 2 letters
         p = folder / "data" / prefix / l_hash
-        assert p.is_file(), f"Could not find {l} as {p}"
+        assert p.is_file(), f"Could not find {letter} as {p}"
 
 
 @needs_docker
@@ -489,9 +504,7 @@ def check_ro(base_path: Path, nested: bool = False) -> None:
 
     packed = urllib.parse.urljoin(arcp_root, "/workflow/packed.cwl")
     primary_job = urllib.parse.urljoin(arcp_root, "/workflow/primary-job.json")
-    primary_prov_nt = urllib.parse.urljoin(
-        arcp_root, "/metadata/provenance/primary.cwlprov.nt"
-    )
+    primary_prov_nt = urllib.parse.urljoin(arcp_root, "/metadata/provenance/primary.cwlprov.nt")
     uuid = arcp.parse_arcp(arcp_root).uuid
 
     highlights = set(g.subjects(OA.motivatedBy, OA.highlighting))
@@ -647,6 +660,7 @@ def check_prov(
             assert (d, RDF.type, PROV.Dictionary) in g
             assert (d, RDF.type, PROV.Collection) in g
             assert (d, RDF.type, PROV.Entity) in g
+            assert len(list(g.objects(d, CWLPROV.basename))) == 1
 
             files = set()
             for entry in g.objects(d, PROV.hadDictionaryMember):
@@ -698,24 +712,24 @@ def check_prov(
 
 
 @pytest.fixture
-def research_object() -> Generator[ResearchObject, None, None]:
-    re_ob = ResearchObject(StdFsAccess(""))
+def research_object(tmp_path: Path) -> Generator[ResearchObject, None, None]:
+    re_ob = ResearchObject(StdFsAccess(str(tmp_path / "ro")), temp_prefix_ro=str(tmp_path / "tmp"))
     yield re_ob
-    re_ob.close()
+    close_ro(re_ob)
 
 
 def test_absolute_path_fails(research_object: ResearchObject) -> None:
     with pytest.raises(ValueError):
-        research_object.write_bag_file("/absolute/path/fails")
+        write_bag_file(research_object, "/absolute/path/fails")
 
 
 def test_climboutfails(research_object: ResearchObject) -> None:
     with pytest.raises(ValueError):
-        research_object.write_bag_file("../../outside-ro")
+        write_bag_file(research_object, "../../outside-ro")
 
 
 def test_writable_string(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("file.txt") as fh:
+    with write_bag_file(research_object, "file.txt") as fh:
         assert fh.writable()
         fh.write("Hello\n")
 
@@ -747,19 +761,19 @@ def test_writable_string(research_object: ResearchObject) -> None:
 
 
 def test_writable_unicode_string(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("file.txt") as fh:
+    with write_bag_file(research_object, "file.txt") as fh:
         assert fh.writable()
         fh.write("Here is a snowman: \u2603 \n")
 
 
 def test_writable_bytes(research_object: ResearchObject) -> None:
     string = "Here is a snowman: \u2603 \n".encode()
-    with research_object.write_bag_file("file.txt", encoding=None) as fh:
+    with write_bag_file(research_object, "file.txt", encoding=None) as fh:
         fh.write(string)  # type: ignore
 
 
 def test_data(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("data/file.txt") as fh:
+    with write_bag_file(research_object, "data/file.txt") as fh:
         assert fh.writable()
         fh.write("Hello\n")
 
@@ -773,21 +787,21 @@ def test_data(research_object: ResearchObject) -> None:
 
 
 def test_not_seekable(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("file.txt") as fh:
+    with write_bag_file(research_object, "file.txt") as fh:
         assert not fh.seekable()
         with pytest.raises(OSError):
             fh.seek(0)
 
 
 def test_not_readable(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("file.txt") as fh:
+    with write_bag_file(research_object, "file.txt") as fh:
         assert not fh.readable()
         with pytest.raises(OSError):
             fh.read()
 
 
 def test_truncate_fails(research_object: ResearchObject) -> None:
-    with research_object.write_bag_file("file.txt") as fh:
+    with write_bag_file(research_object, "file.txt") as fh:
         fh.write("Hello there")
         fh.truncate()  # OK as we're always at end
         # Will fail because the checksum can't rewind
@@ -876,8 +890,6 @@ def test_research_object() -> None:
     pass
 
 
-# Research object may need to be pickled (for Toil)
-
-
 def test_research_object_picklability(research_object: ResearchObject) -> None:
+    """Research object may need to be pickled (for Toil)."""
     assert pickle.dumps(research_object) is not None

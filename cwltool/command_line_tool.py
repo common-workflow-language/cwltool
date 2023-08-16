@@ -14,6 +14,7 @@ import urllib.parse
 from enum import Enum
 from functools import cmp_to_key, partial
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Generator,
@@ -25,11 +26,13 @@ from typing import (
     Pattern,
     Set,
     TextIO,
+    Type,
     Union,
     cast,
 )
 
 import shellescape
+from mypy_extensions import mypyc_attr
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Schema
 from schema_salad.exceptions import ValidationException
@@ -37,7 +40,6 @@ from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
-from typing_extensions import TYPE_CHECKING, Type
 
 from .builder import (
     INPUT_OBJ_VOCAB,
@@ -46,7 +48,7 @@ from .builder import (
     substitute,
 )
 from .context import LoadingContext, RuntimeContext, getdefault
-from .docker import DockerCommandLineJob
+from .docker import DockerCommandLineJob, PodmanCommandLineJob
 from .errors import UnsupportedRequirement, WorkflowException
 from .flatten import flatten
 from .job import CommandLineJob, JobBase
@@ -84,7 +86,9 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
-    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
+    from .cwlprov.provenance_profile import (
+        ProvenanceProfile,  # pylint: disable=unused-import
+    )
 
 
 class PathCheckingMode(Enum):
@@ -95,49 +99,64 @@ class PathCheckingMode(Enum):
     """
 
     STRICT = re.compile(r"^[\w.+\,\-:@\]^\u2600-\u26FF\U0001f600-\U0001f64f]+$")
-    # accepts names that contain one or more of the following:
-    # "\w"                  unicode word characters; this includes most characters
-    #                            that can be part of a word in any language, as well
-    #                            as numbers and the underscore
-    # "."                    a literal period
-    # "+"                    a literal plus sign
-    # "\,"                  a literal comma
-    # "\-"                  a literal minus sign
-    # ":"                    a literal colon
-    # "@"                    a literal at-symbol
-    # "\]"                  a literal end-square-bracket
-    # "^"                    a literal caret symbol
-    # \u2600-\u26FF                  matches a single character in the range between
-    #                       ☀ (index 9728) and ⛿ (index 9983)
-    # \U0001f600-\U0001f64f matches a single character in the range between
-    #                       😀 (index 128512) and 🙏 (index 128591)
+    r"""
+    Accepts names that contain one or more of the following:
 
-    # Note: the following characters are intentionally not included:
-    #
-    # 1. reserved words in POSIX:
-    # ! { }
-    #
-    # 2. POSIX metacharacters listed in the CWL standard as okay to reject
-    # | & ; < > ( ) $ ` " ' <space> <tab> <newline>
-    # (In accordance with
-    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path" )
-    #
-    # 3. POSIX path separator
-    # \
-    # (also listed at
-    # https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path")
-    #
-    # 4. Additional POSIX metacharacters
-    # * ? [ # ˜ = %
+    .. list-table::
 
-    # TODO: switch to https://pypi.org/project/regex/ and use
-    # `\p{Extended_Pictographic}` instead of the manual emoji ranges
+       * - ``\w``
+         - unicode word characters
 
-    RELAXED = re.compile(r".*")  # Accept anything
+           this includes most characters that can be part of a word in any
+           language, as well as numbers and the underscore
+       * - ``.``
+         - a literal period
+       * - ``+``
+         - a literal plus sign
+       * - ``,``
+         - a literal comma
+       * - ``-``
+         - a literal minus sign
+       * - ``:``
+         - a literal colon
+       * - ``@``
+         - a literal at-symbol
+       * - ``]``
+         - a literal end-square-bracket
+       * - ``^``
+         - a literal caret symbol
+       * - ``\u2600-\u26FF``
+         - matches a single character in the range between ☀ (index 9728) and ⛿ (index 9983)
+       * - ``\U0001f600-\U0001f64f``
+         - matches a single character in the range between 😀 (index 128512) and 🙏 (index 128591)
+
+    Note: the following characters are intentionally not included:
+
+    1. reserved words in POSIX: ``!``, :code:`{`, ``}``
+
+    2. POSIX metacharacters listed in the CWL standard as okay to reject: ``|``,
+       ``&``, ``;``, ``<``, ``>``, ``(``, ``)``, ``$``, `````, ``"``, ``'``,
+       :kbd:`<space>`, :kbd:`<tab>`, :kbd:`<newline>`.
+
+       (In accordance with https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path" )
+
+    3. POSIX path separator: ``\``
+
+       (also listed at https://www.commonwl.org/v1.0/CommandLineTool.html#File under "path")
+
+    4. Additional POSIX metacharacters: ``*``, ``?``, ``[``, ``#``, ``˜``,
+       ``=``, ``%``.
+
+    TODO: switch to https://pypi.org/project/regex/ and use
+    ``\p{Extended_Pictographic}`` instead of the manual emoji ranges
+    """
+
+    RELAXED = re.compile(r".*")
+    """Accept anything."""
 
 
 class ExpressionJob:
-    """Job for ExpressionTools."""
+    """Job for :py:class:`ExpressionTool`."""
 
     def __init__(
         self,
@@ -149,7 +168,7 @@ class ExpressionJob:
         outdir: Optional[str] = None,
         tmpdir: Optional[str] = None,
     ) -> None:
-        """Initializet this ExpressionJob."""
+        """Initialize this ExpressionJob."""
         self.builder = builder
         self.requirements = requirements
         self.hints = hints
@@ -157,7 +176,7 @@ class ExpressionJob:
         self.outdir = outdir
         self.tmpdir = tmpdir
         self.script = script
-        self.prov_obj = None  # type: Optional[ProvenanceProfile]
+        self.prov_obj: Optional["ProvenanceProfile"] = None
 
     def run(
         self,
@@ -191,6 +210,7 @@ class ExpressionJob:
                 self.output_callback({}, "permanentFail")
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class ExpressionTool(Process):
     def job(
         self,
@@ -226,9 +246,7 @@ def remove_path(f):  # type: (CWLObjectType) -> None
         del f["path"]
 
 
-def revmap_file(
-    builder: Builder, outdir: str, f: CWLObjectType
-) -> Optional[CWLObjectType]:
+def revmap_file(builder: Builder, outdir: str, f: CWLObjectType) -> Optional[CWLObjectType]:
     """
     Remap a file from internal path to external path.
 
@@ -236,7 +254,6 @@ def revmap_file(
     outside the container. Recognizes files in the pathmapper or remaps
     internal output directories to the external directory.
     """
-
     # builder.outdir is the inner (container/compute node) output directory
     # outdir is the outer (host/storage system) output directory
 
@@ -252,13 +269,14 @@ def revmap_file(
         if location.startswith("file://"):
             f["path"] = uri_file_path(location)
         else:
+            f["location"] = builder.fs_access.join(outdir, cast(str, f["location"]))
             return f
 
     if "dirname" in f:
         del f["dirname"]
 
     if "path" in f:
-        path = cast(str, f["path"])
+        path = builder.fs_access.join(builder.outdir, cast(str, f["path"]))
         uripath = file_uri(path)
         del f["path"]
 
@@ -271,9 +289,7 @@ def revmap_file(
             )
         revmap_f = builder.pathmapper.reversemap(path)
 
-        if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith(
-            "Writable"
-        ):
+        if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
             f["location"] = revmap_f[1]
         elif (
             uripath == outdir
@@ -302,8 +318,9 @@ def revmap_file(
     )
 
 
+@mypyc_attr(serializable=True)
 class CallbackJob:
-    """Callback Job class, used by CommandLine.job()."""
+    """Callback Job class, used by :py:func:`CommandLineTool.job`."""
 
     def __init__(
         self,
@@ -336,9 +353,7 @@ class CallbackJob:
             )
 
 
-def check_adjust(
-    accept_re: Pattern[str], builder: Builder, file_o: CWLObjectType
-) -> CWLObjectType:
+def check_adjust(accept_re: Pattern[str], builder: Builder, file_o: CWLObjectType) -> CWLObjectType:
     """
     Map files to assigned path inside a container.
 
@@ -346,9 +361,7 @@ def check_adjust(
     doesn't reach everything in builder.bindings
     """
     if not builder.pathmapper:
-        raise ValueError(
-            "Do not call check_adjust using a builder that doesn't have a pathmapper."
-        )
+        raise ValueError("Do not call check_adjust using a builder that doesn't have a pathmapper.")
     file_o["path"] = path = builder.pathmapper.mapper(cast(str, file_o["location"]))[1]
     basename = cast(str, file_o.get("basename"))
     dn, bn = os.path.split(path)
@@ -364,7 +377,7 @@ def check_adjust(
             file_o["nameext"] = str(ne)
     if not accept_re.match(basename):
         raise WorkflowException(
-            f"Invalid filename: '{file_o['basename']}' contains illegal characters"
+            f"Invalid filename: {file_o['basename']!r} contains illegal characters"
         )
     return file_o
 
@@ -376,9 +389,7 @@ def check_valid_locations(fs_access: StdFsAccess, ob: CWLObjectType) -> None:
     if ob["class"] == "File" and not fs_access.isfile(location):
         raise ValidationException("Does not exist or is not a File: '%s'" % location)
     if ob["class"] == "Directory" and not fs_access.isdir(location):
-        raise ValidationException(
-            "Does not exist or is not a Directory: '%s'" % location
-        )
+        raise ValidationException("Does not exist or is not a Directory: '%s'" % location)
 
 
 OutputPortsType = Dict[str, Optional[CWLOutputType]]
@@ -394,10 +405,9 @@ class ParameterOutputWorkflowException(WorkflowException):
         )
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class CommandLineTool(Process):
-    def __init__(
-        self, toolpath_object: CommentedMap, loadingContext: LoadingContext
-    ) -> None:
+    def __init__(self, toolpath_object: CommentedMap, loadingContext: LoadingContext) -> None:
         """Initialize this CommandLineTool."""
         super().__init__(toolpath_object, loadingContext)
         self.prov_obj = loadingContext.prov_obj
@@ -443,22 +453,20 @@ class CommandLineTool(Process):
                         _logger.warning(
                             "MPI has been required while Docker is hinted, discarding Docker hint(s)"
                         )
-                        self.hints = [
-                            h for h in self.hints if h["class"] != "DockerRequirement"
-                        ]
+                        self.hints = [h for h in self.hints if h["class"] != "DockerRequirement"]
                         return CommandLineJob
                 else:
                     if dockerRequired:
                         _logger.warning(
                             "Docker has been required while MPI is hinted, discarding MPI hint(s)"
                         )
-                        self.hints = [
-                            h for h in self.hints if h["class"] != MPIRequirementName
-                        ]
+                        self.hints = [h for h in self.hints if h["class"] != MPIRequirementName]
                     else:
                         raise UnsupportedRequirement(
                             "Both Docker and MPI have been hinted - don't know what to do"
                         )
+            if runtimeContext.podman:
+                return PodmanCommandLineJob
             return DockerCommandLineJob
         if dockerRequired:
             raise UnsupportedRequirement(
@@ -467,8 +475,8 @@ class CommandLineTool(Process):
             )
         return CommandLineJob
 
+    @staticmethod
     def make_path_mapper(
-        self,
         reffiles: List[CWLObjectType],
         stagedir: str,
         runtimeContext: RuntimeContext,
@@ -476,13 +484,10 @@ class CommandLineTool(Process):
     ) -> PathMapper:
         return PathMapper(reffiles, runtimeContext.basedir, stagedir, separateDirs)
 
-    def updatePathmap(
-        self, outdir: str, pathmap: PathMapper, fn: CWLObjectType
-    ) -> None:
+    def updatePathmap(self, outdir: str, pathmap: PathMapper, fn: CWLObjectType) -> None:
+        """Update a PathMapper with a CWL File or Directory object."""
         if not isinstance(fn, MutableMapping):
-            raise WorkflowException(
-                "Expected File or Directory object, was %s" % type(fn)
-            )
+            raise WorkflowException("Expected File or Directory object, was %s" % type(fn))
         basename = cast(str, fn["basename"])
         if "location" in fn:
             location = cast(str, fn["location"])
@@ -497,9 +502,7 @@ class CommandLineTool(Process):
         for sf in cast(List[CWLObjectType], fn.get("secondaryFiles", [])):
             self.updatePathmap(outdir, pathmap, sf)
         for ls in cast(List[CWLObjectType], fn.get("listing", [])):
-            self.updatePathmap(
-                os.path.join(outdir, cast(str, fn["basename"])), pathmap, ls
-            )
+            self.updatePathmap(os.path.join(outdir, cast(str, fn["basename"])), pathmap, ls)
 
     def _initialworkdir(self, j: JobBase, builder: Builder) -> None:
         initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
@@ -525,9 +528,7 @@ class CommandLineTool(Process):
             if not isinstance(ls_evaluated, MutableSequence):
                 fail = ls_evaluated
             else:
-                ls_evaluated2 = cast(
-                    MutableSequence[Union[None, CWLOutputType]], ls_evaluated
-                )
+                ls_evaluated2 = cast(MutableSequence[Union[None, CWLOutputType]], ls_evaluated)
                 for entry in ls_evaluated2:
                     if entry == None:  # noqa
                         if classic_dirent:
@@ -581,11 +582,11 @@ class CommandLineTool(Process):
                     message += ". "
                 else:
                     message += "; null; or arrays of File or Directory objects. "
-                message += f"Got '{fail}' among the results from "
-                message += f"'{initialWorkdir['listing'].strip()}'." + fail_suffix
-                raise SourceLine(
-                    initialWorkdir, "listing", WorkflowException, debug
-                ).makeError(message)
+                message += f"Got {fail!r} among the results from "
+                message += f"{initialWorkdir['listing'].strip()!r}." + fail_suffix
+                raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
+                    message
+                )
             ls = cast(List[CWLObjectType], ls_evaluated)
         else:
             # "listing" is an array of either expressions or Dirent so
@@ -604,9 +605,7 @@ class CommandLineTool(Process):
 
                     if isinstance(entry, MutableSequence):
                         if classic_listing:
-                            raise SourceLine(
-                                t, "entry", WorkflowException, debug
-                            ).makeError(
+                            raise SourceLine(t, "entry", WorkflowException, debug).makeError(
                                 "'entry' expressions are not allowed to evaluate "
                                 "to an array of Files or Directories until CWL "
                                 "v1.2. Consider using 'cwl-upgrader' to upgrade "
@@ -618,9 +617,10 @@ class CommandLineTool(Process):
 
                         filelist = True
                         for e in entry:
-                            if not isinstance(e, MutableMapping) or e.get(
-                                "class"
-                            ) not in ("File", "Directory"):
+                            if not isinstance(e, MutableMapping) or e.get("class") not in (
+                                "File",
+                                "Directory",
+                            ):
                                 filelist = False
                                 break
 
@@ -648,9 +648,7 @@ class CommandLineTool(Process):
                             et["entry"] = entry
                         else:
                             if classic_dirent:
-                                raise SourceLine(
-                                    t, "entry", WorkflowException, debug
-                                ).makeError(
+                                raise SourceLine(t, "entry", WorkflowException, debug).makeError(
                                     "'entry' expression resulted in "
                                     "something other than number, object or "
                                     "array besides a single File or Dirent object. "
@@ -659,7 +657,7 @@ class CommandLineTool(Process):
                                     "If that is the desired result then please "
                                     "consider using 'cwl-upgrader' to upgrade "
                                     "your document to CWL version 1.2. "
-                                    f"Result of '{entry_field}' was '{entry}'."
+                                    f"Result of {entry_field!r} was {entry!r}."
                                 )
                             et["entry"] = json_dumps(entry, sort_keys=True)
 
@@ -672,7 +670,7 @@ class CommandLineTool(Process):
                                     t, "entryname", WorkflowException, debug
                                 ).makeError(
                                     "'entryname' expression must result a string. "
-                                    f"Got '{en}' from '{entryname_field}'"
+                                    f"Got {en!r} from {entryname_field!r}"
                                 )
                             et["entryname"] = en
                         else:
@@ -694,11 +692,8 @@ class CommandLineTool(Process):
 
         for i, t2 in enumerate(ls):
             if not isinstance(t2, Mapping):
-                raise SourceLine(
-                    initialWorkdir, "listing", WorkflowException, debug
-                ).makeError(
-                    "Entry at index %s of listing is not a record, was %s"
-                    % (i, type(t2))
+                raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
+                    f"Entry at index {i} of listing is not a record, was {type(t2)}"
                 )
 
             if "entry" not in t2:
@@ -707,9 +702,9 @@ class CommandLineTool(Process):
             # Dirent
             if isinstance(t2["entry"], str):
                 if not t2["entryname"]:
-                    raise SourceLine(
-                        initialWorkdir, "listing", WorkflowException, debug
-                    ).makeError("Entry at index %s of listing missing entryname" % (i))
+                    raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
+                        "Entry at index %s of listing missing entryname" % (i)
+                    )
                 ls[i] = {
                     "class": "File",
                     "basename": t2["entryname"],
@@ -719,17 +714,14 @@ class CommandLineTool(Process):
                 continue
 
             if not isinstance(t2["entry"], Mapping):
-                raise SourceLine(
-                    initialWorkdir, "listing", WorkflowException, debug
-                ).makeError(
-                    "Entry at index %s of listing is not a record, was %s"
-                    % (i, type(t2["entry"]))
+                raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
+                    "Entry at index {} of listing is not a record, was {}".format(
+                        i, type(t2["entry"])
+                    )
                 )
 
             if t2["entry"].get("class") not in ("File", "Directory"):
-                raise SourceLine(
-                    initialWorkdir, "listing", WorkflowException, debug
-                ).makeError(
+                raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
                     "Entry at index %s of listing is not a File or Directory object, was %s"
                     % (i, t2)
                 )
@@ -746,9 +738,7 @@ class CommandLineTool(Process):
         for i, t3 in enumerate(ls):
             if t3.get("class") not in ("File", "Directory"):
                 # Check that every item is a File or Directory object now
-                raise SourceLine(
-                    initialWorkdir, "listing", WorkflowException, debug
-                ).makeError(
+                raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
                     f"Entry at index {i} of listing is not a Dirent, File or "
                     f"Directory object, was {t2}."
                 )
@@ -757,21 +747,17 @@ class CommandLineTool(Process):
             basename = os.path.normpath(cast(str, t3["basename"]))
             t3["basename"] = basename
             if basename.startswith("../"):
-                raise SourceLine(
-                    initialWorkdir, "listing", WorkflowException, debug
-                ).makeError(
-                    f"Name '{basename}' at index {i} of listing is invalid, "
+                raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
+                    f"Name {basename!r} at index {i} of listing is invalid, "
                     "cannot start with '../'"
                 )
             if basename.startswith("/"):
                 # only if DockerRequirement in requirements
-                if cwl_version and ORDERED_VERSIONS.index(
-                    cwl_version
-                ) < ORDERED_VERSIONS.index("v1.2.0-dev4"):
-                    raise SourceLine(
-                        initialWorkdir, "listing", WorkflowException, debug
-                    ).makeError(
-                        f"Name '{basename}' at index {i} of listing is invalid, "
+                if cwl_version and ORDERED_VERSIONS.index(cwl_version) < ORDERED_VERSIONS.index(
+                    "v1.2.0-dev4"
+                ):
+                    raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
+                        f"Name {basename!r} at index {i} of listing is invalid, "
                         "paths starting with '/' are only permitted in CWL 1.2 "
                         "and later. Consider changing the absolute path to a relative "
                         "path, or upgrade the CWL description to CWL v1.2 using "
@@ -780,10 +766,8 @@ class CommandLineTool(Process):
 
                 req, is_req = self.get_requirement("DockerRequirement")
                 if is_req is not True:
-                    raise SourceLine(
-                        initialWorkdir, "listing", WorkflowException, debug
-                    ).makeError(
-                        f"Name '{basename}' at index {i} of listing is invalid, "
+                    raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
+                        f"Name {basename!r} at index {i} of listing is invalid, "
                         "name can only start with '/' when DockerRequirement "
                         "is in 'requirements'."
                     )
@@ -793,9 +777,7 @@ class CommandLineTool(Process):
             for entry in ls:
                 if "basename" in entry:
                     basename = cast(str, entry["basename"])
-                    entry["dirname"] = os.path.join(
-                        builder.outdir, os.path.dirname(basename)
-                    )
+                    entry["dirname"] = os.path.join(builder.outdir, os.path.dirname(basename))
                     entry["basename"] = os.path.basename(basename)
                 normalizeFilesDirs(entry)
                 self.updatePathmap(
@@ -827,13 +809,10 @@ class CommandLineTool(Process):
         output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> Generator[Union[JobBase, CallbackJob], None, None]:
-
         workReuse, _ = self.get_requirement("WorkReuse")
         enableReuse = workReuse.get("enableReuse", True) if workReuse else True
 
-        jobname = uniquename(
-            runtimeContext.name or shortname(self.tool.get("id", "job"))
-        )
+        jobname = uniquename(runtimeContext.name or shortname(self.tool.get("id", "job")))
         if runtimeContext.cachedir and enableReuse:
             cachecontext = runtimeContext.copy()
             cachecontext.outdir = "/out"
@@ -846,9 +825,7 @@ class CommandLineTool(Process):
                 cachebuilder.stagedir,
                 separateDirs=False,
             )
-            _check_adjust = partial(
-                check_adjust, self.path_check_mode.value, cachebuilder
-            )
+            _check_adjust = partial(check_adjust, self.path_check_mode.value, cachebuilder)
             _checksum = partial(
                 compute_checksums,
                 runtimeContext.make_fs_access(runtimeContext.basedir),
@@ -858,22 +835,13 @@ class CommandLineTool(Process):
                 ("File", "Directory"),
                 _check_adjust,
             )
-            visit_class(
-                [cachebuilder.files, cachebuilder.bindings], ("File"), _checksum
-            )
+            visit_class([cachebuilder.files, cachebuilder.bindings], ("File"), _checksum)
 
-            cmdline = flatten(
-                list(map(cachebuilder.generate_arg, cachebuilder.bindings))
-            )
+            cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
             docker_req, _ = self.get_requirement("DockerRequirement")
             if docker_req is not None and runtimeContext.use_container:
-                dockerimg = docker_req.get("dockerImageId") or docker_req.get(
-                    "dockerPull"
-                )
-            elif (
-                runtimeContext.default_container is not None
-                and runtimeContext.use_container
-            ):
+                dockerimg = docker_req.get("dockerImageId") or docker_req.get("dockerPull")
+            elif runtimeContext.default_container is not None and runtimeContext.use_container:
                 dockerimg = runtimeContext.default_container
             else:
                 dockerimg = None
@@ -934,9 +902,7 @@ class CommandLineTool(Process):
             keydictstr = json_dumps(keydict, separators=(",", ":"), sort_keys=True)
             cachekey = hashlib.md5(keydictstr.encode("utf-8")).hexdigest()  # nosec
 
-            _logger.debug(
-                "[job %s] keydictstr is %s -> %s", jobname, keydictstr, cachekey
-            )
+            _logger.debug("[job %s] keydictstr is %s -> %s", jobname, keydictstr, cachekey)
 
             jobcache = os.path.join(runtimeContext.cachedir, cachekey)
 
@@ -956,9 +922,7 @@ class CommandLineTool(Process):
 
             if os.path.isdir(jobcache) and jobstatus == "success":
                 if docker_req and runtimeContext.use_container:
-                    cachebuilder.outdir = (
-                        runtimeContext.docker_outdir or random_outdir()
-                    )
+                    cachebuilder.outdir = runtimeContext.docker_outdir or random_outdir()
                 else:
                     cachebuilder.outdir = jobcache
 
@@ -968,9 +932,7 @@ class CommandLineTool(Process):
                 jobcachelock.close()
                 return
             else:
-                _logger.info(
-                    "[job %s] Output of job will be cached in %s", jobname, jobcache
-                )
+                _logger.info("[job %s] Output of job will be cached in %s", jobname, jobcache)
 
                 # turn shared lock into an exclusive lock since we'll
                 # be writing the cache directory
@@ -1023,22 +985,16 @@ class CommandLineTool(Process):
                 "[job %s] initializing from %s%s",
                 j.name,
                 self.tool.get("id", ""),
-                " as part of %s" % runtimeContext.part_of
-                if runtimeContext.part_of
-                else "",
+                " as part of %s" % runtimeContext.part_of if runtimeContext.part_of else "",
             )
             _logger.debug("[job %s] %s", j.name, json_dumps(builder.job, indent=4))
 
-        builder.pathmapper = self.make_path_mapper(
-            reffiles, builder.stagedir, runtimeContext, True
-        )
+        builder.pathmapper = self.make_path_mapper(reffiles, builder.stagedir, runtimeContext, True)
         builder.requirements = j.requirements
 
         _check_adjust = partial(check_adjust, self.path_check_mode.value, builder)
 
-        visit_class(
-            [builder.files, builder.bindings], ("File", "Directory"), _check_adjust
-        )
+        visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
 
         self._initialworkdir(j, builder)
 
@@ -1047,10 +1003,7 @@ class CommandLineTool(Process):
                 "[job %s] path mappings is %s",
                 j.name,
                 json_dumps(
-                    {
-                        p: builder.pathmapper.mapper(p)
-                        for p in builder.pathmapper.files()
-                    },
+                    {p: builder.pathmapper.mapper(p) for p in builder.pathmapper.files()},
                     indent=4,
                 ),
             )
@@ -1060,8 +1013,8 @@ class CommandLineTool(Process):
                 stdin_eval = builder.do_eval(self.tool["stdin"])
                 if not (isinstance(stdin_eval, str) or stdin_eval is None):
                     raise ValidationException(
-                        f"'stdin' expression must return a string or null. Got '{stdin_eval}' "
-                        f"for '{self.tool['stdin']}'."
+                        f"'stdin' expression must return a string or null. Got {stdin_eval!r} "
+                        f"for {self.tool['stdin']!r}."
                     )
                 j.stdin = stdin_eval
                 if j.stdin:
@@ -1072,8 +1025,8 @@ class CommandLineTool(Process):
                 stderr_eval = builder.do_eval(self.tool["stderr"])
                 if not isinstance(stderr_eval, str):
                     raise ValidationException(
-                        f"'stderr' expression must return a string. Got '{stderr_eval}' "
-                        f"for '{self.tool['stderr']}'."
+                        f"'stderr' expression must return a string. Got {stderr_eval!r} "
+                        f"for {self.tool['stderr']!r}."
                     )
                 j.stderr = stderr_eval
                 if j.stderr:
@@ -1087,8 +1040,8 @@ class CommandLineTool(Process):
                 stdout_eval = builder.do_eval(self.tool["stdout"])
                 if not isinstance(stdout_eval, str):
                     raise ValidationException(
-                        f"'stdout' expression must return a string. Got '{stdout_eval}' "
-                        f"for '{self.tool['stdout']}'."
+                        f"'stdout' expression must return a string. Got {stdout_eval!r} "
+                        f"for {self.tool['stdout']!r}."
                     )
                 j.stdout = stdout_eval
                 if j.stdout:
@@ -1156,13 +1109,13 @@ class CommandLineTool(Process):
                     if timelimit_eval and not isinstance(timelimit_eval, int):
                         raise WorkflowException(
                             "'timelimit' expression must evaluate to a long/int. Got "
-                            f"'{timelimit_eval}' for expression '{limit_field}'."
+                            f"{timelimit_eval!r} for expression {limit_field!r}."
                         )
                 else:
                     timelimit_eval = limit_field
                 if not isinstance(timelimit_eval, int) or timelimit_eval < 0:
                     raise WorkflowException(
-                        f"timelimit must be an integer >= 0, got: {timelimit_eval}"
+                        f"timelimit must be an integer >= 0, got: {timelimit_eval!r}"
                     )
                 j.timelimit = timelimit_eval
 
@@ -1175,13 +1128,13 @@ class CommandLineTool(Process):
                     if not isinstance(networkaccess_eval, bool):
                         raise WorkflowException(
                             "'networkAccess' expression must evaluate to a bool. "
-                            f"Got '{networkaccess_eval}' for expression '{networkaccess_field}'."
+                            f"Got {networkaccess_eval!r} for expression {networkaccess_field!r}."
                         )
                 else:
                     networkaccess_eval = networkaccess_field
                 if not isinstance(networkaccess_eval, bool):
                     raise WorkflowException(
-                        "networkAccess must be a boolean, got: {networkaccess_eval}."
+                        "networkAccess must be a boolean, got: {networkaccess_eval!r}."
                     )
                 j.networkaccess = networkaccess_eval
 
@@ -1194,11 +1147,9 @@ class CommandLineTool(Process):
                 if "${" in env_value_field or "$(" in env_value_field:
                     env_value_eval = builder.do_eval(env_value_field)
                     if not isinstance(env_value_eval, str):
-                        raise SourceLine(
-                            evr["envDef"], eindex, WorkflowException, debug
-                        ).makeError(
+                        raise SourceLine(evr["envDef"], eindex, WorkflowException, debug).makeError(
                             "'envValue expression must evaluate to a str. "
-                            f"Got '{env_value_eval}' for expression '{env_value_field}'."
+                            f"Got {env_value_eval!r} for expression {env_value_field!r}."
                         )
                     env_value = env_value_eval
                 else:
@@ -1240,11 +1191,9 @@ class CommandLineTool(Process):
             if isinstance(np, str):
                 np_eval = builder.do_eval(np)
                 if not isinstance(np_eval, int):
-                    raise SourceLine(
-                        mpi, "processes", WorkflowException, debug
-                    ).makeError(
+                    raise SourceLine(mpi, "processes", WorkflowException, debug).makeError(
                         f"{MPIRequirementName} needs 'processes' expression to "
-                        f"evaluate to an int, got '{np_eval}' for expression '{np}'."
+                        f"evaluate to an int, got {np_eval!r} for expression {np!r}."
                     )
                 np = np_eval
             j.mpi_procs = np
@@ -1279,7 +1228,6 @@ class CommandLineTool(Process):
                     )
             else:
                 for i, port in enumerate(ports):
-
                     with SourceLine(
                         ports,
                         i,
@@ -1308,9 +1256,7 @@ class CommandLineTool(Process):
 
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
-            expected_schema = cast(
-                Schema, self.names.get_name("outputs_record_schema", None)
-            )
+            expected_schema = cast(Schema, self.names.get_name("outputs_record_schema", None))
             validate_ex(
                 expected_schema,
                 ret,
@@ -1323,10 +1269,7 @@ class CommandLineTool(Process):
             return ret if ret is not None else {}
         except ValidationException as e:
             raise WorkflowException(
-                "Error validating output record. "
-                + str(e)
-                + "\n in "
-                + json_dumps(ret, indent=4)
+                "Error validating output record. " + str(e) + "\n in " + json_dumps(ret, indent=4)
             ) from e
         finally:
             if builder.mutation_manager and readers:
@@ -1371,7 +1314,7 @@ class CommandLineTool(Process):
                                 raise WorkflowException(
                                     "Resolved glob patterns must be strings "
                                     f"or list of strings, not "
-                                    f"'{gb}' from '{binding['glob']}'"
+                                    f"{gb!r} from {binding['glob']!r}"
                                 )
                             globpatterns.extend(aslist(gb))
 
@@ -1381,9 +1324,7 @@ class CommandLineTool(Process):
                         elif gb == ".":
                             gb = outdir
                         elif gb.startswith("/"):
-                            raise WorkflowException(
-                                "glob patterns must not start with '/'"
-                            )
+                            raise WorkflowException("glob patterns must not start with '/'")
                         try:
                             prefix = fs_access.glob(outdir)
                             sorted_glob_result = sorted(
@@ -1396,38 +1337,26 @@ class CommandLineTool(Process):
                                         "location": g,
                                         "path": fs_access.join(
                                             builder.outdir,
-                                            urllib.parse.unquote(
-                                                g[len(prefix[0]) + 1 :]
-                                            ),
+                                            urllib.parse.unquote(g[len(prefix[0]) + 1 :]),
                                         ),
                                         "basename": decoded_basename,
-                                        "nameroot": os.path.splitext(decoded_basename)[
-                                            0
-                                        ],
-                                        "nameext": os.path.splitext(decoded_basename)[
-                                            1
-                                        ],
-                                        "class": "File"
-                                        if fs_access.isfile(g)
-                                        else "Directory",
+                                        "nameroot": os.path.splitext(decoded_basename)[0],
+                                        "nameext": os.path.splitext(decoded_basename)[1],
+                                        "class": "File" if fs_access.isfile(g) else "Directory",
                                     }
                                     for g, decoded_basename in zip(
                                         sorted_glob_result,
                                         map(
-                                            lambda x: os.path.basename(
-                                                urllib.parse.unquote(x)
-                                            ),
+                                            lambda x: os.path.basename(urllib.parse.unquote(x)),
                                             sorted_glob_result,
                                         ),
                                     )
                                 ]
                             )
-                        except (OSError) as e:
+                        except OSError as e:
                             _logger.warning(str(e))
                         except Exception:
-                            _logger.error(
-                                "Unexpected error from fs_access", exc_info=True
-                            )
+                            _logger.error("Unexpected error from fs_access", exc_info=True)
                             raise
 
                 for files in cast(List[Dict[str, Optional[CWLOutputType]]], r):
@@ -1439,16 +1368,12 @@ class CommandLineTool(Process):
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
                         if binding.get("loadContents"):
-                            with fs_access.open(
-                                cast(str, rfile["location"]), "rb"
-                            ) as f:
-                                files["contents"] = content_limit_respected_read_bytes(
-                                    f
-                                ).decode("utf-8")
+                            with fs_access.open(cast(str, rfile["location"]), "rb") as f:
+                                files["contents"] = content_limit_respected_read_bytes(f).decode(
+                                    "utf-8"
+                                )
                         if compute_checksum:
-                            with fs_access.open(
-                                cast(str, rfile["location"]), "rb"
-                            ) as f:
+                            with fs_access.open(cast(str, rfile["location"]), "rb") as f:
                                 checksum = hashlib.sha1()  # nosec
                                 contents = f.read(1024 * 1024)
                                 while contents != b"":
@@ -1469,9 +1394,7 @@ class CommandLineTool(Process):
 
             if "outputEval" in binding:
                 with SourceLine(binding, "outputEval", WorkflowException, debug):
-                    result = builder.do_eval(
-                        cast(CWLOutputType, binding["outputEval"]), context=r
-                    )
+                    result = builder.do_eval(cast(CWLOutputType, binding["outputEval"]), context=r)
             else:
                 result = cast(CWLOutputType, r)
 
@@ -1479,7 +1402,7 @@ class CommandLineTool(Process):
                 with SourceLine(binding, "glob", WorkflowException, debug):
                     if not result and not optional:
                         raise WorkflowException(
-                            f"Did not find output file with glob pattern: '{globpatterns}'."
+                            f"Did not find output file with glob pattern: {globpatterns!r}."
                         )
                     elif not result and optional:
                         pass
@@ -1496,9 +1419,7 @@ class CommandLineTool(Process):
                     for primary in aslist(result):
                         if isinstance(primary, MutableMapping):
                             primary.setdefault("secondaryFiles", [])
-                            pathprefix = primary["path"][
-                                0 : primary["path"].rindex(os.sep) + 1
-                            ]
+                            pathprefix = primary["path"][0 : primary["path"].rindex(os.sep) + 1]
                             for sf in aslist(schema["secondaryFiles"]):
                                 if "required" in sf:
                                     with SourceLine(
@@ -1518,34 +1439,35 @@ class CommandLineTool(Process):
                                                 "Expressions in the field "
                                                 "'required' must evaluate to a "
                                                 "Boolean (true or false) or None. "
-                                                f"Got '{sf_required_eval}' for "
-                                                f"'{sf['required']}'."
+                                                f"Got {sf_required_eval!r} for "
+                                                f"{sf['required']!r}."
                                             )
                                         sf_required: bool = sf_required_eval or False
                                 else:
                                     sf_required = False
 
                                 if "$(" in sf["pattern"] or "${" in sf["pattern"]:
-                                    sfpath = builder.do_eval(
-                                        sf["pattern"], context=primary
-                                    )
+                                    sfpath = builder.do_eval(sf["pattern"], context=primary)
                                 else:
-                                    sfpath = substitute(
-                                        primary["basename"], sf["pattern"]
-                                    )
+                                    sfpath = substitute(primary["basename"], sf["pattern"])
 
                                 for sfitem in aslist(sfpath):
                                     if not sfitem:
                                         continue
                                     if isinstance(sfitem, str):
                                         sfitem = {"path": pathprefix + sfitem}
+                                    original_sfitem = copy.deepcopy(sfitem)
                                     if (
-                                        not fs_access.exists(sfitem["path"])
+                                        not fs_access.exists(
+                                            cast(
+                                                str, cast(CWLObjectType, revmap(sfitem))["location"]
+                                            )
+                                        )
                                         and sf_required
                                     ):
                                         raise WorkflowException(
                                             "Missing required secondary file '%s'"
-                                            % (sfitem["path"])
+                                            % (original_sfitem["path"])
                                         )
                                     if "path" in sfitem and "location" not in sfitem:
                                         revmap(sfitem)
@@ -1564,13 +1486,13 @@ class CommandLineTool(Process):
                         if not isinstance(format_eval, str):
                             message = (
                                 f"'format' expression must evaluate to a string. "
-                                f"Got '{format_eval}' from '{format_field}'."
+                                f"Got {format_eval!r} from {format_field!r}."
                             )
                             if isinstance(result, list):
-                                message += f" 'self' had the value of the index {index} result: '{primary}'."
-                            raise SourceLine(
-                                schema, "format", WorkflowException, debug
-                            ).makeError(message)
+                                message += f" 'self' had the value of the index {index} result: {primary!r}."
+                            raise SourceLine(schema, "format", WorkflowException, debug).makeError(
+                                message
+                            )
                         primary["format"] = format_eval
                 else:
                     for primary in aslist(result):

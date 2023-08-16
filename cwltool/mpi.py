@@ -59,7 +59,7 @@ class MpiConfig:
             return cls(**data)
         except TypeError as e:
             unknown = set(data.keys()) - set(inspect.signature(cls).parameters)
-            raise ValueError(f"Unknown key(s) in MPI configuration: {unknown}")
+            raise ValueError(f"Unknown key(s) in MPI configuration: {unknown}") from e
 
     def pass_through_env_vars(self, env: MutableMapping[str, str]) -> None:
         """Take the configured list of environment variables and pass them to the executed process."""

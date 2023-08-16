@@ -23,9 +23,9 @@ from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .utils import CWLObjectType, create_tmp_dir, ensure_writable
 
-_IMAGES = set()  # type: Set[str]
+_IMAGES: Set[str] = set()
 _IMAGES_LOCK = threading.Lock()
-__docker_machine_mounts = None  # type: Optional[List[str]]
+__docker_machine_mounts: Optional[List[str]] = None
 __docker_machine_mounts_lock = threading.Lock()
 
 
@@ -47,7 +47,7 @@ def _get_docker_machine_mounts() -> List[str]:
                             "-t",
                             "vboxsf",
                         ],
-                        universal_newlines=True,
+                        text=True,
                     ).splitlines()
                 ]
     return __docker_machine_mounts
@@ -77,22 +77,23 @@ def _check_docker_machine_path(path: Optional[str]) -> None:
 
 
 class DockerCommandLineJob(ContainerCommandLineJob):
-    """Runs a CommandLineJob in a software container using the Docker engine."""
+    """Runs a :py:class:`~cwltool.job.CommandLineJob` in a software container using the Docker engine."""
 
     def __init__(
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[..., PathMapper],
+        make_path_mapper: Callable[[List[CWLObjectType], str, RuntimeContext, bool], PathMapper],
         requirements: List[CWLObjectType],
         hints: List[CWLObjectType],
         name: str,
     ) -> None:
         """Initialize a command line builder using the Docker software container engine."""
         super().__init__(builder, joborder, make_path_mapper, requirements, hints, name)
+        self.docker_exec = "docker"
 
-    @staticmethod
     def get_image(
+        self,
         docker_requirement: Dict[str, str],
         pull_image: bool,
         force_pull: bool,
@@ -101,14 +102,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         """
         Retrieve the relevant Docker container image.
 
-        Returns True upon success
+        :returns: True upon success
         """
         found = False
 
-        if (
-            "dockerImageId" not in docker_requirement
-            and "dockerPull" in docker_requirement
-        ):
+        if "dockerImageId" not in docker_requirement and "dockerPull" in docker_requirement:
             docker_requirement["dockerImageId"] = docker_requirement["dockerPull"]
 
         with _IMAGES_LOCK:
@@ -116,9 +114,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 return True
 
         for line in (
-            subprocess.check_output(  # nosec
-                ["docker", "images", "--no-trunc", "--all"]
-            )
+            subprocess.check_output([self.docker_exec, "images", "--no-trunc", "--all"])  # nosec
             .decode("utf-8")
             .splitlines()
         ):
@@ -149,9 +145,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 pass
 
         if (force_pull or not found) and pull_image:
-            cmd = []  # type: List[str]
+            cmd: List[str] = []
             if "dockerPull" in docker_requirement:
-                cmd = ["docker", "pull", str(docker_requirement["dockerPull"])]
+                cmd = [self.docker_exec, "pull", str(docker_requirement["dockerPull"])]
                 _logger.info(str(cmd))
                 subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
@@ -160,7 +156,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as dfile:
                     dfile.write(docker_requirement["dockerFile"])
                 cmd = [
-                    "docker",
+                    self.docker_exec,
                     "build",
                     "--tag=%s" % str(docker_requirement["dockerImageId"]),
                     dockerfile_dir,
@@ -169,7 +165,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
             elif "dockerLoad" in docker_requirement:
-                cmd = ["docker", "load"]
+                cmd = [self.docker_exec, "load"]
                 _logger.info(str(cmd))
                 if os.path.exists(docker_requirement["dockerLoad"]):
                     _logger.info(
@@ -177,18 +173,14 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         docker_requirement["dockerLoad"],
                     )
                     with open(docker_requirement["dockerLoad"], "rb") as dload:
-                        loadproc = subprocess.Popen(  # nosec
-                            cmd, stdin=dload, stdout=sys.stderr
-                        )
+                        loadproc = subprocess.Popen(cmd, stdin=dload, stdout=sys.stderr)  # nosec
                 else:
                     loadproc = subprocess.Popen(  # nosec
                         cmd, stdin=subprocess.PIPE, stdout=sys.stderr
                     )
                     assert loadproc.stdin is not None  # nosec
-                    _logger.info(
-                        "Sending GET request to %s", docker_requirement["dockerLoad"]
-                    )
-                    req = requests.get(docker_requirement["dockerLoad"], stream=True)
+                    _logger.info("Sending GET request to %s", docker_requirement["dockerLoad"])
+                    req = requests.get(docker_requirement["dockerLoad"], stream=True, timeout=60)
                     size = 0
                     for chunk in req.iter_content(1024 * 1024):
                         size += len(chunk)
@@ -203,7 +195,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 found = True
             elif "dockerImport" in docker_requirement:
                 cmd = [
-                    "docker",
+                    self.docker_exec,
                     "import",
                     str(docker_requirement["dockerImport"]),
                     str(docker_requirement["dockerImageId"]),
@@ -225,19 +217,15 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         force_pull: bool,
         tmp_outdir_prefix: str,
     ) -> Optional[str]:
-        if not shutil.which("docker"):
-            raise WorkflowException("docker executable is not available")
+        if not shutil.which(self.docker_exec):
+            raise WorkflowException(f"{self.docker_exec} executable is not available")
 
-        if self.get_image(
-            cast(Dict[str, str], r), pull_image, force_pull, tmp_outdir_prefix
-        ):
+        if self.get_image(cast(Dict[str, str], r), pull_image, force_pull, tmp_outdir_prefix):
             return cast(Optional[str], r["dockerImageId"])
         raise WorkflowException("Docker image %s not found" % r["dockerImageId"])
 
     @staticmethod
-    def append_volume(
-        runtime: List[str], source: str, target: str, writable: bool = False
-    ) -> None:
+    def append_volume(runtime: List[str], source: str, target: str, writable: bool = False) -> None:
         """Add binding arguments to the runtime list."""
         options = [
             "type=bind",
@@ -306,9 +294,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 os.makedirs(host_outdir_tgt)
         else:
             if self.inplace_update:
-                self.append_volume(
-                    runtime, volume.resolved, volume.target, writable=True
-                )
+                self.append_volume(runtime, volume.resolved, volume.target, writable=True)
             else:
                 if not host_outdir_tgt:
                     tmpdir = create_tmp_dir(tmpdir_prefix)
@@ -334,16 +320,17 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] or False
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if user_space_docker_cmd:
-            if "udocker" in user_space_docker_cmd and not runtimeContext.debug:
-                runtime = [user_space_docker_cmd, "--quiet", "run"]
-                # udocker 1.1.1 will output diagnostic messages to stdout
-                # without this
+            if "udocker" in user_space_docker_cmd:
+                if runtimeContext.debug:
+                    runtime = [user_space_docker_cmd, "run", "--nobanner"]
+                else:
+                    runtime = [user_space_docker_cmd, "--quiet", "run", "--nobanner"]
             else:
                 runtime = [user_space_docker_cmd, "run"]
-        elif runtimeContext.podman:
-            runtime = ["podman", "run", "-i", "--userns=keep-id"]
         else:
-            runtime = ["docker", "run", "-i"]
+            runtime = [self.docker_exec, "run", "-i"]
+        if runtimeContext.podman:
+            runtime.append("--userns=keep-id")
         self.append_volume(
             runtime, os.path.realpath(self.outdir), self.builder.outdir, writable=True
         )
@@ -372,7 +359,6 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         runtime.append("--workdir=%s" % (self.builder.outdir))
         if not user_space_docker_cmd:
-
             if not runtimeContext.no_read_only:
                 runtime.append("--read-only=true")
 
@@ -388,9 +374,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             euid, egid = docker_vm_id()
             euid, egid = euid or os.geteuid(), egid or os.getgid()
 
-            if runtimeContext.no_match_user is False and (
-                euid is not None and egid is not None
-            ):
+            if runtimeContext.no_match_user is False and (euid is not None and egid is not None):
                 runtime.append("--user=%d:%d" % (euid, egid))
 
         if runtimeContext.rm_container:
@@ -399,7 +383,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if self.builder.resources.get("cudaDeviceCount"):
             runtime.append("--gpus=" + str(self.builder.resources["cudaDeviceCount"]))
 
-        cidfile_path = None  # type: Optional[str]
+        cidfile_path: Optional[str] = None
         # add parameters to docker to write a container ID file
         if runtimeContext.user_space_docker_cmd is None:
             if runtimeContext.cidfile_dir:
@@ -459,3 +443,20 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 )
 
         return runtime, cidfile_path
+
+
+class PodmanCommandLineJob(DockerCommandLineJob):
+    """Runs a :py:class:`~cwltool.job.CommandLineJob` in a software container using the podman engine."""
+
+    def __init__(
+        self,
+        builder: Builder,
+        joborder: CWLObjectType,
+        make_path_mapper: Callable[[List[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        requirements: List[CWLObjectType],
+        hints: List[CWLObjectType],
+        name: str,
+    ) -> None:
+        """Initialize a command line builder using the Podman software container engine."""
+        super().__init__(builder, joborder, make_path_mapper, requirements, hints, name)
+        self.docker_exec = "podman"

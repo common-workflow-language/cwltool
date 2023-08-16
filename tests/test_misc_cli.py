@@ -28,18 +28,14 @@ def test_empty_cmdling() -> None:
 
 def test_tool_help() -> None:
     """Test --tool-help."""
-    return_code, stdout, stderr = get_main_output(
-        ["--tool-help", get_data("tests/echo.cwl")]
-    )
+    return_code, stdout, stderr = get_main_output(["--tool-help", get_data("tests/echo.cwl")])
     assert return_code == 0
     assert "job_order   Job input json file" in stdout
 
 
 def test_basic_pack() -> None:
     """Basic test of --pack. See test_pack.py for detailed testing."""
-    return_code, stdout, stderr = get_main_output(
-        ["--pack", get_data("tests/wf/revsort.cwl")]
-    )
+    return_code, stdout, stderr = get_main_output(["--pack", get_data("tests/wf/revsort.cwl")])
     assert return_code == 0
     assert "$graph" in stdout
 
@@ -67,3 +63,22 @@ def test_error_graph_with_no_default() -> None:
         "Tool file contains graph of multiple objects, must specify one of #echo, #cat, #collision"
         in stderr
     )
+
+
+def test_skip_schemas_external_step() -> None:
+    """Test that --skip-schemas works even for bad schemas in external docs."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--print-rdf",
+            "--skip-schemas",
+            get_data("tests/wf/revsort_step_bad_schema.cwl"),
+        ]
+    )
+    assert exit_code == 0
+    assert (
+        "Repeat node-elements inside property elements: " "http://www.w3.org/1999/xhtmlmeta"
+    ) not in stderr
+    assert (
+        "Could not load extension schema https://bad.example.com/missing.ttl: "
+        "Error fetching https://bad.example.com/missing.ttl"
+    ) not in stderr

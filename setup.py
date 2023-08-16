@@ -3,6 +3,7 @@
 import os
 import sys
 import warnings
+from typing import Type
 
 import setuptools.command.egg_info as egg_info_cmd
 from setuptools import setup
@@ -17,7 +18,8 @@ if os.name == "nt":
         "Windows Subsystem for Linux 2 (WSL2). If don't need to execute "
         "CWL documents, then you can ignore this warning, but please "
         "consider migrating to https://pypi.org/project/cwl-utils/ "
-        "for your CWL document processing needs."
+        "for your CWL document processing needs.",
+        stacklevel=1,
     )
 
 SETUP_DIR = os.path.dirname(__file__)
@@ -26,7 +28,7 @@ README = os.path.join(SETUP_DIR, "README.rst")
 try:
     import gittaggers
 
-    Tagger = gittaggers.EggInfoFromGit
+    Tagger: Type[egg_info_cmd.egg_info] = gittaggers.EggInfoFromGit
 except ImportError:
     Tagger = egg_info_cmd.egg_info
 
@@ -63,10 +65,14 @@ if USE_MYPYC:
         "cwltool/main.py",
         "cwltool/mutation.py",
         "cwltool/pack.py",
-        # "cwltool/pathmapper.py",  # class PathMapper needs to be subclassable
+        "cwltool/pathmapper.py",
         "cwltool/process.py",
         "cwltool/procgenerator.py",
-        # "cwltool/provenance.py",  # WritableBag is having issues
+        # "cwltool/cwlprov/__init__.py",
+        "cwltool/cwlprov/provenance_constants.py",
+        "cwltool/cwlprov/provenance_profile.py",
+        "cwltool/cwlprov/ro.py",
+        # "cwltool/cwlprov/writablebagfile.py",  # WritableBag is having issues
         "cwltool/resolver.py",
         "cwltool/secrets.py",
         "cwltool/singularity.py",
@@ -79,7 +85,7 @@ if USE_MYPYC:
         "cwltool/workflow.py",
     ]
 
-    from mypyc.build import mypycify
+    from mypyc.build import mypycify  # type: ignore[import]
 
     opt_level = os.getenv("MYPYC_OPT_LEVEL", "3")
     ext_modules = mypycify(mypyc_targets, opt_level=opt_level)
@@ -99,43 +105,41 @@ setup(
     ext_modules=ext_modules,
     # platforms='',  # empty as is conveyed by the classifier below
     # license='',  # empty as is conveyed by the classifier below
-    packages=["cwltool", "cwltool.tests"],
+    packages=["cwltool", "cwltool.tests", "cwltool.cwlprov"],
     package_dir={"cwltool.tests": "tests"},
     include_package_data=True,
     install_requires=[
         "setuptools",
         "requests >= 2.6.1",  # >= 2.6.1 to workaround
         # https://github.com/ionrock/cachecontrol/issues/137
-        "ruamel.yaml >= 0.15, < 0.17.22",
-        "rdflib >= 4.2.2, < 6.3.0",
-        "rdflib >= 4.2.2, < 6.0.0;python_version<='3.6'",
+        "ruamel.yaml >= 0.15, < 0.18",
+        "ruamel.yaml >= 0.16.0;python_version>='3.10'",
+        "rdflib >= 4.2.2, < 7.1.0",
         "shellescape >= 3.4.1, < 3.9",
-        "schema-salad >= 8.2.20211104054942, < 9",
+        "schema-salad >= 8.4, < 9",
+        "prov == 1.5.1",
         "mypy-extensions",
         "psutil >= 5.6.6",
-        "prov == 1.5.1",
-        "bagit >= 1.6.4",
-        "typing-extensions",
+        "importlib_resources>=1.4",
         "coloredlogs",
         "pydot >= 1.4.1",
-        "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
-        "pyparsing < 3 ;python_version<='3.6'",  # breaks --print-dot (pydot)
         "argcomplete",
-        "cwl-utils >= 0.15",
+        "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
+        "cwl-utils >= 0.22",
     ],
     extras_require={
-        "deps": ["galaxy-tool-util >= 22.1.2, <23"],
+        "deps": ["galaxy-tool-util >= 22.1.2, <23", "galaxy-util <23"],
     },
-    python_requires=">=3.6, <4",
+    python_requires=">=3.8, <4",
     setup_requires=PYTEST_RUNNER,
     test_suite="tests",
     tests_require=[
-        "pytest >= 6.2, < 7.2",
+        "bagit >= 1.6.4, < 1.9",
+        "pytest >= 6.2, < 7.5",
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
         "pytest-httpserver",
         "arcp >= 0.2.0",
-        "rdflib-jsonld>=0.4.0, <= 0.6.1;python_version<='3.6'",
     ],
     entry_points={"console_scripts": ["cwltool=cwltool.main:run"]},
     zip_safe=True,
@@ -152,11 +156,11 @@ setup(
         "Operating System :: POSIX",
         "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Topic :: Scientific/Engineering :: Astronomy",

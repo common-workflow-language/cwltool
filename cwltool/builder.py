@@ -1,8 +1,11 @@
+"""Command line builder."""
 import copy
 import logging
 import math
+from decimal import Decimal
 from typing import (
     IO,
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -10,20 +13,23 @@ from typing import (
     MutableMapping,
     MutableSequence,
     Optional,
+    Type,
     Union,
     cast,
 )
 
 from cwl_utils import expression
 from cwl_utils.file_formats import check_format
+from mypy_extensions import mypyc_attr
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.representer import RoundTripRepresenter
+from ruamel.yaml.scalarfloat import ScalarFloat
 from schema_salad.avro.schema import Names, Schema, make_avsc_object
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import convert_to_dict, json_dumps
 from schema_salad.validate import validate
-from typing_extensions import TYPE_CHECKING, Type  # pylint: disable=unused-import
 
 from .errors import WorkflowException
 from .loghandler import _logger
@@ -35,6 +41,7 @@ from .utils import (
     CWLObjectType,
     CWLOutputType,
     HasReqsHints,
+    LoadListingType,
     aslist,
     get_listing,
     normalizeFilesDirs,
@@ -42,8 +49,10 @@ from .utils import (
 )
 
 if TYPE_CHECKING:
+    from .cwlprov.provenance_profile import (
+        ProvenanceProfile,  # pylint: disable=unused-import
+    )
     from .pathmapper import PathMapper
-    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
 INPUT_OBJ_VOCAB: Dict[str, str] = {
     "Any": "https://w3id.org/cwl/salad#Any",
@@ -52,7 +61,14 @@ INPUT_OBJ_VOCAB: Dict[str, str] = {
 }
 
 
-def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
+def content_limit_respected_read_bytes(f: IO[bytes]) -> bytes:
+    """
+    Read a file as bytes, respecting the :py:data:`~cwltool.utils.CONTENT_LIMIT`.
+
+    :param f: file handle
+    :returns: the file contents
+    :raises WorkflowException: if the file is too large
+    """
     contents = f.read(CONTENT_LIMIT + 1)
     if len(contents) > CONTENT_LIMIT:
         raise WorkflowException(
@@ -61,11 +77,19 @@ def content_limit_respected_read_bytes(f):  # type: (IO[bytes]) -> bytes
     return contents
 
 
-def content_limit_respected_read(f):  # type: (IO[bytes]) -> str
+def content_limit_respected_read(f: IO[bytes]) -> str:
+    """
+    Read a file as a string, respecting the :py:data:`~cwltool.utils.CONTENT_LIMIT`.
+
+    :param f: file handle
+    :returns: the file contents
+    :raises WorkflowException: if the file is too large
+    """
     return content_limit_respected_read_bytes(f).decode("utf-8")
 
 
-def substitute(value, replace):  # type: (str, str) -> str
+def substitute(value: str, replace: str) -> str:
+    """Perform CWL SecondaryFilesDSL style substitution."""
     if replace.startswith("^"):
         try:
             return substitute(value[0 : value.rindex(".")], replace[1:])
@@ -75,7 +99,10 @@ def substitute(value, replace):  # type: (str, str) -> str
     return value + replace
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class Builder(HasReqsHints):
+    """Helper class to construct a command line from a CWL CommandLineTool."""
+
     def __init__(
         self,
         job: CWLObjectType,
@@ -95,14 +122,19 @@ class Builder(HasReqsHints):
         debug: bool,
         js_console: bool,
         force_docker_pull: bool,
-        loadListing: str,
+        loadListing: LoadListingType,
         outdir: str,
         tmpdir: str,
         stagedir: str,
         cwlVersion: str,
         container_engine: str,
     ) -> None:
-        """Initialize this Builder."""
+        """
+        Initialize this Builder.
+
+        :param timeout: Maximum number of seconds to wait while evaluating CWL
+                        expressions.
+        """
         super().__init__()
         self.job = job
         self.files = files
@@ -126,7 +158,6 @@ class Builder(HasReqsHints):
         self.js_console = js_console
         self.force_docker_pull = force_docker_pull
 
-        # One of "no_listing", "shallow_listing", "deep_listing"
         self.loadListing = loadListing
 
         self.outdir = outdir
@@ -135,9 +166,9 @@ class Builder(HasReqsHints):
 
         self.cwlVersion = cwlVersion
 
-        self.pathmapper = None  # type: Optional[PathMapper]
-        self.prov_obj = None  # type: Optional[ProvenanceProfile]
-        self.find_default_container = None  # type: Optional[Callable[[], str]]
+        self.pathmapper: Optional["PathMapper"] = None
+        self.prov_obj: Optional["ProvenanceProfile"] = None
+        self.find_default_container: Optional[Callable[[], str]] = None
         self.container_engine = container_engine
 
     def build_job_script(self, commands: List[str]) -> Optional[str]:
@@ -153,6 +184,14 @@ class Builder(HasReqsHints):
         lead_pos: Optional[Union[int, List[int]]] = None,
         tail_pos: Optional[Union[str, List[int]]] = None,
     ) -> List[MutableMapping[str, Union[str, List[int]]]]:
+        """
+        Bind an input object to the command line.
+
+        :raises ValidationException: in the event of an invalid type union
+        :raises WorkflowException: if a CWL Expression ("position", "required",
+          "pattern", "format") evaluates to the wrong type or if a required
+          secondary file is missing
+        """
         debug = _logger.isEnabledFor(logging.DEBUG)
 
         if tail_pos is None:
@@ -160,14 +199,10 @@ class Builder(HasReqsHints):
         if lead_pos is None:
             lead_pos = []
 
-        bindings = []  # type: List[MutableMapping[str, Union[str, List[int]]]]
-        binding = (
-            {}
-        )  # type: Union[MutableMapping[str, Union[str, List[int]]], CommentedMap]
+        bindings: List[MutableMapping[str, Union[str, List[int]]]] = []
+        binding: Union[MutableMapping[str, Union[str, List[int]]], CommentedMap] = {}
         value_from_expression = False
-        if "inputBinding" in schema and isinstance(
-            schema["inputBinding"], MutableMapping
-        ):
+        if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
             binding = CommentedMap(schema["inputBinding"].items())
 
             bp = list(aslist(lead_pos))
@@ -182,7 +217,7 @@ class Builder(HasReqsHints):
                         ).makeError(
                             "'position' expressions must evaluate to an int, "
                             f"not a {type(result)}. Expression {position} "
-                            f"resulted in '{result}'."
+                            f"resulted in {result!r}."
                         )
                     binding["position"] = result
                     bp.append(result)
@@ -201,7 +236,7 @@ class Builder(HasReqsHints):
         if isinstance(schema["type"], MutableSequence):
             bound_input = False
             for t in schema["type"]:
-                avsc = None  # type: Optional[Schema]
+                avsc: Optional[Schema] = None
                 if isinstance(t, str) and self.names.has_name(t, None):
                     avsc = self.names.get_name(t, None)
                 elif (
@@ -277,8 +312,7 @@ class Builder(HasReqsHints):
                     else:
                         schema["type"] = "record"
                         schema["fields"] = [
-                            {"name": field_name, "type": "Any"}
-                            for field_name in datum.keys()
+                            {"name": field_name, "type": "Any"} for field_name in datum.keys()
                         ]
                 elif isinstance(datum, list):
                     schema["type"] = "array"
@@ -310,10 +344,10 @@ class Builder(HasReqsHints):
                     if binding:
                         b2 = cast(CWLObjectType, copy.deepcopy(binding))
                         b2["datum"] = item
-                    itemschema = {
+                    itemschema: CWLObjectType = {
                         "type": schema["items"],
                         "inputBinding": b2,
-                    }  # type: CWLObjectType
+                    }
                     for k in ("secondaryFiles", "format", "streamable"):
                         if k in schema:
                             itemschema[k] = schema[k]
@@ -336,9 +370,9 @@ class Builder(HasReqsHints):
                 datum = cast(CWLObjectType, datum)
                 self.files.append(datum)
 
-                loadContents_sourceline = (
-                    None
-                )  # type: Union[None, MutableMapping[str, Union[str, List[int]]], CWLObjectType]
+                loadContents_sourceline: Union[
+                    None, MutableMapping[str, Union[str, List[int]]], CWLObjectType
+                ] = None
                 if binding and binding.get("loadContents"):
                     loadContents_sourceline = binding
                 elif schema.get("loadContents"):
@@ -352,14 +386,10 @@ class Builder(HasReqsHints):
                         debug,
                     ):
                         try:
-                            with self.fs_access.open(
-                                cast(str, datum["location"]), "rb"
-                            ) as f2:
+                            with self.fs_access.open(cast(str, datum["location"]), "rb") as f2:
                                 datum["contents"] = content_limit_respected_read(f2)
                         except Exception as e:
-                            raise Exception(
-                                "Reading {}\n{}".format(datum["location"], e)
-                            )
+                            raise Exception("Reading {}\n{}".format(datum["location"], e)) from e
 
                 if "secondaryFiles" in schema:
                     if "secondaryFiles" not in datum:
@@ -372,13 +402,8 @@ class Builder(HasReqsHints):
 
                     for num, sf_entry in enumerate(sf_schema):
                         if "required" in sf_entry and sf_entry["required"] is not None:
-                            required_result = self.do_eval(
-                                sf_entry["required"], context=datum
-                            )
-                            if not (
-                                isinstance(required_result, bool)
-                                or required_result is None
-                            ):
+                            required_result = self.do_eval(sf_entry["required"], context=datum)
+                            if not (isinstance(required_result, bool) or required_result is None):
                                 if sf_schema == schema["secondaryFiles"]:
                                     sf_item: Any = sf_schema[num]
                                 else:
@@ -389,8 +414,8 @@ class Builder(HasReqsHints):
                                     "The result of a expression in the field "
                                     "'required' must "
                                     f"be a bool or None, not a {type(required_result)}. "
-                                    f"Expression '{sf_entry['required']}' resulted "
-                                    f"in '{required_result}'."
+                                    f"Expression {sf_entry['required']!r} resulted "
+                                    f"in {required_result!r}."
                                 )
                             sf_required = required_result
                         else:
@@ -399,9 +424,7 @@ class Builder(HasReqsHints):
                         if "$(" in sf_entry["pattern"] or "${" in sf_entry["pattern"]:
                             sfpath = self.do_eval(sf_entry["pattern"], context=datum)
                         else:
-                            sfpath = substitute(
-                                cast(str, datum["basename"]), sf_entry["pattern"]
-                            )
+                            sfpath = substitute(cast(str, datum["basename"]), sf_entry["pattern"])
 
                         for sfname in aslist(sfpath):
                             if not sfname:
@@ -412,8 +435,7 @@ class Builder(HasReqsHints):
                                 d_location = cast(str, datum["location"])
                                 if "/" in d_location:
                                     sf_location = (
-                                        d_location[0 : d_location.rindex("/") + 1]
-                                        + sfname
+                                        d_location[0 : d_location.rindex("/") + 1] + sfname
                                     )
                                 else:
                                     sf_location = d_location + sfname
@@ -428,7 +450,7 @@ class Builder(HasReqsHints):
                                     "Expected secondaryFile expression to "
                                     "return type 'str', a 'File' or 'Directory' "
                                     "dictionary, or a list of the same. Received "
-                                    f"'{type(sfname)} from '{sf_entry['pattern']}'."
+                                    f"{type(sfname)!r} from {sf_entry['pattern']!r}."
                                 )
 
                             for d in cast(
@@ -436,9 +458,7 @@ class Builder(HasReqsHints):
                                 datum["secondaryFiles"],
                             ):
                                 if not d.get("basename"):
-                                    d["basename"] = d["location"][
-                                        d["location"].rindex("/") + 1 :
-                                    ]
+                                    d["basename"] = d["location"][d["location"].rindex("/") + 1 :]
                                 if d["basename"] == sfbasename:
                                     found = True
 
@@ -462,9 +482,7 @@ class Builder(HasReqsHints):
                                         ),
                                         sfname,
                                     )
-                                elif discover_secondaryFiles and self.fs_access.exists(
-                                    sf_location
-                                ):
+                                elif discover_secondaryFiles and self.fs_access.exists(sf_location):
                                     addsf(
                                         cast(
                                             MutableSequence[CWLObjectType],
@@ -503,9 +521,9 @@ class Builder(HasReqsHints):
                                     "An expression in the 'format' field must "
                                     "evaluate to a string, or list of strings. "
                                     "However a non-string item was received: "
-                                    f"'{entry}' of type '{type(entry)}'. "
-                                    f"The expression was '{schema['format']}' and "
-                                    f"its fully evaluated result is '{eval_format}'."
+                                    f"{entry!r} of type {type(entry)!r}. "
+                                    f"The expression was {schema['format']!r} and "
+                                    f"its fully evaluated result is {eval_format!r}."
                                 )
                             if expression.needs_parsing(entry):
                                 message = (
@@ -514,9 +532,9 @@ class Builder(HasReqsHints):
                                     "Reference, a single format string, or a list of "
                                     "format strings. But the list cannot contain CWL "
                                     "Expressions or CWL Parameter References. List "
-                                    f"entry number {index+1} contains the following "
+                                    f"entry number {index + 1} contains the following "
                                     "unallowed CWL Parameter Reference or Expression: "
-                                    f"'{entry}'."
+                                    f"{entry!r}."
                                 )
                             if message:
                                 raise SourceLine(
@@ -524,15 +542,13 @@ class Builder(HasReqsHints):
                                 ).makeError(message)
                         evaluated_format = cast(List[str], eval_format)
                     else:
-                        raise SourceLine(
-                            schema, "format", WorkflowException, debug
-                        ).makeError(
+                        raise SourceLine(schema, "format", WorkflowException, debug).makeError(
                             "An expression in the 'format' field must "
                             "evaluate to a string, or list of strings. "
                             "However the type of the expression result was "
                             f"{type(eval_format)}. "
-                            f"The expression was '{schema['format']}' and "
-                            f"its fully evaluated result is 'eval_format'."
+                            f"The expression was {schema['format']!r} and "
+                            f"its fully evaluated result is {eval_format!r}."
                         )
                     try:
                         check_format(
@@ -542,8 +558,8 @@ class Builder(HasReqsHints):
                         )
                     except ValidationException as ve:
                         raise WorkflowException(
-                            "Expected value of '%s' to have format %s but\n "
-                            " %s" % (schema["name"], schema["format"], ve)
+                            f"Expected value of {schema['name']!r} to have "
+                            f"format {schema['format']!r} but\n {ve}"
                         ) from ve
 
                 visit_class(
@@ -577,6 +593,12 @@ class Builder(HasReqsHints):
         return bindings
 
     def tostr(self, value: Union[MutableMapping[str, str], Any]) -> str:
+        """
+        Represent an input parameter as a string.
+
+        :raises WorkflowException: if the item is a File or Directory and the
+          "path" is missing.
+        """
         if isinstance(value, MutableMapping) and value.get("class") in (
             "File",
             "Directory",
@@ -586,6 +608,12 @@ class Builder(HasReqsHints):
                     '{} object missing "path": {}'.format(value["class"], value)
                 )
             return value["path"]
+        elif isinstance(value, ScalarFloat):
+            rep = RoundTripRepresenter()
+            dec_value = Decimal(rep.represent_scalar_float(value).value)
+            if "E" in str(dec_value):
+                return str(dec_value.quantize(1))
+            return str(dec_value)
         else:
             return str(value)
 
@@ -610,20 +638,16 @@ class Builder(HasReqsHints):
                 WorkflowException,
                 debug,
             ):
-                raise WorkflowException(
-                    "'separate' option can not be specified without prefix"
-                )
+                raise WorkflowException("'separate' option can not be specified without prefix")
 
-        argl = []  # type: MutableSequence[CWLOutputType]
+        argl: MutableSequence[CWLOutputType] = []
         if isinstance(value, MutableSequence):
             if binding.get("itemSeparator") and value:
                 itemSeparator = cast(str, binding["itemSeparator"])
                 argl = [itemSeparator.join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
                 value = [self.tostr(v) for v in value]
-                return cast(List[str], ([prefix] if prefix else [])) + cast(
-                    List[str], value
-                )
+                return cast(List[str], ([prefix] if prefix else [])) + cast(List[str], value)
             elif prefix and value:
                 return [prefix]
             else:

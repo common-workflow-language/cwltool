@@ -7,12 +7,19 @@ Homebrew, Conda, custom scripts, environment modules. We'd be happy to find
 ways to adapt new packages managers and such as well.
 """
 
-import argparse  # pylint: disable=unused-import
+import argparse
 import os
 import string
-from typing import Dict, List, MutableMapping, MutableSequence, Optional, Union, cast
-
-from typing_extensions import TYPE_CHECKING
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    List,
+    MutableMapping,
+    MutableSequence,
+    Optional,
+    Union,
+    cast,
+)
 
 from .utils import HasReqsHints
 
@@ -79,30 +86,27 @@ class DependenciesConfiguration:
             "conda_auto_install": True,
             "conda_auto_init": True,
         }
-        tool_dependency_manager = deps.build_dependency_manager(
+        tool_dependency_manager: "deps.DependencyManager" = deps.build_dependency_manager(
             app_config_dict=app_config,
             resolution_config_dict=resolution_config_dict,
             conf_file=self.dependency_resolvers_config_file,
-        )  # type: deps.DependencyManager
-        dependencies = get_dependencies(builder)
-        handle_dependencies = ""  # str
-        if dependencies:
+        )
+        handle_dependencies: str = ""
+        if dependencies := get_dependencies(builder):
             handle_dependencies = "\n".join(
                 tool_dependency_manager.dependency_shell_commands(
                     dependencies, job_directory=builder.tmpdir
                 )
             )
 
-        template_kwds = dict(
-            handle_dependencies=handle_dependencies
-        )  # type: Dict[str, str]
+        template_kwds: Dict[str, str] = dict(handle_dependencies=handle_dependencies)
         job_script = COMMAND_WITH_DEPENDENCIES_TEMPLATE.substitute(template_kwds)
         return job_script
 
 
 def get_dependencies(builder: HasReqsHints) -> ToolRequirements:
     (software_requirement, _) = builder.get_requirement("SoftwareRequirement")
-    dependencies = []  # type: List[ToolRequirement]
+    dependencies: List["ToolRequirement"] = []
     if software_requirement and software_requirement.get("packages"):
         packages = cast(
             MutableSequence[MutableMapping[str, Union[str, MutableSequence[str]]]],
@@ -131,7 +135,7 @@ def get_dependencies(builder: HasReqsHints) -> ToolRequirements:
 
 
 def get_container_from_software_requirements(
-    use_biocontainers: bool, builder: HasReqsHints
+    use_biocontainers: bool, builder: HasReqsHints, container_image_cache_path: Optional[str] = "."
 ) -> Optional[str]:
     if use_biocontainers:
         ensure_galaxy_lib_available()
@@ -139,14 +143,14 @@ def get_container_from_software_requirements(
         from galaxy.tool_util.deps.containers import ContainerRegistry
         from galaxy.tool_util.deps.dependencies import AppInfo, ToolInfo
 
-        app_info = AppInfo(
+        app_info: AppInfo = AppInfo(
             involucro_auto_init=True,
             enable_mulled_containers=True,
-            container_image_cache_path=".",
-        )  # type: AppInfo
-        container_registry = ContainerRegistry(app_info)  # type: ContainerRegistry
+            container_image_cache_path=container_image_cache_path,
+        )
+        container_registry: ContainerRegistry = ContainerRegistry(app_info)
         requirements = get_dependencies(builder)
-        tool_info = ToolInfo(requirements=requirements)  # type: ToolInfo
+        tool_info: ToolInfo = ToolInfo(requirements=requirements)
         container_description = container_registry.find_best_container_description(
             [DOCKER_CONTAINER_TYPE], tool_info
         )

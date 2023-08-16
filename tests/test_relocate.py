@@ -33,6 +33,26 @@ def test_for_conflict_file_names(tmp_path: Path) -> None:
     out = json.loads(stream.getvalue())
     assert out["b1"]["basename"] == out["b2"]["basename"]
     assert out["b1"]["location"] != out["b2"]["location"]
+    assert Path(out["b1"]["path"]).exists()
+    assert Path(out["b2"]["path"]).exists()
+
+
+def test_for_conflict_file_names_nodocker(tmp_path: Path) -> None:
+    stream = StringIO()
+
+    assert (
+        main(
+            ["--debug", "--outdir", str(tmp_path), get_data("tests/wf/conflict.cwl")],
+            stdout=stream,
+        )
+        == 0
+    )
+
+    out = json.loads(stream.getvalue())
+    assert out["b1"]["basename"] == out["b2"]["basename"]
+    assert out["b1"]["location"] != out["b2"]["location"]
+    assert Path(out["b1"]["path"]).exists()
+    assert Path(out["b2"]["path"]).exists()
 
 
 def test_relocate_symlinks(tmp_path: Path) -> None:

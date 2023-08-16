@@ -26,9 +26,9 @@ def assert_envvar_matches(check: CheckerTypes, k: str, env: Mapping[str, str]) -
     else:
         v = env[k]
         if isinstance(check, str):
-            assert v == check, f'Environment variable {k} == "{v}" != "{check}"'
+            assert v == check, f"Environment variable {k} == {v!r} != {check!r}"
         else:
-            assert check(v, env), f'Environment variable {k}="{v}" fails check'
+            assert check(v, env), f"Environment variable {k}={v!r} fails check"
 
 
 def assert_env_matches(
@@ -42,7 +42,7 @@ def assert_env_matches(
     e = dict(env)
     for k, check in checks.items():
         assert k in e
-        v = e.pop(k)
+        e.pop(k)
         assert_envvar_matches(check, k, env)
 
     if not allow_unexpected:
@@ -210,9 +210,7 @@ def test_basic(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> Non
 
 
 @CRT_PARAMS
-def test_preserve_single(
-    crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any
-) -> None:
+def test_preserve_single(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> None:
     """Test that preserving a single env var works."""
     tmp_prefix = str(tmp_path / "canary")
     extra_env = {
@@ -236,9 +234,7 @@ def test_preserve_single(
 
 
 @CRT_PARAMS
-def test_preserve_all(
-    crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any
-) -> None:
+def test_preserve_all(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> None:
     """Test that preserving all works."""
     tmp_prefix = str(tmp_path / "canary")
     extra_env = {

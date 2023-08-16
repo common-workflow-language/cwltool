@@ -102,10 +102,7 @@ def test_single_process_inherit_reqshints(tmp_path: Path) -> None:
         ]
     )
     assert err_code == 0
-    assert (
-        json.loads(stdout)["out"]["checksum"]
-        == "sha1$cdc1e84968261d6a7575b5305945471f8be199b6"
-    )
+    assert json.loads(stdout)["out"]["checksum"] == "sha1$cdc1e84968261d6a7575b5305945471f8be199b6"
 
 
 def test_single_process_inherit_hints_collision(tmp_path: Path) -> None:
@@ -121,10 +118,7 @@ def test_single_process_inherit_hints_collision(tmp_path: Path) -> None:
         ]
     )
     assert err_code == 0
-    assert (
-        json.loads(stdout)["out"]["checksum"]
-        == "sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519"
-    )
+    assert json.loads(stdout)["out"]["checksum"] == "sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519"
 
 
 def test_single_process_inherit_reqs_collision(tmp_path: Path) -> None:
@@ -140,10 +134,7 @@ def test_single_process_inherit_reqs_collision(tmp_path: Path) -> None:
         ]
     )
     assert err_code == 0
-    assert (
-        json.loads(stdout)["out"]["checksum"]
-        == "sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519"
-    )
+    assert json.loads(stdout)["out"]["checksum"] == "sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519"
 
 
 def test_single_process_inherit_reqs_step_collision(tmp_path: Path) -> None:
@@ -159,8 +150,7 @@ def test_single_process_inherit_reqs_step_collision(tmp_path: Path) -> None:
     )
     assert err_code == 0
     assert (
-        json.loads(stdout)["output"]["checksum"]
-        == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
+        json.loads(stdout)["output"]["checksum"] == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
     )
 
 
@@ -177,10 +167,7 @@ def test_single_process_inherit_reqs_hints_collision(tmp_path: Path) -> None:
         ]
     )
     assert err_code == 0
-    assert (
-        json.loads(stdout)["out"]["checksum"]
-        == "sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519"
-    )
+    assert json.loads(stdout)["out"]["checksum"] == "sha1$b3ec4ed1749c207e52b3a6d08c59f31d83bff519"
 
 
 def test_single_process_inherit_only_hints(tmp_path: Path) -> None:
@@ -196,10 +183,7 @@ def test_single_process_inherit_only_hints(tmp_path: Path) -> None:
         ]
     )
     assert err_code == 0
-    assert (
-        json.loads(stdout)["out"]["checksum"]
-        == "sha1$ab5f2a9add5f54622dde555ac8ae9a3000e5ee0a"
-    )
+    assert json.loads(stdout)["out"]["checksum"] == "sha1$ab5f2a9add5f54622dde555ac8ae9a3000e5ee0a"
 
 
 def test_single_process_subwf_step(tmp_path: Path) -> None:
@@ -215,10 +199,7 @@ def test_single_process_subwf_step(tmp_path: Path) -> None:
         ]
     )
     assert err_code == 0
-    assert (
-        json.loads(stdout)["out"]["checksum"]
-        == "sha1$cdc1e84968261d6a7575b5305945471f8be199b6"
-    )
+    assert json.loads(stdout)["out"]["checksum"] == "sha1$cdc1e84968261d6a7575b5305945471f8be199b6"
 
 
 def test_single_process_packed_subwf_step(tmp_path: Path) -> None:
@@ -234,17 +215,16 @@ def test_single_process_packed_subwf_step(tmp_path: Path) -> None:
         ]
     )
     assert err_code == 0
-    assert (
-        json.loads(stdout)["out"]["checksum"]
-        == "sha1$cdc1e84968261d6a7575b5305945471f8be199b6"
-    )
+    assert json.loads(stdout)["out"]["checksum"] == "sha1$cdc1e84968261d6a7575b5305945471f8be199b6"
 
 
 @needs_docker
-def test_single_process_subwf_subwf_inline_step() -> None:
+def test_single_process_subwf_subwf_inline_step(tmp_path: Path) -> None:
     """Test --single-process on an inline sub-sub-workflow step."""
     err_code, stdout, stderr = get_main_output(
         [
+            "--outdir",
+            str(tmp_path),
             "--single-process",
             "step1/stepX/stepY",
             get_data("tests/subgraph/count-lines17-wf.cwl.json"),
@@ -253,8 +233,7 @@ def test_single_process_subwf_subwf_inline_step() -> None:
     )
     assert err_code == 0
     assert (
-        json.loads(stdout)["output"]["checksum"]
-        == "sha1$3596ea087bfdaf52380eae441077572ed289d657"
+        json.loads(stdout)["output"]["checksum"] == "sha1$3596ea087bfdaf52380eae441077572ed289d657"
     )
 
 
@@ -271,10 +250,7 @@ def test_single_step_subwf_step(tmp_path: Path) -> None:
         ]
     )
     assert err_code == 0
-    assert (
-        json.loads(stdout)["out"]["checksum"]
-        == "sha1$7608e5669ba454c61fab01c9b133b52a9a7de68c"
-    )
+    assert json.loads(stdout)["out"]["checksum"] == "sha1$7608e5669ba454c61fab01c9b133b52a9a7de68c"
 
 
 def test_single_step_wfstep_long_out(tmp_path: Path) -> None:
@@ -290,10 +266,7 @@ def test_single_step_wfstep_long_out(tmp_path: Path) -> None:
         ]
     )
     assert err_code == 0
-    assert (
-        json.loads(stdout)["out"]["checksum"]
-        == "sha1$7608e5669ba454c61fab01c9b133b52a9a7de68c"
-    )
+    assert json.loads(stdout)["out"]["checksum"] == "sha1$7608e5669ba454c61fab01c9b133b52a9a7de68c"
 
 
 def test_single_step_packed_subwf_step(tmp_path: Path) -> None:
@@ -309,10 +282,7 @@ def test_single_step_packed_subwf_step(tmp_path: Path) -> None:
         ]
     )
     assert err_code == 0
-    assert (
-        json.loads(stdout)["out"]["checksum"]
-        == "sha1$7608e5669ba454c61fab01c9b133b52a9a7de68c"
-    )
+    assert json.loads(stdout)["out"]["checksum"] == "sha1$7608e5669ba454c61fab01c9b133b52a9a7de68c"
 
 
 @needs_docker

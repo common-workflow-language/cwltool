@@ -65,9 +65,7 @@ normalization_parameters = [
 
 
 @pytest.mark.parametrize("name,file_dir,expected", normalization_parameters)
-def test_normalizeFilesDirs(
-    name: str, file_dir: CWLObjectType, expected: CWLObjectType
-) -> None:
+def test_normalizeFilesDirs(name: str, file_dir: CWLObjectType, expected: CWLObjectType) -> None:
     normalizeFilesDirs(file_dir)
     assert file_dir == expected, name
 

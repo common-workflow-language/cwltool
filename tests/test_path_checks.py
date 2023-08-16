@@ -167,9 +167,7 @@ def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
 
     # Mock an "output" file with the above special characters in its name
     special = "".join(reserved)
-    output_schema = cast(
-        CWLObjectType, {"type": "File", "outputBinding": {"glob": special}}
-    )
+    output_schema = cast(CWLObjectType, {"type": "File", "outputBinding": {"glob": special}})
     mock_output = tmp_path / special
     mock_output.touch()
 

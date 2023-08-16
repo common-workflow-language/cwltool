@@ -109,7 +109,6 @@ def test_input_deps_secondary_files() -> None:
     """Affirm that secondaryFiles are also represented."""
     stream = StringIO()
 
-    data_path = get_data("tests/wf/whale.txt")
     main(
         [
             "--print-input-deps",

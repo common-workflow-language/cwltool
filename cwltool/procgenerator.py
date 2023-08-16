@@ -22,9 +22,8 @@ class ProcessGeneratorJob:
         self.jobout = None  # type: Optional[CWLObjectType]
         self.processStatus = None  # type: Optional[str]
 
-    def receive_output(
-        self, jobout: Optional[CWLObjectType], processStatus: str
-    ) -> None:
+    def receive_output(self, jobout: Optional[CWLObjectType], processStatus: str) -> None:
+        """Process the results."""
         self.jobout = jobout
         self.processStatus = processStatus
 
@@ -34,7 +33,6 @@ class ProcessGeneratorJob:
         output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
-
         try:
             yield from self.procgenerator.embedded_tool.job(
                 job_order, self.receive_output, runtimeContext
@@ -60,7 +58,7 @@ class ProcessGeneratorJob:
             raise
         except Exception as exc:
             _logger.exception("Unexpected exception")
-            raise WorkflowException(str(exc))
+            raise WorkflowException(str(exc)) from exc
 
 
 class ProcessGenerator(Process):
@@ -86,7 +84,7 @@ class ProcessGenerator(Process):
             raise WorkflowException(
                 "Tool definition %s failed validation:\n%s"
                 % (toolpath_object["run"], indent(str(vexc)))
-            )
+            ) from vexc
 
     def job(
         self,
@@ -94,9 +92,7 @@ class ProcessGenerator(Process):
         output_callbacks: Optional[OutputCallbackType],
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
-        return ProcessGeneratorJob(self).job(
-            job_order, output_callbacks, runtimeContext
-        )
+        return ProcessGeneratorJob(self).job(job_order, output_callbacks, runtimeContext)
 
     def result(
         self,
@@ -116,7 +112,7 @@ class ProcessGenerator(Process):
             raise WorkflowException(
                 "Tool definition %s failed validation:\n%s"
                 % (jobout["runProcess"], indent(str(vexc)))
-            )
+            ) from vexc
 
         if "runInputs" in jobout:
             runinputs = cast(CWLObjectType, jobout["runInputs"])

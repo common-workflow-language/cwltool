@@ -20,17 +20,18 @@ from typing import (
 )
 
 import psutil
+from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
 
 from .command_line_tool import CallbackJob, ExpressionJob
 from .context import RuntimeContext, getdefault
+from .cwlprov.provenance_profile import ProvenanceProfile
 from .errors import WorkflowException
 from .job import JobBase
 from .loghandler import _logger
 from .mutation import MutationManager
 from .process import Process, cleanIntermediate, relocateOutputs
-from .provenance_profile import ProvenanceProfile
 from .task_queue import TaskQueue
 from .update import ORIGINAL_CWLVERSION
 from .utils import CWLObjectType, JobsType
@@ -40,14 +41,15 @@ from .workflow_job import WorkflowJob, WorkflowJobStep
 TMPDIR_LOCK = Lock()
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class JobExecutor(metaclass=ABCMeta):
     """Abstract base job executor."""
 
     def __init__(self) -> None:
         """Initialize."""
-        self.final_output = []  # type: MutableSequence[Optional[CWLObjectType]]
-        self.final_status = []  # type: List[str]
-        self.output_dirs = set()  # type: Set[str]
+        self.final_output: MutableSequence[Optional[CWLObjectType]] = []
+        self.final_status: List[str] = []
+        self.output_dirs: Set[str] = set()
 
     def __call__(
         self,
@@ -56,12 +58,9 @@ class JobExecutor(metaclass=ABCMeta):
         runtime_context: RuntimeContext,
         logger: logging.Logger = _logger,
     ) -> Tuple[Optional[CWLObjectType], str]:
-
         return self.execute(process, job_order_object, runtime_context, logger)
 
-    def output_callback(
-        self, out: Optional[CWLObjectType], process_status: str
-    ) -> None:
+    def output_callback(self, out: Optional[CWLObjectType], process_status: str) -> None:
         """Collect the final status and outputs."""
         self.final_status.append(process_status)
         self.final_output.append(out)
@@ -84,14 +83,18 @@ class JobExecutor(metaclass=ABCMeta):
         logger: logging.Logger = _logger,
     ) -> Tuple[Union[Optional[CWLObjectType]], str]:
         """Execute the process."""
+
+        self.final_output = []
+        self.final_status = []
+
         if not runtime_context.basedir:
             raise WorkflowException("Must provide 'basedir' in runtimeContext")
 
         def check_for_abstract_op(tool: CWLObjectType) -> None:
             if tool["class"] == "Operation":
-                raise SourceLine(
-                    tool, "class", WorkflowException, runtime_context.debug
-                ).makeError("Workflow has unrunnable abstract Operation")
+                raise SourceLine(tool, "class", WorkflowException, runtime_context.debug).makeError(
+                    "Workflow has unrunnable abstract Operation"
+                )
 
         process.visit(check_for_abstract_op)
 
@@ -107,7 +110,7 @@ class JobExecutor(metaclass=ABCMeta):
         runtime_context.toplevel = True
         runtime_context.workflow_eval_lock = threading.Condition(threading.RLock())
 
-        job_reqs = None  # type: Optional[List[CWLObjectType]]
+        job_reqs: Optional[List[CWLObjectType]] = None
         if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
             if process.metadata.get(ORIGINAL_CWLVERSION) == "v1.0":
                 raise WorkflowException(
@@ -119,10 +122,8 @@ class JobExecutor(metaclass=ABCMeta):
                 List[CWLObjectType],
                 job_order_object["https://w3id.org/cwl/cwl#requirements"],
             )
-        elif (
-            "cwl:defaults" in process.metadata
-            and "https://w3id.org/cwl/cwl#requirements"
-            in cast(CWLObjectType, process.metadata["cwl:defaults"])
+        elif "cwl:defaults" in process.metadata and "https://w3id.org/cwl/cwl#requirements" in cast(
+            CWLObjectType, process.metadata["cwl:defaults"]
         ):
             if process.metadata.get(ORIGINAL_CWLVERSION) == "v1.0":
                 raise WorkflowException(
@@ -142,11 +143,7 @@ class JobExecutor(metaclass=ABCMeta):
 
         self.run_jobs(process, job_order_object, logger, runtime_context)
 
-        if (
-            self.final_output
-            and self.final_output[0] is not None
-            and finaloutdir is not None
-        ):
+        if self.final_output and self.final_output[0] is not None and finaloutdir is not None:
             self.final_output[0] = relocateOutputs(
                 self.final_output[0],
                 finaloutdir,
@@ -159,7 +156,7 @@ class JobExecutor(metaclass=ABCMeta):
 
         if runtime_context.rm_tmpdir:
             if not runtime_context.cachedir:
-                output_dirs = self.output_dirs  # type: Iterable[str]
+                output_dirs: Iterable[str] = self.output_dirs
             else:
                 output_dirs = filter(
                     lambda x: not x.startswith(runtime_context.cachedir),  # type: ignore
@@ -168,19 +165,14 @@ class JobExecutor(metaclass=ABCMeta):
             cleanIntermediate(output_dirs)
 
         if self.final_output and self.final_status:
-
             if (
                 runtime_context.research_obj is not None
-                and isinstance(
-                    process, (JobBase, Process, WorkflowJobStep, WorkflowJob)
-                )
+                and isinstance(process, (JobBase, Process, WorkflowJobStep, WorkflowJob))
                 and process.parent_wf
             ):
-                process_run_id = None  # type: Optional[str]
+                process_run_id: Optional[str] = None
                 name = "primary"
-                process.parent_wf.generate_output_prov(
-                    self.final_output[0], process_run_id, name, "generate_output_prov"
-                )
+                process.parent_wf.generate_output_prov(self.final_output[0], process_run_id, name)
                 process.parent_wf.document.wasEndedBy(
                     process.parent_wf.workflow_run_uri,
                     None,
@@ -192,6 +184,7 @@ class JobExecutor(metaclass=ABCMeta):
         return (None, "permanentFail")
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class SingleJobExecutor(JobExecutor):
     """Default single-threaded CWL reference executor."""
 
@@ -202,14 +195,10 @@ class SingleJobExecutor(JobExecutor):
         logger: logging.Logger,
         runtime_context: RuntimeContext,
     ) -> None:
-
-        process_run_id = None  # type: Optional[str]
+        process_run_id: Optional[str] = None
 
         # define provenance profile for single commandline tool
-        if (
-            not isinstance(process, Workflow)
-            and runtime_context.research_obj is not None
-        ):
+        if not isinstance(process, Workflow) and runtime_context.research_obj is not None:
             process.provenance_object = ProvenanceProfile(
                 runtime_context.research_obj,
                 full_name=runtime_context.cwl_full_name,
@@ -228,7 +217,7 @@ class SingleJobExecutor(JobExecutor):
             for job in jobiter:
                 if job is not None:
                     if runtime_context.builder is not None and hasattr(job, "builder"):
-                        job.builder = runtime_context.builder  # type: ignore
+                        job.builder = runtime_context.builder
                     if job.outdir is not None:
                         self.output_dirs.add(job.outdir)
                     if runtime_context.research_obj is not None:
@@ -274,8 +263,8 @@ class MultithreadedJobExecutor(JobExecutor):
     def __init__(self) -> None:
         """Initialize."""
         super().__init__()
-        self.exceptions = []  # type: List[WorkflowException]
-        self.pending_jobs = []  # type: List[JobsType]
+        self.exceptions: List[WorkflowException] = []
+        self.pending_jobs: List[JobsType] = []
         self.pending_jobs_lock = threading.Lock()
 
         self.max_ram = int(psutil.virtual_memory().available / 2**20)
@@ -293,8 +282,7 @@ class MultithreadedJobExecutor(JobExecutor):
             rsc_min = request[rsc + "Min"]
             if rsc_min > maxrsc[rsc]:
                 raise WorkflowException(
-                    f"Requested at least {rsc_min} {rsc} but only "
-                    f"{maxrsc[rsc]} available"
+                    f"Requested at least {rsc_min} {rsc} but only " f"{maxrsc[rsc]} available"
                 )
             rsc_max = request[rsc + "Max"]
             if rsc_max < maxrsc[rsc]:
@@ -310,8 +298,12 @@ class MultithreadedJobExecutor(JobExecutor):
 
         return result
 
-    def _runner(self, job, runtime_context, TMPDIR_LOCK):
-        # type: (Union[JobBase, WorkflowJob, CallbackJob, ExpressionJob], RuntimeContext, threading.Lock) -> None
+    def _runner(
+        self,
+        job: Union[JobBase, WorkflowJob, CallbackJob, ExpressionJob],
+        runtime_context: RuntimeContext,
+        TMPDIR_LOCK: threading.Lock,
+    ) -> None:
         """Job running thread."""
         try:
             _logger.debug(
@@ -334,7 +326,7 @@ class MultithreadedJobExecutor(JobExecutor):
                         self.allocated_ram -= ram
                         cores = job.builder.resources["cores"]
                         self.allocated_cores -= cores
-                    runtime_context.workflow_eval_lock.notifyAll()
+                    runtime_context.workflow_eval_lock.notify_all()
 
     def run_job(
         self,
@@ -400,8 +392,7 @@ class MultithreadedJobExecutor(JobExecutor):
                 )
                 self.pending_jobs.remove(job)
 
-    def wait_for_next_completion(self, runtime_context):
-        # type: (RuntimeContext) -> None
+    def wait_for_next_completion(self, runtime_context: RuntimeContext) -> None:
         """Wait for jobs to finish."""
         if runtime_context.workflow_eval_lock is not None:
             runtime_context.workflow_eval_lock.wait(timeout=3)
@@ -415,20 +406,12 @@ class MultithreadedJobExecutor(JobExecutor):
         logger: logging.Logger,
         runtime_context: RuntimeContext,
     ) -> None:
-
-        self.taskqueue = TaskQueue(
-            threading.Lock(), psutil.cpu_count()
-        )  # type: TaskQueue
+        self.taskqueue: TaskQueue = TaskQueue(threading.Lock(), psutil.cpu_count())
         try:
-
-            jobiter = process.job(
-                job_order_object, self.output_callback, runtime_context
-            )
+            jobiter = process.job(job_order_object, self.output_callback, runtime_context)
 
             if runtime_context.workflow_eval_lock is None:
-                raise WorkflowException(
-                    "runtimeContext.workflow_eval_lock must not be None"
-                )
+                raise WorkflowException("runtimeContext.workflow_eval_lock must not be None")
 
             runtime_context.workflow_eval_lock.acquire()
             for job in jobiter:

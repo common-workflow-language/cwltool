@@ -16,12 +16,10 @@ LINUX = sys.platform in ("linux", "linux2")
 @pytest.fixture(scope="session")
 def udocker(tmp_path_factory: TempPathFactory) -> str:
     """Udocker fixture, returns the path to the udocker script."""
-    test_cwd = os.getcwd()
     test_environ = copy.copy(os.environ)
     docker_install_dir = str(tmp_path_factory.mktemp("udocker"))
     with working_directory(docker_install_dir):
-
-        url = "https://github.com/indigo-dc/udocker/releases/download/v1.3.1/udocker-1.3.1.tar.gz"
+        url = "https://github.com/indigo-dc/udocker/releases/download/1.3.5/udocker-1.3.5.tar.gz"
         install_cmds = [
             ["curl", "-L", url, "-o", "./udocker-tarball.tgz"],
             ["tar", "xzvf", "udocker-tarball.tgz"],
@@ -89,3 +87,19 @@ def test_udocker_should_display_memory_usage(udocker: str, tmp_path: Path) -> No
 
     assert "completed success" in stderr, stderr
     assert "Max memory" in stderr, stderr
+
+
+@pytest.mark.skipif(not LINUX, reason="LINUX only")
+def test_udocker_nobanner(udocker: str, tmp_path: Path) -> None:
+    """Avoid the banner when running udocker."""
+    with working_directory(tmp_path):
+        error_code, stdout, stderr = get_main_output(
+            [
+                "--user-space-docker-cmd=" + udocker,
+                get_data("tests/wf/cat-tool.cwl"),
+                get_data("tests/wf/wc-job.json"),
+            ]
+        )
+
+    assert "completed success" in stderr, stderr
+    assert "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376" in stdout, stdout

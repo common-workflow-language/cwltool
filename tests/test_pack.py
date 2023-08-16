@@ -44,9 +44,7 @@ def test_packing(unpacked: str, expected: str) -> None:
     """Compare expected version reality with various workflows and --pack."""
     loadingContext, workflowobj, uri = fetch_document(get_data(unpacked))
     loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
+    loadingContext, uri = resolve_and_validate_document(loadingContext, workflowobj, uri)
 
     packed = json.loads(print_pack(loadingContext, uri))
     context_dir = os.path.abspath(os.path.dirname(get_data(unpacked)))
@@ -68,13 +66,9 @@ def test_packing(unpacked: str, expected: str) -> None:
 
 
 def test_pack_single_tool() -> None:
-    loadingContext, workflowobj, uri = fetch_document(
-        get_data("tests/wf/formattest.cwl")
-    )
+    loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/formattest.cwl"))
     loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
+    loadingContext, uri = resolve_and_validate_document(loadingContext, workflowobj, uri)
     loader = loadingContext.loader
     assert loader
     loader.resolve_ref(uri)[0]
@@ -91,9 +85,7 @@ def test_pack_fragment() -> None:
 
     loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/scatter2.cwl"))
     packed = cwltool.pack.pack(loadingContext, uri + "#scatterstep/mysub")
-    adjustFileObjs(
-        packed, partial(make_relative, os.path.abspath(get_data("tests/wf")))
-    )
+    adjustFileObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
     adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
 
     packed_result = json.dumps(packed, sort_keys=True, indent=2)
@@ -103,15 +95,11 @@ def test_pack_fragment() -> None:
 
 
 def test_pack_rewrites() -> None:
-    rewrites = {}  # type: Dict[str, str]
+    rewrites: Dict[str, str] = {}
 
-    loadingContext, workflowobj, uri = fetch_document(
-        get_data("tests/wf/default-wf5.cwl")
-    )
+    loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/default-wf5.cwl"))
     loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
+    loadingContext, uri = resolve_and_validate_document(loadingContext, workflowobj, uri)
     loader = loadingContext.loader
     assert loader
     loader.resolve_ref(uri)[0]
@@ -133,13 +121,11 @@ cwl_missing_version_paths = [
 
 @pytest.mark.parametrize("cwl_path", cwl_missing_version_paths)
 def test_pack_missing_cwlVersion(cwl_path: str) -> None:
-    """Ensure the generated pack output is not missing the `cwlVersion` in case of single tool workflow and single step workflow."""
+    """Test generated pack output for `cwlVersion` in case of 1 tool workflow and 1 step workflow."""
     # Testing single tool workflow
     loadingContext, workflowobj, uri = fetch_document(get_data(cwl_path))
     loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
+    loadingContext, uri = resolve_and_validate_document(loadingContext, workflowobj, uri)
     loader = loadingContext.loader
     assert loader
     loader.resolve_ref(uri)[0]
@@ -163,9 +149,7 @@ def test_pack_idempotence_workflow(tmp_path: Path) -> None:
 def _pack_idempotently(document: str, tmp_path: Path) -> None:
     loadingContext, workflowobj, uri = fetch_document(get_data(document))
     loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
+    loadingContext, uri = resolve_and_validate_document(loadingContext, workflowobj, uri)
     loader = loadingContext.loader
     assert loader
     loader.resolve_ref(uri)[0]
@@ -182,9 +166,7 @@ def _pack_idempotently(document: str, tmp_path: Path) -> None:
 
     loadingContext, workflowobj, uri2 = fetch_document(tmp.name)
     loadingContext.do_update = False
-    loadingContext, uri2 = resolve_and_validate_document(
-        loadingContext, workflowobj, uri2
-    )
+    loadingContext, uri2 = resolve_and_validate_document(loadingContext, workflowobj, uri2)
     loader2 = loadingContext.loader
     assert loader2
     loader2.resolve_ref(uri2)[0]
@@ -212,9 +194,7 @@ def test_packed_workflow_execution(
     loadingContext.resolver = tool_resolver
     loadingContext, workflowobj, uri = fetch_document(get_data(wf_path), loadingContext)
     loadingContext.do_update = False
-    loadingContext, uri = resolve_and_validate_document(
-        loadingContext, workflowobj, uri
-    )
+    loadingContext, uri = resolve_and_validate_document(loadingContext, workflowobj, uri)
     loader = loadingContext.loader
     assert loader
     loader.resolve_ref(uri)[0]

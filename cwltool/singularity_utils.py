@@ -1,11 +1,11 @@
-"""Support for executing Docker containers using the Singularity 2.x engine."""
+"""Support for executing Docker format containers using Singularity {2,3}.x or Apptainer 1.x."""
 
 import os
 import os.path
 from subprocess import DEVNULL, PIPE, Popen, TimeoutExpired  # nosec
 from typing import Optional
 
-_USERNS = None  # type: Optional[bool]
+_USERNS: Optional[bool] = None
 
 
 def singularity_supports_userns() -> bool:

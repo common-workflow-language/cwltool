@@ -52,9 +52,7 @@ class CWLViewer:
                 else "lightgoldenrodyellow"
             )
             source_style = (
-                "dashed"
-                if inner_edge_row["source_step_class"].endswith("Operation")
-                else "filled"
+                "dashed" if inner_edge_row["source_step_class"].endswith("Operation") else "filled"
             )
             n = pydot.Node(
                 "",
@@ -77,9 +75,7 @@ class CWLViewer:
                 else "lightgoldenrodyellow"
             )
             target_style = (
-                "dashed"
-                if inner_edge_row["target_step_class"].endswith("Operation")
-                else "filled"
+                "dashed" if inner_edge_row["target_step_class"].endswith("Operation") else "filled"
             )
             n = pydot.Node(
                 "",
@@ -123,9 +119,7 @@ class CWLViewer:
             )
             n.set_name(str(input_row["input"]))
             inputs_subgraph.add_node(n)
-            self._dot_graph.add_edge(
-                pydot.Edge(str(input_row["input"]), str(input_row["step"]))
-            )
+            self._dot_graph.add_edge(pydot.Edge(str(input_row["input"]), str(input_row["step"])))
 
     def _set_output_edges(self) -> None:
         with open(_get_output_edges_query_path) as f:
@@ -153,9 +147,7 @@ class CWLViewer:
             )
             n.set_name(str(output_edge_row["output"]))
             outputs_graph.add_node(n)
-            self._dot_graph.add_edge(
-                pydot.Edge(output_edge_row["step"], output_edge_row["output"])
-            )
+            self._dot_graph.add_edge(pydot.Edge(output_edge_row["step"], output_edge_row["output"]))
 
     def _get_root_graph_uri(self) -> rdflib.term.Identifier:
         with open(_get_root_query_path) as f:

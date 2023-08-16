@@ -1,0 +1,8 @@
+[flake8]
+ignore = E203,W503
+max-line-length = 100
+select = B,C,E,F,W,T4
+exclude = cwltool/schemas
+extend-ignore = E501,B905
+# when Python 3.10 is the minimum version, re-enable check B905 for zip + strict
+extend-select = B9
