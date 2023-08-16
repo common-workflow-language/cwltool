@@ -16,7 +16,7 @@ import tempfile
 import time
 import urllib
 import warnings
-from codecs import 
+
 from typing import (
     IO,
     Any,

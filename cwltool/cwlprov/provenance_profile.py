@@ -88,8 +88,8 @@ def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectTyp
                 if iid in load_listing:
                     if load_listing[iid] == "no_listing":
                         _logger.warning("Skip listing of " + iid)
-                        job_order_object[iid]['loadListing'] = 'no_listing'
-                        job_order_object[iid]['listing'] = []
+                        job_order_object[iid]["loadListing"] = "no_listing"
+                        job_order_object[iid]["listing"] = []
                         customised_job[iid] = job_order_object[iid]
                     else:
                         # Normal deep copy
@@ -272,17 +272,16 @@ class ProvenanceProfile:
             # record provenance of workflow executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object, process)
-            self.used_artefacts(customised_job, self.workflow_run_uri, schema=process.inputs_record_schema)
-
+            self.used_artefacts(
+                customised_job, self.workflow_run_uri, schema=process.inputs_record_schema
+            )
 
     def record_process_start(
         self, process: Process, job: JobsType, process_run_id: Optional[str] = None
     ) -> Optional[str]:
         if not hasattr(process, "steps"):
             process_run_id = self.workflow_run_uri
-        elif not hasattr(job, "workflow") and isinstance(
-            process, cwltool.workflow.Workflow
-        ):
+        elif not hasattr(job, "workflow") and isinstance(process, cwltool.workflow.Workflow):
             # commandline tool execution as part of workflow
             name = ""
             if isinstance(job, (CommandLineJob, JobBase, WorkflowJob)):
@@ -296,9 +295,7 @@ class ProvenanceProfile:
             if step is None:
                 raise Exception("No / wrong step detected...!")
 
-            process_run_id = self.start_process(
-                step.id, process_name, datetime.datetime.now()
-            )
+            process_run_id = self.start_process(step.id, process_name, datetime.datetime.now())
         return process_run_id
 
     def start_process(
@@ -355,7 +352,9 @@ class ProvenanceProfile:
         self.generate_output_prov(outputs, process_run_id, process_name, load_listing)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
-    def declare_file(self, value: CWLObjectType, load_listing: str = "invalid_listing") -> Tuple[ProvEntity, ProvEntity, str]:
+    def declare_file(
+        self, value: CWLObjectType, load_listing: str = "invalid_listing"
+    ) -> Tuple[ProvEntity, ProvEntity, str]:
         _logger.debug("What listing? " + load_listing)
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
@@ -429,7 +428,9 @@ class ProvenanceProfile:
 
         return file_entity, entity, checksum
 
-    def declare_directory(self, value: CWLObjectType, load_listing: str = "invalid_listing") -> ProvEntity:
+    def declare_directory(
+        self, value: CWLObjectType, load_listing: str = "invalid_listing"
+    ) -> ProvEntity:
         """Register any nested files/directories."""
         # FIXME: Calculate a hash-like identifier for directory
         # so we get same value if it's the same filenames/hashes
@@ -690,8 +691,8 @@ class ProvenanceProfile:
         if isinstance(job_order, list):
             for entry in job_order:
                 # for field in schema.fields:
-                    # if field['name'] == entry.
-                    # load_listing = schema.fields
+                # if field['name'] == entry.
+                # load_listing = schema.fields
                 self.used_artefacts(entry, process_run_id, name, load_listing)
         else:
             # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
@@ -702,10 +703,10 @@ class ProvenanceProfile:
                 prov_role = self.wf_ns[f"{base}/{key}"]
                 if not load_listing:
                     load_listing = "deep_listing"
-                    for field in schema['fields']:
-                        if field['name'] == key:
-                            if 'loadListing' in field:
-                                load_listing = field['loadListing']
+                    for field in schema["fields"]:
+                        if field["name"] == key:
+                            if "loadListing" in field:
+                                load_listing = field["loadListing"]
                                 break
                             else:
                                 # Need to find a way to reproduce this
@@ -728,7 +729,7 @@ class ProvenanceProfile:
         final_output: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
         process_run_id: Optional[str],
         name: Optional[str],
-        load_listing: str = "invalid_listing"
+        load_listing: str = "invalid_listing",
     ) -> None:
         """Call wasGeneratedBy() for each output,copy the files into the RO."""
         if isinstance(final_output, MutableSequence):

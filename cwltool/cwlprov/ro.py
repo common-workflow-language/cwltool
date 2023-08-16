@@ -478,9 +478,7 @@ class ResearchObject:
         """Copy inputs to data/ folder."""
         self.self_check()
         tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
-        with tempfile.NamedTemporaryFile(
-            prefix=tmp_prefix, dir=tmp_dir, delete=False
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
             # TODO this should depend on the arguments
             if self.no_data:
                 checksum = checksum_only(from_fp)
@@ -506,8 +504,10 @@ class ResearchObject:
             _logger.warning("[provenance] Unknown hash method %s for bagit manifest", Hasher)
             # Inefficient, bagit support need to checksum again
             self._add_to_bagit(rel_path)
-        if 'dir' in self.relativised_input_object:
-            _logger.debug("[provenance] Directory :%s", self.relativised_input_object['dir']['basename'])
+        if "dir" in self.relativised_input_object:
+            _logger.debug(
+                "[provenance] Directory :%s", self.relativised_input_object["dir"]["basename"]
+            )
         else:
             _logger.debug("[provenance] File: %s", str(from_fp))
             # If debug is enabled?
@@ -634,7 +634,6 @@ class ResearchObject:
             for obj in structure:
                 # Recurse and rewrite any nested File objects
                 self._relativise_files(cast(CWLOutputType, obj))
-<<<<<<< HEAD:cwltool/provenance.py
 
     def close(self, save_to: Optional[str] = None) -> None:
         """Close the Research Object, optionally saving to specified folder.

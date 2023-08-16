@@ -303,15 +303,16 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
 
     # Input files should be captured by hash value,
     # even if they were inside a class: Directory
-    for (l, l_hash) in sha1.items():
+    for l, l_hash in sha1.items():
         prefix = l_hash[:2]  # first 2 letters
         p = folder / "data" / prefix / l_hash
         # File should be empty and in the future not existing...
         # assert os.path.getsize(p.absolute()) == 0
         # To be discared when file really does not exist anymore
-        if l not in ['d', 'e', 'f', 'g', 'h', 'i']:
+        if l not in ["d", "e", "f", "g", "h", "i"]:
             print("Analysing file %s", l)
             assert p.is_file(), f"Could not find {l} as {p}"
+
 
 @needs_docker
 def test_no_data_files(tmp_path: Path) -> None:
