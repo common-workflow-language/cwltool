@@ -24,6 +24,8 @@ from prov.identifier import Identifier, Namespace, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
 
+import cwltool.workflow
+
 from ..errors import WorkflowException
 from ..job import CommandLineJob, JobBase
 from ..loghandler import _logger
@@ -55,7 +57,7 @@ if TYPE_CHECKING:
     from .ro import ResearchObject
 
 
-def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectType) -> CWLObjectType:
+def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectType, process) -> CWLObjectType:
     """Create copy of job object for provenance."""
     if not isinstance(job, WorkflowJob):
         # direct command line tool execution
@@ -265,7 +267,7 @@ class ProvenanceProfile:
         if not hasattr(process, "steps"):
             # record provenance of independent commandline tool executions
             self.prospective_prov(job)
-            customised_job = copy_job_order(job, job_order_object)
+            customised_job = copy_job_order(job, job_order_object, process)
             self.used_artefacts(customised_job, self.workflow_run_uri)
             create_job(research_obj, customised_job)
         elif hasattr(job, "workflow"):

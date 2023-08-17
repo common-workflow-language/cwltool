@@ -93,6 +93,9 @@ class ResearchObject:
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
 
+        # No data option
+        self.no_data = False
+
     def self_check(self) -> None:
         """Raise ValueError if this RO is closed."""
         if self.closed:
