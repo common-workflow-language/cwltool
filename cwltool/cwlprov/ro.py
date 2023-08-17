@@ -5,7 +5,6 @@ import hashlib
 import os
 import shutil
 import tempfile
-import traceback
 import uuid
 from pathlib import Path, PurePosixPath
 from typing import (

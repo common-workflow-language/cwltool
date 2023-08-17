@@ -8,7 +8,6 @@ import functools
 import io
 import logging
 import os
-import shutil
 import signal
 import subprocess  # nosec
 import sys
