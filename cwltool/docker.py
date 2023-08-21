@@ -2,6 +2,7 @@
 
 import csv
 import datetime
+import json
 import math
 import os
 import re
@@ -113,35 +114,18 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             if docker_requirement["dockerImageId"] in _IMAGES:
                 return True
 
-        for line in (
-            subprocess.check_output([self.docker_exec, "images", "--no-trunc", "--all"])  # nosec
-            .decode("utf-8")
-            .splitlines()
-        ):
+        docker_image_id = docker_requirement.get("dockerImageId")
+        if docker_image_id is not None:
             try:
-                match = re.match(r"^([^ ]+)\s+([^ ]+)\s+([^ ]+)", line)
-                split = docker_requirement["dockerImageId"].split(":")
-                if len(split) == 1:
-                    split.append("latest")
-                elif len(split) == 2:
-                    #  if split[1] doesn't  match valid tag names, it is a part of repository
-                    if not re.match(r"[\w][\w.-]{0,127}", split[1]):
-                        split[0] = split[0] + ":" + split[1]
-                        split[1] = "latest"
-                elif len(split) == 3:
-                    if re.match(r"[\w][\w.-]{0,127}", split[2]):
-                        split[0] = split[0] + ":" + split[1]
-                        split[1] = split[2]
-                        del split[2]
-
-                # check for repository:tag match or image id match
-                if match and (
-                    (split[0] == match.group(1) and split[1] == match.group(2))
-                    or docker_requirement["dockerImageId"] == match.group(3)
-                ):
-                    found = True
-                    break
-            except ValueError:
+                manifest = json.loads(
+                    subprocess.check_output(
+                        [self.docker_exec, "inspect", docker_image_id]
+                    ).decode(  # nosec
+                        "utf-8"
+                    )
+                )
+                found = True
+            except Exception as e:
                 pass
 
         if (force_pull or not found) and pull_image:
