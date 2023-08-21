@@ -857,6 +857,10 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         cid: Optional[str] = None
         while cid is None:
             time.sleep(1)
+            # This is needed to avoid a race condition where the job
+            # was so fast that it already finished when it arrives here
+            if process.returncode is None:
+                process.poll()
             if process.returncode is not None:
                 if cleanup_cidfile:
                     try:
