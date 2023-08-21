@@ -748,16 +748,6 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 img_id = str(docker_req["dockerImageId"])
             elif "dockerPull" in docker_req:
                 img_id = str(docker_req["dockerPull"])
-                cmd = [user_space_docker_cmd, "pull", img_id]
-                _logger.info(str(cmd))
-                try:
-                    subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
-                except OSError as exc:
-                    raise SourceLine(docker_req, None, WorkflowException, debug).makeError(
-                        f"Either Docker container {img_id} is not available with "
-                        f"user space docker implementation {user_space_docker_cmd} "
-                        f" or {user_space_docker_cmd} is missing or broken."
-                    ) from exc
             else:
                 raise SourceLine(docker_req, None, WorkflowException, debug).makeError(
                     "Docker image must be specified as 'dockerImageId' or "
