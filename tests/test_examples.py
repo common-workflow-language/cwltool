@@ -1850,6 +1850,7 @@ def test_invalid_nested_array() -> None:
         ]
     )
     assert exit_code == 1, stderr
+    stderr = re.sub(r"\n\s+", " ", stderr)
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "Tool definition failed validation:" in stderr
     assert (
