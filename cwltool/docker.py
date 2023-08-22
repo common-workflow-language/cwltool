@@ -5,7 +5,6 @@ import datetime
 import json
 import math
 import os
-import re
 import shutil
 import subprocess  # nosec
 import sys
@@ -124,8 +123,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                         "utf-8"
                     )
                 )
-                found = True
-            except Exception as e:
+                found = manifest is not None
+            except (OSError, subprocess.CalledProcessError, UnicodeError):
                 pass
 
         if (force_pull or not found) and pull_image:
