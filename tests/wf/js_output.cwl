@@ -6,5 +6,5 @@ requirements:
 inputs: []
 outputs: []
 arguments:
-  - valueFrom: ${console.log("Log message");console.error("Error message");return ["python", "-c", "True"]}
+  - valueFrom: ${console.log("Log message");console.error("Error message");return ["python3", "-c", "True"]}
     shellQuote: false
