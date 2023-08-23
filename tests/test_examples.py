@@ -1473,7 +1473,9 @@ def test_bad_userspace_runtime(factor: str) -> None:
     )
     error_code, stdout, stderr = get_main_output(commands)
     stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "or quaquioN is missing or broken" in stderr, stderr
+    assert ("or quaquioN is missing or broken" in stderr) or (
+        "No such file or directory: 'quaquioN'" in stderr
+    ), stderr
     assert error_code == 1
 
 
