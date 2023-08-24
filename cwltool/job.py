@@ -511,14 +511,17 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         memory_usage: MutableSequence[Optional[int]] = [None]
 
         def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
-            children = monitor.children()
             try:
-                rss = monitor.memory_info().rss
-                while len(children):
-                    rss += sum(process.memory_info().rss for process in children)
-                    children = list(itertools.chain(*(process.children() for process in children)))
-                if memory_usage[0] is None or rss > memory_usage[0]:
-                    memory_usage[0] = rss
+                with monitor.oneshot():
+                    children = monitor.children()
+                    rss = monitor.memory_info().rss
+                    while len(children):
+                        rss += sum(process.memory_info().rss for process in children)
+                        children = list(
+                            itertools.chain(*(process.children() for process in children))
+                        )
+                    if memory_usage[0] is None or rss > memory_usage[0]:
+                        memory_usage[0] = rss
             except psutil.NoSuchProcess:
                 mem_tm.cancel()
 
