@@ -510,6 +510,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # Value must be list rather than integer to utilise pass-by-reference in python
         memory_usage: MutableSequence[Optional[int]] = [None]
 
+        mem_tm: "Optional[Timer]" = None
+
         def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
             try:
                 with monitor.oneshot():
@@ -522,8 +524,12 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                         )
                     if memory_usage[0] is None or rss > memory_usage[0]:
                         memory_usage[0] = rss
+                mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
+                mem_tm.daemon = True
+                mem_tm.start()
             except psutil.NoSuchProcess:
-                mem_tm.cancel()
+                if mem_tm is not None:
+                    mem_tm.cancel()
 
         mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
         mem_tm.daemon = True
