@@ -1038,6 +1038,26 @@ def _job_popen(
             if sproc.stdin is not None:
                 sproc.stdin.close()
 
+            tm = None
+            if timelimit is not None and timelimit > 0:
+
+                def terminate():  # type: () -> None
+                    try:
+                        _logger.warning(
+                            "[job %s] exceeded time limit of %d seconds and will be terminated",
+                            name,
+                            timelimit,
+                        )
+                        sproc.terminate()
+                    except OSError:
+                        pass
+
+                tm = Timer(timelimit, terminate)
+                tm.daemon = True
+                tm.start()
+            if monitor_function:
+                monitor_function(sproc)
+
             rcode = sproc.wait()
 
             return rcode
