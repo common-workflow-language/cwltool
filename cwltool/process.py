@@ -980,7 +980,8 @@ hints:
         ):
             if rsc is None:
                 continue
-            mn = mx = None  # type: Optional[Union[int, float]]
+            mn: Optional[Union[int, float]] = None
+            mx: Optional[Union[int, float]] = None
             if rsc.get(a + "Min"):
                 with SourceLine(rsc, f"{a}Min", WorkflowException, runtimeContext.debug):
                     mn = cast(
