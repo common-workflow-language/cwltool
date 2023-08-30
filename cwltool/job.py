@@ -513,6 +513,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         mem_tm: "Optional[Timer]" = None
 
         def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
+            nonlocal mem_tm
             try:
                 with monitor.oneshot():
                     children = monitor.children()
