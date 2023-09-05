@@ -2,13 +2,16 @@ import subprocess
 import sys
 import time
 
-import importlib.metadata
+if sys.version_info >= (3, 8):
+    import importlib.metadata as importlib_metadata
+else:
+    import importlib_metadata
 
 from typing import Any
 
 from setuptools.command.egg_info import egg_info
 
-SETUPTOOLS_VER = importlib.metadata.version("setuptools").split(".")
+SETUPTOOLS_VER = importlib_metadata.version("setuptools").split(".")
 
 RECENT_SETUPTOOLS = (
     int(SETUPTOOLS_VER[0]) > 40

@@ -91,8 +91,9 @@ class DependenciesConfiguration:
             resolution_config_dict=resolution_config_dict,
             conf_file=self.dependency_resolvers_config_file,
         )
-        handle_dependencies: str = ""
-        if dependencies := get_dependencies(builder):
+        dependencies = get_dependencies(builder)
+        handle_dependencies = ""  # str
+        if dependencies:
             handle_dependencies = "\n".join(
                 tool_dependency_manager.dependency_shell_commands(
                     dependencies, job_directory=builder.tmpdir
