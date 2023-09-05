@@ -40,7 +40,7 @@ jobs:
       TOXENV: ${{ format('py{0}{1}-{2}', matrix.py-ver-major, matrix.py-ver-minor, matrix.step) }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -99,7 +99,7 @@ jobs:
       TOXENV: ${{ format('py311-{0}', matrix.step) }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -127,7 +127,7 @@ jobs:
     env:
       py-semver: "3.11"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -174,7 +174,7 @@ jobs:
             extras: "--fast-parser"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Singularity
         if: ${{ matrix.container == 'singularity' }}
@@ -216,7 +216,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Singularity
         run: |
@@ -248,7 +248,7 @@ jobs:
   build_test_container:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: build & test cwltool_module container
         run: ./build-cwltool-docker.sh
 
@@ -258,7 +258,7 @@ jobs:
     env:
       TOXENV: py311-unit
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Set up Python
