@@ -55,8 +55,7 @@ fi
 
 python3 -m venv testenv2
 python3 -m venv testenv3
-python3 -m venv testenv4
-rm -Rf testenv[234]/local
+rm -Rf testenv[23]/local
 
 # Secondly we test via pip
 
