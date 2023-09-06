@@ -32,18 +32,8 @@ jobs:
     strategy:
       matrix:
         py-ver-major: [3]
-        py-ver-minor: [7, 8, 9, 10, 11, 12]
+        py-ver-minor: [8, 9, 10, 11, 12]
         step: [lint, unit, bandit, mypy]
-        exclude:
-          - py-ver-major: 3
-            py-ver-minor: 7
-            step: mypy
-          - py-ver-major: 3
-            py-ver-minor: 7
-            step: lint
-          - py-ver-major: 3
-            py-ver-minor: 7
-            step: bandit
 
     env:
       py-semver: ${{ format('{0}.{1}', matrix.py-ver-major, matrix.py-ver-minor) }}

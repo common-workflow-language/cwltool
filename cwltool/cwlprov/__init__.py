@@ -6,8 +6,7 @@ import pwd
 import re
 import uuid
 from getpass import getuser
-from typing import IO, Any, Callable, Dict, List, Optional, Tuple, Union
-from typing_extensions import TypedDict
+from typing import IO, Any, Callable, Dict, List, Optional, Tuple, TypedDict, Union
 
 
 def _whoami() -> Tuple[str, str]:

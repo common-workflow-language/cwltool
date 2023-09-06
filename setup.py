@@ -120,9 +120,7 @@ setup(
         "prov == 1.5.1",
         "mypy-extensions",
         "psutil >= 5.6.6",
-        "typing-extensions",
         "importlib_resources>=1.4",
-        "importlib_metadata;python_version<'3.8'",
         "coloredlogs",
         "pydot >= 1.4.1",
         "argcomplete",
@@ -132,7 +130,7 @@ setup(
     extras_require={
         "deps": ["galaxy-tool-util >= 22.1.2, <23", "galaxy-util <23"],
     },
-    python_requires=">=3.7, <4",
+    python_requires=">=3.8, <4",
     setup_requires=PYTEST_RUNNER,
     test_suite="tests",
     tests_require=[
@@ -158,7 +156,6 @@ setup(
         "Operating System :: POSIX",
         "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",

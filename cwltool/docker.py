@@ -113,8 +113,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             if docker_requirement["dockerImageId"] in _IMAGES:
                 return True
 
-        docker_image_id = docker_requirement.get("dockerImageId")
-        if docker_image_id is not None:
+        if (docker_image_id := docker_requirement.get("dockerImageId")) is not None:
             try:
                 manifest = json.loads(
                     subprocess.check_output(
