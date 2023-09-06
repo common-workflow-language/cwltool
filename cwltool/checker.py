@@ -5,6 +5,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    Literal,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -12,7 +13,6 @@ from typing import (
     Union,
     cast,
 )
-from typing_extensions import Literal
 
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
@@ -509,8 +509,7 @@ def get_step_id(field_id: str) -> str:
 
 
 def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -> bool:
-    source_step = param_to_step.get(parm_id)
-    if source_step is not None:
+    if (source_step := param_to_step.get(parm_id)) is not None:
         if source_step.get("when") is not None:
             return True
     return False

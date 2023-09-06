@@ -12,12 +12,12 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Optional,
     TextIO,
     Tuple,
     Union,
 )
-from typing_extensions import Literal
 
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names
