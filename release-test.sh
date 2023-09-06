@@ -89,8 +89,9 @@ rm -f lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==${setuptoolsver} wheel
 package_tar=$(find . -name "${package}*tar.gz")
-pip install "-r${DIR}/test-requirements.txt"
+pip install "-r${DIR}/test-requirements.txt" udocker
 pip install "${package_tar}${extras}"
+udocker install
 mkdir out
 tar --extract --directory=out -z -f ${package}*.tar.gz
 pushd out/${package}*
