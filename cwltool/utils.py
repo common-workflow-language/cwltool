@@ -1,6 +1,12 @@
 """Shared functions and other definitions."""
 import collections
-import fcntl
+
+try:
+    import fcntl
+except ImportError:
+    # Guard against `from .utils import ...` on windows.
+    # See windows_check() in main.py
+    pass
 import importlib.metadata
 import os
 import random
