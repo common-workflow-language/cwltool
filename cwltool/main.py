@@ -1134,7 +1134,7 @@ def main(
                 make_template(tool, stdout)
                 return 0
 
-            if args.validate:
+            if len(args.job_order) == 0 and args.validate:
                 print(f"{args.workflow} is valid CWL.", file=stdout)
                 return 0
 
@@ -1294,10 +1294,14 @@ def main(
                     use_biocontainers=args.beta_use_biocontainers,
                     container_image_cache_path=args.beta_dependencies_directory,
                 )
+            runtimeContext.validate_only = args.validate
+            runtimeContext.validate_stdout = stdout
 
             (out, status) = real_executor(
                 tool, initialized_job_order_object, runtimeContext, logger=_logger
             )
+            if runtimeContext.validate_only is True:
+                return 0
 
             if out is not None:
                 if runtimeContext.research_obj is not None:

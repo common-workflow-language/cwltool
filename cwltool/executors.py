@@ -143,6 +143,8 @@ class JobExecutor(metaclass=ABCMeta):
                 process.requirements.append(req)
 
         self.run_jobs(process, job_order_object, logger, runtime_context)
+        if runtime_context.validate_only is True:
+            return (None, "ValidationSuccess")
 
         if self.final_output and self.final_output[0] is not None and finaloutdir is not None:
             self.final_output[0] = relocateOutputs(
@@ -238,6 +240,16 @@ class SingleJobExecutor(JobExecutor):
                             process_run_id = prov_obj.record_process_start(process, job)
                             runtime_context = runtime_context.copy()
                         runtime_context.process_run_id = process_run_id
+                    if runtime_context.validate_only is True:
+                        if isinstance(job, WorkflowJob):
+                            name = job.tool.lc.filename
+                        else:
+                            name = getattr(job, "name", str(job))
+                        print(
+                            f"{name} is valid CWL. No errors detected in the inputs.",
+                            file=runtime_context.validate_stdout,
+                        )
+                        return
                     job.run(runtime_context)
                 else:
                     logger.error("Workflow cannot make any more progress.")
