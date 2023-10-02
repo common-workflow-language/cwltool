@@ -25,7 +25,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-multi-buildx
       - name: Login to Quay.io
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ secrets.REGISTRY_SERVER }}
           username: ${{ secrets.REGISTRY_USERNAME }}
