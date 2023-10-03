@@ -19,7 +19,8 @@ def cuda_device_count() -> str:
     except Exception as e:
         _logger.warning("Error checking number of GPUs with nvidia-smi: %s", e)
         return "0"
-    return proc.stdout.decode("utf-8")
+    # NOTE: On a machine with N GPUs the query return N lines, each containing N.
+    return proc.stdout.decode("utf-8").split("\n")[0]
 
 
 def cuda_version_and_device_count() -> Tuple[str, int]:
