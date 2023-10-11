@@ -25,8 +25,8 @@ run_tests() {
 	"${test_prefix}"bin/py.test "--ignore=${mod_loc}/schemas/" \
 		--pyargs -x ${module} -n auto --dist=loadfile
 }
-pipver=20.3.4 # minimum required version of pip for Python 3.10
-setuptoolsver=52.0.0
+pipver=23.1  # minimum required version of pip for Python 3.12
+setuptoolsver=67.6.1  # required for Python 3.12
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 rm -Rf testenv? || /bin/true
