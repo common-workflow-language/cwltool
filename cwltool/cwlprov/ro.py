@@ -66,6 +66,7 @@ class ResearchObject:
         temp_prefix_ro: str = "tmp",
         orcid: str = "",
         full_name: str = "",
+        no_data: bool = False,
     ) -> None:
         """Initialize the ResearchObject."""
         self.temp_prefix = temp_prefix_ro
@@ -91,6 +92,9 @@ class ResearchObject:
 
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
+
+        # No data option
+        self.no_data = False
 
     def self_check(self) -> None:
         """Raise ValueError if this RO is closed."""
@@ -179,14 +183,18 @@ class ResearchObject:
             # adding checksums after closing.
             # Below probably OK for now as metadata files
             # are not too large..?
-
-            checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
-
-            tag_file.seek(0)
-            checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
-
-            tag_file.seek(0)
-            checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
+            if self.no_data:
+                checksums[SHA1] = checksum_only(tag_file, hasher=hashlib.sha1)
+                tag_file.seek(0)
+                checksums[SHA256] = checksum_only(tag_file, hasher=hashlib.sha256)
+                tag_file.seek(0)
+                checksums[SHA512] = checksum_only(tag_file, hasher=hashlib.sha512)
+            else:
+                checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
+                tag_file.seek(0)
+                checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
+                tag_file.seek(0)
+                checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
 
         rel_path = posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
@@ -468,12 +476,16 @@ class ResearchObject:
         timestamp: Optional[datetime.datetime] = None,
         content_type: Optional[str] = None,
     ) -> str:
+        # TODO only when --no-data is not used!
         """Copy inputs to data/ folder."""
         self.self_check()
         tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
         with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
-            checksum = checksum_copy(from_fp, tmp)
-
+            # TODO this should depend on the arguments
+            if self.no_data:
+                checksum = checksum_only(from_fp)
+            else:
+                checksum = checksum_copy(from_fp, tmp)
         # Calculate hash-based file path
         folder = os.path.join(self.folder, DATA, checksum[0:2])
         path = os.path.join(folder, checksum)
@@ -484,6 +496,7 @@ class ResearchObject:
         os.rename(tmp.name, path)
 
         # Relative posix path
+        # TODO only when no-data is False?...
         rel_path = posix_path(os.path.relpath(path, self.folder))
 
         # Register in bagit checksum
@@ -493,6 +506,14 @@ class ResearchObject:
             _logger.warning("[provenance] Unknown hash method %s for bagit manifest", Hasher)
             # Inefficient, bagit support need to checksum again
             self._add_to_bagit(rel_path)
+        if "dir" in self.relativised_input_object:
+            _logger.debug(
+                "[provenance] Directory :%s", self.relativised_input_object["dir"]["basename"]
+            )
+        else:
+            _logger.debug("[provenance] File: %s", str(from_fp))
+            # If debug is enabled?
+            # _logger.debug(traceback.print_stack())
         _logger.debug("[provenance] Added data file %s", path)
         if timestamp is not None:
             createdOn, createdBy = self._self_made(timestamp)
@@ -557,7 +578,10 @@ class ResearchObject:
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
+                if self.no_data:
+                    checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
+                else:
+                    checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
 
         self.add_to_manifest(rel_path, checksums)
 
@@ -612,3 +636,96 @@ class ResearchObject:
             for obj in structure:
                 # Recurse and rewrite any nested File objects
                 self._relativise_files(cast(CWLOutputType, obj))
+
+    def close(self, save_to: Optional[str] = None) -> None:
+        """Close the Research Object, optionally saving to specified folder.
+
+        Closing will remove any temporary files used by this research object.
+        After calling this method, this ResearchObject instance can no longer
+        be used, except for no-op calls to .close().
+
+        The 'saveTo' folder should not exist - if it does, it will be deleted.
+
+        It is safe to call this function multiple times without the
+        'saveTo' argument, e.g. within a try..finally block to
+        ensure the temporary files of this Research Object are removed.
+        """
+        if save_to is None:
+            if not self.closed:
+                _logger.debug("[provenance] Deleting temporary %s", self.folder)
+                shutil.rmtree(self.folder, ignore_errors=True)
+        else:
+            save_to = os.path.abspath(save_to)
+            _logger.info("[provenance] Finalizing Research Object")
+            self._finalize()  # write manifest etc.
+            # TODO: Write as archive (.zip or .tar) based on extension?
+
+            if os.path.isdir(save_to):
+                _logger.info("[provenance] Deleting existing %s", save_to)
+                shutil.rmtree(save_to)
+            shutil.move(self.folder, save_to)
+            _logger.info("[provenance] Research Object saved to %s", save_to)
+            self.folder = save_to
+        self.closed = True
+
+
+def checksum_copy(
+    src_file: IO[Any],
+    dst_file: Optional[IO[Any]] = None,
+    hasher=Hasher,  # type: Callable[[], hashlib._Hash]
+    buffersize: int = 1024 * 1024,
+) -> str:
+    """Compute checksums while copying a file."""
+    # TODO: Use hashlib.new(Hasher_str) instead?
+    checksum = hasher()
+    contents = src_file.read(buffersize)
+    if dst_file and hasattr(dst_file, "name") and hasattr(src_file, "name"):
+        temp_location = os.path.join(os.path.dirname(dst_file.name), str(uuid.uuid4()))
+        try:
+            os.rename(dst_file.name, temp_location)
+            os.link(src_file.name, dst_file.name)
+            dst_file = None
+            os.unlink(temp_location)
+        except OSError:
+            pass
+        if os.path.exists(temp_location):
+            os.rename(temp_location, dst_file.name)  # type: ignore
+
+    return content_processor(contents, src_file, dst_file, checksum, buffersize)
+
+
+def content_processor(
+    contents: Any,
+    src_file: IO[Any],
+    dst_file: Optional[IO[Any]],
+    checksum: "hashlib._Hash",
+    buffersize: int,
+) -> str:
+    """Calculate the checksum based on the content."""
+    while contents != b"":
+        if dst_file is not None:
+            dst_file.write(contents)
+        checksum.update(contents)
+        contents = src_file.read(buffersize)
+    if dst_file is not None:
+        dst_file.flush()
+    return checksum.hexdigest().lower()
+
+
+def checksum_only(
+    src_file: IO[Any],
+    dst_file: Optional[IO[Any]] = None,
+    hasher=Hasher,  # type: Callable[[], hashlib._Hash]
+    buffersize: int = 1024 * 1024,
+) -> str:
+    """Calculate the checksum only, does not copy the data files."""
+    if dst_file is not None:
+        _logger.error("Destination file should be None but it is %s", dst_file)
+
+    """Compute checksums while copying a file."""
+    # TODO: Use hashlib.new(Hasher_str) instead?
+    checksum = hasher()
+    contents = src_file.read(buffersize)
+
+    # TODO Could be a function for both checksum_only and checksum_copy?
+    return content_processor(contents, src_file, dst_file, checksum, buffersize)

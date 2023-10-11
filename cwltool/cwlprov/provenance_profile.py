@@ -20,9 +20,11 @@ from typing import (
     cast,
 )
 
-from prov.identifier import Identifier, QualifiedName
+from prov.identifier import Identifier, Namespace, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
+
+import cwltool.workflow
 
 from ..errors import WorkflowException
 from ..job import CommandLineJob, JobBase
@@ -55,7 +57,7 @@ if TYPE_CHECKING:
     from .ro import ResearchObject
 
 
-def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectType) -> CWLObjectType:
+def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectType, process) -> CWLObjectType:
     """Create copy of job object for provenance."""
     if not isinstance(job, WorkflowJob):
         # direct command line tool execution
@@ -63,12 +65,41 @@ def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectTyp
     customised_job: CWLObjectType = {}
     # new job object for RO
     debug = _logger.isEnabledFor(logging.DEBUG)
+    # Process the process object first
+    load_listing = {}
+
+    # Implementation to capture the loadlisting from cwl to skip the inclusion of for example files of big database
+    # folders
+    for index, entry in enumerate(process.inputs_record_schema["fields"]):
+        if (
+            entry["type"] == "org.w3id.cwl.cwl.Directory"
+            and "loadListing" in entry
+            and entry["loadListing"]
+        ):
+            load_listing[entry["name"]] = entry["loadListing"]
+
+    # print("LOAD LISTING: ", load_listing)
+    # PROCESS:Workflow: file:///Users/jasperk/gitlab/cwltool/tests/wf/directory_no_listing.cwl
+    # print("PROCESS:" + str(process))
+
     for each, i in enumerate(job.tool["inputs"]):
         with SourceLine(job.tool["inputs"], each, WorkflowException, debug):
             iid = shortname(i["id"])
+            # if iid in the load listing object and no_listing then....
             if iid in job_order_object:
-                customised_job[iid] = copy.deepcopy(job_order_object[iid])
-                # add the input element in dictionary for provenance
+                if iid in load_listing:
+                    if load_listing[iid] == "no_listing":
+                        _logger.warning("Skip listing of " + iid)
+                        job_order_object[iid]["loadListing"] = "no_listing"
+                        job_order_object[iid]["listing"] = []
+                        customised_job[iid] = job_order_object[iid]
+                    else:
+                        # Normal deep copy
+                        customised_job[iid] = copy.deepcopy(job_order_object[iid])
+                # TODO Other listing options here?
+                else:
+                    # add the input element in dictionary for provenance
+                    customised_job[iid] = copy.deepcopy(job_order_object[iid])
             elif "default" in i:
                 customised_job[iid] = copy.deepcopy(i["default"])
                 # add the default elements in the dictionary for provenance
@@ -236,31 +267,42 @@ class ProvenanceProfile:
         if not hasattr(process, "steps"):
             # record provenance of independent commandline tool executions
             self.prospective_prov(job)
-            customised_job = copy_job_order(job, job_order_object)
+            customised_job = copy_job_order(job, job_order_object, process)
             self.used_artefacts(customised_job, self.workflow_run_uri)
             create_job(research_obj, customised_job)
         elif hasattr(job, "workflow"):
             # record provenance of workflow executions
             self.prospective_prov(job)
-            customised_job = copy_job_order(job, job_order_object)
-            self.used_artefacts(customised_job, self.workflow_run_uri)
+            customised_job = copy_job_order(job, job_order_object, process)
+            self.used_artefacts(
+                customised_job, self.workflow_run_uri, schema=process.inputs_record_schema
+            )
 
     def record_process_start(
         self, process: Process, job: JobsType, process_run_id: Optional[str] = None
     ) -> Optional[str]:
         if not hasattr(process, "steps"):
             process_run_id = self.workflow_run_uri
-        elif not hasattr(job, "workflow"):
+        elif not hasattr(job, "workflow") and isinstance(process, cwltool.workflow.Workflow):
             # commandline tool execution as part of workflow
             name = ""
             if isinstance(job, (CommandLineJob, JobBase, WorkflowJob)):
                 name = job.name
             process_name = urllib.parse.quote(name, safe=":/,#")
-            process_run_id = self.start_process(process_name, datetime.datetime.now())
+            # Iterator as step is not always 1, check with process_name to find the correct step.id
+            step = None
+            for step in process.steps:
+                if step.id.endswith("#" + process_name):
+                    break
+            if step is None:
+                raise Exception("No / wrong step detected...!")
+
+            process_run_id = self.start_process(step.id, process_name, datetime.datetime.now())
         return process_run_id
 
     def start_process(
         self,
+        step_id: str,  # The ID of the step involved
         process_name: str,
         when: datetime.datetime,
         process_run_id: Optional[str] = None,
@@ -269,12 +311,32 @@ class ProvenanceProfile:
         if process_run_id is None:
             process_run_id = uuid.uuid4().urn
         prov_label = "Run of workflow/packed.cwl#main/" + process_name
-        self.document.activity(
-            process_run_id,
-            None,
-            None,
-            {PROV_TYPE: WFPROV["ProcessRun"], PROV_LABEL: prov_label},
-        )
+        # TESTING to include the Steps URI so linking to --print-rdf becomes possible
+        FILE_PATH = None
+        WORKFLOW_STEP = None
+        # Not sure if steps is always 1 element so a step name check including the # is performed
+        if step_id.endswith("#" + process_name):
+            # Temp import maybe there is another way to create the URI's ?
+            # Looked at --print-rdf for a possible URI
+            WORKFLOW = Namespace("Workflow", "https://w3id.org/cwl/cwl#Workflow/")
+            WORKFLOW_STEP = WORKFLOW["steps"]
+            # Was not sure how to create a URI without a namespace
+            FILE = Namespace("", "")
+            # The entire file://....#step path
+            FILE_PATH = FILE[step_id]
+
+            # Added the WORKFLOW_STEP and FILE_PATH to the object
+            self.document.activity(
+                process_run_id,
+                None,
+                None,
+                {
+                    PROV_TYPE: WFPROV["ProcessRun"],
+                    PROV_LABEL: prov_label,
+                    WORKFLOW_STEP: FILE_PATH,
+                },
+            )
+
         self.document.wasAssociatedWith(
             process_run_id, self.engine_uuid, str("wf:main/" + process_name)
         )
@@ -287,11 +349,15 @@ class ProvenanceProfile:
         process_run_id: str,
         outputs: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
         when: datetime.datetime,
+        load_listing: str = "invalid_listing",
     ) -> None:
-        self.generate_output_prov(outputs, process_run_id, process_name)
+        self.generate_output_prov(outputs, process_run_id, process_name, load_listing)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
-    def declare_file(self, value: CWLObjectType) -> Tuple[ProvEntity, ProvEntity, str]:
+    def declare_file(
+        self, value: CWLObjectType, load_listing: str = "invalid_listing"
+    ) -> Tuple[ProvEntity, ProvEntity, str]:
+        _logger.debug("What listing? " + load_listing)
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
@@ -345,9 +411,11 @@ class ProvenanceProfile:
         for sec in cast(MutableSequence[CWLObjectType], value.get("secondaryFiles", [])):
             # TODO: Record these in a specializationOf entity with UUID?
             if sec["class"] == "File":
-                (sec_entity, _, _) = self.declare_file(sec)
+                _logger.debug("447: " + load_listing)
+                (sec_entity, _, _) = self.declare_file(sec, load_listing)
             elif sec["class"] == "Directory":
-                sec_entity = self.declare_directory(sec)
+                _logger.debug("450: " + load_listing)
+                sec_entity = self.declare_directory(sec, load_listing)
             else:
                 raise ValueError(f"Got unexpected secondaryFiles value: {sec}")
             # We don't know how/when/where the secondary file was generated,
@@ -362,7 +430,9 @@ class ProvenanceProfile:
 
         return file_entity, entity, checksum
 
-    def declare_directory(self, value: CWLObjectType) -> ProvEntity:
+    def declare_directory(
+        self, value: CWLObjectType, load_listing: str = "invalid_listing"
+    ) -> ProvEntity:
         """Register any nested files/directories."""
         # FIXME: Calculate a hash-like identifier for directory
         # so we get same value if it's the same filenames/hashes
@@ -408,12 +478,23 @@ class ProvenanceProfile:
         # a later call to this method will sort that
         is_empty = True
 
+        # if value['basename'] == "dirIgnore":
+        #     pass
         if "listing" not in value:
-            get_listing(self.fsaccess, value)
+            if load_listing == "no_listing":
+                pass
+            elif load_listing == "deep_listing":
+                get_listing(self.fsaccess, value)
+            elif load_listing == "shallow_listing":
+                get_listing(self.fsaccess, value, False)
+            else:
+                raise ValueError("Invalid listing value: %s", load_listing)
+
         for entry in cast(MutableSequence[CWLObjectType], value.get("listing", [])):
             is_empty = False
             # Declare child-artifacts
-            entity = self.declare_artefact(entry)
+            _logger.debug("523: " + load_listing)
+            entity = self.declare_artefact(entry, load_listing)
             self.document.membership(coll, entity)
             # Membership relation aka our ORE Proxy
             m_id = uuid.uuid4().urn
@@ -481,7 +562,7 @@ class ProvenanceProfile:
         )
         return entity, checksum
 
-    def declare_artefact(self, value: Any) -> ProvEntity:
+    def declare_artefact(self, value: Any, load_listing: str = "invalid_listing") -> ProvEntity:
         """Create data artefact entities for all file objects."""
         if value is None:
             # FIXME: If this can happen in CWL, we'll
@@ -523,12 +604,13 @@ class ProvenanceProfile:
 
             # Base case - we found a File we need to update
             if value.get("class") == "File":
-                (entity, _, _) = self.declare_file(value)
+                _logger.debug("635: " + load_listing)
+                (entity, _, _) = self.declare_file(value, load_listing)
                 value["@id"] = entity.identifier.uri
                 return entity
 
             if value.get("class") == "Directory":
-                entity = self.declare_directory(value)
+                entity = self.declare_directory(value, load_listing)
                 value["@id"] = entity.identifier.uri
                 return entity
             coll_id = value.setdefault("@id", uuid.uuid4().urn)
@@ -570,7 +652,7 @@ class ProvenanceProfile:
             members = []
             for each_input_obj in iter(value):
                 # Recurse and register any nested objects
-                e = self.declare_artefact(each_input_obj)
+                e = self.declare_artefact(each_input_obj, load_listing)
                 members.append(e)
 
             # If we reached this, then we were allowed to iterate
@@ -604,11 +686,16 @@ class ProvenanceProfile:
         job_order: Union[CWLObjectType, List[CWLObjectType]],
         process_run_id: str,
         name: Optional[str] = None,
+        schema: Any = None,
+        load_listing: Optional[str] = None,
     ) -> None:
         """Add used() for each data artefact."""
         if isinstance(job_order, list):
             for entry in job_order:
-                self.used_artefacts(entry, process_run_id, name)
+                # for field in schema.fields:
+                # if field['name'] == entry.
+                # load_listing = schema.fields
+                self.used_artefacts(entry, process_run_id, name, load_listing)
         else:
             # FIXME: Use workflow name in packed.cwl, "main" is wrong for nested workflows
             base = "main"
@@ -616,8 +703,19 @@ class ProvenanceProfile:
                 base += "/" + name
             for key, value in job_order.items():
                 prov_role = self.wf_ns[f"{base}/{key}"]
+                if not load_listing:
+                    load_listing = "deep_listing"
+                    for field in schema["fields"]:
+                        if field["name"] == key:
+                            if "loadListing" in field:
+                                load_listing = field["loadListing"]
+                                break
+                            else:
+                                # Need to find a way to reproduce this
+                                _logger.warning("No loadListing info in object")
+                                load_listing = "no_listing"
                 try:
-                    entity = self.declare_artefact(value)
+                    entity = self.declare_artefact(value, load_listing)
                     self.document.used(
                         process_run_id,
                         entity,
@@ -633,11 +731,12 @@ class ProvenanceProfile:
         final_output: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
         process_run_id: Optional[str],
         name: Optional[str],
+        load_listing: str = "invalid_listing",
     ) -> None:
         """Call wasGeneratedBy() for each output,copy the files into the RO."""
         if isinstance(final_output, MutableSequence):
             for entry in final_output:
-                self.generate_output_prov(entry, process_run_id, name)
+                self.generate_output_prov(entry, process_run_id, name, load_listing)
         elif final_output is not None:
             # Timestamp should be created at the earliest
             timestamp = datetime.datetime.now()
@@ -646,7 +745,7 @@ class ProvenanceProfile:
             # entity (UUID) and document it as generated in
             # a role corresponding to the output
             for output, value in final_output.items():
-                entity = self.declare_artefact(value)
+                entity = self.declare_artefact(value, load_listing)
                 if name is not None:
                     name = urllib.parse.quote(str(name), safe=":/,#")
                     # FIXME: Probably not "main" in nested workflows

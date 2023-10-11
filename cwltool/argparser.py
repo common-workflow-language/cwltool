@@ -246,6 +246,13 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="user_provenance",
     )
     provgroup.add_argument(
+        "--no-data",
+        default=False,
+        action="store_true",
+        help="Disables the storage of input and output data files of the workflow in the provenance data folder",
+        dest="no_data",
+    )
+    provgroup.add_argument(
         "--disable-user-provenance",
         default=False,
         action="store_false",
@@ -378,6 +385,7 @@ def arg_parser() -> argparse.ArgumentParser:
 
     volumegroup = parser.add_mutually_exclusive_group()
     volumegroup.add_argument("--verbose", action="store_true", help="Default logging")
+    volumegroup.add_argument("--no-warnings", action="store_true", help="Only print errors.")
     volumegroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
     volumegroup.add_argument("--debug", action="store_true", help="Print even more logging")
 

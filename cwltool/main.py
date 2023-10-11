@@ -11,10 +11,10 @@ import os
 import signal
 import subprocess  # nosec
 import sys
+import tempfile
 import time
 import urllib
 import warnings
-from codecs import getwriter
 from typing import (
     IO,
     Any,
@@ -693,7 +693,9 @@ def setup_provenance(
         temp_prefix_ro=args.tmpdir_prefix,
         orcid=args.orcid,
         full_name=args.cwl_full_name,
+        no_data=args.no_data,
     )
+
     runtimeContext.research_obj = ro
     log_file_io = open_log_file_for_activity(ro, ro.engine_uuid)
     prov_log_handler = logging.StreamHandler(log_file_io)
@@ -1013,6 +1015,7 @@ def main(
 
         configure_logging(
             stderr_handler,
+            args.no_warnings,
             args.quiet,
             runtimeContext.debug,
             args.enable_color,
@@ -1138,12 +1141,27 @@ def main(
                 print(f"{args.workflow} is valid CWL.", file=stdout)
                 return 0
 
-            if args.print_rdf:
+            if args.print_rdf or args.provenance:
+                output = stdout
+                if args.provenance:
+                    # Write workflow to temp directory
+                    temp_workflow_dir = tempfile.TemporaryDirectory()
+                    os.makedirs(temp_workflow_dir.name, exist_ok=True)
+                    workflow_provenance = temp_workflow_dir.name + "/workflow.ttl"
+                    # Sets up a turtle file for the workflow information (not yet in the provenance folder as it does
+                    # not exist and creating it will give issues).
+                    output = open(workflow_provenance, "w")
+                    _logger.info("Writing workflow rdf to %s", workflow_provenance)
                 print(
                     printrdf(tool, loadingContext.loader.ctx, args.rdf_serializer),
-                    file=stdout,
+                    file=output,
                 )
-                return 0
+                # close the output
+                if args.provenance:
+                    output.close()
+                # Only print_rdf exits this way
+                if args.print_rdf:
+                    return 0
 
             if args.print_dot:
                 printdot(tool, loadingContext.loader.ctx, stdout)

@@ -22,7 +22,7 @@ node_versions = [
     ("v7.7.3\n", True),
 ]
 
-configure_logging(_logger.handlers[-1], False, True, True, True)
+configure_logging(_logger.handlers[-1], False, False, True, True, True)
 _logger.setLevel(logging.DEBUG)
 
 
