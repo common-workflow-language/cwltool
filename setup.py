@@ -85,7 +85,7 @@ if USE_MYPYC:
         "cwltool/workflow.py",
     ]
 
-    from mypyc.build import mypycify  # type: ignore[import]
+    from mypyc.build import mypycify  # type: ignore[import-untyped]
 
     opt_level = os.getenv("MYPYC_OPT_LEVEL", "3")
     ext_modules = mypycify(mypyc_targets, opt_level=opt_level)
