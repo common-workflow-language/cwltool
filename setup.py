@@ -3,9 +3,7 @@
 import os
 import sys
 import warnings
-from typing import Type
 
-import setuptools.command.egg_info as egg_info_cmd
 from setuptools import setup
 
 if os.name == "nt":
@@ -24,13 +22,6 @@ if os.name == "nt":
 
 SETUP_DIR = os.path.dirname(__file__)
 README = os.path.join(SETUP_DIR, "README.rst")
-
-try:
-    import gittaggers
-
-    Tagger: Type[egg_info_cmd.egg_info] = gittaggers.EggInfoFromGit
-except ImportError:
-    Tagger = egg_info_cmd.egg_info
 
 NEEDS_PYTEST = {"pytest", "test", "ptr"}.intersection(sys.argv)
 PYTEST_RUNNER = ["pytest-runner", "pytest-cov"] if NEEDS_PYTEST else []
@@ -94,7 +85,6 @@ else:
 
 setup(
     name="cwltool",
-    version="3.1",
     description="Common workflow language reference implementation",
     long_description=open(README).read(),
     long_description_content_type="text/x-rst",
@@ -130,7 +120,8 @@ setup(
         "deps": ["galaxy-tool-util >= 22.1.2, <24", "galaxy-util <24"],
     },
     python_requires=">=3.8, <4",
-    setup_requires=PYTEST_RUNNER,
+    use_scm_version=True,
+    setup_requires=PYTEST_RUNNER + ["setuptools_scm>=8.0.4,<9"],
     test_suite="tests",
     tests_require=[
         "bagit >= 1.6.4, < 1.9",
@@ -142,7 +133,6 @@ setup(
     ],
     entry_points={"console_scripts": ["cwltool=cwltool.main:run"]},
     zip_safe=True,
-    cmdclass={"egg_info": Tagger},
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Environment :: Console",

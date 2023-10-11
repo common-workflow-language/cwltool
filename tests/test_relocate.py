@@ -1,4 +1,6 @@
 import json
+import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -56,15 +58,19 @@ def test_for_conflict_file_names_nodocker(tmp_path: Path) -> None:
 
 
 def test_relocate_symlinks(tmp_path: Path) -> None:
+    shutil.copy(get_data("tests/reloc/test.cwl"), tmp_path)
+    (tmp_path / "dir1").mkdir()
+    (tmp_path / "dir1" / "foo").touch()
+    os.symlink(tmp_path / "dir1", tmp_path / "dir2")
     assert (
         main(
             [
                 "--debug",
                 "--outdir",
-                get_data("tests/reloc") + "/dir2",
-                get_data("tests/reloc/test.cwl"),
+                str(tmp_path / "dir2"),
+                str(tmp_path / "test.cwl"),
                 "--inp",
-                get_data("tests/reloc") + "/dir2",
+                str(tmp_path / "dir2"),
             ]
         )
         == 0

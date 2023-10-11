@@ -4,7 +4,8 @@ RUN apk add --no-cache git gcc python3-dev libxml2-dev libxslt-dev libc-dev linu
 
 WORKDIR /cwltool
 COPY . .
-RUN CWLTOOL_USE_MYPYC=1 MYPYPATH=mypy-stubs pip wheel --no-binary schema-salad \
+RUN export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_CWLTOOL=$(grep __version__ cwltool/_version.py  | awk -F\' '{ print $2 }') ; \
+	CWLTOOL_USE_MYPYC=1 MYPYPATH=mypy-stubs pip wheel --no-binary schema-salad \
 	--wheel-dir=/wheels .[deps]  # --verbose
 RUN rm /wheels/schema_salad*
 RUN pip install "black~=22.0"

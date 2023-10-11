@@ -1,5 +1,6 @@
 """Tests for cwltool.load_tool."""
 import logging
+import urllib.parse
 from pathlib import Path
 
 import pytest
@@ -133,17 +134,17 @@ def test_import_tracked() -> None:
 
     loadingContext = LoadingContext({"fast_parser": True})
     tool = load_tool(get_data("tests/wf/811-12.cwl"), loadingContext)
-    path = "import:file://%s" % get_data("tests/wf/schemadef-type.yml")
+    path = f"import:file://{get_data('tests/wf/schemadef-type.yml')}"
+    path2 = f"import:file://{urllib.parse.quote(get_data('tests/wf/schemadef-type.yml'))}"
 
     assert tool.doc_loader is not None
-    assert path in tool.doc_loader.idx
+    assert path in tool.doc_loader.idx or path2 in tool.doc_loader.idx
 
     loadingContext = LoadingContext({"fast_parser": False})
     tool = load_tool(get_data("tests/wf/811.cwl"), loadingContext)
-    path = "import:file://%s" % get_data("tests/wf/schemadef-type.yml")
 
     assert tool.doc_loader is not None
-    assert path in tool.doc_loader.idx
+    assert path in tool.doc_loader.idx or path2 in tool.doc_loader.idx
 
 
 def test_load_badhints() -> None:
