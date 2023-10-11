@@ -21,6 +21,8 @@ def configure_logging(
     rdflib_logger = logging.getLogger("rdflib.term")
     rdflib_logger.addHandler(stderr_handler)
     rdflib_logger.setLevel(logging.ERROR)
+    deps_logger = logging.getLogger("galaxy.tool_util.deps")
+    deps_logger.addHandler(stderr_handler)
     if quiet:
         # Silence STDERR, not an eventual provenance log file
         stderr_handler.setLevel(logging.WARN)
@@ -29,6 +31,7 @@ def configure_logging(
         base_logger.setLevel(logging.DEBUG)
         stderr_handler.setLevel(logging.DEBUG)
         rdflib_logger.setLevel(logging.DEBUG)
+        deps_logger.setLevel(logging.DEBUG)
     fmtclass = coloredlogs.ColoredFormatter if enable_color else logging.Formatter
     formatter = fmtclass("%(levelname)s %(message)s")
     if timestamps:
