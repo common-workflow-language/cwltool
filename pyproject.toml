@@ -1,6 +1,7 @@
 [build-system]
 requires = [
     "setuptools>=45",
+    "setuptools_scm[toml]>=8.0.4,<9",
     "mypy==1.6.0",  # also update mypy-requirements.txt
     "types-requests",
     "types-psutil",
@@ -13,6 +14,9 @@ requires = [
     "argcomplete>=1.12.0",
 ]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "cwltool/_version.py"
 
 [tool.black]
 line-length = 100

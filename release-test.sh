@@ -42,7 +42,7 @@ then
 	rm -f testenv1/lib/python-wheels/setuptools* \
 		&& pip install --force-reinstall -U pip==${pipver} \
 		&& pip install setuptools==${setuptoolsver} wheel
-	pip install  --no-build-isolation -rtest-requirements.txt ".${extras}"
+	pip install -rtest-requirements.txt ".${extras}"
 	#make test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 	# mkdir testenv1/not-${module}
@@ -68,7 +68,7 @@ rm -f lib/python-wheels/setuptools* \
 # The following can fail if you haven't pushed your commits to ${repo}
 pip install -e "git+${repo}@${HEAD}#egg=${package}${extras}"
 pushd src/${package}
-pip install -rtest-requirements.txt
+pip install -rtest-requirements.txt build
 make dist
 #make test
 cp dist/${package}*tar.gz ../../../testenv3/
@@ -88,7 +88,7 @@ rm -f lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==${setuptoolsver} wheel
 package_tar=$(find . -name "${package}*tar.gz")
-pip install "-r${DIR}/test-requirements.txt" udocker
+pip install "-r${DIR}/test-requirements.txt" udocker build
 pip install "${package_tar}${extras}"
 udocker install
 mkdir out
@@ -97,7 +97,7 @@ pushd out/${package}*
 make dist
 make test
 pip install "-r${DIR}/mypy-requirements.txt"
-make mypy
+make mypyc
 pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 mkdir ../not-${module}
 pushd ../not-${module}

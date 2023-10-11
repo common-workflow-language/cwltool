@@ -77,7 +77,7 @@ check-python3:
 	python --version 2>&1 | grep "Python 3"
 
 dist/${MODULE}-$(VERSION).tar.gz: check-python3 $(SOURCES)
-	python setup.py sdist bdist_wheel
+	python -m build
 
 ## docs                   : make the docs
 docs: FORCE
@@ -122,10 +122,10 @@ codespell-fix:
 
 ## format                 : check/fix all code indentation and formatting (runs black)
 format:
-	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
+	black --exclude cwltool/schemas --exclude cwltool/_version.py setup.py cwltool.py cwltool tests mypy-stubs
 
 format-check:
-	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
+	black --diff --check --exclude cwltool/schemas setup.py --exclude cwltool/_version.py cwltool.py cwltool tests mypy-stubs
 
 ## pylint                 : run static code analysis on Python code
 pylint: $(PYSOURCES)
@@ -202,11 +202,13 @@ release-test: check-python3 FORCE
 	./release-test.sh
 
 release: release-test
+	git tag ${VERSION}
 	. testenv2/bin/activate && \
-		python testenv2/src/${MODULE}/setup.py sdist bdist_wheel && \
+		pip install build && \
+		python -m build testenv2/src/${PACKAGE} && \
 		pip install twine && \
-		twine upload testenv2/src/${MODULE}/dist/* && \
-		git tag ${VERSION} && git push --tags
+		twine upload testenv2/src/${PACKAGE}/dist/* && \
+		git push --tags
 
 flake8: $(PYSOURCES)
 	flake8 $^

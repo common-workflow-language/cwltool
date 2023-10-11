@@ -6,6 +6,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import urllib.parse
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Union, cast
@@ -1719,7 +1720,7 @@ def test_expression_tool_class() -> None:
     factory = cwltool.factory.Factory()
     tool_path = get_data("tests/wf/parseInt-tool.cwl")
     expression_tool = factory.make(tool_path).t
-    assert str(expression_tool) == f"ExpressionTool: file://{tool_path}"
+    assert urllib.parse.unquote(str(expression_tool)) == f"ExpressionTool: file://{tool_path}"
 
 
 def test_operation_class() -> None:
@@ -1727,7 +1728,7 @@ def test_operation_class() -> None:
     factory = cwltool.factory.Factory()
     tool_path = get_data("tests/wf/operation/abstract-cosifer.cwl")
     expression_tool = factory.make(tool_path).t
-    assert str(expression_tool) == f"AbstractOperation: file://{tool_path}"
+    assert urllib.parse.unquote(str(expression_tool)) == f"AbstractOperation: file://{tool_path}"
 
 
 def test_command_line_tool_class() -> None:
@@ -1735,7 +1736,7 @@ def test_command_line_tool_class() -> None:
     factory = cwltool.factory.Factory()
     tool_path = get_data("tests/echo.cwl")
     expression_tool = factory.make(tool_path).t
-    assert str(expression_tool) == f"CommandLineTool: file://{tool_path}"
+    assert urllib.parse.unquote(str(expression_tool)) == f"CommandLineTool: file://{tool_path}"
 
 
 def test_record_default_with_long(tmp_path: Path) -> None:
