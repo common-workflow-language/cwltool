@@ -95,8 +95,8 @@ jobs:
         step: [lintreadme, shellcheck, pydocstyle]
 
     env:
-      py-semver: "3.11"
-      TOXENV: ${{ format('py311-{0}', matrix.step) }}
+      py-semver: "3.12"
+      TOXENV: ${{ format('py312-{0}', matrix.step) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -125,7 +125,7 @@ jobs:
     name: No leftovers
     runs-on: ubuntu-22.04
     env:
-      py-semver: "3.11"
+      py-semver: "3.12"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -196,7 +196,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: 3.12
           cache: pip
 
       - name: "Test CWL ${{ matrix.cwl-version }} conformance"
@@ -226,7 +226,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: 3.12
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -256,7 +256,7 @@ jobs:
     name: Test on macos-latest
     runs-on: macos-latest
     env:
-      TOXENV: py311-unit
+      TOXENV: py312-unit
     steps:
       - uses: actions/checkout@v4
         with:
@@ -264,7 +264,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: 3.12
           cache: pip
           cache-dependency-path: |
             requirements.txt
