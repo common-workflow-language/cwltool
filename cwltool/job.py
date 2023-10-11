@@ -190,7 +190,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 return False
             for inp in self.joborder.values():
                 if isinstance(inp, dict) and inp.get("location", None) == file:
-                    return inp.get("streamable", False)
+                    return cast(bool, inp.get("streamable", False))
             return False
 
         for knownfile in self.pathmapper.files():
