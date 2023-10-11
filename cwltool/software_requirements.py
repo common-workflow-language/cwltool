@@ -75,6 +75,8 @@ class DependenciesConfiguration:
             self.dependency_resolvers_config_file = None
         else:
             self.use_tool_dependencies = False
+        if self.tool_dependency_dir and not os.path.exists(self.tool_dependency_dir):
+            os.makedirs(self.tool_dependency_dir)
 
     def build_job_script(self, builder: "Builder", command: List[str]) -> str:
         ensure_galaxy_lib_available()
