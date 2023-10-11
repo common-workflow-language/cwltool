@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
 
 class ContextBase:
-    """Shared kwargs based initilizer for :py:class:`RuntimeContext` and :py:class:`LoadingContext`."""
+    """Shared kwargs based initializer for :py:class:`RuntimeContext` and :py:class:`LoadingContext`."""
 
     def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
         """Initialize."""
