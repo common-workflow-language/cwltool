@@ -5,6 +5,7 @@ import hashlib
 import os
 import shutil
 import tempfile
+import urllib
 import uuid
 from pathlib import Path, PurePosixPath
 from typing import (
@@ -429,7 +430,7 @@ class ResearchObject:
         self.self_check()
         for key, value in prov_dep.items():
             if key == "location" and cast(str, value).split("/")[-1]:
-                location = cast(str, value)
+                location = urllib.parse.unquote(cast(str, value))
                 filename = location.split("/")[-1]
                 path = os.path.join(self.folder, SNAPSHOT, filename)
                 filepath = ""
