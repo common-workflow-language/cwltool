@@ -23,6 +23,8 @@ def configure_logging(
     rdflib_logger.setLevel(logging.ERROR)
     deps_logger = logging.getLogger("galaxy.tool_util.deps")
     deps_logger.addHandler(stderr_handler)
+    ss_logger = logging.getLogger("salad")
+    ss_logger.addHandler(stderr_handler)
     if quiet:
         # Silence STDERR, not an eventual provenance log file
         stderr_handler.setLevel(logging.WARN)

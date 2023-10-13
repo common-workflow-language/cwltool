@@ -1,6 +1,7 @@
 $base: http://commonwl.org/cwltool#
 $namespaces:
   cwl: "https://w3id.org/cwl/cwl#"
+  cwltool: "http://commonwl.org/cwltool#"
 $graph:
 - $import: https://w3id.org/cwl/CommonWorkflowLanguage.yml
 
