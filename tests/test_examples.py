@@ -1859,3 +1859,16 @@ def test_invalid_nested_array() -> None:
     assert (
         "tests/nested-array.cwl:6:5: Field 'type' references unknown identifier 'string[][]'"
     ) in stderr
+
+
+def test_input_named_id() -> None:
+    """Confirm that it is valid to have an input named "id"."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--validate",
+            "--debug",
+            get_data("tests/wf/input_named_id.cwl"),
+            get_data("tests/wf/input_named_id.yaml"),
+        ]
+    )
+    assert exit_code == 0, stderr
