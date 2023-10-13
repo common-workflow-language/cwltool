@@ -70,6 +70,7 @@ from .executors import JobExecutor, MultithreadedJobExecutor, SingleJobExecutor
 from .load_tool import (
     default_loader,
     fetch_document,
+    jobloader_id_name,
     jobloaderctx,
     load_overrides,
     make_tool,
@@ -446,7 +447,7 @@ def init_job_order(
                 _logger.exception("Failed to resolv job_order: %s", cmd_line["job_order"])
                 exit(1)
         else:
-            job_order_object = {"id": args.workflow}
+            job_order_object = {jobloader_id_name: args.workflow}
 
         del cmd_line["job_order"]
 
@@ -506,7 +507,7 @@ def init_job_order(
             process.inputs_record_schema, job_order_object, discover_secondaryFiles=True
         )
         basedir: Optional[str] = None
-        uri = cast(str, job_order_object["id"])
+        uri = cast(str, job_order_object[jobloader_id_name])
         if uri == args.workflow:
             basedir = os.path.dirname(uri)
             uri = ""
@@ -529,8 +530,8 @@ def init_job_order(
 
     if "cwl:tool" in job_order_object:
         del job_order_object["cwl:tool"]
-    if "id" in job_order_object:
-        del job_order_object["id"]
+    if jobloader_id_name in job_order_object:
+        del job_order_object[jobloader_id_name]
     return job_order_object
 
 
