@@ -201,14 +201,15 @@ release-test: check-python3 FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommitted changes, please commit them and try again; false )
 	./release-test.sh
 
-release: release-test
-	git tag ${VERSION}
+release:
+	export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_CWLTOOL=${VERSION} && \
+	./release-test.sh && \
 	. testenv2/bin/activate && \
 		pip install build && \
 		python -m build testenv2/src/${MODULE} && \
 		pip install twine && \
 		twine upload testenv2/src/${MODULE}/dist/* && \
-		git push --tags
+		git tag ${VERSION} && git push --tags
 
 flake8: $(PYSOURCES)
 	flake8 $^
