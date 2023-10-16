@@ -205,9 +205,9 @@ release: release-test
 	git tag ${VERSION}
 	. testenv2/bin/activate && \
 		pip install build && \
-		python -m build testenv2/src/${PACKAGE} && \
+		python -m build testenv2/src/${MODULE} && \
 		pip install twine && \
-		twine upload testenv2/src/${PACKAGE}/dist/* && \
+		twine upload testenv2/src/${MODULE}/dist/* && \
 		git push --tags
 
 flake8: $(PYSOURCES)
