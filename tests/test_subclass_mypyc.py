@@ -81,3 +81,12 @@ def test_serialize_builder() -> None:
         "docker",
     )
     assert pickle.dumps(builder)
+
+
+def test_pickle_unpickle_runtime_context() -> None:
+    """We can pickle & unpickle RuntimeContext"""
+
+    runtime_context = RuntimeContext()
+    stream = pickle.dumps(runtime_context)
+    assert stream
+    assert pickle.loads(stream)
