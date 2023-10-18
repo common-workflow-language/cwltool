@@ -2,7 +2,6 @@
 import copy
 import os
 import shutil
-import sys
 import tempfile
 import threading
 from typing import (
@@ -199,7 +198,7 @@ class RuntimeContext(ContextBase):
         self.default_stdout: Optional[Union[IO[bytes], TextIO]] = None
         self.default_stderr: Optional[Union[IO[bytes], TextIO]] = None
         self.validate_only: bool = False
-        self.validate_stdout: Union[IO[bytes], TextIO, IO[str]] = sys.stdout
+        self.validate_stdout: Optional[Union[IO[bytes], TextIO, IO[str]]] = None
         super().__init__(kwargs)
         if self.tmp_outdir_prefix == "":
             self.tmp_outdir_prefix = self.tmpdir_prefix
