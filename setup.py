@@ -117,7 +117,7 @@ setup(
         "cwl-utils >= 0.22",
     ],
     extras_require={
-        "deps": ["galaxy-tool-util >= 22.1.2, <24", "galaxy-util <24"],
+        "deps": ["galaxy-tool-util >= 22.1.2, <23", "galaxy-util <23"],
     },
     python_requires=">=3.8, <4",
     use_scm_version=True,
