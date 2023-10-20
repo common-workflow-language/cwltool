@@ -249,6 +249,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: record cwltool version
         run: pip install -U setuptools wheel && pip install setuptools_scm[toml] && python setup.py --version
       - name: build & test cwltool_module container
