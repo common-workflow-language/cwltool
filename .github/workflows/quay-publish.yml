@@ -9,12 +9,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Get image tags
         id: image_tags
         run: |
-          echo -n ::set-output "name=IMAGE_TAGS::${GITHUB_REF#refs/*/}"
+          echo -n "IMAGE_TAGS=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       - name: record cwltool version
-        run: pip install setuptools_scm[toml] wheel && python setup.py --version
+        run: |
+          pip install "setuptools>=61"
+          pip install setuptools_scm[toml] wheel
+          python setup.py --version
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -35,6 +40,7 @@ jobs:
       - name: Build and publish cwltool_module image to Quay
         uses: docker/build-push-action@v5
         with:
+          context: .
           file: cwltool.Dockerfile
           tags: quay.io/commonwl/cwltool_module:${{ steps.image_tags.outputs.IMAGE_TAGS }},quay.io/commonwl/cwltool_module:latest
           target: module
@@ -45,6 +51,7 @@ jobs:
       - name: Build and publish cwltool image to Quay
         uses: docker/build-push-action@v5
         with:
+          context: .
           file: cwltool.Dockerfile
           tags: quay.io/commonwl/cwltool:${{ steps.image_tags.outputs.IMAGE_TAGS }},quay.io/commonwl/cwltool:latest
           platforms: linux/amd64,linux/arm64
