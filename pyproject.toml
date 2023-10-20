@@ -8,8 +8,8 @@ requires = [
     "importlib_resources>=1.4",  # equivalent to Python 3.9
     "ruamel.yaml>=0.16.0,<0.18",
     "schema-salad>=8.4.20230426093816,<9",
+    "packaging<22",
     "cwl-utils>=0.19",
-    "galaxy-tool-util >= 22.1.2, < 24",
     "toml",
     "argcomplete>=1.12.0",
 ]
