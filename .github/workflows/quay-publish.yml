@@ -13,6 +13,8 @@ jobs:
         id: image_tags
         run: |
           echo -n ::set-output "name=IMAGE_TAGS::${GITHUB_REF#refs/*/}"
+      - name: record cwltool version
+        run: pip install setuptools_scm[toml] wheel && python setup.py --version
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
