@@ -12,6 +12,7 @@ import os
 import string
 from typing import (
     TYPE_CHECKING,
+    Any,
     Dict,
     List,
     MutableMapping,
@@ -109,7 +110,7 @@ class DependenciesConfiguration:
 
 def get_dependencies(builder: HasReqsHints) -> ToolRequirements:
     (software_requirement, _) = builder.get_requirement("SoftwareRequirement")
-    dependencies: List["ToolRequirement"] = []
+    dependencies: List[Union["ToolRequirement", Dict[str, Any]]] = []
     if software_requirement and software_requirement.get("packages"):
         packages = cast(
             MutableSequence[MutableMapping[str, Union[str, MutableSequence[str]]]],
@@ -158,7 +159,7 @@ def get_container_from_software_requirements(
             [DOCKER_CONTAINER_TYPE], tool_info
         )
         if container_description:
-            return cast(Optional[str], container_description.identifier)
+            return container_description.identifier
 
     return None
 
