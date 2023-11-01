@@ -60,6 +60,8 @@ def get_version() -> str:
             _SINGULARITY_VERSION = _SINGULARITY_VERSION[20:]
         if _SINGULARITY_VERSION.startswith("singularity-ce version "):
             _SINGULARITY_VERSION = _SINGULARITY_VERSION[23:]
+        if _SINGULARITY_VERSION.startswith("apptainer version "):
+            _SINGULARITY_VERSION = _SINGULARITY_VERSION[18:]
         _logger.debug(f"Singularity version: {_SINGULARITY_VERSION}.")
     return _SINGULARITY_VERSION
 
