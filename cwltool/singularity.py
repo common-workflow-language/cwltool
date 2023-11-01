@@ -140,6 +140,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     def get_image(
         dockerRequirement: Dict[str, str],
         pull_image: bool,
+        tmp_outdir_prefix,
         force_pull: bool = False,
     ) -> bool:
         """
@@ -152,6 +153,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         """
         found = False
 
+        if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
+            dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
+
         candidates = []
 
         cache_folder = None
@@ -162,6 +166,40 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         elif is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
             cache_folder = os.environ["SINGULARITY_PULLFOLDER"]
 
+        if "dockerFile" in dockerRequirement:
+            if cache_folder is None: # if environment variables were not set
+                cache_folder = create_tmp_dir(tmp_outdir_prefix)
+
+            image_path = os.path.join(cache_folder,str(dockerRequirement["dockerImageId"]))
+            if not os.path.exists(image_path):
+                # otherwise will prompt user if want to continue if exists 
+                absolute_path = os.path.abspath(cache_folder)
+                dockerfile_path = os.path.join(absolute_path, "Dockerfile")
+                singularityfile_path = dockerfile_path+'.def'
+                env = os.environ.copy()
+                env['APPTAINER_TMPDIR'] = absolute_path
+                # if you do not set APPTAINER_TMPDIR will crash
+                # WARNING: 'nodev' mount option set on /tmp, it could be a source of failure during build process
+                # FATAL:   Unable to create build: 'noexec' mount option set on /tmp, temporary root filesystem won't be usable at this location
+                with open(dockerfile_path, "w") as dfile:
+                    dfile.write(dockerRequirement["dockerFile"])
+                cmd = [
+                    "spython",
+                    "recipe",
+                    dockerfile_path,
+                    singularityfile_path,
+                ]
+                _logger.info(str(cmd))
+                check_call(cmd, stdout=sys.stderr)  # nosec
+                cmd = [
+                    "singularity",
+                    "build",
+                    image_path,
+                    singularityfile_path,
+                ]
+                _logger.info(str(cmd))
+                check_call(cmd, stdout=sys.stderr, env=env)
+                found = True
         if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
             img_name = _normalize_image_id(dockerRequirement["dockerPull"])
@@ -243,13 +281,6 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     check_call(cmd, stdout=sys.stderr)  # nosec
                     found = True
 
-            elif "dockerFile" in dockerRequirement:
-                raise SourceLine(
-                    dockerRequirement, "dockerFile", WorkflowException, debug
-                ).makeError(
-                    "dockerFile is not currently supported when using the "
-                    "Singularity runtime for Docker containers."
-                )
             elif "dockerLoad" in dockerRequirement:
                 if is_version_3_1_or_newer():
                     if "dockerImageId" in dockerRequirement:
@@ -298,7 +329,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if not bool(shutil.which("singularity")):
             raise WorkflowException("singularity executable is not available")
 
-        if not self.get_image(cast(Dict[str, str], r), pull_image, force_pull):
+        if not self.get_image(cast(Dict[str, str], r), pull_image, tmp_outdir_prefix, force_pull):
             raise WorkflowException("Container image {} not found".format(r["dockerImageId"]))
 
         return os.path.abspath(cast(str, r["dockerImageId"]))
