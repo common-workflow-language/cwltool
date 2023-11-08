@@ -176,8 +176,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 absolute_path = os.path.abspath(cache_folder)
                 dockerfile_path = os.path.join(absolute_path, "Dockerfile")
                 singularityfile_path = dockerfile_path+'.def'
-                env = os.environ.copy()
-                env['APPTAINER_TMPDIR'] = absolute_path
+                custom_env = os.environ.copy()
+                custom_env['APPTAINER_TMPDIR'] = absolute_path
                 # if you do not set APPTAINER_TMPDIR will crash
                 # WARNING: 'nodev' mount option set on /tmp, it could be a source of failure during build process
                 # FATAL:   Unable to create build: 'noexec' mount option set on /tmp, temporary root filesystem won't be usable at this location
@@ -198,7 +198,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     singularityfile_path,
                 ]
                 _logger.info(str(cmd))
-                check_call(cmd, stdout=sys.stderr, env=env)
+                check_call(cmd, stdout=sys.stderr, env=custom_env)
                 found = True
         if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])

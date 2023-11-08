@@ -2,6 +2,7 @@
 import re
 import subprocess
 import sys
+import shutil
 from pathlib import Path
 from typing import List, cast
 
@@ -14,6 +15,7 @@ from cwltool.builder import Builder
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.docker import DockerCommandLineJob
+from cwltool.singularity import SingularityCommandLineJob
 from cwltool.job import JobBase
 from cwltool.main import main
 from cwltool.pathmapper import MapperEnt
@@ -21,7 +23,7 @@ from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from cwltool.utils import create_tmp_dir
 
-from .util import get_data, get_main_output, needs_docker
+from .util import get_data, get_main_output, needs_docker, needs_singularity
 
 
 def test_docker_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
@@ -162,6 +164,67 @@ def test_dockerfile_tmpdir_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     subdir = tmp_path / children[0]
     assert len(sorted(subdir.glob("*"))) == 1
     assert (subdir / "Dockerfile").exists()
+
+
+@needs_singularity
+def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that SingularityCommandLineJob.get_image builds a Dockerfile with Singularity."""
+    # cannot use /tmp for the variable APPTAINER_TMPDIR unless have root permissions
+    # FATAL:   Unable to create build: 'noexec' mount option set on /tmp, temporary root filesystem 
+    # won't be usable at this location
+    # Will use current working directory instead
+    tmp_path = Path.cwd()
+    monkeypatch.setattr(target=subprocess, name="check_call", value=lambda *args, **kwargs: True)
+    (tmp_path / "out").mkdir(exist_ok=True)
+    tmp_outdir_prefix = tmp_path / "out" / "1"
+    (tmp_path / "3").mkdir(exist_ok=True)
+    tmpdir_prefix = str(tmp_path / "3" / "ttmp")
+    runtime_context = RuntimeContext(
+        {"tmpdir_prefix": tmpdir_prefix, "user_space_docker_cmd": None}
+    )
+    builder = Builder(
+        {},
+        [],
+        [],
+        {},
+        schema.Names(),
+        [],
+        [],
+        {},
+        None,
+        None,
+        StdFsAccess,
+        StdFsAccess(""),
+        None,
+        0.1,
+        False,
+        False,
+        False,
+        "no_listing",
+        runtime_context.get_outdir(),
+        runtime_context.get_tmpdir(),
+        runtime_context.get_stagedir(),
+        INTERNAL_VERSION,
+        "singularity",
+    )
+    imageId = sys._getframe().f_code.co_name
+    assert SingularityCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_image(
+        {
+            "class": "DockerRequirement",
+            "dockerFile": "FROM debian:stable-slim",
+            "dockerImageId": imageId,
+        },
+        pull_image=True,
+        tmp_outdir_prefix=str(tmp_outdir_prefix),
+        force_pull=True,
+    )
+    children = sorted(tmp_outdir_prefix.parent.glob("*"))
+    subdir = tmp_path / children[0]
+    image_path = subdir / imageId
+    assert image_path.exists()
+    shutil.rmtree(subdir)
 
 
 def test_docker_tmpdir_prefix(tmp_path: Path) -> None:
