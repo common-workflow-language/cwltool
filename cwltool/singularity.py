@@ -167,20 +167,22 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             cache_folder = os.environ["SINGULARITY_PULLFOLDER"]
 
         if "dockerFile" in dockerRequirement:
-            if cache_folder is None: # if environment variables were not set
+            if cache_folder is None:  # if environment variables were not set
                 cache_folder = create_tmp_dir(tmp_outdir_prefix)
 
-            image_path = os.path.join(cache_folder,str(dockerRequirement["dockerImageId"]))
+            image_path = os.path.join(cache_folder, str(dockerRequirement["dockerImageId"]))
             if not os.path.exists(image_path):
-                # otherwise will prompt user if want to continue if exists 
+                # otherwise will prompt user if want to continue if exists
                 absolute_path = os.path.abspath(cache_folder)
                 dockerfile_path = os.path.join(absolute_path, "Dockerfile")
-                singularityfile_path = dockerfile_path+'.def'
+                singularityfile_path = dockerfile_path + ".def"
                 custom_env = os.environ.copy()
-                custom_env['APPTAINER_TMPDIR'] = absolute_path
+                custom_env["APPTAINER_TMPDIR"] = absolute_path
                 # if you do not set APPTAINER_TMPDIR will crash
-                # WARNING: 'nodev' mount option set on /tmp, it could be a source of failure during build process
-                # FATAL:   Unable to create build: 'noexec' mount option set on /tmp, temporary root filesystem won't be usable at this location
+                # WARNING: 'nodev' mount option set on /tmp, it could be a
+                #          source of failure during build process
+                # FATAL:   Unable to create build: 'noexec' mount option set on
+                #          /tmp, temporary root filesystem won't be usable at this location
                 with open(dockerfile_path, "w") as dfile:
                     dfile.write(dockerRequirement["dockerFile"])
                 cmd = [

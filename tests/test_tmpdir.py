@@ -1,8 +1,8 @@
 """Test that all temporary directories respect the --tmpdir-prefix and --tmp-outdir-prefix options."""
 import re
+import shutil
 import subprocess
 import sys
-import shutil
 from pathlib import Path
 from typing import List, cast
 
@@ -15,10 +15,10 @@ from cwltool.builder import Builder
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.docker import DockerCommandLineJob
-from cwltool.singularity import SingularityCommandLineJob
 from cwltool.job import JobBase
 from cwltool.main import main
 from cwltool.pathmapper import MapperEnt
+from cwltool.singularity import SingularityCommandLineJob
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from cwltool.utils import create_tmp_dir
@@ -170,7 +170,7 @@ def test_dockerfile_tmpdir_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that SingularityCommandLineJob.get_image builds a Dockerfile with Singularity."""
     # cannot use /tmp for the variable APPTAINER_TMPDIR unless have root permissions
-    # FATAL:   Unable to create build: 'noexec' mount option set on /tmp, temporary root filesystem 
+    # FATAL:   Unable to create build: 'noexec' mount option set on /tmp, temporary root filesystem
     # won't be usable at this location
     # Will use current working directory instead
     tmp_path = Path.cwd()
