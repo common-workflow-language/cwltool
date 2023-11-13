@@ -31,12 +31,12 @@ class Result:
         source: IO[Any] | None = ...,
         format: str | None = ...,
         content_type: str | None = ...,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Result: ...
     def serialize(
         self,
         destination: str | IO[Any] | None = ...,
         encoding: str = ...,
         format: str = ...,
-        **args: Any
+        **args: Any,
     ) -> Optional[bytes]: ...

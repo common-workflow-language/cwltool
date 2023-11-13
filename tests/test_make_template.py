@@ -15,7 +15,7 @@ def test_union() -> None:
     inputs = cmap(["string", "string[]"])
     assert main.generate_example_input(inputs, None) == (
         "a_string",
-        'one of type "string", type "string[]"',
+        "one of type 'string', type 'string[]'",
     )
 
 
@@ -24,5 +24,5 @@ def test_optional_union() -> None:
     inputs = cmap(["null", "string", "string[]"])
     assert main.generate_example_input(inputs, None) == (
         "a_string",
-        'one of type "string", type "string[]" (optional)',
+        "one of type 'string', type 'string[]' (optional)",
     )

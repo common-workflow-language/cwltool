@@ -13,10 +13,7 @@ def test_content_types(caplog: LogCaptureFixture) -> None:
 
         found = False
         for record in caplog.records:
-            if (
-                record.name == "salad"
-                and "got content-type of 'text/html'" in record.message
-            ):
+            if record.name == "salad" and "got content-type of 'text/html'" in record.message:
                 found = True
                 break
         assert found

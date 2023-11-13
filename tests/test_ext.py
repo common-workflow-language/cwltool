@@ -8,16 +8,16 @@ import pytest
 import cwltool.process
 from cwltool.main import main
 
-from .util import get_data, needs_docker
+from .util import get_data, get_main_output, needs_docker
 
 
 @needs_docker
 def test_missing_enable_ext() -> None:
-    # Require that --enable-ext is provided.
-    assert (
-        main([get_data("tests/wf/listing_deep.cwl"), get_data("tests/listing-job.yml")])
-        != 0
+    """Require that --enable-ext is provided."""
+    error_code, _, _ = get_main_output(
+        [get_data("tests/wf/listing_deep.cwl"), get_data("tests/listing-job.yml")]
     )
+    assert error_code != 0
 
 
 @needs_docker
@@ -67,20 +67,7 @@ def test_listing_none() -> None:
 @needs_docker
 def test_listing_v1_0() -> None:
     # Default behavior in 1.0 is deep expansion.
-    assert (
-        main([get_data("tests/wf/listing_v1_0.cwl"), get_data("tests/listing-job.yml")])
-        == 0
-    )
-
-
-@pytest.mark.skip(reason="This is not the default behaviour yet")
-@needs_docker
-def test_listing_v1_1() -> None:
-    # Default behavior in 1.1 will be no expansion
-    assert (
-        main([get_data("tests/wf/listing_v1_1.cwl"), get_data("tests/listing-job.yml")])
-        != 0
-    )
+    assert main([get_data("tests/wf/listing_v1_0.cwl"), get_data("tests/listing-job.yml")]) == 0
 
 
 @needs_docker
@@ -156,10 +143,7 @@ def test_disable_dir_overwrite_without_ext(tmp_path: Path) -> None:
     out = tmp_path / "outdir"
     tmp.mkdir()
     out.mkdir()
-    assert (
-        main(["--outdir", str(out), get_data("tests/wf/updatedir.cwl"), "-r", str(tmp)])
-        == 0
-    )
+    assert main(["--outdir", str(out), get_data("tests/wf/updatedir.cwl"), "-r", str(tmp)]) == 0
 
     assert not os.listdir(tmp)
     assert os.listdir(out)
@@ -226,9 +210,7 @@ def test_write_write_conflict(tmp_path: Path) -> None:
     with open(tmp_name, "w") as f:
         f.write(before_value)
 
-    assert (
-        main(["--enable-ext", get_data("tests/wf/mut.cwl"), "-a", str(tmp_name)]) != 0
-    )
+    assert main(["--enable-ext", get_data("tests/wf/mut.cwl"), "-a", str(tmp_name)]) != 0
 
     with open(tmp_name) as f:
         tmp_value = f.read()
@@ -243,9 +225,7 @@ def test_read_write_conflict(tmp_path: Path) -> None:
     with open(tmp_name, "w") as f:
         f.write("1")
 
-    assert (
-        main(["--enable-ext", get_data("tests/wf/mut3.cwl"), "-a", str(tmp_name)]) != 0
-    )
+    assert main(["--enable-ext", get_data("tests/wf/mut3.cwl"), "-a", str(tmp_name)]) != 0
 
 
 @needs_docker
@@ -289,9 +269,19 @@ def test_warn_large_inputs() -> None:
             stderr=stream,
         )
 
-        assert (
-            "Recursive directory listing has resulted in a large number of File"
-            in re.sub("\n  *", " ", stream.getvalue())
+        assert "Recursive directory listing has resulted in a large number of File" in re.sub(
+            "\n  *", " ", stream.getvalue()
         )
     finally:
         cwltool.process.FILE_COUNT_WARNING = was
+
+
+def test_ext_validation_no_namespace_warning() -> None:
+    error_code, stdout, stderr = get_main_output(
+        ["--validate", "--enable-ext", get_data("tests/wf/mpi_env.cwl")]
+    )
+    assert error_code == 0
+    assert (
+        "URI prefix 'cwltool' of 'cwltool:loop' not recognized, are you "
+        "missing a $namespaces section?"
+    ) not in stderr

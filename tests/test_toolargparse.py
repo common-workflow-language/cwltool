@@ -180,7 +180,7 @@ def test_dont_require_inputs(tmp_path: Path) -> None:
 
 
 def test_argparser_with_doc() -> None:
-    """The `desription` field is set if `doc` field is provided."""
+    """The `description` field is set if `doc` field is provided."""
     loadingContext = LoadingContext()
     tool = load_tool(get_data("tests/with_doc.cwl"), loadingContext)
     p = argparse.ArgumentParser()
@@ -189,7 +189,7 @@ def test_argparser_with_doc() -> None:
 
 
 def test_argparser_without_doc() -> None:
-    """The `desription` field is None if `doc` field is not provided."""
+    """The `description` field is None if `doc` field is not provided."""
     loadingContext = LoadingContext()
     tool = load_tool(get_data("tests/without_doc.cwl"), loadingContext)
     p = argparse.ArgumentParser()
@@ -215,15 +215,15 @@ def test_argparser_without_doc() -> None:
         ),
     ],
 )
-def test_argparse_append_with_default(
-    job_order: List[str], expected_values: List[str]
-) -> None:
-    """The appended arguments must not include the default. But if no appended argument, then the default is used."""
+def test_argparse_append_with_default(job_order: List[str], expected_values: List[str]) -> None:
+    """
+    Confirm that the appended arguments must not include the default.
+
+    But if no appended argument, then the default is used.
+    """
     loadingContext = LoadingContext()
     tool = load_tool(get_data("tests/default_values_list.cwl"), loadingContext)
-    toolparser = generate_parser(
-        argparse.ArgumentParser(prog="test"), tool, {}, [], False
-    )
+    toolparser = generate_parser(argparse.ArgumentParser(prog="test"), tool, {}, [], False)
     cmd_line = vars(toolparser.parse_args(job_order))
     file_paths = list(cmd_line["file_paths"])
     assert expected_values == file_paths

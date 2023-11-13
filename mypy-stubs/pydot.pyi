@@ -33,9 +33,7 @@ class InvocationException(Exception):
 
 class Node(Common):
     obj_dict: Any
-    def __init__(
-        self, name: str = ..., obj_dict: Any | None = ..., **attrs: str
-    ) -> None: ...
+    def __init__(self, name: str = ..., obj_dict: Any | None = ..., **attrs: str) -> None: ...
     def set_name(self, node_name: str) -> None: ...
     def get_name(self) -> str: ...
     def get_port(self) -> str: ...
@@ -49,7 +47,7 @@ class Edge(Common):
         src: str = ...,
         dst: str = ...,
         obj_dict: Any | None = ...,
-        **attrs: Dict[str, str]
+        **attrs: Dict[str, str],
     ) -> None: ...
     def get_source(self) -> str: ...
     def get_destination(self) -> str: ...
@@ -68,7 +66,7 @@ class Graph(Common):
         strict: bool = ...,
         suppress_disconnected: bool = ...,
         simplify: bool = ...,
-        **attrs: Dict[str, str]
+        **attrs: Dict[str, str],
     ) -> None: ...
     def get_graph_type(self) -> str: ...
     def get_top_graph_type(self) -> str: ...
@@ -120,7 +118,7 @@ class Subgraph(Graph):
         obj_dict: Any | Dict[str, str] = ...,
         suppress_disconnected: bool = ...,
         simplify: bool = ...,
-        **attrs: Dict[str, str]
+        **attrs: Dict[str, str],
     ) -> None: ...
 
 class Cluster(Graph):
@@ -130,7 +128,7 @@ class Cluster(Graph):
         obj_dict: Any | Dict[str, str] = ...,
         suppress_disconnected: bool = ...,
         simplify: bool = ...,
-        **attrs: Dict[str, str]
+        **attrs: Dict[str, str],
     ) -> None: ...
 
 class Dot(Graph):

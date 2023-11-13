@@ -20,7 +20,7 @@ class MutationManager:
 
     def __init__(self) -> None:
         """Initialize."""
-        self.generations = {}  # type: Dict[str, MutationState]
+        self.generations: Dict[str, MutationState] = {}
 
     def register_reader(self, stepname: str, obj: CWLObjectType) -> None:
         loc = cast(str, obj["location"])
@@ -73,9 +73,7 @@ class MutationManager:
                 )
             )
 
-        self.generations[loc] = MutationState(
-            current.generation + 1, current.readers, stepname
-        )
+        self.generations[loc] = MutationState(current.generation + 1, current.readers, stepname)
 
     def set_generation(self, obj: CWLObjectType) -> None:
         loc = cast(str, obj["location"])

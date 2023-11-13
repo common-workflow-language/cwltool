@@ -23,16 +23,14 @@ def docker_vm_id() -> Tuple[Optional[int], Optional[int]]:
 
 def check_output_and_strip(cmd: List[str]) -> Optional[str]:
     """
-    Pass a command list to subprocess.check_output.
+    Pass a command list to :py:func:`subprocess.check_output`.
 
     Returning None if an expected exception is raised
     :param cmd: The command to execute
-    :return: Stripped string output of the command, or None if error
+    :return: Stripped string output of the command, or ``None`` if error
     """
     try:
-        result = subprocess.check_output(  # nosec
-            cmd, stderr=subprocess.STDOUT, universal_newlines=True
-        )
+        result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True)  # nosec
         return result.strip()
     except (OSError, subprocess.CalledProcessError, TypeError, AttributeError):
         # OSError is raised if command doesn't exist
@@ -45,7 +43,7 @@ def docker_machine_name() -> Optional[str]:
     """
     Get the machine name of the active docker-machine machine.
 
-    :return: Name of the active machine or None if error
+    :return: Name of the active machine or ``None`` if error
     """
     return check_output_and_strip(["docker-machine", "active"])
 
@@ -65,7 +63,7 @@ def boot2docker_running() -> bool:
     """
     Check if boot2docker CLI reports that boot2docker vm is running.
 
-    :return: True if vm is running, False otherwise
+    :return: ``True`` if vm is running, ``False`` otherwise
     """
     return cmd_output_matches(["boot2docker", "status"], "running")
 
@@ -74,7 +72,7 @@ def docker_machine_running() -> bool:
     """
     Ask docker-machine for the active machine and checks if its VM is running.
 
-    :return: True if vm is running, False otherwise
+    :return: ``True`` if vm is running, ``False`` otherwise
     """
     machine_name = docker_machine_name()
     if not machine_name:

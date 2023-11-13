@@ -11,11 +11,10 @@ from typing import (
     cast,
 )
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from schema_salad.sourceline import SourceLine
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .loghandler import _logger
 from .utils import CWLObjectType, CWLOutputType, aslist, visit_class, visit_field
@@ -55,46 +54,37 @@ def v1_0to1_1(
     def rewrite_requirements(t: CWLObjectType) -> None:
         if "requirements" in t:
             for r in cast(MutableSequence[CWLObjectType], t["requirements"]):
-                if isinstance(r, MutableMapping):
-                    cls = cast(str, r["class"])
-                    if cls in rewrite:
-                        r["class"] = rewrite[cls]
-                else:
-                    raise ValidationException(
-                        "requirements entries must be dictionaries: {} {}.".format(
-                            type(r), r
-                        )
-                    )
+                cls = cast(str, r["class"])
+                if cls in rewrite:
+                    r["class"] = rewrite[cls]
         if "hints" in t:
-            for r in cast(MutableSequence[CWLObjectType], t["hints"]):
+            for index, r in enumerate(cast(MutableSequence[CWLObjectType], t["hints"])):
                 if isinstance(r, MutableMapping):
+                    if "class" not in r:
+                        raise SourceLine(r, None, ValidationException).makeError(
+                            "'hints' entry missing required key 'class'."
+                        )
                     cls = cast(str, r["class"])
                     if cls in rewrite:
                         r["class"] = rewrite[cls]
                 else:
-                    raise ValidationException(
-                        f"hints entries must be dictionaries: {type(r)} {r}."
+                    raise SourceLine(t["hints"], index, ValidationException).makeError(
+                        f"'hints' entries must be dictionaries: {type(r)} {r}."
                     )
         if "steps" in t:
             for s in cast(MutableSequence[CWLObjectType], t["steps"]):
-                if isinstance(s, MutableMapping):
-                    rewrite_requirements(s)
-                else:
-                    raise ValidationException(
-                        f"steps entries must be dictionaries: {type(s)} {s}."
-                    )
+                rewrite_requirements(s)
 
-    def update_secondaryFiles(t, top=False):
-        # type: (CWLOutputType, bool) -> Union[MutableSequence[MutableMapping[str, str]], MutableMapping[str, str]]
+    def update_secondaryFiles(
+        t: CWLOutputType, top: bool = False
+    ) -> Union[MutableSequence[MutableMapping[str, str]], MutableMapping[str, str]]:
         if isinstance(t, CommentedSeq):
             new_seq = copy.deepcopy(t)
             for index, entry in enumerate(t):
                 new_seq[index] = update_secondaryFiles(entry)
             return new_seq
         elif isinstance(t, MutableSequence):
-            return CommentedSeq(
-                [update_secondaryFiles(cast(CWLOutputType, p)) for p in t]
-            )
+            return CommentedSeq([update_secondaryFiles(cast(CWLOutputType, p)) for p in t])
         elif isinstance(t, MutableMapping):
             return cast(MutableMapping[str, str], t)
         elif top:
@@ -135,9 +125,7 @@ def v1_0to1_1(
 
         proc["hints"].insert(0, na)
 
-        ll = CommentedMap(
-            [("class", "LoadListingRequirement"), ("loadListing", "deep_listing")]
-        )
+        ll = CommentedMap([("class", "LoadListingRequirement"), ("loadListing", "deep_listing")])
         ll.lc.filename = comment_filename
         proc["hints"].insert(
             0,
@@ -219,20 +207,20 @@ ORDERED_VERSIONS = [
     "v1.2",
 ]
 
-UPDATES = {
+UPDATES: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]] = {
     "v1.0": v1_0to1_1,
     "v1.1": v1_1to1_2,
     "v1.2": None,
-}  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
+}
 
-DEVUPDATES = {
+DEVUPDATES: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]] = {
     "v1.1.0-dev1": v1_1_0dev1to1_1,
     "v1.2.0-dev1": v1_2_0dev1todev2,
     "v1.2.0-dev2": v1_2_0dev2todev3,
     "v1.2.0-dev3": v1_2_0dev3todev4,
     "v1.2.0-dev4": v1_2_0dev4todev5,
     "v1.2.0-dev5": v1_2_0dev5to1_2,
-}  # type: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]]
+}
 
 
 ALLUPDATES = UPDATES.copy()
@@ -259,7 +247,7 @@ def checkversion(
 
     Returns the document and the validated version string.
     """
-    cdoc = None  # type: Optional[CommentedMap]
+    cdoc: Optional[CommentedMap] = None
     if isinstance(doc, CommentedSeq):
         if not isinstance(metadata, CommentedMap):
             raise Exception("Expected metadata to be CommentedMap")
@@ -319,9 +307,7 @@ def update(
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
     originalversion = copy.copy(version)
 
-    nextupdate = (
-        identity
-    )  # type: Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]
+    nextupdate: Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]] = identity
 
     while version != update_to and nextupdate:
         (cdoc, version) = nextupdate(cdoc, loader, baseuri)

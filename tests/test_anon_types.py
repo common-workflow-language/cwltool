@@ -1,11 +1,11 @@
 from typing import cast
 
 import pytest
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext
-from ruamel.yaml.comments import CommentedMap
 
 snippet = cast(
     CommentedMap,
@@ -76,7 +76,8 @@ snippet = cast(
                                                 ],
                                             },
                                         ],
-                                        "name": "anon_enum_inside_array_inside_schemadef.cwl#vcf2maf_params/ncbi_build",
+                                        "name": "anon_enum_inside_array_inside_"
+                                        "schemadef.cwl#vcf2maf_params/ncbi_build",
                                     },
                                     {
                                         "type": [
@@ -89,7 +90,8 @@ snippet = cast(
                                                 ],
                                             },
                                         ],
-                                        "name": "anon_enum_inside_array_inside_schemadef.cwl#vcf2maf_params/species",
+                                        "name": "anon_enum_inside_array_inside_"
+                                        "schemadef.cwl#vcf2maf_params/species",
                                     },
                                 ],
                             }

@@ -6,6 +6,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import urllib.parse
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Union, cast
@@ -15,6 +16,7 @@ import pydot
 import pytest
 from cwl_utils.errors import JavascriptException
 from cwl_utils.sandboxjs import param_re
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 
 import cwltool.checker
@@ -28,7 +30,6 @@ from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.process import CWL_IANA
 from cwltool.utils import CWLObjectType, dedup
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .util import get_data, get_main_output, needs_docker, working_directory
 
@@ -195,9 +196,7 @@ param_to_expr_interpolate_escapebehavior = (
 )
 
 
-@pytest.mark.parametrize(
-    "pattern,expected,behavior", param_to_expr_interpolate_escapebehavior
-)
+@pytest.mark.parametrize("pattern,expected,behavior", param_to_expr_interpolate_escapebehavior)
 def test_parameter_to_expression_interpolate_escapebehavior(
     pattern: str, expected: str, behavior: int
 ) -> None:
@@ -250,9 +249,8 @@ interpolate_bad_parameters = [
 
 @pytest.mark.parametrize("pattern", interpolate_bad_parameters)
 def test_expression_interpolate_failures(pattern: str) -> None:
-    result = None
     with pytest.raises(JavascriptException):
-        result = expr.interpolate(pattern, interpolate_input)
+        expr.interpolate(pattern, interpolate_input)
 
 
 interpolate_escapebehavior = (
@@ -280,14 +278,9 @@ interpolate_escapebehavior = (
 
 
 @pytest.mark.parametrize("pattern,expected,behavior", interpolate_escapebehavior)
-def test_expression_interpolate_escapebehavior(
-    pattern: str, expected: str, behavior: int
-) -> None:
+def test_expression_interpolate_escapebehavior(pattern: str, expected: str, behavior: int) -> None:
     """Test escaping behavior in an interpolation context."""
-    assert (
-        expr.interpolate(pattern, interpolate_input, escaping_behavior=behavior)
-        == expected
-    )
+    assert expr.interpolate(pattern, interpolate_input, escaping_behavior=behavior) == expected
 
 
 def test_factory() -> None:
@@ -331,13 +324,9 @@ def test_factory_partial_scatter() -> None:
 
     result = err_info.value.out
     assert isinstance(result, dict)
-    assert (
-        result["out"][0]["checksum"] == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
-    )
+    assert result["out"][0]["checksum"] == "sha1$e5fa44f2b31c1fb553b6021e7360d07d5d91ff5e"
     assert result["out"][1] is None
-    assert (
-        result["out"][2]["checksum"] == "sha1$a3db5c13ff90a36963278c6a39e4ee3c22e2a436"
-    )
+    assert result["out"][2]["checksum"] == "sha1$a3db5c13ff90a36963278c6a39e4ee3c22e2a436"
 
 
 def test_factory_partial_output() -> None:
@@ -614,15 +603,18 @@ record = {
     "fields": [
         {
             "type": {"items": "string", "type": "array"},
-            "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description",
+            "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/"
+            "run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/description",
         },
         {
             "type": {"items": "File", "type": "array"},
-            "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file",
+            "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/"
+            "run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec/vrn_file",
         },
     ],
     "type": "record",
-    "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec",
+    "name": "file:///home/chapmanb/drive/work/cwl/test_bcbio_cwl/"
+    "run_info-cwl-workflow/wf-variantcall.cwl#vc_rec/vc_rec",
 }
 
 source_to_sink = [
@@ -810,16 +802,12 @@ typechecks = [
 ]
 
 
-@pytest.mark.parametrize(
-    "src_type,sink_type,link_merge,value_from,expected_type", typechecks
-)
+@pytest.mark.parametrize("src_type,sink_type,link_merge,value_from,expected_type", typechecks)
 def test_typechecking(
     src_type: Any, sink_type: Any, link_merge: str, value_from: Any, expected_type: str
 ) -> None:
     assert (
-        cwltool.checker.check_types(
-            src_type, sink_type, linkMerge=link_merge, valueFrom=value_from
-        )
+        cwltool.checker.check_types(src_type, sink_type, linkMerge=link_merge, valueFrom=value_from)
         == expected_type
     )
 
@@ -829,8 +817,7 @@ def test_lifting() -> None:
     # fails if the step 'out' doesn't match.
     factory = cwltool.factory.Factory()
     with pytest.raises(ValidationException):
-        echo = factory.make(get_data("tests/test_bad_outputs_wf.cwl"))
-        assert echo(inp="foo") == {"out": "foo\n"}
+        factory.make(get_data("tests/test_bad_outputs_wf.cwl"))
 
 
 def test_malformed_outputs() -> None:
@@ -869,8 +856,8 @@ def test_format_expr_error() -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
         "An expression in the 'format' field must evaluate to a string, or list "
-        "of strings. However a non-string item was received: '42' of "
-        "type '<class 'int'>'." in stderr
+        "of strings. However a non-string item was received: 42 of "
+        "type <class 'int'>." in stderr
     )
 
 
@@ -1000,9 +987,7 @@ def test_var_spool_cwl_checker3() -> None:
     factory = cwltool.factory.Factory()
     try:
         factory.make(get_data("tests/portable.cwl"))
-        assert (
-            "Non-portable reference to /var/spool/cwl detected" not in stream.getvalue()
-        )
+        assert "Non-portable reference to /var/spool/cwl detected" not in stream.getvalue()
     finally:
         _logger.removeHandler(streamhandler)
 
@@ -1060,12 +1045,8 @@ def test_print_dot() -> None:
     stdout = StringIO()
     assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 0
     computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
-    computed_edges = sorted(
-        (source, target) for source, target in computed_dot.obj_dict["edges"]
-    )
-    expected_edges = sorted(
-        (source, target) for source, target in expected_dot.obj_dict["edges"]
-    )
+    computed_edges = sorted((source, target) for source, target in computed_dot.obj_dict["edges"])
+    expected_edges = sorted((source, target) for source, target in expected_dot.obj_dict["edges"])
     assert computed_edges == expected_edges
 
     # print CommandLineTool
@@ -1078,14 +1059,10 @@ test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
 
 
 @pytest.mark.parametrize("factor", test_factors)
-def test_js_console_cmd_line_tool(
-    factor: str, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_js_console_cmd_line_tool(factor: str, caplog: pytest.LogCaptureFixture) -> None:
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
         commands = factor.split()
-        commands.extend(
-            ["--js-console", "--no-container", get_data("tests/wf/" + test_file)]
-        )
+        commands.extend(["--js-console", "--no-container", get_data("tests/wf/" + test_file)])
         error_code, _, _ = get_main_output(commands)
         logging_output = "\n".join([record.message for record in caplog.records])
         assert "[log] Log message" in logging_output
@@ -1113,9 +1090,7 @@ def test_cid_file_dir(tmp_path: Path, factor: str) -> None:
     test_file = "cache_test_workflow.cwl"
     with working_directory(tmp_path):
         commands = factor.split()
-        commands.extend(
-            ["--cidfile-dir", str(tmp_path), get_data("tests/wf/" + test_file)]
-        )
+        commands.extend(["--cidfile-dir", str(tmp_path), get_data("tests/wf/" + test_file)])
         error_code, stdout, stderr = get_main_output(commands)
         stderr = re.sub(r"\s\s+", " ", stderr)
         assert "completed success" in stderr
@@ -1133,9 +1108,7 @@ def test_cid_file_dir_arg_is_file_instead_of_dir(tmp_path: Path, factor: str) ->
     bad_cidfile_dir = tmp_path / "cidfile-dir-actually-a-file"
     bad_cidfile_dir.touch()
     commands = factor.split()
-    commands.extend(
-        ["--cidfile-dir", str(bad_cidfile_dir), get_data("tests/wf/" + test_file)]
-    )
+    commands.extend(["--cidfile-dir", str(bad_cidfile_dir), get_data("tests/wf/" + test_file)])
     error_code, _, stderr = get_main_output(commands)
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "is not a directory, please check it first" in stderr, stderr
@@ -1318,6 +1291,8 @@ def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
     commands = factor.split()
     commands.extend(
         [
+            "--out",
+            str(tmp_path / "out"),
             "--cachedir",
             cache_dir,
             get_data(f"tests/{test_file}"),
@@ -1333,6 +1308,8 @@ def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
     commands = factor.split()
     commands.extend(
         [
+            "--out",
+            str(tmp_path / "out2"),
             "--cachedir",
             cache_dir,
             get_data(f"tests/{test_file}"),
@@ -1351,6 +1328,8 @@ def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
 def test_write_summary(tmp_path: Path) -> None:
     """Test --write-summary."""
     commands = [
+        "--out",
+        str(tmp_path / "out1"),
         get_data("tests/wf/no-parameters-echo.cwl"),
     ]
     error_code, stdout, stderr = get_main_output(commands)
@@ -1359,6 +1338,8 @@ def test_write_summary(tmp_path: Path) -> None:
 
     final_output_path = str(tmp_path / "final-output.json")
     commands_no = [
+        "--out",
+        str(tmp_path / "out2"),
         "--write-summary",
         final_output_path,
         get_data("tests/wf/no-parameters-echo.cwl"),
@@ -1374,10 +1355,11 @@ def test_write_summary(tmp_path: Path) -> None:
 
 
 @needs_docker
-def test_compute_checksum() -> None:
+def test_compute_checksum(tmp_path: Path) -> None:
     runtime_context = RuntimeContext()
     runtime_context.compute_checksum = True
     runtime_context.use_container = False
+    runtime_context.outdir = str(tmp_path)
     factory = cwltool.factory.Factory(runtime_context=runtime_context)
     echo = factory.make(get_data("tests/wf/cat-tool.cwl"))
     output = echo(
@@ -1402,7 +1384,7 @@ def test_bad_stdin_expr_error() -> None:
     assert error_code == 1
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
-        "'stdin' expression must return a string or null. Got '1111' for '$(inputs.file1.size)'."
+        "'stdin' expression must return a string or null. Got 1111 for '$(inputs.file1.size)'."
         in stderr
     )
 
@@ -1419,8 +1401,7 @@ def test_bad_stderr_expr_error() -> None:
     assert error_code == 1
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
-        "'stderr' expression must return a string. Got '1111' for '$(inputs.file1.size)'."
-        in stderr
+        "'stderr' expression must return a string. Got 1111 for '$(inputs.file1.size)'." in stderr
     )
 
 
@@ -1436,16 +1417,17 @@ def test_bad_stdout_expr_error() -> None:
     assert error_code == 1
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
-        "'stdout' expression must return a string. Got '1111' for '$(inputs.file1.size)'."
-        in stderr
+        "'stdout' expression must return a string. Got 1111 for '$(inputs.file1.size)'." in stderr
     )
 
 
 @needs_docker
-def test_stdin_with_id_preset() -> None:
+def test_stdin_with_id_preset(tmp_path: Path) -> None:
     """Confirm that a type: stdin with a preset id does not give an error."""
     error_code, _, stderr = get_main_output(
         [
+            "--out",
+            str(tmp_path),
             get_data("tests/wf/1590.cwl"),
             "--file1",
             get_data("tests/wf/whale.txt"),
@@ -1492,7 +1474,9 @@ def test_bad_userspace_runtime(factor: str) -> None:
     )
     error_code, stdout, stderr = get_main_output(commands)
     stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "or quaquioN is missing or broken" in stderr, stderr
+    assert ("or quaquioN is missing or broken" in stderr) or (
+        "No such file or directory: 'quaquioN'" in stderr
+    ), stderr
     assert error_code == 1
 
 
@@ -1578,7 +1562,8 @@ def test_env_filtering(factor: str) -> None:
   local trueExe nextTarget 2>/dev/null
   trueExe=$(ps -o comm= $$) || return 1
   [ "${trueExe#-}" = "$trueExe" ] || trueExe=${trueExe#-}
-  [ "${trueExe#/}" != "$trueExe" ] || trueExe=$([ -n "$ZSH_VERSION" ] && which -p "$trueExe" || which "$trueExe")
+  [ "${trueExe#/}" != "$trueExe" ] || trueExe=$([ -n "$ZSH_VERSION" ] \
+          && which -p "$trueExe" || which "$trueExe")
   while nextTarget=$(readlink "$trueExe"); do trueExe=$nextTarget; done
   printf '%s\n' "$(basename "$trueExe")"
 } ; getTrueShellExeName""",
@@ -1610,17 +1595,15 @@ def test_env_filtering(factor: str) -> None:
 
 def test_v1_0_arg_empty_prefix_separate_false() -> None:
     test_file = "tests/arg-empty-prefix-separate-false.cwl"
-    error_code, stdout, stderr = get_main_output(
-        ["--debug", get_data(test_file), "--echo"]
-    )
+    error_code, stdout, stderr = get_main_output(["--debug", get_data(test_file), "--echo"])
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
 
 
 def test_scatter_output_filenames(tmp_path: Path) -> None:
-    """If a scatter step produces identically named output then confirm that the final output is renamed correctly."""
-    cwd = Path.cwd()
+    """Confirm that the final output is renamed correctly from identically named scatter outputs."""
+    cwd = tmp_path
     with working_directory(tmp_path):
         rtc = RuntimeContext()
         rtc.outdir = str(cwd)
@@ -1680,10 +1663,7 @@ def test_arguments_self() -> None:
     outputs = cast(Dict[str, Any], check())
     assert "self_review" in outputs
     assert len(outputs) == 1
-    assert (
-        outputs["self_review"]["checksum"]
-        == "sha1$724ba28f4a9a1b472057ff99511ed393a45552e1"
-    )
+    assert outputs["self_review"]["checksum"] == "sha1$724ba28f4a9a1b472057ff99511ed393a45552e1"
 
 
 def test_bad_timelimit_expr() -> None:
@@ -1711,7 +1691,7 @@ def test_bad_networkaccess_expr() -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert (
         "'networkAccess' expression must evaluate to a bool. "
-        "Got '42' for expression '${return 42;}" in stderr
+        "Got 42 for expression '${return 42;}" in stderr
     )
     assert err_code == 1
 
@@ -1740,7 +1720,7 @@ def test_expression_tool_class() -> None:
     factory = cwltool.factory.Factory()
     tool_path = get_data("tests/wf/parseInt-tool.cwl")
     expression_tool = factory.make(tool_path).t
-    assert str(expression_tool) == f"ExpressionTool: file://{tool_path}"
+    assert urllib.parse.unquote(str(expression_tool)) == f"ExpressionTool: file://{tool_path}"
 
 
 def test_operation_class() -> None:
@@ -1748,7 +1728,7 @@ def test_operation_class() -> None:
     factory = cwltool.factory.Factory()
     tool_path = get_data("tests/wf/operation/abstract-cosifer.cwl")
     expression_tool = factory.make(tool_path).t
-    assert str(expression_tool) == f"AbstractOperation: file://{tool_path}"
+    assert urllib.parse.unquote(str(expression_tool)) == f"AbstractOperation: file://{tool_path}"
 
 
 def test_command_line_tool_class() -> None:
@@ -1756,13 +1736,13 @@ def test_command_line_tool_class() -> None:
     factory = cwltool.factory.Factory()
     tool_path = get_data("tests/echo.cwl")
     expression_tool = factory.make(tool_path).t
-    assert str(expression_tool) == f"CommandLineTool: file://{tool_path}"
+    assert urllib.parse.unquote(str(expression_tool)) == f"CommandLineTool: file://{tool_path}"
 
 
-def test_record_default_with_long() -> None:
+def test_record_default_with_long(tmp_path: Path) -> None:
     """Confirm that record defaults are respected."""
     tool_path = get_data("tests/wf/paramref_arguments_roundtrip.cwl")
-    err_code, stdout, stderr = get_main_output([tool_path])
+    err_code, stdout, stderr = get_main_output(["--outdir", str(tmp_path), tool_path])
     assert err_code == 0
     result = json.loads(stdout)["same_record"]
     assert result["first"] == "y"
@@ -1773,9 +1753,7 @@ def test_record_default_with_long() -> None:
     assert result["sixth"]["class"] == "File"
     assert result["sixth"]["basename"] == "whale.txt"
     assert result["sixth"]["size"] == 1111
-    assert (
-        result["sixth"]["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
-    )
+    assert result["sixth"]["checksum"] == "sha1$327fc7aedf4f6b69a42a7c8b808dc5a7aff61376"
 
 
 def test_record_outputeval(tmp_path: Path) -> None:
@@ -1787,21 +1765,12 @@ def test_record_outputeval(tmp_path: Path) -> None:
     assert "genome_fa" in result
     assert result["genome_fa"]["class"] == "File"
     assert result["genome_fa"]["basename"] == "GRCm38.primary_assembly.genome.fa"
-    assert (
-        result["genome_fa"]["checksum"]
-        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
-    )
+    assert result["genome_fa"]["checksum"] == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
     assert result["genome_fa"]["size"] == 0
     assert "annotation_gtf" in result
     assert result["annotation_gtf"]["class"] == "File"
-    assert (
-        result["annotation_gtf"]["basename"]
-        == "gencode.vM21.primary_assembly.annotation.gtf"
-    )
-    assert (
-        result["annotation_gtf"]["checksum"]
-        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
-    )
+    assert result["annotation_gtf"]["basename"] == "gencode.vM21.primary_assembly.annotation.gtf"
+    assert result["annotation_gtf"]["checksum"] == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
     assert result["annotation_gtf"]["size"] == 0
 
 
@@ -1832,3 +1801,74 @@ def test_validate_optional_src_with_mandatory_sink() -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert 'Source \'opt_file\' of type ["null", "File"] may be incompatible' in stderr
     assert "with sink 'r' of type \"File\"" in stderr
+
+
+def test_res_req_expr_float_1_0() -> None:
+    """Confirm expected error when returning a float value from a ResourceRequirement expr in CWL v1.0."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            get_data("tests/wf/resreq_expr_float_v1_0.cwl"),
+            "--input_bam",
+            get_data("tests/wf/whale.txt"),
+        ]
+    )
+    assert exit_code == 1
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Floats are not valid in resource requirement expressions" in stderr
+    assert "prior to CWL v1.2" in stderr
+    assert "$((2 * inputs.input_bam.size) / 3.14159) returned" in stderr
+
+
+def test_res_req_expr_float_1_2() -> None:
+    """Confirm no error when returning a float value from a ResourceRequirement expr in CWL v1.0."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            get_data("tests/wf/resreq_expr_float_v1_2.cwl"),
+            "--input_bam",
+            get_data("tests/wf/whale.txt"),
+        ]
+    )
+    assert exit_code == 0, stderr
+    assert json.loads(stdout)["result"]["outdirSize"] >= 708
+    assert json.loads(stdout)["result"]["tmpdirSize"] >= 708
+
+
+def test_very_small_and_large_floats() -> None:
+    """Confirm that very small or large numbers are not transformed into scientific notation."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            get_data("tests/wf/floats_small_and_large.cwl"),
+        ]
+    )
+    assert exit_code == 0, stderr
+    assert json.loads(stdout)["result"] == "0.00001 0.0000123 123000 1230000"
+
+
+def test_invalid_nested_array() -> None:
+    """Test feature proposed for CWL v1.3 in a CWL v1.2 document."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--validate",
+            get_data("tests/nested-array.cwl"),
+        ]
+    )
+    assert exit_code == 1, stderr
+    stderr = re.sub(r"\n\s+", " ", stderr)
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Tool definition failed validation:" in stderr
+    assert (
+        "tests/nested-array.cwl:6:5: Field 'type' references unknown identifier 'string[][]'"
+    ) in stderr
+
+
+def test_input_named_id() -> None:
+    """Confirm that it is valid to have an input named "id"."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--validate",
+            "--debug",
+            get_data("tests/wf/input_named_id.cwl"),
+            get_data("tests/wf/input_named_id.yaml"),
+        ]
+    )
+    assert exit_code == 0, stderr

@@ -1,27 +1,15 @@
-==================================================================
-Common Workflow Language tool description reference implementation
-==================================================================
-
-This is the reference implementation of the Common Workflow Language.  It is
-intended to be feature complete and provide comprehensive validation of CWL
-files as well as provide other tools related to working with CWL.
-
-cwltool Command Line Options
-============================
-
-.. autoprogram:: cwltool.argparser:arg_parser()
-   :prog: cwltool
-
-Modules
-=======
+.. include:: ../README.rst
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
+   cli
    loop
+   CWLProv
    pythonversions
    processgen
+   autoapi/index
 
 Indices and tables
 ==================

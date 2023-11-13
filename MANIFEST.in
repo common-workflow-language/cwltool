@@ -2,9 +2,10 @@ include README.rst CODE_OF_CONDUCT.md CONTRIBUTING.md
 include MANIFEST.in
 include LICENSE.txt
 include *requirements.txt mypy.ini tox.ini
-include gittaggers.py Makefile cwltool.py
+include Makefile cwltool.py
 recursive-include mypy-stubs *.pyi *.py
 include tests/*
+include tests/cwl-conformance/cwltool-conftest.py
 include tests/loop/*
 include tests/tmp1/tmp2/tmp3/.gitkeep
 include tests/tmp4/alpha/*

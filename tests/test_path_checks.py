@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import IO, Any, List, cast
 
 import pytest
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
 from cwltool.command_line_tool import CommandLineTool
@@ -12,7 +13,6 @@ from cwltool.main import main
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
 from cwltool.utils import CWLObjectType
-from ruamel.yaml.comments import CommentedMap
 
 from .util import needs_docker
 
@@ -107,7 +107,7 @@ def test_unicode_in_output_files(tmp_path: Path, filename: str) -> None:
     assert main(params) == 0
 
 
-class TestFsAccess(StdFsAccess):
+class StubFsAccess(StdFsAccess):
     """Stub fs access object that doesn't rely on the filesystem."""
 
     def glob(self, pattern: str) -> List[str]:
@@ -167,9 +167,7 @@ def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
 
     # Mock an "output" file with the above special characters in its name
     special = "".join(reserved)
-    output_schema = cast(
-        CWLObjectType, {"type": "File", "outputBinding": {"glob": special}}
-    )
+    output_schema = cast(CWLObjectType, {"type": "File", "outputBinding": {"glob": special}})
     mock_output = tmp_path / special
     mock_output.touch()
 
@@ -197,7 +195,7 @@ def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
         builder.files, builder.stagedir, RuntimeContext(), True
     )
     builder.outdir = "/var/spool/cwl"
-    fs_access = TestFsAccess("")
+    fs_access = StubFsAccess("")
 
     result = cast(
         CWLObjectType,

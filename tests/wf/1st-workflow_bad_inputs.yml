@@ -1,0 +1,4 @@
+inp: 42
+ex:
+  class: File
+  path: 1st-workflow.cwl

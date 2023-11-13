@@ -3,7 +3,9 @@ from collections import namedtuple
 from typing import (
     Any,
     Dict,
+    Iterator,
     List,
+    Literal,
     MutableMapping,
     MutableSequence,
     Optional,
@@ -35,11 +37,11 @@ def check_types(
     sinktype: SinkType,
     linkMerge: Optional[str],
     valueFrom: Optional[str],
-) -> str:
+) -> Union[Literal["pass"], Literal["warning"], Literal["exception"]]:
     """
     Check if the source and sink types are correct.
 
-    Acceptable types are "pass", "warning", or "exception".
+    :raises WorkflowException: If there is an unrecognized linkMerge type
     """
     if valueFrom is not None:
         return "pass"
@@ -57,10 +59,8 @@ def check_types(
             None,
         )
     if linkMerge == "merge_flattened":
-        return check_types(
-            merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None
-        )
-    raise WorkflowException(f"Unrecognized linkMerge enum '{linkMerge}'")
+        return check_types(merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None)
+    raise WorkflowException(f"Unrecognized linkMerge enum {linkMerge!r}")
 
 
 def merge_flatten_type(src: SinkType) -> CWLOutputType:
@@ -72,18 +72,16 @@ def merge_flatten_type(src: SinkType) -> CWLOutputType:
     return {"items": src, "type": "array"}
 
 
-def can_assign_src_to_sink(
-    src: SinkType, sink: Optional[SinkType], strict: bool = False
-) -> bool:
+def can_assign_src_to_sink(src: SinkType, sink: Optional[SinkType], strict: bool = False) -> bool:
     """
     Check for identical type specifications, ignoring extra keys like inputBinding.
 
-    src: admissible source types
-    sink: admissible sink types
-
     In non-strict comparison, at least one source type must match one sink type,
-       except for 'null'.
+    except for 'null'.
     In strict comparison, all source types must match at least one sink type.
+
+    :param src: admissible source types
+    :param sink: admissible sink types
     """
     if src == "Any" or sink == "Any":
         return True
@@ -102,9 +100,7 @@ def can_assign_src_to_sink(
             for sinksf in cast(List[CWLObjectType], sink.get("secondaryFiles", [])):
                 if not [
                     1
-                    for srcsf in cast(
-                        List[CWLObjectType], src.get("secondaryFiles", [])
-                    )
+                    for srcsf in cast(List[CWLObjectType], src.get("secondaryFiles", []))
                     if sinksf == srcsf
                 ]:
                     if strict:
@@ -120,9 +116,7 @@ def can_assign_src_to_sink(
                     return False
             return True
         for this_src in src:
-            if this_src != "null" and can_assign_src_to_sink(
-                cast(SinkType, this_src), sink
-            ):
+            if this_src != "null" and can_assign_src_to_sink(cast(SinkType, this_src), sink):
                 return True
         return False
     if isinstance(sink, MutableSequence):
@@ -133,19 +127,17 @@ def can_assign_src_to_sink(
     return bool(src == sink)
 
 
-def _compare_records(
-    src: CWLObjectType, sink: CWLObjectType, strict: bool = False
-) -> bool:
+def _compare_records(src: CWLObjectType, sink: CWLObjectType, strict: bool = False) -> bool:
     """
     Compare two records, ensuring they have compatible fields.
 
     This handles normalizing record names, which will be relative to workflow
     step, so that they can be compared.
+
+    :return: True if the records have compatible fields, False otherwise.
     """
 
-    def _rec_fields(
-        rec,
-    ):  # type: (MutableMapping[str, Any]) -> MutableMapping[str, Any]
+    def _rec_fields(rec: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
         out = {}
         for field in rec["fields"]:
             name = shortname(field["name"])
@@ -189,7 +181,11 @@ def static_checker(
     step_outputs: List[CWLObjectType],
     param_to_step: Dict[str, CWLObjectType],
 ) -> None:
-    """Check if all source and sink types of a workflow are compatible before run time."""
+    """
+    Check if all source and sink types of a workflow are compatible before run time.
+
+    :raises ValidationException: If any incompatibilities are detected.
+    """
     # source parameters: workflow_inputs and step_outputs
     # sink parameters: step_inputs and workflow_outputs
 
@@ -213,9 +209,7 @@ def static_checker(
         sink = warning.sink
         linkMerge = warning.linkMerge
         sinksf = sorted(
-            p["pattern"]
-            for p in sink.get("secondaryFiles", [])
-            if p.get("required", True)
+            p["pattern"] for p in sink.get("secondaryFiles", []) if p.get("required", True)
         )
         srcsf = sorted(p["pattern"] for p in src.get("secondaryFiles", []))
         # Every secondaryFile required by the sink, should be declared
@@ -227,16 +221,13 @@ def static_checker(
                 missing,
             )
             msg3 = SourceLine(src, "id").makeError(
-                "source '%s' does not provide those secondaryFiles."
-                % (shortname(src["id"]))
+                "source '%s' does not provide those secondaryFiles." % (shortname(src["id"]))
             )
             msg4 = SourceLine(src.get("_tool_entry", src), "secondaryFiles").makeError(
                 "To resolve, add missing secondaryFiles patterns to definition of '%s' or"
                 % (shortname(src["id"]))
             )
-            msg5 = SourceLine(
-                sink.get("_tool_entry", sink), "secondaryFiles"
-            ).makeError(
+            msg5 = SourceLine(sink.get("_tool_entry", sink), "secondaryFiles").makeError(
                 "mark missing secondaryFiles in definition of '%s' as optional."
                 % shortname(sink["id"])
             )
@@ -297,17 +288,16 @@ def static_checker(
             )
             + "\n"
             + SourceLine(sink, "type").makeError(
-                "  with sink '%s' of type %s"
-                % (shortname(sink["id"]), json_dumps(sink["type"]))
+                "  with sink '{}' of type {}".format(
+                    shortname(sink["id"]), json_dumps(sink["type"])
+                )
             )
         )
         if extra_message is not None:
             msg += "\n" + SourceLine(sink).makeError("  " + extra_message)
 
         if linkMerge is not None:
-            msg += "\n" + SourceLine(sink).makeError(
-                "  source has linkMerge method %s" % linkMerge
-            )
+            msg += "\n" + SourceLine(sink).makeError("  source has linkMerge method %s" % linkMerge)
         exception_msgs.append(msg)
 
     for sink in step_inputs:
@@ -339,18 +329,19 @@ SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge", "message"])
 def check_all_types(
     src_dict: Dict[str, CWLObjectType],
     sinks: MutableSequence[CWLObjectType],
-    sourceField: str,
+    sourceField: Union[Literal["source"], Literal["outputSource"]],
     param_to_step: Dict[str, CWLObjectType],
 ) -> Dict[str, List[SrcSink]]:
     """
     Given a list of sinks, check if their types match with the types of their sources.
 
-    sourceField is either "source" or "outputSource"
+    :raises WorkflowException: if there is an unrecognized linkMerge value
+                               (from :py:func:`check_types`)
+    :raises ValidationException: if a sourceField is missing
     """
     validation = {"warning": [], "exception": []}  # type: Dict[str, List[SrcSink]]
     for sink in sinks:
         if sourceField in sink:
-
             valueFrom = cast(Optional[str], sink.get("valueFrom"))
             pickValue = cast(Optional[str], sink.get("pickValue"))
 
@@ -363,11 +354,7 @@ def check_all_types(
                     Optional[str],
                     sink.get(
                         "linkMerge",
-                        (
-                            "merge_nested"
-                            if len(cast(Sized, sink[sourceField])) > 1
-                            else None
-                        ),
+                        ("merge_nested" if len(cast(Sized, sink[sourceField])) > 1 else None),
                     ),
                 )  # type: Optional[str]
 
@@ -377,10 +364,7 @@ def check_all_types(
                 srcs_of_sink = []  # type: List[CWLObjectType]
                 for parm_id in cast(MutableSequence[str], sink[sourceField]):
                     srcs_of_sink += [src_dict[parm_id]]
-                    if (
-                        is_conditional_step(param_to_step, parm_id)
-                        and pickValue is None
-                    ):
+                    if is_conditional_step(param_to_step, parm_id) and pickValue is None:
                         validation["warning"].append(
                             SrcSink(
                                 src_dict[parm_id],
@@ -456,7 +440,11 @@ def check_all_types(
 
 
 def circular_dependency_checker(step_inputs: List[CWLObjectType]) -> None:
-    """Check if a workflow has circular dependency."""
+    """
+    Check if a workflow has circular dependency.
+
+    :raises ValidationException: If a circular dependency is detected.
+    """
     adjacency = get_dependency_tree(step_inputs)
     vertices = adjacency.keys()
     processed: List[str] = []
@@ -478,9 +466,7 @@ def get_dependency_tree(step_inputs: List[CWLObjectType]) -> Dict[str, List[str]
     for step_input in step_inputs:
         if "source" in step_input:
             if isinstance(step_input["source"], list):
-                vertices_in = [
-                    get_step_id(cast(str, src)) for src in step_input["source"]
-                ]
+                vertices_in = [get_step_id(cast(str, src)) for src in step_input["source"]]
             else:
                 vertices_in = [get_step_id(cast(str, step_input["source"]))]
             vertex_out = get_step_id(cast(str, step_input["id"]))
@@ -523,16 +509,13 @@ def get_step_id(field_id: str) -> str:
 
 
 def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -> bool:
-    source_step = param_to_step.get(parm_id)
-    if source_step is not None:
+    if (source_step := param_to_step.get(parm_id)) is not None:
         if source_step.get("when") is not None:
             return True
     return False
 
 
-def is_all_output_method_loop_step(
-    param_to_step: Dict[str, CWLObjectType], parm_id: str
-) -> bool:
+def is_all_output_method_loop_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -> bool:
     """Check if a step contains a http://commonwl.org/cwltool#Loop requirement with `all` outputMethod."""
     source_step: Optional[MutableMapping[str, Any]] = param_to_step.get(parm_id)
     if source_step is not None:
@@ -545,8 +528,13 @@ def is_all_output_method_loop_step(
     return False
 
 
-def loop_checker(steps: List[MutableMapping[str, Any]]) -> None:
-    """Check http://commonwl.org/cwltool#Loop requirement compatibility with other directives."""
+def loop_checker(steps: Iterator[MutableMapping[str, Any]]) -> None:
+    """
+    Check http://commonwl.org/cwltool#Loop requirement compatibility with other directives.
+
+    :raises ValidationException: If there is an incompatible combination between
+            cwltool:loop and 'scatter' or 'when'.
+    """
     exceptions = []
     for step in steps:
         requirements = {

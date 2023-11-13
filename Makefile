@@ -24,10 +24,10 @@ MODULE=cwltool
 
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
-PYSOURCES=$(wildcard ${MODULE}/**.py tests/*.py) setup.py
-DEVPKGS=diff_cover pylint pep257 pydocstyle tox tox-pyenv \
+PYSOURCES=$(wildcard ${MODULE}/**.py cwltool/cwlprov/*.py tests/*.py) setup.py
+DEVPKGS=diff_cover pylint pep257 pydocstyle 'tox<4' tox-pyenv auto-walrus \
 	isort wheel autoflake pyupgrade bandit -rlint-requirements.txt\
-	-rtest-requirements.txt -rmypy-requirements.txt
+	-rtest-requirements.txt -rmypy-requirements.txt -rdocs/requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 
@@ -77,7 +77,7 @@ check-python3:
 	python --version 2>&1 | grep "Python 3"
 
 dist/${MODULE}-$(VERSION).tar.gz: check-python3 $(SOURCES)
-	python setup.py sdist bdist_wheel
+	python -m build
 
 ## docs                   : make the docs
 docs: FORCE
@@ -85,7 +85,7 @@ docs: FORCE
 
 ## clean                  : clean up all temporary / machine-generated files
 clean: check-python3 FORCE
-	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so
+	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so cwltool/cwlprov/*.so
 	rm -Rf ${MODULE}/__pycache__/
 	python setup.py clean --all || true
 	rm -Rf .coverage
@@ -111,16 +111,21 @@ pydocstyle_report.txt: $(PYSOURCES)
 diff_pydocstyle_report: pydocstyle_report.txt
 	diff-quality --compare-branch=main --violations=pydocstyle --fail-under=100 $^
 
-## codespell              : check for common misspellings
-codespell:
-	codespell -w $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs)
+## codespell-check        : check for common misspellings
+codespell-check:
+	@codespell $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs) \
+		|| (echo Probable typo foun. Run \"make codespell-fix\" to accept suggested fixes, or add the word to the ignore list in setup.cfg ; exit 1)
+
+## codespell-fix          : fix common misspellings
+codespell-fix:
+	@codespell -w $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs)
 
 ## format                 : check/fix all code indentation and formatting (runs black)
 format:
-	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
+	black --exclude cwltool/schemas --exclude cwltool/_version.py setup.py cwltool.py cwltool tests mypy-stubs
 
 format-check:
-	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
+	black --diff --check --exclude cwltool/schemas setup.py --exclude cwltool/_version.py cwltool.py cwltool tests mypy-stubs
 
 ## pylint                 : run static code analysis on Python code
 pylint: $(PYSOURCES)
@@ -177,24 +182,8 @@ list-author-emails:
 	@git log --format='%aN,%aE' | sort -u | grep -v 'root'
 
 mypy3: mypy
-mypy: $(filter-out setup.py gittagger.py,$(PYSOURCES))
-	if ! test -f $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
-	then \
-		rm -Rf mypy-stubs/ruamel/yaml ; \
-		ln -s $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-			mypy-stubs/ruamel/ ; \
-	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
+mypy: $(PYSOURCES)
 	MYPYPATH=$$MYPYPATH:mypy-stubs mypy $^
-
-mypy_3.6: $(filter-out setup.py gittagger.py,$(PYSOURCES))
-	if ! test -f $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))')/py.typed ; \
-	then \
-		rm -Rf mypy-stubs/ruamel/yaml ; \
-		ln -s $(shell python -c 'import ruamel.yaml; import os.path; print(os.path.dirname(ruamel.yaml.__file__))') \
-			mypy-stubs/ruamel/ ; \
-	fi  # if minimally required ruamel.yaml version is 0.15.99 or greater, than the above can be removed
-	MYPYPATH=$$MYPYPATH:mypy-stubs mypy --python-version 3.6 $^
-
 
 mypyc: $(PYSOURCES)
 	MYPYPATH=mypy-stubs CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
@@ -205,15 +194,19 @@ shellcheck: FORCE
 		cwltool-in-docker.sh
 
 pyupgrade: $(PYSOURCES)
-	pyupgrade --exit-zero-even-if-changed --py36-plus $^
+	pyupgrade --exit-zero-even-if-changed --py38-plus $^
+	auto-walrus $^
 
 release-test: check-python3 FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommitted changes, please commit them and try again; false )
 	./release-test.sh
 
-release: release-test
+release:
+	export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_CWLTOOL=${VERSION} && \
+	./release-test.sh && \
 	. testenv2/bin/activate && \
-		python testenv2/src/${MODULE}/setup.py sdist bdist_wheel && \
+		pip install build && \
+		python -m build testenv2/src/${MODULE} && \
 		pip install twine && \
 		twine upload testenv2/src/${MODULE}/dist/* && \
 		git tag ${VERSION} && git push --tags

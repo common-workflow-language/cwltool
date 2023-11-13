@@ -17,19 +17,20 @@ from typing import (
 )
 from uuid import UUID
 
+from mypy_extensions import mypyc_attr
+from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
-
-from ruamel.yaml.comments import CommentedMap
 
 from . import command_line_tool, context, procgenerator
 from .checker import circular_dependency_checker, loop_checker, static_checker
 from .context import LoadingContext, RuntimeContext, getdefault
+from .cwlprov.provenance_profile import ProvenanceProfile
+from .cwlprov.writablebagfile import create_job
 from .errors import WorkflowException
 from .load_tool import load_tool
 from .loghandler import _logger
 from .process import Process, get_overrides, shortname
-from .provenance_profile import ProvenanceProfile
 from .utils import (
     CWLObjectType,
     CWLOutputType,
@@ -41,9 +42,8 @@ from .utils import (
 from .workflow_job import WorkflowJob
 
 
-def default_make_tool(
-    toolpath_object: CommentedMap, loadingContext: LoadingContext
-) -> Process:
+def default_make_tool(toolpath_object: CommentedMap, loadingContext: LoadingContext) -> Process:
+    """Instantiate the given CWL Process."""
     if not isinstance(toolpath_object, MutableMapping):
         raise WorkflowException("Not a dict: '%s'" % toolpath_object)
     if "class" in toolpath_object:
@@ -60,14 +60,14 @@ def default_make_tool(
 
     raise WorkflowException(
         "Missing or invalid 'class' field in "
-        "%s, expecting one of: CommandLineTool, ExpressionTool, Workflow"
-        % toolpath_object["id"]
+        "%s, expecting one of: CommandLineTool, ExpressionTool, Workflow" % toolpath_object["id"]
     )
 
 
 context.default_make_tool = default_make_tool
 
 
+@mypyc_attr(serializable=True)
 class Workflow(Process):
     def __init__(
         self,
@@ -76,9 +76,9 @@ class Workflow(Process):
     ) -> None:
         """Initialize this Workflow."""
         super().__init__(toolpath_object, loadingContext)
-        self.provenance_object = None  # type: Optional[ProvenanceProfile]
+        self.provenance_object: Optional[ProvenanceProfile] = None
         if loadingContext.research_obj is not None:
-            run_uuid = None  # type: Optional[UUID]
+            run_uuid: Optional[UUID] = None
             is_main = not loadingContext.prov_obj  # Not yet set
             if is_main:
                 run_uuid = loadingContext.research_obj.ro_uuid
@@ -101,14 +101,12 @@ class Workflow(Process):
         loadingContext.requirements = self.requirements
         loadingContext.hints = self.hints
 
-        self.steps = []  # type: List[WorkflowStep]
+        self.steps: List[WorkflowStep] = []
         validation_errors = []
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
                 self.steps.append(
-                    self.make_workflow_step(
-                        step, index, loadingContext, loadingContext.prov_obj
-                    )
+                    self.make_workflow_step(step, index, loadingContext, loadingContext.prov_obj)
                 )
             except ValidationException as vexc:
                 if _logger.isEnabledFor(logging.DEBUG):
@@ -124,9 +122,9 @@ class Workflow(Process):
         workflow_inputs = self.tool["inputs"]
         workflow_outputs = self.tool["outputs"]
 
-        step_inputs = []  # type: List[CWLObjectType]
-        step_outputs = []  # type: List[CWLObjectType]
-        param_to_step = {}  # type: Dict[str, CWLObjectType]
+        step_inputs: List[CWLObjectType] = []
+        step_outputs: List[CWLObjectType] = []
+        param_to_step: Dict[str, CWLObjectType] = {}
         for step in self.steps:
             step_inputs.extend(step.tool["inputs"])
             step_outputs.extend(step.tool["outputs"])
@@ -144,7 +142,7 @@ class Workflow(Process):
                 param_to_step,
             )
             circular_dependency_checker(step_inputs)
-            loop_checker([step.tool for step in self.steps])
+            loop_checker(step.tool for step in self.steps)
 
     def make_workflow_step(
         self,
@@ -167,7 +165,7 @@ class Workflow(Process):
             if runtimeContext.toplevel:
                 # Record primary-job.json
                 runtimeContext.research_obj.fsaccess = runtimeContext.make_fs_access("")
-                runtimeContext.research_obj.create_job(builder.job)
+                create_job(runtimeContext.research_obj, builder.job)
 
         job = WorkflowJob(self, runtimeContext)
         yield job
@@ -213,9 +211,7 @@ class WorkflowStep(Process):
         loadingContext = loadingContext.copy()
 
         parent_requirements = copy.deepcopy(getdefault(loadingContext.requirements, []))
-        loadingContext.requirements = copy.deepcopy(
-            toolpath_object.get("requirements", [])
-        )
+        loadingContext.requirements = copy.deepcopy(toolpath_object.get("requirements", []))
         assert loadingContext.requirements is not None  # nosec
         for parent_req in parent_requirements:
             found_in_step = False
@@ -223,17 +219,14 @@ class WorkflowStep(Process):
                 if parent_req["class"] == step_req["class"]:
                     found_in_step = True
                     break
-            if (
-                not found_in_step
-                and parent_req.get("class") != "http://commonwl.org/cwltool#Loop"
-            ):
+            if not found_in_step and parent_req.get("class") != "http://commonwl.org/cwltool#Loop":
                 loadingContext.requirements.append(parent_req)
         loadingContext.requirements.extend(
             cast(
                 List[CWLObjectType],
-                get_overrides(
-                    getdefault(loadingContext.overrides_list, []), self.id
-                ).get("requirements", []),
+                get_overrides(getdefault(loadingContext.overrides_list, []), self.id).get(
+                    "requirements", []
+                ),
             )
         )
 
@@ -243,9 +236,9 @@ class WorkflowStep(Process):
 
         try:
             if isinstance(toolpath_object["run"], CommentedMap):
-                self.embedded_tool = loadingContext.construct_tool_object(
+                self.embedded_tool: Process = loadingContext.construct_tool_object(
                     toolpath_object["run"], loadingContext
-                )  # type: Process
+                )
             else:
                 loadingContext.metadata = {}
                 self.embedded_tool = load_tool(toolpath_object["run"], loadingContext)
@@ -272,7 +265,7 @@ class WorkflowStep(Process):
             toolpath_object[toolfield] = []
             for index, step_entry in enumerate(toolpath_object[stepfield]):
                 if isinstance(step_entry, str):
-                    param = CommentedMap()  # type: CommentedMap
+                    param: CommentedMap = CommentedMap()
                     inputid = step_entry
                 else:
                     param = CommentedMap(step_entry.items())
@@ -306,9 +299,7 @@ class WorkflowStep(Process):
                         else:
                             step_entry_name = step_entry
                         validation_errors.append(
-                            SourceLine(
-                                self.tool["out"], index, include_traceback=debug
-                            ).makeError(
+                            SourceLine(self.tool["out"], index, include_traceback=debug).makeError(
                                 "Workflow step output '%s' does not correspond to"
                                 % shortname(step_entry_name)
                             )
@@ -323,9 +314,7 @@ class WorkflowStep(Process):
                                     "', '".join(
                                         [
                                             shortname(tool_entry["id"])
-                                            for tool_entry in self.embedded_tool.tool[
-                                                "outputs"
-                                            ]
+                                            for tool_entry in self.embedded_tool.tool["outputs"]
                                         ]
                                     )
                                 )
@@ -371,8 +360,7 @@ class WorkflowStep(Process):
             (feature, _) = self.get_requirement("ScatterFeatureRequirement")
             if not feature:
                 raise WorkflowException(
-                    "Workflow contains scatter but ScatterFeatureRequirement "
-                    "not in requirements"
+                    "Workflow contains scatter but ScatterFeatureRequirement " "not in requirements"
                 )
 
             inputparms = copy.deepcopy(self.tool["inputs"])
@@ -388,9 +376,7 @@ class WorkflowStep(Process):
             inp_map = {i["id"]: i for i in inputparms}
             for inp in scatter:
                 if inp not in inp_map:
-                    SourceLine(
-                        self.tool, "scatter", ValidationException, debug
-                    ).makeError(
+                    SourceLine(self.tool, "scatter", ValidationException, debug).makeError(
                         "Scatter parameter '%s' does not correspond to "
                         "an input parameter of this step, expecting '%s'"
                         % (
@@ -411,7 +397,7 @@ class WorkflowStep(Process):
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
-        self.prov_obj = None  # type: Optional[ProvenanceProfile]
+        self.prov_obj: Optional[ProvenanceProfile] = None
         if loadingContext.research_obj is not None:
             self.prov_obj = parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":

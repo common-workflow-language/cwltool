@@ -42,7 +42,8 @@ def arg_parser() -> argparse.ArgumentParser:
         type=str,
         default="",
         help="Log your tools stdout/stderr to this location outside of container "
-        "This will only log stdout/stderr if you specify stdout/stderr in their respective fields or capture it as an output",
+        "This will only log stdout/stderr if you specify stdout/stderr in their "
+        "respective fields or capture it as an output",
     )
 
     parser.add_argument(
@@ -125,9 +126,7 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Path prefix for temporary directories. If --tmpdir-prefix is not "
         "provided, then the prefix for temporary directories is influenced by "
         "the value of the TMPDIR, TEMP, or TMP environment variables. Taking "
-        "those into consideration, the current default is {}.".format(
-            DEFAULT_TMP_PREFIX
-        ),
+        "those into consideration, the current default is {}.".format(DEFAULT_TMP_PREFIX),
         default=DEFAULT_TMP_PREFIX,
     )
 
@@ -317,12 +316,8 @@ def arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Combine components into single document and print.",
     )
-    printgroup.add_argument(
-        "--version", action="store_true", help="Print version and exit"
-    )
-    printgroup.add_argument(
-        "--validate", action="store_true", help="Validate CWL document only."
-    )
+    printgroup.add_argument("--version", action="store_true", help="Print version and exit")
+    printgroup.add_argument("--validate", action="store_true", help="Validate CWL document only.")
     printgroup.add_argument(
         "--print-supported-versions",
         action="store_true",
@@ -383,12 +378,8 @@ def arg_parser() -> argparse.ArgumentParser:
 
     volumegroup = parser.add_mutually_exclusive_group()
     volumegroup.add_argument("--verbose", action="store_true", help="Default logging")
-    volumegroup.add_argument(
-        "--quiet", action="store_true", help="Only print warnings and errors."
-    )
-    volumegroup.add_argument(
-        "--debug", action="store_true", help="Print even more logging"
-    )
+    volumegroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
+    volumegroup.add_argument("--debug", action="store_true", help="Print even more logging")
 
     parser.add_argument(
         "--write-summary",
@@ -493,12 +484,9 @@ def arg_parser() -> argparse.ArgumentParser:
             "Default root directory used by dependency resolvers configuration."
         )
         use_biocontainers_help = (
-            "Use biocontainers for tools without an "
-            "explicitly annotated Docker container."
+            "Use biocontainers for tools without an " "explicitly annotated Docker container."
         )
-        conda_dependencies = (
-            "Short cut to use Conda to resolve 'SoftwareRequirement' packages."
-        )
+        conda_dependencies = "Short cut to use Conda to resolve 'SoftwareRequirement' packages."
 
     parser.add_argument(
         "--beta-dependency-resolvers-configuration",
@@ -521,9 +509,7 @@ def arg_parser() -> argparse.ArgumentParser:
         action="store_true",
     )
 
-    parser.add_argument(
-        "--tool-help", action="store_true", help="Print command line help for tool"
-    )
+    parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
 
     parser.add_argument(
         "--relative-deps",
@@ -536,8 +522,7 @@ def arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--enable-dev",
         action="store_true",
-        help="Enable loading and running unofficial development versions of "
-        "the CWL standards.",
+        help="Enable loading and running unofficial development versions of " "the CWL standards.",
         default=False,
     )
 
@@ -646,8 +631,7 @@ def arg_parser() -> argparse.ArgumentParser:
         "--relax-path-checks",
         action="store_true",
         default=False,
-        help="Relax requirements on path names to permit "
-        "spaces and hash characters.",
+        help="Relax requirements on path names to permit " "spaces and hash characters.",
         dest="relax_path_checks",
     )
 
@@ -741,7 +725,9 @@ def get_default_args() -> Dict[str, Any]:
 
 
 class FSAction(argparse.Action):
-    objclass = None  # type: str
+    """Base action for our custom actions."""
+
+    objclass: Optional[str] = None
 
     def __init__(
         self,
@@ -777,7 +763,9 @@ class FSAction(argparse.Action):
 
 
 class FSAppendAction(argparse.Action):
-    objclass = None  # type: str
+    """Appending version of the base action for our custom actions."""
+
+    objclass: Optional[str] = None
 
     def __init__(
         self,
@@ -815,27 +803,26 @@ class FSAppendAction(argparse.Action):
 
 
 class FileAction(FSAction):
-    objclass = "File"
+    objclass: Optional[str] = "File"
 
 
 class DirectoryAction(FSAction):
-    objclass = "Directory"
+    objclass: Optional[str] = "Directory"
 
 
 class FileAppendAction(FSAppendAction):
-    objclass = "File"
+    objclass: Optional[str] = "File"
 
 
 class DirectoryAppendAction(FSAppendAction):
-    objclass = "Directory"
+    objclass: Optional[str] = "Directory"
 
 
 class AppendAction(argparse.Action):
-    """An argparse action that clears the default values if any value is provided.
+    """An argparse action that clears the default values if any value is provided."""
 
-    Attributes:
-        _called (bool): Initially set to ``False``, changed if any value is appended.
-    """
+    _called: bool
+    """Initially set to ``False``, changed if any value is appended."""
 
     def __init__(
         self,
@@ -900,9 +887,9 @@ def add_argument(
             return None
 
     ahelp = description.replace("%", "%%")
-    action = None  # type: Optional[Union[Type[argparse.Action], str]]
-    atype = None  # type: Any
-    typekw = {}  # type: Dict[str, Any]
+    action: Optional[Union[Type[argparse.Action], str]] = None
+    atype: Optional[Any] = None
+    typekw: Dict[str, Any] = {}
 
     if inptype == "File":
         action = FileAction
@@ -929,9 +916,7 @@ def add_argument(
                 fieldtype,
                 records,
                 fielddescription,
-                default=default.get(shortname(field["name"]), None)
-                if default
-                else None,
+                default=default.get(shortname(field["name"]), None) if default else None,
                 input_required=required,
             )
         return
@@ -977,7 +962,8 @@ def generate_parser(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     base_uri: str = "",
 ) -> argparse.ArgumentParser:
-    toolparser.description = tool.tool.get("doc", None)
+    """Generate an ArgumentParser for the given CWL Process."""
+    toolparser.description = tool.tool.get("doc", tool.tool.get("label", None))
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
@@ -985,7 +971,7 @@ def generate_parser(
         name = shortname(inp["id"])
         namemap[name.replace("-", "_")] = name
         inptype = inp["type"]
-        description = inp.get("doc", "")
+        description = inp.get("doc", inp.get("label", ""))
         default = inp.get("default", None)
         add_argument(
             toolparser,

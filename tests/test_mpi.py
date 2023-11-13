@@ -6,8 +6,9 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Generator, List, MutableMapping, Optional, Tuple
 
-import pkg_resources
 import pytest
+from importlib_resources import files
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Names
 from schema_salad.utils import yaml_no_ts
 
@@ -18,7 +19,6 @@ from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
 from cwltool.mpi import MpiConfig, MPIRequirementName
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .util import get_data, working_directory
 
@@ -140,8 +140,7 @@ class TestMpiRun:
         stderr = StringIO()
         with working_directory(tmp_path):
             rc = main(
-                argsl=cwltool_args(fake_mpi_conf)
-                + [get_data("tests/wf/mpi_simple.cwl")],
+                argsl=cwltool_args(fake_mpi_conf) + [get_data("tests/wf/mpi_simple.cwl")],
                 stdout=stdout,
                 stderr=stderr,
             )
@@ -282,19 +281,16 @@ def test_env_passing(monkeypatch: pytest.MonkeyPatch) -> None:
 # Reading the schema is super slow - cache for the session
 @pytest.fixture(scope="session")
 def schema_ext11() -> Generator[Names, None, None]:
-    with pkg_resources.resource_stream("cwltool", "extensions-v1.1.yml") as res:
-        ext11 = res.read().decode("utf-8")
-        cwltool.process.use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
-        schema = cwltool.process.get_schema("v1.1")[1]
-        assert isinstance(schema, Names)
-        yield schema
+    ext11 = files("cwltool").joinpath("extensions-v1.1.yml").read_text("utf-8")
+    cwltool.process.use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
+    schema = cwltool.process.get_schema("v1.1")[1]
+    assert isinstance(schema, Names)
+    yield schema
 
 
 mpiReq = CommentedMap({"class": MPIRequirementName, "processes": 1})
 containerReq = CommentedMap({"class": "DockerRequirement"})
-basetool = CommentedMap(
-    {"cwlVersion": "v1.1", "inputs": CommentedSeq(), "outputs": CommentedSeq()}
-)
+basetool = CommentedMap({"cwlVersion": "v1.1", "inputs": CommentedSeq(), "outputs": CommentedSeq()})
 
 
 def mk_tool(
@@ -350,15 +346,15 @@ def test_docker_required(schema_ext11: Names) -> None:
 
 def test_docker_mpi_both_required(schema_ext11: Names) -> None:
     # Both required - error
+    lc, rc, tool = mk_tool(schema_ext11, [], reqs=[mpiReq, containerReq])
+    clt = CommandLineTool(tool, lc)
     with pytest.raises(cwltool.errors.UnsupportedRequirement):
-        lc, rc, tool = mk_tool(schema_ext11, [], reqs=[mpiReq, containerReq])
-        clt = CommandLineTool(tool, lc)
-        jr = clt.make_job_runner(rc)
+        clt.make_job_runner(rc)
 
 
 def test_docker_mpi_both_hinted(schema_ext11: Names) -> None:
     # Both hinted - error
+    lc, rc, tool = mk_tool(schema_ext11, [], hints=[mpiReq, containerReq])
+    clt = CommandLineTool(tool, lc)
     with pytest.raises(cwltool.errors.UnsupportedRequirement):
-        lc, rc, tool = mk_tool(schema_ext11, [], hints=[mpiReq, containerReq])
-        clt = CommandLineTool(tool, lc)
-        jr = clt.make_job_runner(rc)
+        clt.make_job_runner(rc)

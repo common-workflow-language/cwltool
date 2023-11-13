@@ -21,4 +21,4 @@ outputs:
     type: File
     outputBinding:
       glob: foo$(inputs.r).txt
-arguments: [python, -c, $(inputs.script), $(inputs.r)]
+arguments: [python3, -c, $(inputs.script), $(inputs.r)]

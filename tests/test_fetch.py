@@ -66,9 +66,7 @@ def test_fetcher() -> None:
 
     load_tool("foo.cwl", loadingContext)
 
-    assert (
-        main(["--print-pre", "--debug", "foo.cwl"], loadingContext=loadingContext) == 0
-    )
+    assert main(["--print-pre", "--debug", "foo.cwl"], loadingContext=loadingContext) == 0
 
 
 root = Path(os.path.join(get_data("")))

@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple, cast
 
+from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import uri_file_path
 from schema_salad.sourceline import SourceLine
@@ -15,11 +16,34 @@ from .loghandler import _logger
 from .stdfsaccess import abspath
 from .utils import CWLObjectType, dedup, downloadHttpFile
 
-MapperEnt = collections.namedtuple(
-    "MapperEnt", ["resolved", "target", "type", "staged"]
-)
+MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "staged"])
+""" Mapper entries.
+
+.. py:attribute:: resolved
+   :type: str
+
+   The "real" path on the local file system (after resolving relative paths
+   and traversing symlinks
+
+.. py:attribute:: target
+   :type: str
+
+   The path on the target file system (under stagedir)
+
+.. py:attribute:: type
+   :type: str
+
+   The object type. One of "File", "Directory", "CreateFile", "WritableFile",
+   or "CreateWritableFile".
+
+.. py:attribute:: staged
+   :type: bool
+
+   If the File has been staged yet
+"""
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class PathMapper:
     """
     Mapping of files from relative path provided in the file to a tuple.
@@ -28,16 +52,16 @@ class PathMapper:
 
     The tao of PathMapper:
 
-    The initializer takes a list of File and Directory objects, a base
-    directory (for resolving relative references) and a staging directory
-    (where the files are mapped to).
+    The initializer takes a list of ``class: File`` and ``class: Directory``
+    objects, a base directory (for resolving relative references) and a staging
+    directory (where the files are mapped to).
 
     The purpose of the setup method is to determine where each File or
     Directory should be placed on the target file system (relative to
     stagedir).
 
-    If separatedirs=True, unrelated files will be isolated in their own
-    directories under stagedir. If separatedirs=False, files and directories
+    If ``separatedirs=True``, unrelated files will be isolated in their own
+    directories under stagedir. If ``separatedirs=False``, files and directories
     will all be placed in stagedir (with the possibility for name
     collisions...)
 
@@ -65,7 +89,7 @@ class PathMapper:
         separateDirs: bool = True,
     ) -> None:
         """Initialize the PathMapper."""
-        self._pathmap = {}  # type: Dict[str, MapperEnt]
+        self._pathmap: Dict[str, MapperEnt] = {}
         self.stagedir = stagedir
         self.separateDirs = separateDirs
         self.setup(dedup(referenced_files), basedir)
@@ -164,18 +188,18 @@ class PathMapper:
             )
 
     def setup(self, referenced_files: List[CWLObjectType], basedir: str) -> None:
-
         # Go through each file and set the target to its own directory along
         # with any secondary files.
         stagedir = self.stagedir
         for fob in referenced_files:
             if self.separateDirs:
                 stagedir = os.path.join(self.stagedir, "stg%s" % uuid.uuid4())
+            copy = cast(bool, fob.get("writable", False) or False)
             self.visit(
                 fob,
                 stagedir,
                 basedir,
-                copy=cast(bool, fob.get("writable", False)),
+                copy=copy,
                 staged=True,
             )
 
@@ -212,9 +236,8 @@ class PathMapper:
                 return (k, v[0])
         return None
 
-    def update(
-        self, key: str, resolved: str, target: str, ctype: str, stage: bool
-    ) -> MapperEnt:
+    def update(self, key: str, resolved: str, target: str, ctype: str, stage: bool) -> MapperEnt:
+        """Update an existine entry."""
         m = MapperEnt(resolved, target, ctype, stage)
         self._pathmap[key] = m
         return m

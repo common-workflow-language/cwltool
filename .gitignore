@@ -53,5 +53,10 @@ value
 
 .python-version
 
+cwltool/_version.py
+
 # Folder created when using make
 cwltool_deps
+docs/_build/
+docs/autoapi/
+

@@ -7,15 +7,10 @@ def test_docker_append_volume_read_only(mocker: Any) -> None:
     mocker.patch("os.mkdir")
     runtime = ["runtime"]
     characters = ":,\"'"
-    DockerCommandLineJob.append_volume(
-        runtime, "/source" + characters, "/target" + characters
-    )
+    DockerCommandLineJob.append_volume(runtime, "/source" + characters, "/target" + characters)
     assert runtime == [
         "runtime",
-        "--mount=type=bind,"
-        '"source=/source:,""\'",'
-        '"target=/target:,""\'",'
-        "readonly",
+        "--mount=type=bind," '"source=/source:,""\'",' '"target=/target:,""\'",' "readonly",
     ]
 
 

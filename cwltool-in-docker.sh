@@ -1,5 +1,5 @@
 #!/bin/sh
-if [ -S /var/run/docker.sock ] && [ -z "$DOCKER_HOST" ]; then
+if ! [ -S /var/run/docker.sock ] && [ -z "$DOCKER_HOST" ]; then
   >&2 echo 'ERROR: cwltool cannot work inside a container without access to docker'
   >&2 echo 'Launch the container with the option -v /var/run/docker.sock:/var/run/docker.sock'
   # shellcheck disable=SC2016

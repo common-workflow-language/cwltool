@@ -14,10 +14,9 @@ from typing import (
     cast,
 )
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, SubLoader
 from schema_salad.utils import ResolveType
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
@@ -118,7 +117,6 @@ def pack(
     rewrite_out: Optional[Dict[str, str]] = None,
     loader: Optional[Loader] = None,
 ) -> CWLObjectType:
-
     # The workflow document we have in memory right now may have been
     # updated to the internal CWL version.  We need to reload the
     # document to go back to its original version.
@@ -155,16 +153,12 @@ def pack(
             document_loader.idx[po["id"]] = CommentedMap(po.items())
         document_loader.idx[metadata["id"]] = CommentedMap(metadata.items())
 
-    found_versions = {
-        cast(str, loadingContext.metadata["cwlVersion"])
-    }  # type: Set[str]
+    found_versions = {cast(str, loadingContext.metadata["cwlVersion"])}  # type: Set[str]
 
     def loadref(base: Optional[str], lr_uri: str) -> ResolveType:
         lr_loadingContext = loadingContext.copy()
         lr_loadingContext.metadata = {}
-        lr_loadingContext, lr_workflowobj, lr_uri = fetch_document(
-            lr_uri, lr_loadingContext
-        )
+        lr_loadingContext, lr_workflowobj, lr_uri = fetch_document(lr_uri, lr_loadingContext)
         lr_loadingContext, lr_uri = resolve_and_validate_document(
             lr_loadingContext, lr_workflowobj, lr_uri
         )
@@ -204,9 +198,7 @@ def pack(
 
     mainpath, _ = urllib.parse.urldefrag(uri)
 
-    def rewrite_id(
-        r: str, mainuri: str, rewrite: Dict[str, str], names: Set[str]
-    ) -> None:
+    def rewrite_id(r: str, mainuri: str, rewrite: Dict[str, str], names: Set[str]) -> None:
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
@@ -230,9 +222,7 @@ def pack(
     for r in sorted_output_ids:
         rewrite_id(r, uri, rewrite_outputs, output_names)
 
-    packed = CommentedMap(
-        (("$graph", CommentedSeq()), ("cwlVersion", update_to_version))
-    )
+    packed = CommentedMap((("$graph", CommentedSeq()), ("cwlVersion", update_to_version)))
     namespaces = metadata.get("$namespaces", None)
 
     schemas: Set[str] = set()
@@ -301,9 +291,7 @@ def pack(
             v + "/",
         )
 
-    for r in list(
-        rewrite_inputs.keys()
-    ):  # again, to process the outputSource references
+    for r in list(rewrite_inputs.keys()):  # again, to process the outputSource references
         v = rewrite_inputs[r]
         replace_refs(packed, rewrite_inputs, r + "/" if "#" in r else r + "#", v + "/")
 
