@@ -66,6 +66,11 @@ if TYPE_CHECKING:
     from .cwlprov.provenance_profile import (
         ProvenanceProfile,  # pylint: disable=unused-import
     )
+
+    CollectOutputsType = Union[
+        Callable[[str, int], CWLObjectType], functools.partial[CWLObjectType]
+    ]
+
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
@@ -112,9 +117,6 @@ def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Optional[Match[str
     return None
 
 
-CollectOutputsType = Union[Callable[[str, int], CWLObjectType], functools.partial]
-
-
 class JobBase(HasReqsHints, metaclass=ABCMeta):
     def __init__(
         self,
@@ -144,7 +146,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.generatemapper: Optional[PathMapper] = None
 
         # set in CommandLineTool.job(i)
-        self.collect_outputs = cast(CollectOutputsType, None)
+        self.collect_outputs = cast("CollectOutputsType", None)
         self.output_callback: Optional[OutputCallbackType] = None
         self.outdir = ""
         self.tmpdir = ""
