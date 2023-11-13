@@ -113,7 +113,7 @@ diff_pydocstyle_report: pydocstyle_report.txt
 
 ## codespell-check        : check for common misspellings
 codespell-check:
-	@codespell $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs) \
+	@codespell $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs | grep -v setup.cfg) \
 		|| (echo Probable typo foun. Run \"make codespell-fix\" to accept suggested fixes, or add the word to the ignore list in setup.cfg ; exit 1)
 
 ## codespell-fix          : fix common misspellings
