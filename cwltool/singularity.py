@@ -8,7 +8,8 @@ import shutil
 import sys
 from subprocess import check_call, check_output  # nosec
 from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, cast
-
+from spython.main.parse.parsers import DockerParser
+from spython.main.parse.writers import get_writer
 from schema_salad.sourceline import SourceLine
 
 from .builder import Builder
@@ -185,14 +186,14 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 #          /tmp, temporary root filesystem won't be usable at this location
                 with open(dockerfile_path, "w") as dfile:
                     dfile.write(dockerRequirement["dockerFile"])
-                cmd = [
-                    "spython",
-                    "recipe",
-                    dockerfile_path,
-                    singularityfile_path,
-                ]
-                _logger.info(str(cmd))
-                check_call(cmd, stdout=sys.stderr)  # nosec
+
+                parser = DockerParser(dockerfile_path)
+                SingularityWriter = get_writer('singularity')
+                writer = SingularityWriter(parser.recipe)
+                result = writer.convert()
+                with open(singularityfile_path, 'w') as file:
+                    file.write(result)
+
                 cmd = [
                     "singularity",
                     "build",
