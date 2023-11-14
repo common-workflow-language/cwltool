@@ -203,7 +203,7 @@ jobs:
         env:
           VERSION: ${{ matrix.cwl-version }}
           CONTAINER: ${{ matrix.container }}
-          GIT_TARGET: main
+          GIT_TARGET: ${{ matrix.cwl-version == 'v1.2' && '1.2.1_proposed' || 'main' }}
           CWLTOOL_OPTIONS: ${{ matrix.extras }}
         run: ./conformance-test.sh
       - name: Archive test results
