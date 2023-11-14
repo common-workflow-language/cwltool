@@ -206,6 +206,12 @@ jobs:
           GIT_TARGET: main
           CWLTOOL_OPTIONS: ${{ matrix.extras }}
         run: ./conformance-test.sh
+      - name: Archive test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: cwl-${{ matrix.cwl-version }}-${{ matrix.container }}${{ matrix.extras }}-conformance-results
+          path: |
+            **/cwltool_conf*.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
