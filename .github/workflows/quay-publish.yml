@@ -14,7 +14,7 @@ jobs:
       - name: Get image tags
         id: image_tags
         run: |
-          echo -n "IMAGE_TAGS=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
+          echo -n "IMAGE_TAGS=${GITHUB_REF#refs/*/}" >> "$GITHUB_OUTPUT"
       - name: record cwltool version
         run: |
           pip install "setuptools>=61"
