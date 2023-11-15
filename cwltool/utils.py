@@ -67,27 +67,14 @@ DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill: Deque["subprocess.Popen[str]"] = collections.deque()
 
-CWLOutputAtomType = Union[
+CWLOutputType = Union[
     None,
     bool,
     str,
     int,
     float,
-    MutableSequence[
-        Union[None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]]
-    ],
-    MutableMapping[
-        str,
-        Union[None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]],
-    ],
-]
-CWLOutputType = Union[
-    bool,
-    str,
-    int,
-    float,
-    MutableSequence[CWLOutputAtomType],
-    MutableMapping[str, CWLOutputAtomType],
+    MutableSequence["CWLOutputType"],
+    MutableMapping[str, "CWLOutputType"],
 ]
 CWLObjectType = MutableMapping[str, Optional[CWLOutputType]]
 """Typical raw dictionary found in lightly parsed CWL."""
@@ -103,8 +90,7 @@ SinkType = Union[CWLOutputType, CWLObjectType]
 DirectoryType = TypedDict(
     "DirectoryType", {"class": str, "listing": List[CWLObjectType], "basename": str}
 )
-JSONAtomType = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
-JSONType = Union[Dict[str, JSONAtomType], List[JSONAtomType], str, int, float, bool, None]
+JSONType = Union[Dict[str, "JSONType"], List["JSONType"], str, int, float, bool, None]
 
 
 class WorkflowStateItem(NamedTuple):
@@ -297,7 +283,7 @@ def get_listing(fs_access: "StdFsAccess", rec: CWLObjectType, recursive: bool = 
         return
     if "listing" in rec:
         return
-    listing: List[CWLOutputAtomType] = []
+    listing: List[CWLOutputType] = []
     loc = cast(str, rec["location"])
     for ld in fs_access.listdir(loc):
         parse = urllib.parse.urlparse(ld)

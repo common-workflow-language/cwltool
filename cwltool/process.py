@@ -61,7 +61,6 @@ from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION, ORDERED_VERSIONS, ORIGINAL_CWLVERSION
 from .utils import (
     CWLObjectType,
-    CWLOutputAtomType,
     CWLOutputType,
     HasReqsHints,
     JobsGeneratorType,
@@ -1146,7 +1145,7 @@ def mergedirs(
     for e in ents.values():
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = cast(
-                MutableSequence[CWLOutputAtomType],
+                MutableSequence[CWLOutputType],
                 mergedirs(cast(List[CWLObjectType], e["listing"])),
             )
     r.extend(ents.values())
@@ -1206,7 +1205,7 @@ def scandeps(
                     deps["listing"] = doc["listing"]
                 if doc["class"] == "File" and "secondaryFiles" in doc:
                     deps["secondaryFiles"] = cast(
-                        CWLOutputAtomType,
+                        CWLOutputType,
                         scandeps(
                             base,
                             cast(
@@ -1290,7 +1289,7 @@ def scandeps(
                         )
                         if sf:
                             deps2["secondaryFiles"] = cast(
-                                MutableSequence[CWLOutputAtomType], mergedirs(sf)
+                                MutableSequence[CWLOutputType], mergedirs(sf)
                             )
                         if nestdirs:
                             deps2 = nestdir(base, deps2)

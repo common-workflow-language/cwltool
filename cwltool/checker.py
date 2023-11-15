@@ -21,7 +21,7 @@ from schema_salad.utils import json_dumps
 from .errors import WorkflowException
 from .loghandler import _logger
 from .process import shortname
-from .utils import CWLObjectType, CWLOutputAtomType, CWLOutputType, SinkType, aslist
+from .utils import CWLObjectType, CWLOutputType, SinkType, aslist
 
 
 def _get_type(tp):
@@ -90,8 +90,8 @@ def can_assign_src_to_sink(src: SinkType, sink: Optional[SinkType], strict: bool
             return False
         if src["type"] == "array" and sink["type"] == "array":
             return can_assign_src_to_sink(
-                cast(MutableSequence[CWLOutputAtomType], src["items"]),
-                cast(MutableSequence[CWLOutputAtomType], sink["items"]),
+                cast(MutableSequence[CWLOutputType], src["items"]),
+                cast(MutableSequence[CWLOutputType], sink["items"]),
                 strict,
             )
         if src["type"] == "record" and sink["type"] == "record":
