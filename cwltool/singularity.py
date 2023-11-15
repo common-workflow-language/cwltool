@@ -10,6 +10,7 @@ from subprocess import check_call, check_output  # nosec
 from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, cast
 from spython.main.parse.parsers import DockerParser
 from spython.main.parse.writers import get_writer
+#from spython.main import Client
 from schema_salad.sourceline import SourceLine
 
 from .builder import Builder
@@ -194,6 +195,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 with open(singularityfile_path, 'w') as file:
                     file.write(result)
 
+                # Client.build(recipe=singularityfile_path, build_folder=absolute_path, options=["--fakeroot"])
+                # Cannot use Client.build as it requires sudo access.
                 cmd = [
                     "singularity",
                     "build",
