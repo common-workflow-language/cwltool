@@ -105,7 +105,6 @@ from .update import ALLUPDATES, UPDATES
 from .utils import (
     DEFAULT_TMP_PREFIX,
     CWLObjectType,
-    CWLOutputAtomType,
     CWLOutputType,
     HasReqsHints,
     adjustDirObjs,
@@ -289,7 +288,7 @@ def realize_input_schema(
                 _, input_type_name = entry["type"].split("#")
                 if input_type_name in schema_defs:
                     entry["type"] = cast(
-                        CWLOutputAtomType,
+                        CWLOutputType,
                         realize_input_schema(
                             cast(
                                 MutableSequence[Union[str, CWLObjectType]],
@@ -300,7 +299,7 @@ def realize_input_schema(
                     )
             if isinstance(entry["type"], MutableSequence):
                 entry["type"] = cast(
-                    CWLOutputAtomType,
+                    CWLOutputType,
                     realize_input_schema(
                         cast(MutableSequence[Union[str, CWLObjectType]], entry["type"]),
                         schema_defs,
@@ -308,13 +307,13 @@ def realize_input_schema(
                 )
             if isinstance(entry["type"], Mapping):
                 entry["type"] = cast(
-                    CWLOutputAtomType,
+                    CWLOutputType,
                     realize_input_schema([cast(CWLObjectType, entry["type"])], schema_defs),
                 )
             if entry["type"] == "array":
                 items = entry["items"] if not isinstance(entry["items"], str) else [entry["items"]]
                 entry["items"] = cast(
-                    CWLOutputAtomType,
+                    CWLOutputType,
                     realize_input_schema(
                         cast(MutableSequence[Union[str, CWLObjectType]], items),
                         schema_defs,
@@ -322,7 +321,7 @@ def realize_input_schema(
                 )
             if entry["type"] == "record":
                 entry["fields"] = cast(
-                    CWLOutputAtomType,
+                    CWLOutputType,
                     realize_input_schema(
                         cast(MutableSequence[Union[str, CWLObjectType]], entry["fields"]),
                         schema_defs,
@@ -612,7 +611,7 @@ def find_deps(
         nestdirs=nestdirs,
     )
     if sfs is not None:
-        deps["secondaryFiles"] = cast(MutableSequence[CWLOutputAtomType], mergedirs(sfs))
+        deps["secondaryFiles"] = cast(MutableSequence[CWLOutputType], mergedirs(sfs))
 
     return deps
 
