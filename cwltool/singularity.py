@@ -10,7 +10,7 @@ from subprocess import check_call, check_output  # nosec
 from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, cast
 from spython.main.parse.parsers import DockerParser
 from spython.main.parse.writers import get_writer
-#from spython.main import Client
+from spython.main import Client
 from schema_salad.sourceline import SourceLine
 
 from .builder import Builder
@@ -178,8 +178,6 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 absolute_path = os.path.abspath(cache_folder)
                 dockerfile_path = os.path.join(absolute_path, "Dockerfile")
                 singularityfile_path = dockerfile_path + ".def"
-                custom_env = os.environ.copy()
-                custom_env["APPTAINER_TMPDIR"] = absolute_path
                 # if you do not set APPTAINER_TMPDIR will crash
                 # WARNING: 'nodev' mount option set on /tmp, it could be a
                 #          source of failure during build process
@@ -194,17 +192,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 result = writer.convert()
                 with open(singularityfile_path, 'w') as file:
                     file.write(result)
-
-                # Client.build(recipe=singularityfile_path, build_folder=absolute_path, options=["--fakeroot"])
-                # Cannot use Client.build as it requires sudo access.
-                cmd = [
-                    "singularity",
-                    "build",
-                    image_path,
-                    singularityfile_path,
-                ]
-                _logger.info(str(cmd))
-                check_call(cmd, stdout=sys.stderr, env=custom_env)
+                
+                os.environ['APPTAINER_TMPDIR'] = absolute_path
+                Client.build(recipe=singularityfile_path, build_folder=absolute_path, sudo = False)
                 found = True
         if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
