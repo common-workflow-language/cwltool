@@ -169,9 +169,8 @@ def test_dockerfile_tmpdir_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 @needs_singularity
 def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that SingularityCommandLineJob.get_image builds a Dockerfile with Singularity."""
-    # cannot use /tmp for the variable APPTAINER_TMPDIR unless have root permissions
+    # cannot use /tmp
     # FATAL:   Unable to create build: 'noexec' mount option set on /tmp, temporary root filesystem
-    # won't be usable at this location
     # Will use current working directory instead
     tmp_path = Path.cwd()
     monkeypatch.setattr(target=subprocess, name="check_call", value=lambda *args, **kwargs: True)
@@ -207,14 +206,13 @@ def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch) -> None:
         INTERNAL_VERSION,
         "singularity",
     )
-    imageId = sys._getframe().f_code.co_name
+
     assert SingularityCommandLineJob(
         builder, {}, CommandLineTool.make_path_mapper, [], [], ""
     ).get_image(
         {
             "class": "DockerRequirement",
             "dockerFile": "FROM debian:stable-slim",
-            "dockerImageId": imageId,
         },
         pull_image=True,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
@@ -222,7 +220,8 @@ def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     children = sorted(tmp_outdir_prefix.parent.glob("*"))
     subdir = tmp_path / children[0]
-    image_path = subdir / imageId
+    children = sorted(subdir.glob("*.sif"))
+    image_path = children[0]
     assert image_path.exists()
     shutil.rmtree(subdir)
 

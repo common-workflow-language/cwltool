@@ -172,30 +172,27 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if cache_folder is None:  # if environment variables were not set
                 cache_folder = create_tmp_dir(tmp_outdir_prefix)
 
-            image_path = os.path.join(cache_folder, str(dockerRequirement["dockerImageId"]))
-            if not os.path.exists(image_path):
-                # otherwise will prompt user if want to continue if exists
-                absolute_path = os.path.abspath(cache_folder)
-                dockerfile_path = os.path.join(absolute_path, "Dockerfile")
-                singularityfile_path = dockerfile_path + ".def"
-                # if you do not set APPTAINER_TMPDIR will crash
-                # WARNING: 'nodev' mount option set on /tmp, it could be a
-                #          source of failure during build process
-                # FATAL:   Unable to create build: 'noexec' mount option set on
-                #          /tmp, temporary root filesystem won't be usable at this location
-                with open(dockerfile_path, "w") as dfile:
-                    dfile.write(dockerRequirement["dockerFile"])
+            absolute_path = os.path.abspath(cache_folder)
+            dockerfile_path = os.path.join(absolute_path, "Dockerfile")
+            singularityfile_path = dockerfile_path + ".def"
+            # if you do not set APPTAINER_TMPDIR will crash
+            # WARNING: 'nodev' mount option set on /tmp, it could be a
+            #          source of failure during build process
+            # FATAL:   Unable to create build: 'noexec' mount option set on
+            #          /tmp, temporary root filesystem won't be usable at this location
+            with open(dockerfile_path, "w") as dfile:
+                dfile.write(dockerRequirement["dockerFile"])
 
-                parser = DockerParser(dockerfile_path)
-                SingularityWriter = get_writer("singularity")
-                writer = SingularityWriter(parser.recipe)
-                result = writer.convert()
-                with open(singularityfile_path, "w") as file:
-                    file.write(result)
+            parser = DockerParser(dockerfile_path)
+            SingularityWriter = get_writer("singularity")
+            writer = SingularityWriter(parser.recipe)
+            result = writer.convert()
+            with open(singularityfile_path, "w") as file:
+                file.write(result)
 
-                os.environ["APPTAINER_TMPDIR"] = absolute_path
-                Client.build(recipe=singularityfile_path, build_folder=absolute_path, sudo=False)
-                found = True
+            os.environ["APPTAINER_TMPDIR"] = absolute_path
+            Client.build(recipe=singularityfile_path, build_folder=absolute_path, sudo=False)
+            found = True
         if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
             img_name = _normalize_image_id(dockerRequirement["dockerPull"])
