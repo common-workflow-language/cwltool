@@ -8,9 +8,9 @@ import shutil
 import sys
 from subprocess import check_call, check_output  # nosec
 from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, cast
-from spython.main.parse.parsers import DockerParser
-from spython.main.parse.writers import get_writer
-from spython.main import Client
+from spython.main.parse.parsers import DockerParser  # type: ignore
+from spython.main.parse.writers import get_writer  # type: ignore
+from spython.main import Client  # type: ignore
 from schema_salad.sourceline import SourceLine
 
 from .builder import Builder
@@ -142,7 +142,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     def get_image(
         dockerRequirement: Dict[str, str],
         pull_image: bool,
-        tmp_outdir_prefix,
+        tmp_outdir_prefix: str,
         force_pull: bool = False,
     ) -> bool:
         """
@@ -187,14 +187,14 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     dfile.write(dockerRequirement["dockerFile"])
 
                 parser = DockerParser(dockerfile_path)
-                SingularityWriter = get_writer('singularity')
+                SingularityWriter = get_writer("singularity")
                 writer = SingularityWriter(parser.recipe)
                 result = writer.convert()
-                with open(singularityfile_path, 'w') as file:
+                with open(singularityfile_path, "w") as file:
                     file.write(result)
-                
-                os.environ['APPTAINER_TMPDIR'] = absolute_path
-                Client.build(recipe=singularityfile_path, build_folder=absolute_path, sudo = False)
+
+                os.environ["APPTAINER_TMPDIR"] = absolute_path
+                Client.build(recipe=singularityfile_path, build_folder=absolute_path, sudo=False)
                 found = True
         if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
