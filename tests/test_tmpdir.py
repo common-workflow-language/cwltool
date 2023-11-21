@@ -1,6 +1,7 @@
 """Test that all temporary directories respect the --tmpdir-prefix and --tmp-outdir-prefix options."""
 import re
 import shutil
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -169,10 +170,11 @@ def test_dockerfile_tmpdir_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 @needs_singularity
 def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that SingularityCommandLineJob.get_image builds a Dockerfile with Singularity."""
-    # cannot use /tmp
+    build_path = os.environ["APPTAINER_TMPDIR"]
+    if build_path is not None:
+        tmp_path = Path(build_path)
+    # some HPC not allowed to execute on /tmp so allow user to define temp path with APPTAINER_TMPDIR
     # FATAL:   Unable to create build: 'noexec' mount option set on /tmp, temporary root filesystem
-    # Will use current working directory instead
-    tmp_path = Path.cwd()
     monkeypatch.setattr(target=subprocess, name="check_call", value=lambda *args, **kwargs: True)
     (tmp_path / "out").mkdir(exist_ok=True)
     tmp_outdir_prefix = tmp_path / "out" / "1"
