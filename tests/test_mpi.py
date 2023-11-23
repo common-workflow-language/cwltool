@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Generator, List, MutableMapping, Optional, Tuple
 
 import pytest
-from importlib_resources import files
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Names
 from schema_salad.utils import yaml_no_ts
@@ -19,6 +18,7 @@ from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
 from cwltool.mpi import MpiConfig, MPIRequirementName
+from cwltool.utils import files
 
 from .util import get_data, working_directory
 

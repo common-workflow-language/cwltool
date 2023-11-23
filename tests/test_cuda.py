@@ -284,7 +284,7 @@ def test_cuda_job_setup_check_err_wrong_type_cuda_version(
 
 
 def test_cuda_eval_resource_range() -> None:
-    with open(get_data("cwltool/extensions-v1.1.yml")) as res:
+    with open(get_data("extensions-v1.1.yml")) as res:
         use_custom_schema("v1.2", "http://commonwl.org/cwltool", res.read())
 
     joborder = {}  # type: CWLObjectType
@@ -301,7 +301,7 @@ def test_cuda_eval_resource_range() -> None:
 
 
 def test_cuda_eval_resource_max() -> None:
-    with open(get_data("cwltool/extensions-v1.1.yml")) as res:
+    with open(get_data("extensions-v1.1.yml")) as res:
         use_custom_schema("v1.2", "http://commonwl.org/cwltool", res.read())
 
     joborder = {}  # type: CWLObjectType

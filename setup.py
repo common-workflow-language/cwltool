@@ -109,7 +109,7 @@ setup(
         "prov == 1.5.1",
         "mypy-extensions",
         "psutil >= 5.6.6",
-        "importlib_resources>=1.4",
+        "importlib_resources>=1.4;python_version<'3.9'",
         "coloredlogs",
         "pydot >= 1.4.1",
         "argcomplete",

@@ -53,11 +53,18 @@ from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 
+if sys.version_info >= (3, 9):
+    from importlib.resources import as_file, files
+else:
+    from importlib_resources import as_file, files
+
 if TYPE_CHECKING:
     from .command_line_tool import CallbackJob, ExpressionJob
     from .job import CommandLineJob, JobBase
     from .stdfsaccess import StdFsAccess
     from .workflow_job import WorkflowJob
+
+__all__ = ["files", "as_file"]
 
 __random_outdir: Optional[str] = None
 
@@ -368,8 +375,8 @@ def ensure_writable(path: str, include_root: bool = False) -> None:
     if os.path.isdir(path):
         if include_root:
             add_writable_flag(path)
-        for root, dirs, files in os.walk(path):
-            for name in files:
+        for root, dirs, files_ in os.walk(path):
+            for name in files_:
                 add_writable_flag(os.path.join(root, name))
             for name in dirs:
                 add_writable_flag(os.path.join(root, name))
@@ -380,8 +387,8 @@ def ensure_writable(path: str, include_root: bool = False) -> None:
 def ensure_non_writable(path: str) -> None:
     """Attempt to change permissions to ensure that a path is not writable."""
     if os.path.isdir(path):
-        for root, dirs, files in os.walk(path):
-            for name in files:
+        for root, dirs, files_ in os.walk(path):
+            for name in files_:
                 j = os.path.join(root, name)
                 st = os.stat(j)
                 mode = stat.S_IMODE(st.st_mode)

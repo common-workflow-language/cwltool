@@ -6,7 +6,7 @@ schema-salad>=8.4.20230426093816,<9
 prov==1.5.1
 mypy-extensions
 psutil>=5.6.6
-importlib_resources>=1.4  # equivalent to Python 3.9
+importlib_resources>=1.4;python_version<'3.9'
 coloredlogs
 pydot>=1.4.1
 argcomplete>=1.12.0

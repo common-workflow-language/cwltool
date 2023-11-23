@@ -34,7 +34,6 @@ from typing import (
 import argcomplete
 import coloredlogs
 import ruamel.yaml
-from importlib_resources import files
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
@@ -108,6 +107,7 @@ from .utils import (
     CWLOutputType,
     HasReqsHints,
     adjustDirObjs,
+    files,
     normalizeFilesDirs,
     processes_to_kill,
     trim_listing,
