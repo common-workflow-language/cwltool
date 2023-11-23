@@ -1,3 +1,5 @@
+"""Test functions."""
+import atexit
 import contextlib
 import io
 import json
@@ -5,15 +7,16 @@ import os
 import shutil
 import subprocess
 import sys
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Dict, Generator, List, Mapping, Optional, Tuple, Union
 
 import pytest
-from pkg_resources import Requirement, ResolutionError, resource_filename
 
 from cwltool.env_to_stdout import deserialize_env
 from cwltool.main import main
 from cwltool.singularity import is_version_2_6, is_version_3_or_newer
+from cwltool.utils import as_file, files
 
 
 def force_default_container(default_container_id: str, _: str) -> str:
@@ -25,12 +28,15 @@ def get_data(filename: str) -> str:
     filename = os.path.normpath(filename)
     filepath = None
     try:
-        filepath = resource_filename(Requirement.parse("cwltool"), filename)
-    except ResolutionError:
+        file_manager = ExitStack()
+        atexit.register(file_manager.close)
+        traversable = files("cwltool") / filename
+        filepath = file_manager.enter_context(as_file(traversable))
+    except ModuleNotFoundError:
         pass
     if not filepath or not os.path.isfile(filepath):
-        filepath = os.path.join(os.path.dirname(__file__), os.pardir, filename)
-    return str(Path(filepath).resolve())
+        filepath = Path(os.path.dirname(__file__)) / ".." / filename
+    return str(filepath.resolve())
 
 
 needs_docker = pytest.mark.skipif(

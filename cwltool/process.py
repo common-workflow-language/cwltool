@@ -33,7 +33,6 @@ from typing import (
 )
 
 from cwl_utils import expression
-from importlib_resources import files
 from mypy_extensions import mypyc_attr
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -70,6 +69,7 @@ from .utils import (
     aslist,
     cmp_like_py2,
     ensure_writable,
+    files,
     get_listing,
     normalizeFilesDirs,
     random_outdir,

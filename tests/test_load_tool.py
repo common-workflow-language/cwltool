@@ -87,7 +87,7 @@ def test_load_graph_fragment_from_packed() -> None:
     loadingContext = LoadingContext()
     uri = Path(get_data("tests/wf/packed-with-loadlisting.cwl")).as_uri() + "#main"
     try:
-        with open(get_data("cwltool/extensions.yml")) as res:
+        with open(get_data("extensions.yml")) as res:
             use_custom_schema("v1.0", "http://commonwl.org/cwltool", res.read())
 
         # The updater transforms LoadListingRequirement from an
