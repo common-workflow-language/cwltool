@@ -152,13 +152,13 @@ def get_tool_env(
         args.append(inputs_file)
 
     with working_directory(tmp_path):
-        rc, stdout, _ = get_main_output(
+        rc, stdout, stderr = get_main_output(
             args,
             replacement_env=replacement_env,
             extra_env=extra_env,
             monkeypatch=monkeypatch,
         )
-        assert rc == 0
+        assert rc == 0, stdout + "\n" + stderr
 
         output = json.loads(stdout)
         with open(output["env"]["path"]) as _:
