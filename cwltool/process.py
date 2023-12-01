@@ -242,7 +242,7 @@ def stage_files(
     """
     items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
     targets: Dict[str, MapperEnt] = {}
-    for key, entry in items:
+    for key, entry in list(items):
         if "File" not in entry.type:
             continue
         if entry.target not in targets:
@@ -265,7 +265,7 @@ def stage_files(
                 )
     # refresh the items, since we may have updated the pathmapper due to file name clashes
     items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
-    for key, entry in items:
+    for key, entry in list(items):
         if not entry.staged:
             continue
         if not os.path.exists(os.path.dirname(entry.target)):
