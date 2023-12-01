@@ -13,6 +13,7 @@ from schema_salad.sourceline import SourceLine
 
 from .builder import Builder
 from .context import RuntimeContext
+from .docker import DockerCommandLineJob
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
@@ -104,6 +105,14 @@ def is_version_3_4_or_newer() -> bool:
         return True  # this is equivalent to singularity-ce > 3.9.5
     v = get_version()
     return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 4)
+
+
+def is_version_3_9_or_newer() -> bool:
+    """Detect if Singularity v3.9+ is available."""
+    if is_apptainer_1_or_newer():
+        return True  # this is equivalent to singularity-ce > 3.9.5
+    v = get_version()
+    return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 9)
 
 
 def _normalize_image_id(string: str) -> str:
@@ -297,13 +306,16 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     @staticmethod
     def append_volume(runtime: List[str], source: str, target: str, writable: bool = False) -> None:
         """Add binding arguments to the runtime list."""
-        runtime.append("--bind")
-        # Mounts are writable by default, so 'rw' is optional and not
-        # supported (due to a bug) in some 3.6 series releases.
-        vol = f"{source}:{target}"
-        if not writable:
-            vol += ":ro"
-        runtime.append(vol)
+        if is_version_3_9_or_newer():
+            DockerCommandLineJob.append_volume(runtime, source, target, writable, skip_mkdirs=True)
+        else:
+            runtime.append("--bind")
+            # Mounts are writable by default, so 'rw' is optional and not
+            # supported (due to a bug) in some 3.6 series releases.
+            vol = f"{source}:{target}"
+            if not writable:
+                vol += ":ro"
+            runtime.append(vol)
 
     def add_file_or_directory_volume(
         self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
