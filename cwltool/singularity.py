@@ -155,9 +155,6 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         """
         found = False
 
-        if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
-            dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
-
         candidates = []
 
         cache_folder = None
@@ -193,7 +190,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             os.environ["APPTAINER_TMPDIR"] = absolute_path
             Client.build(recipe=singularityfile_path, build_folder=absolute_path, sudo=False)
             found = True
-        if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
+        elif "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
             img_name = _normalize_image_id(dockerRequirement["dockerPull"])
             candidates.append(img_name)
