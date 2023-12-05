@@ -1,7 +1,7 @@
 """Test that all temporary directories respect the --tmpdir-prefix and --tmp-outdir-prefix options."""
+import os
 import re
 import shutil
-import os
 import subprocess
 import sys
 from pathlib import Path

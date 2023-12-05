@@ -8,10 +8,11 @@ import shutil
 import sys
 from subprocess import check_call, check_output  # nosec
 from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, cast
-from spython.main.parse.parsers import DockerParser  # type: ignore
-from spython.main.parse.writers import get_writer  # type: ignore
-from spython.main import Client  # type: ignore
+
 from schema_salad.sourceline import SourceLine
+from spython.main import Client
+from spython.main.parse.parsers.docker import DockerParser
+from spython.main.parse.writers.singularity import SingularityWriter
 
 from .builder import Builder
 from .context import RuntimeContext
@@ -180,12 +181,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             with open(dockerfile_path, "w") as dfile:
                 dfile.write(dockerRequirement["dockerFile"])
 
-            parser = DockerParser(dockerfile_path)
-            SingularityWriter = get_writer("singularity")
-            writer = SingularityWriter(parser.recipe)
-            result = writer.convert()
+            singularityfile = SingularityWriter(DockerParser(dockerfile_path).parse()).convert()
             with open(singularityfile_path, "w") as file:
-                file.write(result)
+                file.write(singularityfile)
 
             os.environ["APPTAINER_TMPDIR"] = absolute_path
             Client.build(recipe=singularityfile_path, build_folder=absolute_path, sudo=False)
