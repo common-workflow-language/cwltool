@@ -186,7 +186,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 file.write(singularityfile)
 
             os.environ["APPTAINER_TMPDIR"] = absolute_path
-            Client.build(recipe=singularityfile_path, build_folder=absolute_path, sudo=False)
+            singularity_options = ["--fakeroot"] if not shutil.which("proot") else []
+            Client.build(
+                recipe=singularityfile_path,
+                build_folder=absolute_path,
+                sudo=False,
+                options=singularity_options,
+            )
             found = True
         elif "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
