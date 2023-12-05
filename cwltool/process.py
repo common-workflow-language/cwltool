@@ -387,7 +387,7 @@ def relocateOutputs(
     visit_class(outputObj, ("File", "Directory"), _check_adjust)
 
     if compute_checksum:
-        visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
+        visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access, None))
     return outputObj
 
 
@@ -1338,14 +1338,30 @@ def scandeps(
     return r
 
 
-def compute_checksums(fs_access: StdFsAccess, fileobj: CWLObjectType) -> None:
+def compute_checksums(fs_access: StdFsAccess, builder: Builder, fileobj: CWLObjectType) -> None:
+    """
+    Compute the checksums of a file object.
+
+    :param fs_access: Used to compute file stats such as its size.
+    :param builder: Optional CWL builder that must have a :py:class:`PathMapper` , which
+        will be used to resolve the actual file location (not its ``stagedir``).
+    :param fileobj: File object.
+    :raises ValueError: If a builder is provided but without having a :py:class:`PathMapper`.
+    """
     if "checksum" not in fileobj:
         checksum = hashlib.sha1()  # nosec
-        location = cast(str, fileobj["location"])
-        with fs_access.open(location, "rb") as f:
+        location = file_path = cast(str, fileobj["location"])
+        if builder:
+            if not builder.pathmapper:
+                raise ValueError(
+                    "Do not call compute_checksums using a "
+                    "builder that doesn't have a pathmapper."
+                )
+            file_path = builder.pathmapper.mapper(location)[0]
+        with fs_access.open(file_path, "rb") as f:
             contents = f.read(1024 * 1024)
             while contents != b"":
                 checksum.update(contents)
                 contents = f.read(1024 * 1024)
         fileobj["checksum"] = "sha1$%s" % checksum.hexdigest()
-        fileobj["size"] = fs_access.size(location)
+        fileobj["size"] = fs_access.size(file_path)

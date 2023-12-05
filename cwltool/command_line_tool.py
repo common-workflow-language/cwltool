@@ -829,6 +829,7 @@ class CommandLineTool(Process):
             _checksum = partial(
                 compute_checksums,
                 runtimeContext.make_fs_access(runtimeContext.basedir),
+                cachebuilder,
             )
             visit_class(
                 [cachebuilder.files, cachebuilder.bindings],
@@ -1255,7 +1256,7 @@ class CommandLineTool(Process):
                 )
 
                 if compute_checksum:
-                    adjustFileObjs(ret, partial(compute_checksums, fs_access))
+                    adjustFileObjs(ret, partial(compute_checksums, fs_access, builder))
             expected_schema = cast(Schema, self.names.get_name("outputs_record_schema", None))
             validate_ex(
                 expected_schema,
