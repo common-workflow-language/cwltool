@@ -77,7 +77,7 @@ jobs:
           key: mypy-${{ env.py-semver }}
 
       - name: Test with tox
-        run: tox
+        run: APPTAINER_TMPDIR=${RUNNER_TEMP} tox
 
       - name: Upload coverage to Codecov
         if: ${{ matrix.step == 'unit' }}
@@ -156,7 +156,7 @@ jobs:
           chmod a-w .
 
       - name: run tests
-        run: make test
+        run: APPTAINER_TMPDIR=${RUNNER_TEMP} make test
 
 
   conformance_tests:

@@ -10,6 +10,9 @@ from subprocess import check_call, check_output  # nosec
 from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, cast
 
 from schema_salad.sourceline import SourceLine
+from spython.main import Client
+from spython.main.parse.parsers.docker import DockerParser
+from spython.main.parse.writers.singularity import SingularityWriter
 
 from .builder import Builder
 from .context import RuntimeContext
@@ -140,6 +143,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     def get_image(
         dockerRequirement: Dict[str, str],
         pull_image: bool,
+        tmp_outdir_prefix: str,
         force_pull: bool = False,
     ) -> bool:
         """
@@ -162,7 +166,35 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         elif is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
             cache_folder = os.environ["SINGULARITY_PULLFOLDER"]
 
-        if "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
+        if "dockerFile" in dockerRequirement:
+            if cache_folder is None:  # if environment variables were not set
+                cache_folder = create_tmp_dir(tmp_outdir_prefix)
+
+            absolute_path = os.path.abspath(cache_folder)
+            dockerfile_path = os.path.join(absolute_path, "Dockerfile")
+            singularityfile_path = dockerfile_path + ".def"
+            # if you do not set APPTAINER_TMPDIR will crash
+            # WARNING: 'nodev' mount option set on /tmp, it could be a
+            #          source of failure during build process
+            # FATAL:   Unable to create build: 'noexec' mount option set on
+            #          /tmp, temporary root filesystem won't be usable at this location
+            with open(dockerfile_path, "w") as dfile:
+                dfile.write(dockerRequirement["dockerFile"])
+
+            singularityfile = SingularityWriter(DockerParser(dockerfile_path).parse()).convert()
+            with open(singularityfile_path, "w") as file:
+                file.write(singularityfile)
+
+            os.environ["APPTAINER_TMPDIR"] = absolute_path
+            singularity_options = ["--fakeroot"] if not shutil.which("proot") else []
+            Client.build(
+                recipe=singularityfile_path,
+                build_folder=absolute_path,
+                sudo=False,
+                options=singularity_options,
+            )
+            found = True
+        elif "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
             img_name = _normalize_image_id(dockerRequirement["dockerPull"])
             candidates.append(img_name)
@@ -243,13 +275,6 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     check_call(cmd, stdout=sys.stderr)  # nosec
                     found = True
 
-            elif "dockerFile" in dockerRequirement:
-                raise SourceLine(
-                    dockerRequirement, "dockerFile", WorkflowException, debug
-                ).makeError(
-                    "dockerFile is not currently supported when using the "
-                    "Singularity runtime for Docker containers."
-                )
             elif "dockerLoad" in dockerRequirement:
                 if is_version_3_1_or_newer():
                     if "dockerImageId" in dockerRequirement:
@@ -298,7 +323,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if not bool(shutil.which("singularity")):
             raise WorkflowException("singularity executable is not available")
 
-        if not self.get_image(cast(Dict[str, str], r), pull_image, force_pull):
+        if not self.get_image(cast(Dict[str, str], r), pull_image, tmp_outdir_prefix, force_pull):
             raise WorkflowException("Container image {} not found".format(r["dockerImageId"]))
 
         return os.path.abspath(cast(str, r["dockerImageId"]))
