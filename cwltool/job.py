@@ -102,12 +102,18 @@ def relink_initialworkdir(
             if os.path.islink(host_outdir_tgt) or os.path.isfile(host_outdir_tgt):
                 try:
                     ensure_writable(host_outdir_tgt, include_root=True)
+                except PermissionError:
+                    pass
+                try:
                     os.remove(host_outdir_tgt)
                 except PermissionError:
                     pass
             elif os.path.isdir(host_outdir_tgt) and not vol.resolved.startswith("_:"):
                 try:
                     ensure_writable(host_outdir_tgt, include_root=True)
+                except PermissionError:
+                    pass
+                try:
                     shutil.rmtree(host_outdir_tgt)
                 except PermissionError:
                     pass
