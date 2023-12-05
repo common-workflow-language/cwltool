@@ -168,18 +168,16 @@ def test_dockerfile_tmpdir_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
 
 @needs_singularity
-def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Test that SingularityCommandLineJob.get_image builds a Dockerfile with Singularity."""
-    build_path = os.environ["APPTAINER_TMPDIR"]
-    if build_path is not None:
-        tmp_path = Path(build_path)
+    tmppath = Path(os.environ.get("APPTAINER_TMPDIR", tmp_path))
     # some HPC not allowed to execute on /tmp so allow user to define temp path with APPTAINER_TMPDIR
     # FATAL:   Unable to create build: 'noexec' mount option set on /tmp, temporary root filesystem
     monkeypatch.setattr(target=subprocess, name="check_call", value=lambda *args, **kwargs: True)
-    (tmp_path / "out").mkdir(exist_ok=True)
-    tmp_outdir_prefix = tmp_path / "out" / "1"
-    (tmp_path / "3").mkdir(exist_ok=True)
-    tmpdir_prefix = str(tmp_path / "3" / "ttmp")
+    (tmppath / "out").mkdir(exist_ok=True)
+    tmp_outdir_prefix = tmppath / "out" / "1"
+    (tmppath / "3").mkdir(exist_ok=True)
+    tmpdir_prefix = str(tmppath / "3" / "ttmp")
     runtime_context = RuntimeContext(
         {"tmpdir_prefix": tmpdir_prefix, "user_space_docker_cmd": None}
     )
@@ -198,7 +196,7 @@ def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch) -> None:
         StdFsAccess(""),
         None,
         0.1,
-        False,
+        True,
         False,
         False,
         "no_listing",
@@ -221,7 +219,7 @@ def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch) -> None:
         force_pull=True,
     )
     children = sorted(tmp_outdir_prefix.parent.glob("*"))
-    subdir = tmp_path / children[0]
+    subdir = tmppath / children[0]
     children = sorted(subdir.glob("*.sif"))
     image_path = children[0]
     assert image_path.exists()
