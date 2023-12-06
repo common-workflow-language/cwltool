@@ -207,7 +207,13 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         raise WorkflowException("Docker image %s not found" % r["dockerImageId"])
 
     @staticmethod
-    def append_volume(runtime: List[str], source: str, target: str, writable: bool = False) -> None:
+    def append_volume(
+        runtime: List[str],
+        source: str,
+        target: str,
+        writable: bool = False,
+        skip_mkdirs: bool = False,
+    ) -> None:
         """Add binding arguments to the runtime list."""
         options = [
             "type=bind",
@@ -221,7 +227,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         mount_arg = output.getvalue().strip()
         runtime.append(f"--mount={mount_arg}")
         # Unlike "--volume", "--mount" will fail if the volume doesn't already exist.
-        if not os.path.exists(source):
+        if (not skip_mkdirs) and (not os.path.exists(source)):
             os.makedirs(source)
 
     def add_file_or_directory_volume(

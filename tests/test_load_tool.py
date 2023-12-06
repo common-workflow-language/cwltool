@@ -16,7 +16,7 @@ from cwltool.utils import CWLObjectType
 
 from .util import get_data
 
-configure_logging(_logger.handlers[-1], False, True, True, True)
+configure_logging(_logger.handlers[-1], False, False, True, True, True)
 _logger.setLevel(logging.DEBUG)
 
 
@@ -87,7 +87,7 @@ def test_load_graph_fragment_from_packed() -> None:
     loadingContext = LoadingContext()
     uri = Path(get_data("tests/wf/packed-with-loadlisting.cwl")).as_uri() + "#main"
     try:
-        with open(get_data("cwltool/extensions.yml")) as res:
+        with open(get_data("extensions.yml")) as res:
             use_custom_schema("v1.0", "http://commonwl.org/cwltool", res.read())
 
         # The updater transforms LoadListingRequirement from an

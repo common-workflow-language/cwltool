@@ -53,11 +53,18 @@ from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 
+if sys.version_info >= (3, 9):
+    from importlib.resources import as_file, files
+else:
+    from importlib_resources import as_file, files
+
 if TYPE_CHECKING:
     from .command_line_tool import CallbackJob, ExpressionJob
     from .job import CommandLineJob, JobBase
     from .stdfsaccess import StdFsAccess
     from .workflow_job import WorkflowJob
+
+__all__ = ["files", "as_file"]
 
 __random_outdir: Optional[str] = None
 
@@ -67,27 +74,14 @@ DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill: Deque["subprocess.Popen[str]"] = collections.deque()
 
-CWLOutputAtomType = Union[
+CWLOutputType = Union[
     None,
     bool,
     str,
     int,
     float,
-    MutableSequence[
-        Union[None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]]
-    ],
-    MutableMapping[
-        str,
-        Union[None, bool, str, int, float, MutableSequence[Any], MutableMapping[str, Any]],
-    ],
-]
-CWLOutputType = Union[
-    bool,
-    str,
-    int,
-    float,
-    MutableSequence[CWLOutputAtomType],
-    MutableMapping[str, CWLOutputAtomType],
+    MutableSequence["CWLOutputType"],
+    MutableMapping[str, "CWLOutputType"],
 ]
 CWLObjectType = MutableMapping[str, Optional[CWLOutputType]]
 """Typical raw dictionary found in lightly parsed CWL."""
@@ -103,8 +97,7 @@ SinkType = Union[CWLOutputType, CWLObjectType]
 DirectoryType = TypedDict(
     "DirectoryType", {"class": str, "listing": List[CWLObjectType], "basename": str}
 )
-JSONAtomType = Union[Dict[str, Any], List[Any], str, int, float, bool, None]
-JSONType = Union[Dict[str, JSONAtomType], List[JSONAtomType], str, int, float, bool, None]
+JSONType = Union[Dict[str, "JSONType"], List["JSONType"], str, int, float, bool, None]
 
 
 class WorkflowStateItem(NamedTuple):
@@ -297,7 +290,7 @@ def get_listing(fs_access: "StdFsAccess", rec: CWLObjectType, recursive: bool = 
         return
     if "listing" in rec:
         return
-    listing: List[CWLOutputAtomType] = []
+    listing: List[CWLOutputType] = []
     loc = cast(str, rec["location"])
     for ld in fs_access.listdir(loc):
         parse = urllib.parse.urlparse(ld)
@@ -382,8 +375,8 @@ def ensure_writable(path: str, include_root: bool = False) -> None:
     if os.path.isdir(path):
         if include_root:
             add_writable_flag(path)
-        for root, dirs, files in os.walk(path):
-            for name in files:
+        for root, dirs, files_ in os.walk(path):
+            for name in files_:
                 add_writable_flag(os.path.join(root, name))
             for name in dirs:
                 add_writable_flag(os.path.join(root, name))
@@ -394,8 +387,8 @@ def ensure_writable(path: str, include_root: bool = False) -> None:
 def ensure_non_writable(path: str) -> None:
     """Attempt to change permissions to ensure that a path is not writable."""
     if os.path.isdir(path):
-        for root, dirs, files in os.walk(path):
-            for name in files:
+        for root, dirs, files_ in os.walk(path):
+            for name in files_:
                 j = os.path.join(root, name)
                 st = os.stat(j)
                 mode = stat.S_IMODE(st.st_mode)

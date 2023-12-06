@@ -77,7 +77,7 @@ jobs:
           key: mypy-${{ env.py-semver }}
 
       - name: Test with tox
-        run: tox
+        run: APPTAINER_TMPDIR=${RUNNER_TEMP} tox
 
       - name: Upload coverage to Codecov
         if: ${{ matrix.step == 'unit' }}
@@ -156,7 +156,7 @@ jobs:
           chmod a-w .
 
       - name: run tests
-        run: make test
+        run: APPTAINER_TMPDIR=${RUNNER_TEMP} make test
 
 
   conformance_tests:
@@ -203,9 +203,15 @@ jobs:
         env:
           VERSION: ${{ matrix.cwl-version }}
           CONTAINER: ${{ matrix.container }}
-          GIT_TARGET: main
-          CWLTOOL_OPTIONS: ${{ matrix.extras }}
+          GIT_TARGET: ${{ matrix.cwl-version == 'v1.2' && '1.2.1_proposed' || 'main' }}
+          CWLTOOL_OPTIONS: ${{ matrix.cwl-version == 'v1.2' && '--relax-path-checks' || '' }} ${{ matrix.extras }}
         run: ./conformance-test.sh
+      - name: Archive test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: cwl-${{ matrix.cwl-version }}-${{ matrix.container }}${{ matrix.extras }}-conformance-results
+          path: |
+            **/cwltool_conf*.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:

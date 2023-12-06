@@ -33,7 +33,6 @@ from typing import (
 )
 
 from cwl_utils import expression
-from importlib_resources import files
 from mypy_extensions import mypyc_attr
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -61,7 +60,6 @@ from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION, ORDERED_VERSIONS, ORIGINAL_CWLVERSION
 from .utils import (
     CWLObjectType,
-    CWLOutputAtomType,
     CWLOutputType,
     HasReqsHints,
     JobsGeneratorType,
@@ -71,6 +69,7 @@ from .utils import (
     aslist,
     cmp_like_py2,
     ensure_writable,
+    files,
     get_listing,
     normalizeFilesDirs,
     random_outdir,
@@ -243,7 +242,7 @@ def stage_files(
     """
     items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
     targets: Dict[str, MapperEnt] = {}
-    for key, entry in items:
+    for key, entry in list(items):
         if "File" not in entry.type:
             continue
         if entry.target not in targets:
@@ -266,7 +265,7 @@ def stage_files(
                 )
     # refresh the items, since we may have updated the pathmapper due to file name clashes
     items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
-    for key, entry in items:
+    for key, entry in list(items):
         if not entry.staged:
             continue
         if not os.path.exists(os.path.dirname(entry.target)):
@@ -1146,7 +1145,7 @@ def mergedirs(
     for e in ents.values():
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = cast(
-                MutableSequence[CWLOutputAtomType],
+                MutableSequence[CWLOutputType],
                 mergedirs(cast(List[CWLObjectType], e["listing"])),
             )
     r.extend(ents.values())
@@ -1206,7 +1205,7 @@ def scandeps(
                     deps["listing"] = doc["listing"]
                 if doc["class"] == "File" and "secondaryFiles" in doc:
                     deps["secondaryFiles"] = cast(
-                        CWLOutputAtomType,
+                        CWLOutputType,
                         scandeps(
                             base,
                             cast(
@@ -1290,7 +1289,7 @@ def scandeps(
                         )
                         if sf:
                             deps2["secondaryFiles"] = cast(
-                                MutableSequence[CWLOutputAtomType], mergedirs(sf)
+                                MutableSequence[CWLOutputType], mergedirs(sf)
                             )
                         if nestdirs:
                             deps2 = nestdir(base, deps2)

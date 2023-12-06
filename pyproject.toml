@@ -2,13 +2,13 @@
 requires = [
     "setuptools>=45",
     "setuptools_scm[toml]>=8.0.4,<9",
-    "mypy==1.6.0",  # also update mypy-requirements.txt
+    "mypy==1.7.1",  # also update mypy-requirements.txt
     "types-requests",
     "types-psutil",
-    "importlib_resources>=1.4",  # equivalent to Python 3.9
+    "importlib_resources>=1.4;python_version<'3.9'",
     "ruamel.yaml>=0.16.0,<0.18",
     "schema-salad>=8.4.20230426093816,<9",
-    "cwl-utils>=0.22,!=0.30",
+    "cwl-utils>=0.32",
     "galaxy-tool-util>=22.1.2,<23.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5",
     "toml",
     "argcomplete>=1.12.0",

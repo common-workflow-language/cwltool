@@ -18,7 +18,6 @@ from typing import (
 from cwl_utils.errors import SubstitutionError
 from cwl_utils.expression import scanner as scan_expression
 from cwl_utils.sandboxjs import code_fragment_to_js, exec_js_process
-from importlib_resources import files
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import (
     ArraySchema,
@@ -33,6 +32,7 @@ from schema_salad.validate import validate_ex
 
 from .errors import WorkflowException
 from .loghandler import _logger
+from .utils import files
 
 
 def is_expression(tool: Any, schema: Optional[Schema]) -> bool:
