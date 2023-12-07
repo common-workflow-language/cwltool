@@ -55,7 +55,7 @@ jobs:
         run: sudo usermod -c 'CI Runner' "$(whoami)"
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.py-semver }}
           allow-prereleases: true
@@ -104,7 +104,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.py-semver }}
           cache: pip
@@ -140,7 +140,7 @@ jobs:
         run: sudo usermod -c 'CI Runner' "$(whoami)"
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.py-semver }}
           cache: pip
@@ -194,7 +194,7 @@ jobs:
         run: sudo rm -f /usr/bin/docker ; sudo apt-get install -y podman
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.12
           cache: pip
@@ -230,7 +230,7 @@ jobs:
           sudo apt-get install -y ./singularity-ce_3.10.4-jammy_amd64.deb
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.12
           cache: pip
@@ -272,7 +272,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: 3.12
           cache: pip
