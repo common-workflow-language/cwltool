@@ -27,7 +27,7 @@ MODULE=cwltool
 PYSOURCES=$(wildcard ${MODULE}/**.py cwltool/cwlprov/*.py tests/*.py) setup.py
 DEVPKGS=diff_cover pylint pep257 pydocstyle 'tox<4' tox-pyenv auto-walrus \
 	isort wheel autoflake pyupgrade bandit -rlint-requirements.txt\
-	-rtest-requirements.txt -rmypy-requirements.txt -rdocs/requirements.txt
+	-rtest-requirements.txt -rdocs/requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 
