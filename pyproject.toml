@@ -9,7 +9,6 @@ requires = [
     "ruamel.yaml>=0.16.0,<0.18",
     "schema-salad>=8.4.20230426093816,<9",
     "cwl-utils>=0.32",
-    "galaxy-tool-util>=22.1.2,<23.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5",
     "toml",
     "argcomplete>=1.12.0",
 ]
