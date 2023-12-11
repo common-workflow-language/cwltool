@@ -3,6 +3,7 @@
 import logging
 import os
 import os.path
+from pathlib import Path
 import re
 import shutil
 import sys
@@ -171,29 +172,42 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 cache_folder = create_tmp_dir(tmp_outdir_prefix)
 
             absolute_path = os.path.abspath(cache_folder)
-            dockerfile_path = os.path.join(absolute_path, "Dockerfile")
-            singularityfile_path = dockerfile_path + ".def"
-            # if you do not set APPTAINER_TMPDIR will crash
-            # WARNING: 'nodev' mount option set on /tmp, it could be a
-            #          source of failure during build process
-            # FATAL:   Unable to create build: 'noexec' mount option set on
-            #          /tmp, temporary root filesystem won't be usable at this location
-            with open(dockerfile_path, "w") as dfile:
-                dfile.write(dockerRequirement["dockerFile"])
+            if "dockerImageId" in dockerRequirement:
+                image_name = dockerRequirement["dockerImageId"]
+                image_path = os.path.join(absolute_path, image_name)
+                if os.path.exists(image_path):
+                    found = True
+            if found is False:
+                dockerfile_path = os.path.join(absolute_path, "Dockerfile")
+                singularityfile_path = dockerfile_path + ".def"
+                # if you do not set APPTAINER_TMPDIR will crash
+                # WARNING: 'nodev' mount option set on /tmp, it could be a
+                #          source of failure during build process
+                # FATAL:   Unable to create build: 'noexec' mount option set on
+                #          /tmp, temporary root filesystem won't be usable at this location
+                with open(dockerfile_path, "w") as dfile:
+                    dfile.write(dockerRequirement["dockerFile"])
 
-            singularityfile = SingularityWriter(DockerParser(dockerfile_path).parse()).convert()
-            with open(singularityfile_path, "w") as file:
-                file.write(singularityfile)
+                singularityfile = SingularityWriter(DockerParser(dockerfile_path).parse()).convert()
+                with open(singularityfile_path, "w") as file:
+                    file.write(singularityfile)
 
-            os.environ["APPTAINER_TMPDIR"] = absolute_path
-            singularity_options = ["--fakeroot"] if not shutil.which("proot") else []
-            Client.build(
-                recipe=singularityfile_path,
-                build_folder=absolute_path,
-                sudo=False,
-                options=singularity_options,
-            )
-            found = True
+                os.environ["APPTAINER_TMPDIR"] = absolute_path
+                singularity_options = ["--fakeroot"] if not shutil.which("proot") else []
+                Client.build(
+                    recipe=singularityfile_path,
+                    build_folder=absolute_path,
+                    sudo=False,
+                    options=singularity_options,
+                )
+                if "dockerImageId" in dockerRequirement:
+                    image_name = dockerRequirement["dockerImageId"]
+                    children = sorted(Path(absolute_path).glob('*.sif'))
+                    image_path = children[0]
+                    desired_image_path = os.path.join(absolute_path, image_name)
+                    os.rename(image_path, desired_image_path)
+
+                found = True
         elif "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
             img_name = _normalize_image_id(dockerRequirement["dockerPull"])
@@ -326,7 +340,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if not self.get_image(cast(Dict[str, str], r), pull_image, tmp_outdir_prefix, force_pull):
             raise WorkflowException("Container image {} not found".format(r["dockerImageId"]))
 
-        return os.path.abspath(cast(str, r["dockerImageId"]))
+        if "CWL_SINGULARITY_CACHE" in os.environ:
+            cache_folder = os.environ["CWL_SINGULARITY_CACHE"]
+            img_path = os.path.join(cache_folder, cast(str, r["dockerImageId"]))
+        else:
+            img_path = cast(str, r["dockerImageId"])
+
+        return os.path.abspath(img_path)
 
     @staticmethod
     def append_volume(runtime: List[str], source: str, target: str, writable: bool = False) -> None:
