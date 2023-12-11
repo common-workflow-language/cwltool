@@ -202,7 +202,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 )
                 if "dockerImageId" in dockerRequirement:
                     image_name = dockerRequirement["dockerImageId"]
-                    children = sorted(Path(absolute_path).glob('*.sif'))
+                    children = sorted(Path(absolute_path).glob("*.sif"))
                     image_path = children[0]
                     desired_image_path = os.path.join(absolute_path, image_name)
                     os.rename(image_path, desired_image_path)
