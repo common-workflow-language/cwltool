@@ -205,7 +205,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     children = sorted(Path(absolute_path).glob("*.sif"))
                     image_path = children[0]
                     desired_image_path = os.path.join(absolute_path, image_name)
-                    os.rename(image_path, desired_image_path)
+                    # os.rename has issues on network filesystem apparently
+                    shutil.move(image_path, desired_image_path)
 
                 found = True
         elif "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
