@@ -207,7 +207,7 @@ jobs:
           CWLTOOL_OPTIONS: ${{ matrix.cwl-version == 'v1.2' && '--relax-path-checks' || '' }} ${{ matrix.extras }}
         run: ./conformance-test.sh
       - name: Archive test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cwl-${{ matrix.cwl-version }}-${{ matrix.container }}${{ matrix.extras }}-conformance-results
           path: |
