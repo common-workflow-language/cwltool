@@ -3,7 +3,6 @@
 import logging
 import os
 import os.path
-from pathlib import Path
 import re
 import shutil
 import sys
@@ -194,20 +193,21 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
                 os.environ["APPTAINER_TMPDIR"] = absolute_path
                 singularity_options = ["--fakeroot"] if not shutil.which("proot") else []
-                Client.build(
-                    recipe=singularityfile_path,
-                    build_folder=absolute_path,
-                    sudo=False,
-                    options=singularity_options,
-                )
                 if "dockerImageId" in dockerRequirement:
-                    image_name = dockerRequirement["dockerImageId"]
-                    children = sorted(Path(absolute_path).glob("*.sif"))
-                    image_path = children[0]
-                    desired_image_path = os.path.join(absolute_path, image_name)
-                    # os.rename has issues on network filesystem apparently
-                    shutil.move(image_path, desired_image_path)
-
+                    Client.build(
+                        recipe=singularityfile_path,
+                        build_folder=absolute_path,
+                        image=dockerRequirement["dockerImageId"],
+                        sudo=False,
+                        options=singularity_options,
+                    )
+                else:
+                    Client.build(
+                        recipe=singularityfile_path,
+                        build_folder=absolute_path,
+                        sudo=False,
+                        options=singularity_options,
+                    )
                 found = True
         elif "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
