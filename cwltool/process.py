@@ -1342,10 +1342,15 @@ def compute_checksums(fs_access: StdFsAccess, fileobj: CWLObjectType) -> None:
     if "checksum" not in fileobj:
         checksum = hashlib.sha1()  # nosec
         location = cast(str, fileobj["location"])
-        with fs_access.open(location, "rb") as f:
-            contents = f.read(1024 * 1024)
-            while contents != b"":
-                checksum.update(contents)
+        if "contents" in fileobj:
+            contents = cast(str, fileobj["contents"]).encode("utf-8")
+            checksum.update(contents)
+            fileobj["size"] = len(contents)
+        else:
+            with fs_access.open(location, "rb") as f:
                 contents = f.read(1024 * 1024)
+                while contents != b"":
+                    checksum.update(contents)
+                    contents = f.read(1024 * 1024)
+            fileobj["size"] = fs_access.size(location)
         fileobj["checksum"] = "sha1$%s" % checksum.hexdigest()
-        fileobj["size"] = fs_access.size(location)

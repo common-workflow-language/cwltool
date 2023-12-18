@@ -1325,6 +1325,28 @@ def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
     assert (tmp_path / "cwltool_cache" / "27903451fc1ee10c148a0bdeb845b2cf").exists()
 
 
+@pytest.mark.parametrize("factor", test_factors)
+def test_cache_default_literal_file(tmp_path: Path, factor: str) -> None:
+    """Confirm that running a CLT with a default literal file with caching succeeds."""
+    test_file = "tests/wf/extract_region_specs.cwl"
+    cache_dir = str(tmp_path / "cwltool_cache")
+    commands = factor.split()
+    commands.extend(
+        [
+            "--out",
+            str(tmp_path / "out"),
+            "--cachedir",
+            cache_dir,
+            get_data(test_file),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
+
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "completed success" in stderr
+    assert error_code == 0
+
+
 def test_write_summary(tmp_path: Path) -> None:
     """Test --write-summary."""
     commands = [
