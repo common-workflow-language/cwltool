@@ -34,9 +34,11 @@ OA = Namespace("http://www.w3.org/ns/oa#")
 
 
 def cwltool(tmp_path: Path, *args: Any) -> Path:
+    out_folder = tmp_path / "out"
+    out_folder.mkdir()
     prov_folder = tmp_path / "provenance"
     prov_folder.mkdir()
-    new_args = ["--provenance", str(prov_folder)]
+    new_args = ["--provenance", str(prov_folder), "--outdir", str(out_folder)]
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
     tmp_dir = tmp_path / "cwltool-run"
