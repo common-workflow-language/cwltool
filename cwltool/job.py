@@ -869,7 +869,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                         os.remove(cidfile)
                     except OSError as exc:
                         _logger.warning("Ignored error cleaning up %s cidfile: %s", docker_exe, exc)
-                    return
+                return
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
