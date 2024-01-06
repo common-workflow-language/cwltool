@@ -682,8 +682,8 @@ ProvOut = Union[io.TextIOWrapper, WritableBagFile]
 
 def setup_provenance(
     args: argparse.Namespace,
-    argsl: List[str],
     runtimeContext: RuntimeContext,
+    argsl: Optional[List[str]] = None,
 ) -> Tuple[ProvOut, "logging.StreamHandler[ProvOut]"]:
     if not args.compute_checksum:
         _logger.error("--provenance incompatible with --no-compute-checksum")
@@ -1049,10 +1049,8 @@ def main(
 
         prov_log_stream: Optional[Union[io.TextIOWrapper, WritableBagFile]] = None
         if args.provenance:
-            if argsl is None:
-                raise Exception("argsl cannot be None")
             try:
-                prov_log_stream, prov_log_handler = setup_provenance(args, argsl, runtimeContext)
+                prov_log_stream, prov_log_handler = setup_provenance(args, runtimeContext, argsl)
             except ArgumentException:
                 return 1
 
