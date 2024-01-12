@@ -221,6 +221,19 @@ def test_loop_inside_scatter() -> None:
     assert json.loads(stream.getvalue()) == expected
 
 
+def test_scatter_inside_loop() -> None:
+    """Test a loop workflow with inside a scatter step."""
+    stream = StringIO()
+    params = [
+        "--enable-ext",
+        get_data("tests/loop/scatter-inside-loop.cwl"),
+        get_data("tests/loop/loop-inside-scatter-job.yml"),
+    ]
+    main(params, stdout=stream)
+    expected = {"o1": [10, 11, 12, 13, 14]}
+    assert json.loads(stream.getvalue()) == expected
+
+
 def test_nested_loops() -> None:
     """Test a workflow with two nested loops."""
     stream = StringIO()
