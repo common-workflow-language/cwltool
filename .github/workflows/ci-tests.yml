@@ -71,7 +71,7 @@ jobs:
 
       - name: MyPy cache
         if: ${{ matrix.step == 'mypy' }}
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .mypy_cache/${{ env.py-semver }}
           key: mypy-${{ env.py-semver }}
@@ -184,7 +184,7 @@ jobs:
 
       - name: Singularity cache
         if: ${{ matrix.container == 'singularity' }}
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: sifcache
           key: singularity
@@ -285,7 +285,7 @@ jobs:
           pip install "tox<4" "tox-gh-actions<3"
       # # docker for mac install is not currently stable
       # - name: 'SETUP MacOS: load Homebrew cache'
-      #   uses: actions/cache@v3
+      #   uses: actions/cache@v4
       #   if: runner.os == 'macOS'
       #   with:
       #      path: |
