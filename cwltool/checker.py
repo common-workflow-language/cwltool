@@ -1,4 +1,5 @@
 """Static checking of CWL workflow connectivity."""
+
 from collections import namedtuple
 from typing import (
     Any,

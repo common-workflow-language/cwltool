@@ -1,4 +1,5 @@
 """Test the recursive validation feature (validate document and try to build tool)."""
+
 from cwltool.load_tool import fetch_document, recursive_resolve_and_validate_document
 
 from .util import get_data

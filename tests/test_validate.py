@@ -1,4 +1,5 @@
 """Tests --validation."""
+
 import re
 
 from .util import get_data, get_main_output

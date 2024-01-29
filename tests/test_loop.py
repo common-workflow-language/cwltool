@@ -1,4 +1,5 @@
 """Test the prototype loop extension."""
+
 import json
 from io import StringIO
 from typing import MutableMapping, MutableSequence

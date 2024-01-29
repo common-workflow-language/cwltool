@@ -1,4 +1,5 @@
 """Tests for cwltool.load_tool."""
+
 import logging
 import urllib.parse
 from pathlib import Path

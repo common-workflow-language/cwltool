@@ -1,4 +1,5 @@
 """Only used when there is a job script or CWLTOOL_FORCE_SHELL_POPEN=1."""
+
 import json
 import os
 import subprocess  # nosec
