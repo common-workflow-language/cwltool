@@ -1,4 +1,5 @@
 """Tests of the experimental MPI extension."""
+
 import json
 import os.path
 import sys

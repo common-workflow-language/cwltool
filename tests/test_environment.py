@@ -1,4 +1,5 @@
 """Test passing of environment variables to tools."""
+
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path

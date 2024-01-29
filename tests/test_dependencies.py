@@ -1,4 +1,5 @@
 """Tests of satisfying SoftwareRequirement via dependencies."""
+
 import os
 import tempfile
 from getpass import getuser

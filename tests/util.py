@@ -1,4 +1,5 @@
 """Test functions."""
+
 import atexit
 import contextlib
 import io

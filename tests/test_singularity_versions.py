@@ -1,4 +1,5 @@
 """Test singularity{,-ce} & apptainer versions."""
+
 from subprocess import check_output  # nosec
 
 import cwltool.singularity

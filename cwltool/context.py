@@ -1,4 +1,5 @@
 """Shared context objects that replace use of kwargs."""
+
 import copy
 import os
 import shutil

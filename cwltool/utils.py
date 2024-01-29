@@ -1,4 +1,5 @@
 """Shared functions and other definitions."""
+
 import collections
 
 try:

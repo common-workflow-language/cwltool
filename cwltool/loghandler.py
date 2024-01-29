@@ -1,4 +1,5 @@
 """Shared logger for cwltool."""
+
 import logging
 
 import coloredlogs

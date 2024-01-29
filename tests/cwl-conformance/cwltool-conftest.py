@@ -3,6 +3,7 @@ Example configuration for pytest + cwltest plugin using cwltool directly.
 
 Calls cwltool via Python, instead of a subprocess via `--cwl-runner cwltool`.
 """
+
 import json
 from io import StringIO
 from typing import Any, Dict, List, Optional, Tuple

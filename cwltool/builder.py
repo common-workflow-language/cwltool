@@ -1,4 +1,5 @@
 """Command line builder."""
+
 import copy
 import logging
 import math

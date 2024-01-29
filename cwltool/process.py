@@ -1,4 +1,5 @@
 """Classes and methods relevant for all CWL Process types."""
+
 import abc
 import copy
 import functools
