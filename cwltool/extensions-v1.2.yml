@@ -253,5 +253,8 @@ $graph:
         "_type": "@vocab"
     shmSize:
       type: string
-      doc: "Size of /dev/shm. The format is <number><unit>. number must be greater than 0. Unit is optional and can be b (bytes), k (kilobytes), m (megabytes), or g (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses 64m."
-
+      doc: |
+        Size of /dev/shm. The format is `<number><unit>`. <number> must be greater
+        than 0. Unit is optional and can be `b` (bytes), `k` (kilobytes), `m`
+        (megabytes), or `g` (gigabytes). If you omit the unit, the default is
+        bytes. If you omit the size entirely, the value is `64m`."
