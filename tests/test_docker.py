@@ -264,3 +264,20 @@ def test_singularity_required_missing_secfile(
         "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
     )
     assert "file.ext3" in stderr
+
+
+@needs_docker
+def test_docker_shm_size(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--enable-ext",
+            "--default-container",
+            "docker.io/debian:stable-slim",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/wf/shm_size.cwl"),
+        ]
+    )
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert result_code == 0
+    assert "--shm-size=128m" in stderr
