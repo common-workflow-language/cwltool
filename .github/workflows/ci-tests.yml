@@ -81,7 +81,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: ${{ matrix.step == 'unit' }}
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -213,7 +213,7 @@ jobs:
           path: |
             **/cwltool_conf*.xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -297,7 +297,7 @@ jobs:
       - name: Test with tox
         run: tox
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
