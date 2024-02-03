@@ -327,6 +327,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 env=env,
                 cwd=self.outdir,
                 make_job_dir=lambda: runtimeContext.create_outdir(),
+                kill_switch=runtimeContext.kill_switch,
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
                 name=self.name,
@@ -492,8 +493,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # Set on ourselves
         self.environment = env
 
-    def process_monitor(self, sproc: "subprocess.Popen[str]") -> None:
-        """Watch a process, logging its max memory usage."""
+    def process_monitor(self, sproc: "subprocess.Popen[str]", kill_switch: threading.Event) -> None:
+        """Watch a process, logging its max memory usage or terminating it if kill_switch is activated."""
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
         memory_usage: MutableSequence[Optional[int]] = [None]
@@ -835,6 +836,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         cleanup_cidfile: bool,
         docker_exe: str,
         process: "subprocess.Popen[str]",
+        kill_switch: threading.Event,
     ) -> None:
         """Record memory usage of the running Docker container."""
         # Todo: consider switching to `docker create` / `docker start`
@@ -911,6 +913,7 @@ def _job_popen(
     env: Mapping[str, str],
     cwd: str,
     make_job_dir: Callable[[], str],
+    kill_switch: threading.Event,
     job_script_contents: Optional[str] = None,
     timelimit: Optional[int] = None,
     name: Optional[str] = None,

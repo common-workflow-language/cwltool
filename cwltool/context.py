@@ -189,6 +189,7 @@ class RuntimeContext(ContextBase):
         self.default_stderr: Optional[Union[IO[bytes], TextIO]] = None
         self.validate_only: bool = False
         self.validate_stdout: Optional["SupportsWrite[str]"] = None
+        self.kill_switch = threading.Event()
         super().__init__(kwargs)
         if self.tmp_outdir_prefix == "":
             self.tmp_outdir_prefix = self.tmpdir_prefix
