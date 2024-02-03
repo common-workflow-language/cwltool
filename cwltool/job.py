@@ -44,7 +44,7 @@ from . import env_to_stdout, run_job
 from .builder import Builder
 from .context import RuntimeContext
 from .cuda import cuda_check
-from .errors import UnsupportedRequirement, WorkflowException
+from .errors import UnsupportedRequirement, WorkflowException, WorkflowKillSwitch
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .process import stage_files
@@ -362,7 +362,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 processStatus = "permanentFail"
 
             if processStatus != "success":
-                if rcode < 0:
+                if runtimeContext.kill_switch.is_set():
+                    return
+                elif rcode < 0:
                     _logger.warning(
                         "[job %s] was terminated by signal: %s",
                         self.name,
@@ -370,6 +372,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     )
                 else:
                     _logger.warning("[job %s] exited with status: %d", self.name, rcode)
+                if runtimeContext.on_error == "kill":
+                    runtimeContext.kill_switch.set()
+                    raise WorkflowKillSwitch(self.name, rcode)
 
             if "listing" in self.generatefiles:
                 if self.generatemapper:
@@ -400,6 +405,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         except WorkflowException as err:
             _logger.error("[job %s] Job error:\n%s", self.name, str(err))
             processStatus = "permanentFail"
+        except WorkflowKillSwitch:
+            raise
         except Exception:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
