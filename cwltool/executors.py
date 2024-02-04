@@ -20,7 +20,7 @@ from .command_line_tool import CallbackJob, ExpressionJob
 from .context import RuntimeContext, getdefault
 from .cuda import cuda_version_and_device_count
 from .cwlprov.provenance_profile import ProvenanceProfile
-from .errors import WorkflowException
+from .errors import WorkflowException, WorkflowKillSwitch
 from .job import JobBase
 from .loghandler import _logger
 from .mutation import MutationManager
@@ -251,6 +251,11 @@ class SingleJobExecutor(JobExecutor):
             WorkflowException,
         ):  # pylint: disable=try-except-raise
             raise
+        except WorkflowKillSwitch as err:
+            _logger.error(
+                f"Workflow kill switch activated by [job {err.job_id}] "
+                f"because on-error={runtime_context.on_error}"
+            )
         except Exception as err:
             logger.exception("Got workflow error")
             raise WorkflowException(str(err)) from err
@@ -323,6 +328,11 @@ class MultithreadedJobExecutor(JobExecutor):
         except WorkflowException as err:
             _logger.exception(f"Got workflow error: {err}")
             self.exceptions.append(err)
+        except WorkflowKillSwitch as err:
+            _logger.error(
+                f"Workflow kill switch activated by [job {err.job_id}] "
+                f"because on-error={runtime_context.on_error}"
+            )
         except Exception as err:  # pylint: disable=broad-except
             _logger.exception(f"Got workflow error: {err}")
             self.exceptions.append(WorkflowException(str(err)))
@@ -457,9 +467,8 @@ class MultithreadedJobExecutor(JobExecutor):
             while self.taskqueue.in_flight > 0:
                 self.wait_for_next_completion(runtime_context)
                 self.run_job(None, runtime_context)
-
-            runtime_context.workflow_eval_lock.release()
         finally:
+            runtime_context.workflow_eval_lock.release()
             self.taskqueue.drain()
             self.taskqueue.join()
 
