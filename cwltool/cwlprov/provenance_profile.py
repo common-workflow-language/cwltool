@@ -498,7 +498,7 @@ class ProvenanceProfile:
             self.research_object.add_uri(entity.identifier.uri)
             return entity
 
-        if isinstance(value, (str, str)):
+        if isinstance(value, str):
             (entity, _) = self.declare_string(value)
             return entity
 

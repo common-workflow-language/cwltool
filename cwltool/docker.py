@@ -429,7 +429,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     "assurance.",
                     self.name,
                 )
-
+        shm_size_od, shm_bool = self.builder.get_requirement("http://commonwl.org/cwltool#ShmSize")
+        if shm_bool:
+            shm_size = cast(CWLObjectType, shm_size_od)["shmSize"]
+            runtime.append(f"--shm-size={shm_size}")
         return runtime, cidfile_path
 
 

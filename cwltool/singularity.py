@@ -390,7 +390,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if self.inplace_update:
                 try:
                     os.link(os.path.realpath(volume.resolved), host_outdir_tgt)
-                except os.error:
+                except OSError:
                     shutil.copy(volume.resolved, host_outdir_tgt)
             else:
                 shutil.copy(volume.resolved, host_outdir_tgt)
