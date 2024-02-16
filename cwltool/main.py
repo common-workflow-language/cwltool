@@ -173,6 +173,11 @@ def _signal_handler(signum: int, _: Any) -> None:
     sys.exit(signum)
 
 
+def append_word_to_default_user_agent(word: str) -> None:
+    original_function = requests.utils.default_user_agent;
+    requests.utils.default_user_agent = lambda *args: f'{original_function(*args)} {word}'
+
+
 def generate_example_input(
     inptype: Optional[CWLOutputType],
     default: Optional[CWLOutputType],
@@ -980,6 +985,7 @@ def main(
     prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
     global docker_exe
     try:
+        append_word_to_default_user_agent(f'cwltool/{versionfunc()}')
         if args is None:
             if argsl is None:
                 argsl = sys.argv[1:]
