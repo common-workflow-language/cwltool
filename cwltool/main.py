@@ -8,6 +8,7 @@ import functools
 import io
 import logging
 import os
+import requests
 import signal
 import subprocess  # nosec
 import sys
@@ -985,7 +986,7 @@ def main(
     prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
     global docker_exe
     try:
-        append_word_to_default_user_agent(f'cwltool/{versionfunc()}')
+        append_word_to_default_user_agent("cwltool")
         if args is None:
             if argsl is None:
                 argsl = sys.argv[1:]
