@@ -175,9 +175,11 @@ def _signal_handler(signum: int, _: Any) -> None:
 
 
 def append_word_to_default_user_agent(word: str) -> None:
+    """Append the specified word to the requests http user agent string if it's not already there."""
     original_function = requests.utils.default_user_agent;
-    if not original_function().endswith(f' {word}'):
-        requests.utils.default_user_agent = lambda *args: f'{original_function(*args)} {word}'
+    suffix = f' {word}';
+    if not original_function().endswith(suffix):
+        requests.utils.default_user_agent = lambda *args: original_function(*args) + suffix
 
 
 def generate_example_input(
