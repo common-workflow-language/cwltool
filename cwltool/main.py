@@ -176,7 +176,8 @@ def _signal_handler(signum: int, _: Any) -> None:
 
 def append_word_to_default_user_agent(word: str) -> None:
     original_function = requests.utils.default_user_agent;
-    requests.utils.default_user_agent = lambda *args: f'{original_function(*args)} {word}'
+    if not original_function().endswith(f' {word}'):
+        requests.utils.default_user_agent = lambda *args: f'{original_function(*args)} {word}'
 
 
 def generate_example_input(
