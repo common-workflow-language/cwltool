@@ -8,7 +8,6 @@ import functools
 import io
 import logging
 import os
-import requests
 import signal
 import subprocess  # nosec
 import sys
@@ -34,6 +33,7 @@ from typing import (
 
 import argcomplete
 import coloredlogs
+import requests
 import ruamel.yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
@@ -176,8 +176,8 @@ def _signal_handler(signum: int, _: Any) -> None:
 
 def append_word_to_default_user_agent(word: str) -> None:
     """Append the specified word to the requests http user agent string if it's not already there."""
-    original_function = requests.utils.default_user_agent;
-    suffix = f' {word}';
+    original_function = requests.utils.default_user_agent
+    suffix = f" {word}"
     if not original_function().endswith(suffix):
         requests.utils.default_user_agent = lambda *args: original_function(*args) + suffix
 
