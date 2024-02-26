@@ -127,23 +127,24 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             except (OSError, subprocess.CalledProcessError, UnicodeError):
                 pass
 
+        cmd: List[str] = []
+        if "dockerFile" in docker_requirement:
+            dockerfile_dir = create_tmp_dir(tmp_outdir_prefix)
+            with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as dfile:
+                dfile.write(docker_requirement["dockerFile"])
+            cmd = [
+                self.docker_exec,
+                "build",
+                "--tag=%s" % str(docker_requirement["dockerImageId"]),
+                dockerfile_dir,
+            ]
+            _logger.info(str(cmd))
+            subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
+            found = True
+
         if (force_pull or not found) and pull_image:
-            cmd: List[str] = []
             if "dockerPull" in docker_requirement:
                 cmd = [self.docker_exec, "pull", str(docker_requirement["dockerPull"])]
-                _logger.info(str(cmd))
-                subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
-                found = True
-            elif "dockerFile" in docker_requirement:
-                dockerfile_dir = create_tmp_dir(tmp_outdir_prefix)
-                with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as dfile:
-                    dfile.write(docker_requirement["dockerFile"])
-                cmd = [
-                    self.docker_exec,
-                    "build",
-                    "--tag=%s" % str(docker_requirement["dockerImageId"]),
-                    dockerfile_dir,
-                ]
                 _logger.info(str(cmd))
                 subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
                 found = True
