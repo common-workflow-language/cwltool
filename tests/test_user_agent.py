@@ -1,7 +1,6 @@
 import requests
 
-from cwltool.main import main
-from cwltool.main import append_word_to_default_user_agent
+from cwltool.main import append_word_to_default_user_agent, main
 
 
 def get_user_agent() -> str:
@@ -11,7 +10,7 @@ def get_user_agent() -> str:
 def test_cwltool_in_user_agent() -> None:
     """python-requests HTTP User-Agent should include the string 'cwltool'."""
     try:
-        assert main(['--version']) == 0
+        assert main(["--version"]) == 0
     except SystemExit as err:
         assert err.code == 0
     assert "cwltool" in get_user_agent()
