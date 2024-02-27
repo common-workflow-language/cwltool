@@ -138,7 +138,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 dockerfile_dir,
             ]
             _logger.info(str(cmd))
-            subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
+            # check_call doesn't work when using pytest
+            subprocess.run(cmd, check=True, stdout=sys.stderr, stderr=subprocess.PIPE)
             found = True
 
         if (force_pull or not found) and pull_image:
