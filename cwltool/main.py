@@ -33,6 +33,7 @@ from typing import (
 
 import argcomplete
 import coloredlogs
+import requests
 import ruamel.yaml
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
@@ -171,6 +172,14 @@ def _signal_handler(signum: int, _: Any) -> None:
     """
     _terminate_processes()
     sys.exit(signum)
+
+
+def append_word_to_default_user_agent(word: str) -> None:
+    """Append the specified word to the requests http user agent string if it's not already there."""
+    original_function = requests.utils.default_user_agent
+    suffix = f" {word}"
+    if not original_function().endswith(suffix):
+        requests.utils.default_user_agent = lambda *args: original_function(*args) + suffix
 
 
 def generate_example_input(
@@ -979,6 +988,12 @@ def main(
     workflowobj = None
     prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
     global docker_exe
+
+    user_agent = "cwltool"
+    if user_agent not in (progname := os.path.basename(sys.argv[0])):
+        user_agent += f" {progname}"  # append the real program name as well
+    append_word_to_default_user_agent(user_agent)
+
     try:
         if args is None:
             if argsl is None:
