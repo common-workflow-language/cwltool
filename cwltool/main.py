@@ -988,8 +988,13 @@ def main(
     workflowobj = None
     prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
     global docker_exe
+
+    user_agent = "cwltool"
+    if user_agent not in (progname := os.path.basename(sys.argv[0])):
+        user_agent += f" {progname}"  # append the real program name as well
+    append_word_to_default_user_agent(user_agent)
+
     try:
-        append_word_to_default_user_agent("cwltool")
         if args is None:
             if argsl is None:
                 argsl = sys.argv[1:]
