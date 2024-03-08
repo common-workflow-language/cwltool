@@ -72,19 +72,15 @@ dev: install-dep
 ## dist                   : create a module package for distribution
 dist: dist/${MODULE}-$(VERSION).tar.gz
 
-check-python3:
-# Check that the default python version is python 3
-	python --version 2>&1 | grep "Python 3"
-
-dist/${MODULE}-$(VERSION).tar.gz: check-python3 $(SOURCES)
-	python -m build
+dist/${MODULE}-$(VERSION).tar.gz: $(SOURCES)
+	python3 -m build
 
 ## docs                   : make the docs
 docs: FORCE
 	cd docs && $(MAKE) html
 
 ## clean                  : clean up all temporary / machine-generated files
-clean: check-python3 FORCE
+clean: FORCE
 	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so cwltool/cwlprov/*.so
 	rm -Rf ${MODULE}/__pycache__/
 	rm -Rf build
@@ -163,12 +159,12 @@ diff-cover.html: coverage.xml
 	diff-cover --compare-branch=main $^ --html-report $@
 
 ## test                   : run the cwltool test suite
-test: check-python3 $(PYSOURCES)
-	python -m pytest -rs ${PYTEST_EXTRA}
+test: $(PYSOURCES)
+	python3 -m pytest -rs ${PYTEST_EXTRA}
 
 ## testcov                : run the cwltool test suite and collect coverage
-testcov: check-python3 $(PYSOURCES)
-	python -m pytest -rs --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
+testcov: $(PYSOURCES)
+	python3 -m pytest -rs --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
 
 sloccount.sc: $(PYSOURCES) Makefile
 	sloccount --duplicates --wide --details $^ > $@
@@ -197,7 +193,7 @@ pyupgrade: $(PYSOURCES)
 	pyupgrade --exit-zero-even-if-changed --py38-plus $^
 	auto-walrus $^
 
-release-test: check-python3 FORCE
+release-test: FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommitted changes, please commit them and try again; false )
 	./release-test.sh
 
@@ -206,7 +202,7 @@ release:
 	./release-test.sh && \
 	. testenv2/bin/activate && \
 		pip install build && \
-		python -m build testenv2/src/${MODULE} && \
+		python3 -m build testenv2/src/${MODULE} && \
 		pip install twine && \
 		twine upload testenv2/src/${MODULE}/dist/* && \
 		git tag ${VERSION} && git push --tags
