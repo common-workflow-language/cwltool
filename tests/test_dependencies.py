@@ -53,7 +53,7 @@ def test_biocontainers_resolution(tmp_path: Path) -> None:
         get_container_from_software_requirements(
             True, tool, container_image_cache_path=str(tmp_path)
         )
-        == "quay.io/biocontainers/seqtk:r93--0"
+        == "quay.io/biocontainers/seqtk:1.4--he4a0461_1"
     )
 
 
