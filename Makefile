@@ -87,7 +87,7 @@ docs: FORCE
 clean: check-python3 FORCE
 	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so cwltool/cwlprov/*.so
 	rm -Rf ${MODULE}/__pycache__/
-	python setup.py clean --all || true
+	rm -Rf build
 	rm -Rf .coverage
 	rm -f diff-cover.html
 
