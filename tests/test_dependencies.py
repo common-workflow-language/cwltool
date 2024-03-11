@@ -25,6 +25,7 @@ except ImportError:
 
 @needs_docker
 @pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
+@pytest.mark.flaky(retries=3)
 def test_biocontainers(tmp_path: Path) -> None:
     wflow = get_data("tests/seqtk_seq.cwl")
     job = get_data("tests/seqtk_seq_job.json")
