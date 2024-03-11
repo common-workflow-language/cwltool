@@ -23,7 +23,7 @@ run_tests() {
 	mod_loc=$(pip show ${package} |
 		grep ^Location | awk '{print $2}')/${module}
 	"${test_prefix}"bin/py.test "--ignore=${mod_loc}/schemas/" \
-		--pyargs -x ${module} -n auto --dist=loadfile
+		--pyargs -x ${module} -n logical --dist=worksteal
 }
 pipver=23.1  # minimum required version of pip for Python 3.12
 setuptoolsver=67.6.1  # required for Python 3.12
