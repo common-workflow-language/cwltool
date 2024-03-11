@@ -1,0 +1,70 @@
+- |
+  ## Identifier resolution
+
+  The schema may designate one or more fields as identifier fields to identify
+  specific objects.  Processing must resolve relative identifiers to absolute
+  identifiers using the following rules:
+
+    * If an identifier URI begins with `#` it is a current document
+      fragment identifier.  It is resolved relative to the base URI by
+      setting or replacing the fragment portion of the base URI.
+
+    * If an identifier URI contains `#` in some other position it is a
+      relative URI with fragment identifier.  It is resolved relative
+      to the base URI by stripping the last path segment from the base
+      URI and adding the identifier followed by the fragment.
+
+    * If an identifier URI does not contain a scheme and does not
+      contain `#` it is a parent relative fragment identifier.
+
+    * If an identifier URI is a parent relative fragment identifier
+      and the base URI does not contain a document fragment, set the
+      document fragment on the base URI.
+
+    * If an identifier URI is a parent relative fragment identifier
+      and the object containing this identifier is assigned to a
+      parent object field defined with `subscope` in
+      `jsonldPredicate`, append a slash `/` to the base URI fragment
+      followed by the value of the parent field `subscope`.  Then
+      append the identifier as described in the next rule.
+
+    * If an identifier URI is a parent relative fragment identifier
+      and the base URI contains a document fragment, append a slash
+      `/` to the fragment followed by the identifier field to the
+      fragment portion of the base URI.
+
+    * If an identifier URI begins with a namespace prefix declared in
+      `$namespaces` followed by a colon `:`, the prefix and colon must be
+      replaced by the namespace declared in `$namespaces`.
+
+    * If an identifier URI is an absolute URI consisting of a scheme and path,
+      no processing occurs.
+
+  When preprocessing visits a node containing an identifier, that identifier
+  must be used as the base URI to process child nodes.
+
+  It is an error for more than one object in a document to have the same
+  absolute URI.
+
+  ### Identifier resolution example
+
+  Given the following schema:
+
+  ```
+- $include: ident_res_schema.yml
+- |
+  ```
+
+  Process the following example:
+
+  ```
+- $include: ident_res_src.yml
+- |
+  ```
+
+  This becomes:
+
+  ```
+- $include: ident_res_proc.yml
+- |
+  ```
