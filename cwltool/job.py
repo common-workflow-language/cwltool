@@ -44,7 +44,7 @@ from . import env_to_stdout, run_job
 from .builder import Builder
 from .context import RuntimeContext
 from .cuda import cuda_check
-from .errors import UnsupportedRequirement, WorkflowException
+from .errors import UnsupportedRequirement, WorkflowException, WorkflowKillSwitch
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .process import stage_files
@@ -341,6 +341,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 env=env,
                 cwd=self.outdir,
                 make_job_dir=lambda: runtimeContext.create_outdir(),
+                kill_switch=runtimeContext.kill_switch,
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
                 name=self.name,
@@ -361,7 +362,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 processStatus = "permanentFail"
 
             if processStatus != "success":
-                if rcode < 0:
+                if runtimeContext.kill_switch.is_set():
+                    return
+                elif rcode < 0:
                     _logger.warning(
                         "[job %s] was terminated by signal: %s",
                         self.name,
@@ -369,6 +372,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     )
                 else:
                     _logger.warning("[job %s] exited with status: %d", self.name, rcode)
+                if runtimeContext.on_error == "kill":
+                    runtimeContext.kill_switch.set()
+                    raise WorkflowKillSwitch(self.name, rcode)
 
             if "listing" in self.generatefiles:
                 if self.generatemapper:
@@ -399,6 +405,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         except WorkflowException as err:
             _logger.error("[job %s] Job error:\n%s", self.name, str(err))
             processStatus = "permanentFail"
+        except WorkflowKillSwitch:
+            raise
         except Exception:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
@@ -506,13 +514,14 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # Set on ourselves
         self.environment = env
 
-    def process_monitor(self, sproc: "subprocess.Popen[str]") -> None:
-        """Watch a process, logging its max memory usage."""
+    def process_monitor(self, sproc: "subprocess.Popen[str]", kill_switch: threading.Event) -> None:
+        """Watch a process, logging its max memory usage or terminating it if kill_switch is activated."""
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
         memory_usage: MutableSequence[Optional[int]] = [None]
 
         mem_tm: "Optional[Timer]" = None
+        ks_tm: "Optional[Timer]" = None
 
         def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
             nonlocal mem_tm
@@ -534,10 +543,27 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 if mem_tm is not None:
                     mem_tm.cancel()
 
+        def monitor_kill_switch() -> None:
+            nonlocal ks_tm
+            if kill_switch.is_set():
+                _logger.error("[job %s] terminating by kill switch", self.name)
+                if sproc.stdin: sproc.stdin.close()
+                sproc.terminate()
+            else:
+                ks_tm = Timer(interval=1, function=monitor_kill_switch)
+                ks_tm.daemon = True
+                ks_tm.start()
+
+        ks_tm = Timer(interval=1, function=monitor_kill_switch)
+        ks_tm.daemon = True
+        ks_tm.start()
+
         mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
         mem_tm.daemon = True
         mem_tm.start()
+
         sproc.wait()
+        ks_tm.cancel()
         mem_tm.cancel()
         if memory_usage[0] is not None:
             _logger.info(
@@ -849,14 +875,42 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         cleanup_cidfile: bool,
         docker_exe: str,
         process: "subprocess.Popen[str]",
+        kill_switch: threading.Event,
     ) -> None:
-        """Record memory usage of the running Docker container."""
+        """Record memory usage of the running Docker container. Terminate if kill_switch is activated."""
+
+        ks_tm: "Optional[Timer]" = None
+        cid: Optional[str] = None
+
+        def monitor_kill_switch() -> None:
+            nonlocal ks_tm
+            if kill_switch.is_set():
+                _logger.error("[job %s] terminating by kill switch", self.name)
+                if process.stdin:
+                    process.stdin.close()
+                if cid is not None:
+                    kill_proc = subprocess.Popen(  # nosec
+                        [docker_exe, "kill", cid], shell=False  # nosec
+                    )
+                    try:
+                        kill_proc.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        kill_proc.kill()
+                process.terminate()  # Always terminate, even if we tried with the cidfile
+            else:
+                ks_tm = Timer(interval=1, function=monitor_kill_switch)
+                ks_tm.daemon = True
+                ks_tm.start()
+
+        ks_tm = Timer(interval=1, function=monitor_kill_switch)
+        ks_tm.daemon = True
+        ks_tm.start()
+
         # Todo: consider switching to `docker create` / `docker start`
         # instead of `docker run` as `docker create` outputs the container ID
         # to stdout, but the container is frozen, thus allowing us to start the
         # monitoring process without dealing with the cidfile or too-fast
         # container execution
-        cid: Optional[str] = None
         while cid is None:
             time.sleep(1)
             # This is needed to avoid a race condition where the job
@@ -864,6 +918,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             if process.returncode is None:
                 process.poll()
             if process.returncode is not None:
+                ks_tm.cancel()
                 if cleanup_cidfile:
                     try:
                         os.remove(cidfile)
@@ -895,6 +950,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         except OSError as exc:
             _logger.warning("Ignored error with %s stats: %s", docker_exe, exc)
             return
+        finally:
+            ks_tm.cancel()
+
         max_mem_percent: float = 0.0
         mem_percent: float = 0.0
         with open(stats_file_name) as stats:
@@ -925,10 +983,11 @@ def _job_popen(
     env: Mapping[str, str],
     cwd: str,
     make_job_dir: Callable[[], str],
+    kill_switch: threading.Event,
     job_script_contents: Optional[str] = None,
     timelimit: Optional[int] = None,
     name: Optional[str] = None,
-    monitor_function: Optional[Callable[["subprocess.Popen[str]"], None]] = None,
+    monitor_function: Optional[Callable[["subprocess.Popen[str]", "threading.Event"], None]] = None,
     default_stdout: Optional[Union[IO[bytes], TextIO]] = None,
     default_stderr: Optional[Union[IO[bytes], TextIO]] = None,
 ) -> int:
@@ -983,7 +1042,7 @@ def _job_popen(
             tm.daemon = True
             tm.start()
         if monitor_function:
-            monitor_function(sproc)
+            monitor_function(sproc, kill_switch)
         rcode = sproc.wait()
 
         if tm is not None:
@@ -1059,7 +1118,7 @@ def _job_popen(
                 tm.daemon = True
                 tm.start()
             if monitor_function:
-                monitor_function(sproc)
+                monitor_function(sproc, kill_switch)
 
             rcode = sproc.wait()
 
