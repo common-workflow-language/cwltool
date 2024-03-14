@@ -6,13 +6,7 @@ import pwd
 import re
 import uuid
 from getpass import getuser
-<<<<<<< HEAD
-from typing import IO, Any, Dict, List, Optional, Tuple, Union
-
-from typing_extensions import TypedDict
-=======
 from typing import IO, Any, Callable, Dict, List, Optional, Tuple, TypedDict, Union
->>>>>>> main
 
 from cwltool.cwlprov.provenance_constants import Hasher
 
