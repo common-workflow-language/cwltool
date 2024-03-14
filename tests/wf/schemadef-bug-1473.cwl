@@ -449,7 +449,7 @@
                                     "name": "#settings-by-samples__1.0.0.yaml/settings-by-samples/samples"
                                 },
                                 {
-                                    "label": "settings by override cylces",
+                                    "label": "settings by override cycles",
                                     "doc": "Additional bcl convert settings\n",
                                     "type": [
                                         "null",

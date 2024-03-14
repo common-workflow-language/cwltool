@@ -1,4 +1,5 @@
 """Shared context objects that replace use of kwargs."""
+
 import copy
 import os
 import shutil
@@ -12,6 +13,7 @@ from typing import (
     Dict,
     Iterable,
     List,
+    Literal,
     Optional,
     TextIO,
     Tuple,
@@ -22,7 +24,6 @@ from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names
 from schema_salad.ref_resolver import Loader
 from schema_salad.utils import FetcherCallableType
-from typing_extensions import Literal
 
 from .mpi import MpiConfig
 from .pathmapper import PathMapper
@@ -42,7 +43,7 @@ if TYPE_CHECKING:
 
 
 class ContextBase:
-    """Shared kwargs based initilizer for :py:class:`RuntimeContext` and :py:class:`LoadingContext`."""
+    """Shared kwargs based initializer for :py:class:`RuntimeContext` and :py:class:`LoadingContext`."""
 
     def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
         """Initialize."""
@@ -197,6 +198,8 @@ class RuntimeContext(ContextBase):
         self.mpi_config: MpiConfig = MpiConfig()
         self.default_stdout: Optional[Union[IO[bytes], TextIO]] = None
         self.default_stderr: Optional[Union[IO[bytes], TextIO]] = None
+        self.validate_only: bool = False
+        self.validate_stdout: Optional[Union[IO[bytes], TextIO, IO[str]]] = None
         super().__init__(kwargs)
         if self.tmp_outdir_prefix == "":
             self.tmp_outdir_prefix = self.tmpdir_prefix

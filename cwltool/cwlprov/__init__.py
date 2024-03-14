@@ -6,9 +6,13 @@ import pwd
 import re
 import uuid
 from getpass import getuser
+<<<<<<< HEAD
 from typing import IO, Any, Dict, List, Optional, Tuple, Union
 
 from typing_extensions import TypedDict
+=======
+from typing import IO, Any, Callable, Dict, List, Optional, Tuple, TypedDict, Union
+>>>>>>> main
 
 from cwltool.cwlprov.provenance_constants import Hasher
 
@@ -116,24 +120,26 @@ Annotation = TypedDict(
         "oa:motivatedBy": Dict[str, str],
     },
 )
-Aggregate = TypedDict(
-    "Aggregate",
-    {
-        "uri": Optional[str],
-        "bundledAs": Optional[Dict[str, Any]],
-        "mediatype": Optional[str],
-        "conformsTo": Optional[Union[str, List[str]]],
-        "createdOn": Optional[str],
-        "createdBy": Optional[Dict[str, str]],
-    },
-    total=False,
-)
+
+
+class Aggregate(TypedDict, total=False):
+    """RO Aggregate class."""
+
+    uri: Optional[str]
+    bundledAs: Optional[Dict[str, Any]]
+    mediatype: Optional[str]
+    conformsTo: Optional[Union[str, List[str]]]
+    createdOn: Optional[str]
+    createdBy: Optional[Dict[str, str]]
+
+
 # Aggregate.bundledAs is actually type Aggregate, but cyclic definitions are not supported
-AuthoredBy = TypedDict(
-    "AuthoredBy",
-    {"orcid": Optional[str], "name": Optional[str], "uri": Optional[str]},
-    total=False,
-)
+class AuthoredBy(TypedDict, total=False):
+    """RO AuthoredBy class."""
+
+    orcid: Optional[str]
+    name: Optional[str]
+    uri: Optional[str]
 
 
 def checksum_copy(

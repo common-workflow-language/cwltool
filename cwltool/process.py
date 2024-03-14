@@ -1,4 +1,5 @@
 """Classes and methods relevant for all CWL Process types."""
+
 import abc
 import copy
 import functools
@@ -33,7 +34,6 @@ from typing import (
 )
 
 from cwl_utils import expression
-from importlib_resources import files
 from mypy_extensions import mypyc_attr
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -61,7 +61,6 @@ from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION, ORDERED_VERSIONS, ORIGINAL_CWLVERSION
 from .utils import (
     CWLObjectType,
-    CWLOutputAtomType,
     CWLOutputType,
     HasReqsHints,
     JobsGeneratorType,
@@ -71,6 +70,7 @@ from .utils import (
     aslist,
     cmp_like_py2,
     ensure_writable,
+    files,
     get_listing,
     normalizeFilesDirs,
     random_outdir,
@@ -121,6 +121,7 @@ supportedProcessRequirements = [
     "http://commonwl.org/cwltool#LoadListingRequirement",
     "http://commonwl.org/cwltool#InplaceUpdateRequirement",
     "http://commonwl.org/cwltool#CUDARequirement",
+    "http://commonwl.org/cwltool#ShmSize",
 ]
 
 cwl_files = (
@@ -243,7 +244,7 @@ def stage_files(
     """
     items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
     targets: Dict[str, MapperEnt] = {}
-    for key, entry in items:
+    for key, entry in list(items):
         if "File" not in entry.type:
             continue
         if entry.target not in targets:
@@ -266,7 +267,7 @@ def stage_files(
                 )
     # refresh the items, since we may have updated the pathmapper due to file name clashes
     items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
-    for key, entry in items:
+    for key, entry in list(items):
         if not entry.staged:
             continue
         if not os.path.exists(os.path.dirname(entry.target)):
@@ -980,7 +981,8 @@ hints:
         ):
             if rsc is None:
                 continue
-            mn = mx = None  # type: Optional[Union[int, float]]
+            mn: Optional[Union[int, float]] = None
+            mx: Optional[Union[int, float]] = None
             if rsc.get(a + "Min"):
                 with SourceLine(rsc, f"{a}Min", WorkflowException, runtimeContext.debug):
                     mn = cast(
@@ -1145,7 +1147,7 @@ def mergedirs(
     for e in ents.values():
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = cast(
-                MutableSequence[CWLOutputAtomType],
+                MutableSequence[CWLOutputType],
                 mergedirs(cast(List[CWLObjectType], e["listing"])),
             )
     r.extend(ents.values())
@@ -1205,7 +1207,7 @@ def scandeps(
                     deps["listing"] = doc["listing"]
                 if doc["class"] == "File" and "secondaryFiles" in doc:
                     deps["secondaryFiles"] = cast(
-                        CWLOutputAtomType,
+                        CWLOutputType,
                         scandeps(
                             base,
                             cast(
@@ -1289,7 +1291,7 @@ def scandeps(
                         )
                         if sf:
                             deps2["secondaryFiles"] = cast(
-                                MutableSequence[CWLOutputAtomType], mergedirs(sf)
+                                MutableSequence[CWLOutputType], mergedirs(sf)
                             )
                         if nestdirs:
                             deps2 = nestdir(base, deps2)
@@ -1342,10 +1344,15 @@ def compute_checksums(fs_access: StdFsAccess, fileobj: CWLObjectType) -> None:
     if "checksum" not in fileobj:
         checksum = hashlib.sha1()  # nosec
         location = cast(str, fileobj["location"])
-        with fs_access.open(location, "rb") as f:
-            contents = f.read(1024 * 1024)
-            while contents != b"":
-                checksum.update(contents)
+        if "contents" in fileobj:
+            contents = cast(str, fileobj["contents"]).encode("utf-8")
+            checksum.update(contents)
+            fileobj["size"] = len(contents)
+        else:
+            with fs_access.open(location, "rb") as f:
                 contents = f.read(1024 * 1024)
+                while contents != b"":
+                    checksum.update(contents)
+                    contents = f.read(1024 * 1024)
+            fileobj["size"] = fs_access.size(location)
         fileobj["checksum"] = "sha1$%s" % checksum.hexdigest()
-        fileobj["size"] = fs_access.size(location)

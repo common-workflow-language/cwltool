@@ -1,5 +1,8 @@
 """Test that all temporary directories respect the --tmpdir-prefix and --tmp-outdir-prefix options."""
+
+import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -17,11 +20,12 @@ from cwltool.docker import DockerCommandLineJob
 from cwltool.job import JobBase
 from cwltool.main import main
 from cwltool.pathmapper import MapperEnt
+from cwltool.singularity import SingularityCommandLineJob
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
 from cwltool.utils import create_tmp_dir
 
-from .util import get_data, get_main_output, needs_docker
+from .util import get_data, get_main_output, needs_docker, needs_singularity
 
 
 def test_docker_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
@@ -162,6 +166,65 @@ def test_dockerfile_tmpdir_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     subdir = tmp_path / children[0]
     assert len(sorted(subdir.glob("*"))) == 1
     assert (subdir / "Dockerfile").exists()
+
+
+@needs_singularity
+def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Test that SingularityCommandLineJob.get_image builds a Dockerfile with Singularity."""
+    tmppath = Path(os.environ.get("APPTAINER_TMPDIR", tmp_path))
+    # some HPC not allowed to execute on /tmp so allow user to define temp path with APPTAINER_TMPDIR
+    # FATAL:   Unable to create build: 'noexec' mount option set on /tmp, temporary root filesystem
+    monkeypatch.setattr(target=subprocess, name="check_call", value=lambda *args, **kwargs: True)
+    (tmppath / "out").mkdir(exist_ok=True)
+    tmp_outdir_prefix = tmppath / "out" / "1"
+    (tmppath / "3").mkdir(exist_ok=True)
+    tmpdir_prefix = str(tmppath / "3" / "ttmp")
+    runtime_context = RuntimeContext(
+        {"tmpdir_prefix": tmpdir_prefix, "user_space_docker_cmd": None}
+    )
+    builder = Builder(
+        {},
+        [],
+        [],
+        {},
+        schema.Names(),
+        [],
+        [],
+        {},
+        None,
+        None,
+        StdFsAccess,
+        StdFsAccess(""),
+        None,
+        0.1,
+        True,
+        False,
+        False,
+        "no_listing",
+        runtime_context.get_outdir(),
+        runtime_context.get_tmpdir(),
+        runtime_context.get_stagedir(),
+        INTERNAL_VERSION,
+        "singularity",
+    )
+
+    assert SingularityCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_image(
+        {
+            "class": "DockerRequirement",
+            "dockerFile": "FROM debian:stable-slim",
+        },
+        pull_image=True,
+        tmp_outdir_prefix=str(tmp_outdir_prefix),
+        force_pull=True,
+    )
+    children = sorted(tmp_outdir_prefix.parent.glob("*"))
+    subdir = tmppath / children[0]
+    children = sorted(subdir.glob("*.sif"))
+    image_path = children[0]
+    assert image_path.exists()
+    shutil.rmtree(subdir)
 
 
 def test_docker_tmpdir_prefix(tmp_path: Path) -> None:

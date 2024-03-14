@@ -1,4 +1,5 @@
 """Test optional udocker feature."""
+
 import copy
 import os
 import subprocess
@@ -11,6 +12,7 @@ from _pytest.tmpdir import TempPathFactory
 from .util import get_data, get_main_output, working_directory
 
 LINUX = sys.platform in ("linux", "linux2")
+UDOCKER_VERSION = "1.3.12"
 
 
 @pytest.fixture(scope="session")
@@ -19,10 +21,13 @@ def udocker(tmp_path_factory: TempPathFactory) -> str:
     test_environ = copy.copy(os.environ)
     docker_install_dir = str(tmp_path_factory.mktemp("udocker"))
     with working_directory(docker_install_dir):
-        url = "https://github.com/indigo-dc/udocker/releases/download/1.3.5/udocker-1.3.5.tar.gz"
+        url = (
+            "https://github.com/indigo-dc/udocker/releases/download/"
+            f"{UDOCKER_VERSION}/udocker-{UDOCKER_VERSION}.tar.gz"
+        )
         install_cmds = [
             ["curl", "-L", url, "-o", "./udocker-tarball.tgz"],
-            ["tar", "xzvf", "udocker-tarball.tgz"],
+            ["tar", "--strip-components=1", "-xzvf", "udocker-tarball.tgz"],
             ["./udocker/udocker", "install"],
         ]
 

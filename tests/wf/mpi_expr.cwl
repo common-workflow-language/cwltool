@@ -13,7 +13,7 @@ doc: |
   This version takes the number of processes to use as an input and
   then passes this to the MPIRequirement using an expression.
 
-baseCommand: python
+baseCommand: python3
 requirements:
   cwltool:MPIRequirement:
     processes: $(inputs.processes)

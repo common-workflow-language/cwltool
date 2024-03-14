@@ -1,11 +1,13 @@
-bagit >= 1.6.4, <1.9
-pytest >= 6.2, < 7.4
-pytest-xdist
+bagit>=1.6.4,<1.9
+pytest>= 6.2,< 8.2
+pytest-xdist>=3.2.0 # for the worksteal scheduler
+psutil # enhances pytest-xdist to allow "-n logical"
 pytest-httpserver
-mock >= 2.0.0
-pytest-mock >= 1.10.0
+pytest-retry;python_version>'3.9'
+mock>=2.0.0
+pytest-mock>=1.10.0
 pytest-cov
-arcp >= 0.2.0
-rdflib-jsonld>=0.4.0, <= 0.6.1;python_version<='3.6'
+arcp>=0.2.0
 -rrequirements.txt
-galaxy-tool-util >= 22.1.2, < 23
+galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<23.3
+galaxy-util<23.2

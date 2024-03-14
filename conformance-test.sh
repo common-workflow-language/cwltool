@@ -41,6 +41,8 @@ set -x
 # The directory where this script resides
 SCRIPT_DIRECTORY="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
+TMP_DIR=${TMP_DIR:-${SCRIPT_DIRECTORY}}
+
 # Download archive from GitHub
 if [[ "${VERSION}" = "v1.0" ]] ; then
     REPO=common-workflow-language
@@ -49,38 +51,41 @@ else
     REPO=cwl-$(echo "$VERSION" | sed 's/\(v[0-9]*\.\)\([0-9]*\).*/\1\2/')
 fi
 
-if [ ! -d "${REPO}-${GIT_TARGET}" ] ; then
-  if [ ! -f "${GIT_TARGET}.tar.gz" ] ; then
-	  wget "https://github.com/common-workflow-language/${REPO}/archive/${GIT_TARGET}.tar.gz"
+if [ ! -d "${TMP_DIR}/${REPO}-${GIT_TARGET}" ] ; then
+	if [ ! -f "${TMP_DIR}/${GIT_TARGET}.tar.gz" ] ; then
+	  wget --directory-prefix "${TMP_DIR}" "https://github.com/common-workflow-language/${REPO}/archive/${GIT_TARGET}.tar.gz"
   fi
-  tar xzf "${GIT_TARGET}.tar.gz"
+  tar --directory "${TMP_DIR}" -x -f "${TMP_DIR}/${GIT_TARGET}.tar.gz"
 fi
 
-if [ "${CONTAINER}" == "docker" ]; then
+if [ -v SKIP_PULL ] ; then
+    echo Skipping node container pull.
+elif [ "${CONTAINER}" == "docker" ]; then
     docker pull docker.io/node:slim
-fi
-
-if [ "${CONTAINER}" == "podman" ]; then
+elif [ "${CONTAINER}" == "podman" ]; then
     podman pull docker.io/node:slim
-fi
-
-if [ "${CONTAINER}" == "singularity" ]; then
+elif [ "${CONTAINER}" == "singularity" ]; then
     export CWL_SINGULARITY_CACHE="$SCRIPT_DIRECTORY/sifcache"
     mkdir --parents "${CWL_SINGULARITY_CACHE}"
 fi
 
 # Setup environment
-venv cwl-conformance-venv
-pip install -U setuptools wheel pip
-pip uninstall -y cwltool
-pip install "${SCRIPT_DIRECTORY}" -r"${SCRIPT_DIRECTORY}/requirements.txt"
-pip install 'cwltest>=2.3' pytest-cov pytest-xdist
+if [ -v SKIP_INSTALL ] ; then
+   echo 'Skip installing dependencies; cwltool & cwltest must already be installed'
+else
+	venv "${TMP_DIR}/cwl-conformance-venv"
+	pip install -U setuptools wheel pip
+	pip uninstall -y cwltool
+	pip install -r"${SCRIPT_DIRECTORY}/mypy-requirements.txt"
+	CWLTOOL_USE_MYPYC=1 MYPYPATH="${SCRIPT_DIRECTORY}/mypy-stubs" pip install "${SCRIPT_DIRECTORY}" -r"${SCRIPT_DIRECTORY}/requirements.txt"
+	pip install 'cwltest>=2.5' pytest-cov pytest-xdist>=3.2.0 psutil
+fi
 
 # Set conformance test filename
 if [[ "${VERSION}" = "v1.0" ]] ; then
-  CONFORMANCE_TEST="${SCRIPT_DIRECTORY}/${REPO}-${GIT_TARGET}/${VERSION}/conformance_test_v1.0.yaml"
+  CONFORMANCE_TEST="${TMP_DIR}/${REPO}-${GIT_TARGET}/${VERSION}/conformance_test_v1.0.yaml"
 else
-  CONFORMANCE_TEST="${SCRIPT_DIRECTORY}/${REPO}-${GIT_TARGET}/conformance_tests.yaml"
+  CONFORMANCE_TEST="${TMP_DIR}/${REPO}-${GIT_TARGET}/conformance_tests.yaml"
 fi
 cp "${CONFORMANCE_TEST}" "${CONFORMANCE_TEST%".yaml"}.cwltest.yaml"
 CONFORMANCE_TEST="${CONFORMANCE_TEST%".yaml"}.cwltest.yaml"
@@ -116,14 +121,18 @@ if (( "${#exclusions[*]}" > 0 )); then
 fi
 
 # Build command
-TEST_COMMAND="python -m pytest ${CONFORMANCE_TEST} -n auto -rs --junit-xml=${SCRIPT_DIRECTORY}/cwltool_conf_${VERSION}_${GIT_TARGET}_${CONTAINER}.xml -o junit_suite_name=cwltool_$(echo "${CWLTOOL_OPTIONS}" | tr "[:blank:]-" _)"
+TEST_COMMAND="python -m pytest ${CONFORMANCE_TEST} -n logical --dist worksteal -rs --junit-xml=${TMP_DIR}/cwltool_conf_${VERSION}_${GIT_TARGET}_${CONTAINER}.xml -o junit_suite_name=cwltool_$(echo "${CWLTOOL_OPTIONS}" | tr "[:blank:]-" _)"
 if [[ -n "${EXCLUDE}" ]] ; then
   TEST_COMMAND="${TEST_COMMAND} --cwl-exclude ${EXCLUDE}"
 fi
-TEST_COMMAND="${TEST_COMMAND} --cov --cov-config ${SCRIPT_DIRECTORY}/.coveragerc --cov-report= ${PYTEST_EXTRA}"
+if [ -v SKIP_COV ] ; then
+	echo Skipping gathering of coverage information
+else
+	TEST_COMMAND="${TEST_COMMAND} --cov --cov-config ${SCRIPT_DIRECTORY}/.coveragerc --cov-report= ${PYTEST_EXTRA}"
+	# Clean up all old coverage data
+	find "${SCRIPT_DIRECTORY}" \( -type f -name .coverage -or -name '.coverage.*' -or -name coverage.xml \) -delete
+fi
 
-# Clean up all old coverage data
-find "${SCRIPT_DIRECTORY}" \( -type f -name .coverage -or -name '.coverage.*' -or -name coverage.xml \) -delete
 
 if [ "$GIT_BRANCH" = "origin/main" ] && [[ "$VERSION" = "v1.0" ]] && [[ "$CONTAINER" = "docker" ]]
 then
@@ -153,11 +162,11 @@ echo CWLTOOL_OPTIONS="${CWLTOOL_OPTIONS}"
 
 # Run test
 cp "${SCRIPT_DIRECTORY}/tests/cwl-conformance/cwltool-conftest.py" "$(dirname "${CONFORMANCE_TEST}")/conftest.py"
-bash -c "${TEST_COMMAND}"
+bash -c "cd ${TMP_DIR} && ${TEST_COMMAND}"
 RETURN_CODE=$?
 
 # Coverage report
-if [ "${RETURN_CODE}" -eq "0" ] ; then
+if [ ! -v SKIP_COV ] && [ "${RETURN_CODE}" -eq "0" ] ; then
   coverage report
   coverage xml
 fi
@@ -172,7 +181,11 @@ then
 fi
 
 # Cleanup
-deactivate
+if [ -z "$SKIP_INSTALL" ] ; then
+	echo Skipping venv cleanup
+else
+	deactivate
+fi
 #rm -rf "${GIT_TARGET}.tar.gz" "${SCRIPT_DIRECTORY}/${REPO}-${GIT_TARGET}" "${SCRIPT_DIRECTORY}/cwl-conformance-venv"
 
 # Exit

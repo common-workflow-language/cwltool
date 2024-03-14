@@ -28,26 +28,19 @@ jobs:
 
   tox:
     name: Tox
-    runs-on: ubuntu-20.04  # 22.04 doesn't support Python 3.6
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         py-ver-major: [3]
-        py-ver-minor: [6, 7, 8, 9, 10, 11]
+        py-ver-minor: [8, 9, 10, 11, 12]
         step: [lint, unit, bandit, mypy]
-        exclude:
-          - py-ver-major: 3
-            py-ver-minor: 6
-            step: mypy
-          - py-ver-major: 3
-            py-ver-minor: 6
-            step: lint
 
     env:
       py-semver: ${{ format('{0}.{1}', matrix.py-ver-major, matrix.py-ver-minor) }}
       TOXENV: ${{ format('py{0}{1}-{2}', matrix.py-ver-major, matrix.py-ver-minor, matrix.step) }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -62,9 +55,10 @@ jobs:
         run: sudo usermod -c 'CI Runner' "$(whoami)"
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.py-semver }}
+          allow-prereleases: true
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -77,20 +71,21 @@ jobs:
 
       - name: MyPy cache
         if: ${{ matrix.step == 'mypy' }}
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .mypy_cache/${{ env.py-semver }}
           key: mypy-${{ env.py-semver }}
 
       - name: Test with tox
-        run: tox
+        run: APPTAINER_TMPDIR=${RUNNER_TEMP} tox
 
       - name: Upload coverage to Codecov
         if: ${{ matrix.step == 'unit' }}
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   tox-style:
     name: Linters
@@ -101,16 +96,16 @@ jobs:
         step: [lintreadme, shellcheck, pydocstyle]
 
     env:
-      py-semver: "3.11"
-      TOXENV: ${{ format('py311-{0}', matrix.step) }}
+      py-semver: "3.12"
+      TOXENV: ${{ format('py312-{0}', matrix.step) }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.py-semver }}
           cache: pip
@@ -131,9 +126,9 @@ jobs:
     name: No leftovers
     runs-on: ubuntu-22.04
     env:
-      py-semver: "3.11"
+      py-semver: "3.12"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -146,7 +141,7 @@ jobs:
         run: sudo usermod -c 'CI Runner' "$(whoami)"
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.py-semver }}
           cache: pip
@@ -162,7 +157,7 @@ jobs:
           chmod a-w .
 
       - name: run tests
-        run: make test
+        run: APPTAINER_TMPDIR=${RUNNER_TEMP} make test
 
 
   conformance_tests:
@@ -180,7 +175,7 @@ jobs:
             extras: "--fast-parser"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Singularity
         if: ${{ matrix.container == 'singularity' }}
@@ -190,7 +185,7 @@ jobs:
 
       - name: Singularity cache
         if: ${{ matrix.container == 'singularity' }}
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: sifcache
           key: singularity
@@ -200,29 +195,36 @@ jobs:
         run: sudo rm -f /usr/bin/docker ; sudo apt-get install -y podman
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: 3.12
           cache: pip
 
       - name: "Test CWL ${{ matrix.cwl-version }} conformance"
         env:
           VERSION: ${{ matrix.cwl-version }}
           CONTAINER: ${{ matrix.container }}
-          GIT_TARGET: main
-          CWLTOOL_OPTIONS: ${{ matrix.extras }}
+          GIT_TARGET: ${{ matrix.cwl-version == 'v1.2' && '1.2.1_proposed' || 'main' }}
+          CWLTOOL_OPTIONS: ${{ matrix.cwl-version == 'v1.2' && '--relax-path-checks' || '' }} ${{ matrix.extras }}
         run: ./conformance-test.sh
+      - name: Archive test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: cwl-${{ matrix.cwl-version }}-${{ matrix.container }}${{ matrix.extras }}-conformance-results
+          path: |
+            **/cwltool_conf*.xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   release_test:
     name: cwltool release test
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Singularity
         run: |
@@ -230,9 +232,9 @@ jobs:
           sudo apt-get install -y ./singularity-ce_3.10.4-jammy_amd64.deb
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: 3.12
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -254,7 +256,11 @@ jobs:
   build_test_container:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: record cwltool version
+        run: pip install -U setuptools wheel && pip install setuptools_scm[toml] && python setup.py --version
       - name: build & test cwltool_module container
         run: ./build-cwltool-docker.sh
 
@@ -262,15 +268,15 @@ jobs:
     name: Test on macos-latest
     runs-on: macos-latest
     env:
-      TOXENV: py311-unit
+      TOXENV: py312-unit
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: 3.12
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -281,7 +287,7 @@ jobs:
           pip install "tox<4" "tox-gh-actions<3"
       # # docker for mac install is not currently stable
       # - name: 'SETUP MacOS: load Homebrew cache'
-      #   uses: actions/cache@v3
+      #   uses: actions/cache@v4
       #   if: runner.os == 'macOS'
       #   with:
       #      path: |
@@ -293,7 +299,8 @@ jobs:
       - name: Test with tox
         run: tox
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

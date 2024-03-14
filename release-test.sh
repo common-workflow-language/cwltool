@@ -23,10 +23,10 @@ run_tests() {
 	mod_loc=$(pip show ${package} |
 		grep ^Location | awk '{print $2}')/${module}
 	"${test_prefix}"bin/py.test "--ignore=${mod_loc}/schemas/" \
-		--pyargs -x ${module} -n auto --dist=loadfile
+		--pyargs -x ${module} -n logical --dist=worksteal
 }
-pipver=20.3.3 # minimum required version of pip for Python 3.10
-setuptoolsver=50.0.1  # fix for "AttributeError: module 'importlib.util' has no attribute 'abc'"
+pipver=23.1  # minimum required version of pip for Python 3.12
+setuptoolsver=67.6.1  # required for Python 3.12
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 rm -Rf testenv? || /bin/true
@@ -42,7 +42,7 @@ then
 	rm -f testenv1/lib/python-wheels/setuptools* \
 		&& pip install --force-reinstall -U pip==${pipver} \
 		&& pip install setuptools==${setuptoolsver} wheel
-	pip install  --no-build-isolation -rtest-requirements.txt ".${extras}"
+	pip install -rtest-requirements.txt ".${extras}"
 	#make test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 	# mkdir testenv1/not-${module}
@@ -55,8 +55,7 @@ fi
 
 python3 -m venv testenv2
 python3 -m venv testenv3
-python3 -m venv testenv4
-rm -Rf testenv[234]/local
+rm -Rf testenv[23]/local
 
 # Secondly we test via pip
 
@@ -69,7 +68,7 @@ rm -f lib/python-wheels/setuptools* \
 # The following can fail if you haven't pushed your commits to ${repo}
 pip install -e "git+${repo}@${HEAD}#egg=${package}${extras}"
 pushd src/${package}
-pip install -rtest-requirements.txt
+pip install -rtest-requirements.txt build
 make dist
 #make test
 cp dist/${package}*tar.gz ../../../testenv3/
@@ -89,15 +88,16 @@ rm -f lib/python-wheels/setuptools* \
 	&& pip install --force-reinstall -U pip==${pipver} \
         && pip install setuptools==${setuptoolsver} wheel
 package_tar=$(find . -name "${package}*tar.gz")
-pip install "-r${DIR}/test-requirements.txt"
+pip install "-r${DIR}/test-requirements.txt" udocker build
 pip install "${package_tar}${extras}"
+udocker install
 mkdir out
 tar --extract --directory=out -z -f ${package}*.tar.gz
 pushd out/${package}*
 make dist
 make test
 pip install "-r${DIR}/mypy-requirements.txt"
-make mypy
+make mypyc
 pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
 mkdir ../not-${module}
 pushd ../not-${module}

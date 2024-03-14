@@ -66,6 +66,11 @@ if TYPE_CHECKING:
     from .cwlprov.provenance_profile import (
         ProvenanceProfile,  # pylint: disable=unused-import
     )
+
+    CollectOutputsType = Union[
+        Callable[[str, int], CWLObjectType], functools.partial[CWLObjectType]
+    ]
+
 needs_shell_quoting_re = re.compile(r"""(^$|[\s|&;()<>\'"$@])""")
 
 FORCE_SHELLED_POPEN = os.getenv("CWLTOOL_FORCE_SHELL_POPEN", "0") == "1"
@@ -112,9 +117,6 @@ def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Optional[Match[str
     return None
 
 
-CollectOutputsType = Union[Callable[[str, int], CWLObjectType], functools.partial]
-
-
 class JobBase(HasReqsHints, metaclass=ABCMeta):
     def __init__(
         self,
@@ -144,7 +146,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.generatemapper: Optional[PathMapper] = None
 
         # set in CommandLineTool.job(i)
-        self.collect_outputs = cast(CollectOutputsType, None)
+        self.collect_outputs = cast("CollectOutputsType", None)
         self.output_callback: Optional[OutputCallbackType] = None
         self.outdir = ""
         self.tmpdir = ""
@@ -190,7 +192,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 return False
             for inp in self.joborder.values():
                 if isinstance(inp, dict) and inp.get("location", None) == file:
-                    return inp.get("streamable", False)
+                    return cast(bool, inp.get("streamable", False))
             return False
 
         for knownfile in self.pathmapper.files():
@@ -514,17 +516,27 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # Value must be list rather than integer to utilise pass-by-reference in python
         memory_usage: MutableSequence[Optional[int]] = [None]
 
+        mem_tm: "Optional[Timer]" = None
+
         def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
-            children = monitor.children()
+            nonlocal mem_tm
             try:
-                rss = monitor.memory_info().rss
-                while len(children):
-                    rss += sum(process.memory_info().rss for process in children)
-                    children = list(itertools.chain(*(process.children() for process in children)))
-                if memory_usage[0] is None or rss > memory_usage[0]:
-                    memory_usage[0] = rss
+                with monitor.oneshot():
+                    children = monitor.children()
+                    rss = monitor.memory_info().rss
+                    while len(children):
+                        rss += sum(process.memory_info().rss for process in children)
+                        children = list(
+                            itertools.chain(*(process.children() for process in children))
+                        )
+                    if memory_usage[0] is None or rss > memory_usage[0]:
+                        memory_usage[0] = rss
+                mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
+                mem_tm.daemon = True
+                mem_tm.start()
             except psutil.NoSuchProcess:
-                mem_tm.cancel()
+                if mem_tm is not None:
+                    mem_tm.cancel()
 
         mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
         mem_tm.daemon = True
@@ -586,8 +598,9 @@ class CommandLineJob(JobBase):
         env["HOME"] = self.outdir
         env["TMPDIR"] = self.tmpdir
         env["PATH"] = os.environ["PATH"]
-        if "SYSTEMROOT" in os.environ:
-            env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+        for extra in ("SYSTEMROOT", "QEMU_LD_PREFIX"):
+            if extra in os.environ:
+                env[extra] = os.environ[extra]
         return env
 
 
@@ -751,16 +764,6 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 img_id = str(docker_req["dockerImageId"])
             elif "dockerPull" in docker_req:
                 img_id = str(docker_req["dockerPull"])
-                cmd = [user_space_docker_cmd, "pull", img_id]
-                _logger.info(str(cmd))
-                try:
-                    subprocess.check_call(cmd, stdout=sys.stderr)  # nosec
-                except OSError as exc:
-                    raise SourceLine(docker_req, None, WorkflowException, debug).makeError(
-                        f"Either Docker container {img_id} is not available with "
-                        f"user space docker implementation {user_space_docker_cmd} "
-                        f" or {user_space_docker_cmd} is missing or broken."
-                    ) from exc
             else:
                 raise SourceLine(docker_req, None, WorkflowException, debug).makeError(
                     "Docker image must be specified as 'dockerImageId' or "
@@ -813,7 +816,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 _logger.debug("%s error", container, exc_info=True)
                 if docker_is_req:
                     raise UnsupportedRequirement(
-                        "{} is required to run this tool: {}".format(container, str(err))
+                        f"{container} is required to run this tool: {str(err)}"
                     ) from err
                 else:
                     raise WorkflowException(
@@ -860,13 +863,17 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         cid: Optional[str] = None
         while cid is None:
             time.sleep(1)
+            # This is needed to avoid a race condition where the job
+            # was so fast that it already finished when it arrives here
+            if process.returncode is None:
+                process.poll()
             if process.returncode is not None:
                 if cleanup_cidfile:
                     try:
                         os.remove(cidfile)
                     except OSError as exc:
                         _logger.warning("Ignored error cleaning up %s cidfile: %s", docker_exe, exc)
-                    return
+                return
             try:
                 with open(cidfile) as cidhandle:
                     cid = cidhandle.readline().strip()
@@ -1037,6 +1044,26 @@ def _job_popen(
             processes_to_kill.append(sproc)
             if sproc.stdin is not None:
                 sproc.stdin.close()
+
+            tm = None
+            if timelimit is not None and timelimit > 0:
+
+                def terminate():  # type: () -> None
+                    try:
+                        _logger.warning(
+                            "[job %s] exceeded time limit of %d seconds and will be terminated",
+                            name,
+                            timelimit,
+                        )
+                        sproc.terminate()
+                    except OSError:
+                        pass
+
+                tm = Timer(timelimit, terminate)
+                tm.daemon = True
+                tm.start()
+            if monitor_function:
+                monitor_function(sproc)
 
             rcode = sproc.wait()
 

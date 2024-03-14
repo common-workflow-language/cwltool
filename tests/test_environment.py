@@ -1,4 +1,5 @@
 """Test passing of environment variables to tools."""
+
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -28,7 +29,7 @@ def assert_envvar_matches(check: CheckerTypes, k: str, env: Mapping[str, str]) -
         if isinstance(check, str):
             assert v == check, f"Environment variable {k} == {v!r} != {check!r}"
         else:
-            assert check(v, env), f"Environment variable {k}={v!r} fails check"
+            assert check(v, env), f"Environment variable {k}={v!r} fails check."
 
 
 def assert_env_matches(
@@ -149,11 +150,14 @@ class Singularity(CheckHolder):
         elif vminor > 5:
             sing_vars["SINGULARITY_COMMAND"] = "exec"
             if vminor >= 7:
+                if vminor > 9:
+                    sing_vars["SINGULARITY_BIND"] = ""
+                else:
 
-                def BIND(v: str, env: Env) -> bool:
-                    return v.startswith(tmp_prefix) and v.endswith(":/tmp")
+                    def BIND(v: str, env: Env) -> bool:
+                        return v.startswith(tmp_prefix) and v.endswith(":/tmp")
 
-                sing_vars["SINGULARITY_BIND"] = BIND
+                    sing_vars["SINGULARITY_BIND"] = BIND
 
         result.update(sing_vars)
 

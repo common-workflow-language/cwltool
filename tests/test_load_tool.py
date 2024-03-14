@@ -1,5 +1,7 @@
 """Tests for cwltool.load_tool."""
+
 import logging
+import urllib.parse
 from pathlib import Path
 
 import pytest
@@ -15,7 +17,7 @@ from cwltool.utils import CWLObjectType
 
 from .util import get_data
 
-configure_logging(_logger.handlers[-1], False, True, True, True)
+configure_logging(_logger.handlers[-1], False, False, True, True, True)
 _logger.setLevel(logging.DEBUG)
 
 
@@ -86,7 +88,7 @@ def test_load_graph_fragment_from_packed() -> None:
     loadingContext = LoadingContext()
     uri = Path(get_data("tests/wf/packed-with-loadlisting.cwl")).as_uri() + "#main"
     try:
-        with open(get_data("cwltool/extensions.yml")) as res:
+        with open(get_data("extensions.yml")) as res:
             use_custom_schema("v1.0", "http://commonwl.org/cwltool", res.read())
 
         # The updater transforms LoadListingRequirement from an
@@ -133,17 +135,17 @@ def test_import_tracked() -> None:
 
     loadingContext = LoadingContext({"fast_parser": True})
     tool = load_tool(get_data("tests/wf/811-12.cwl"), loadingContext)
-    path = "import:file://%s" % get_data("tests/wf/schemadef-type.yml")
+    path = f"import:file://{get_data('tests/wf/schemadef-type.yml')}"
+    path2 = f"import:file://{urllib.parse.quote(get_data('tests/wf/schemadef-type.yml'))}"
 
     assert tool.doc_loader is not None
-    assert path in tool.doc_loader.idx
+    assert path in tool.doc_loader.idx or path2 in tool.doc_loader.idx
 
     loadingContext = LoadingContext({"fast_parser": False})
     tool = load_tool(get_data("tests/wf/811.cwl"), loadingContext)
-    path = "import:file://%s" % get_data("tests/wf/schemadef-type.yml")
 
     assert tool.doc_loader is not None
-    assert path in tool.doc_loader.idx
+    assert path in tool.doc_loader.idx or path2 in tool.doc_loader.idx
 
 
 def test_load_badhints() -> None:

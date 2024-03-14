@@ -1,6 +1,7 @@
 $base: http://commonwl.org/cwltool#
 $namespaces:
   cwl: "https://w3id.org/cwl/cwl#"
+  cwltool: "http://commonwl.org/cwltool#"
 $graph:
 - $import: https://w3id.org/cwl/CommonWorkflowLanguage.yml
 
@@ -239,4 +240,21 @@ $graph:
         - Specify the desired method of dealing with loop outputs
         - Default. Propagates only the last computed element to the subsequent steps when the loop terminates.
         - Propagates a single array with all output values to the subsequent steps when the loop terminates.
-
+- name: ShmSize
+  type: record
+  extends: cwl:ProcessRequirement
+  inVocab: false
+  fields:
+    class:
+      type: string
+      doc: 'cwltool:ShmSize'
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    shmSize:
+      type: string
+      doc: |
+        Size of /dev/shm. The format is `<number><unit>`. <number> must be greater
+        than 0. Unit is optional and can be `b` (bytes), `k` (kilobytes), `m`
+        (megabytes), or `g` (gigabytes). If you omit the unit, the default is
+        bytes. If you omit the size entirely, the value is `64m`."

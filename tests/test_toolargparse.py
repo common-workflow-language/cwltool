@@ -180,7 +180,7 @@ def test_dont_require_inputs(tmp_path: Path) -> None:
 
 
 def test_argparser_with_doc() -> None:
-    """The `desription` field is set if `doc` field is provided."""
+    """The `description` field is set if `doc` field is provided."""
     loadingContext = LoadingContext()
     tool = load_tool(get_data("tests/with_doc.cwl"), loadingContext)
     p = argparse.ArgumentParser()
@@ -189,7 +189,7 @@ def test_argparser_with_doc() -> None:
 
 
 def test_argparser_without_doc() -> None:
-    """The `desription` field is None if `doc` field is not provided."""
+    """The `description` field is None if `doc` field is not provided."""
     loadingContext = LoadingContext()
     tool = load_tool(get_data("tests/without_doc.cwl"), loadingContext)
     p = argparse.ArgumentParser()
