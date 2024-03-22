@@ -29,7 +29,7 @@ from ..job import CommandLineJob, JobBase
 from ..loghandler import _logger
 from ..process import Process, shortname
 from ..stdfsaccess import StdFsAccess
-from ..utils import CWLObjectType, JobsType, posix_path, versionstring
+from ..utils import CWLObjectType, JobsType, posix_path, versionstring, get_listing
 from ..workflow_job import WorkflowJob
 from . import provenance_constants
 from .provenance_constants import (
@@ -414,9 +414,12 @@ class ProvenanceProfile:
         # FIXME: .listing might not be populated yet - hopefully
         # a later call to this method will sort that
         is_empty = True
-
+        
+        # get loadlisting 
         # if "listing" not in value:
-        #     get_listing(self.fsaccess, value)
+        ll = value.get("loadListing") 
+        if ll and ll != "no_listing":
+            get_listing(self.fsaccess, value, (ll == "deep_listing"))
         for entry in cast(MutableSequence[CWLObjectType], value.get("listing", [])):
             is_empty = False
             # Declare child-artifacts
