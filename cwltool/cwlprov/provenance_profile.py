@@ -415,8 +415,7 @@ class ProvenanceProfile:
         # a later call to this method will sort that
         is_empty = True
         
-        # get loadlisting 
-        # if "listing" not in value:
+        # get loadlisting, and load the listing if not no_listing, recursively if deep_listing
         ll = value.get("loadListing") 
         if ll and ll != "no_listing":
             get_listing(self.fsaccess, value, (ll == "deep_listing"))
