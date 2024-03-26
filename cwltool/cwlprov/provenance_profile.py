@@ -244,7 +244,6 @@ class ProvenanceProfile:
             # record provenance of workflow executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
-            # Note to self: Listing goes ok here
             self.used_artefacts(customised_job, self.workflow_run_uri)
 
     def record_process_start(
