@@ -34,8 +34,8 @@ from typing import (
 
 import argcomplete
 import coloredlogs
+import requests
 import ruamel.yaml
-from importlib_resources import files
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
@@ -71,6 +71,7 @@ from .executors import JobExecutor, MultithreadedJobExecutor, SingleJobExecutor
 from .load_tool import (
     default_loader,
     fetch_document,
+    jobloader_id_name,
     jobloaderctx,
     load_overrides,
     make_tool,
@@ -105,10 +106,10 @@ from .update import ALLUPDATES, UPDATES
 from .utils import (
     DEFAULT_TMP_PREFIX,
     CWLObjectType,
-    CWLOutputAtomType,
     CWLOutputType,
     HasReqsHints,
     adjustDirObjs,
+    files,
     normalizeFilesDirs,
     processes_to_kill,
     trim_listing,
@@ -172,6 +173,14 @@ def _signal_handler(signum: int, _: Any) -> None:
     """
     _terminate_processes()
     sys.exit(signum)
+
+
+def append_word_to_default_user_agent(word: str) -> None:
+    """Append the specified word to the requests http user agent string if it's not already there."""
+    original_function = requests.utils.default_user_agent
+    suffix = f" {word}"
+    if not original_function().endswith(suffix):
+        requests.utils.default_user_agent = lambda *args: original_function(*args) + suffix
 
 
 def generate_example_input(
@@ -289,7 +298,7 @@ def realize_input_schema(
                 _, input_type_name = entry["type"].split("#")
                 if input_type_name in schema_defs:
                     entry["type"] = cast(
-                        CWLOutputAtomType,
+                        CWLOutputType,
                         realize_input_schema(
                             cast(
                                 MutableSequence[Union[str, CWLObjectType]],
@@ -300,7 +309,7 @@ def realize_input_schema(
                     )
             if isinstance(entry["type"], MutableSequence):
                 entry["type"] = cast(
-                    CWLOutputAtomType,
+                    CWLOutputType,
                     realize_input_schema(
                         cast(MutableSequence[Union[str, CWLObjectType]], entry["type"]),
                         schema_defs,
@@ -308,13 +317,13 @@ def realize_input_schema(
                 )
             if isinstance(entry["type"], Mapping):
                 entry["type"] = cast(
-                    CWLOutputAtomType,
+                    CWLOutputType,
                     realize_input_schema([cast(CWLObjectType, entry["type"])], schema_defs),
                 )
             if entry["type"] == "array":
                 items = entry["items"] if not isinstance(entry["items"], str) else [entry["items"]]
                 entry["items"] = cast(
-                    CWLOutputAtomType,
+                    CWLOutputType,
                     realize_input_schema(
                         cast(MutableSequence[Union[str, CWLObjectType]], items),
                         schema_defs,
@@ -322,7 +331,7 @@ def realize_input_schema(
                 )
             if entry["type"] == "record":
                 entry["fields"] = cast(
-                    CWLOutputAtomType,
+                    CWLOutputType,
                     realize_input_schema(
                         cast(MutableSequence[Union[str, CWLObjectType]], entry["fields"]),
                         schema_defs,
@@ -447,7 +456,7 @@ def init_job_order(
                 _logger.exception("Failed to resolv job_order: %s", cmd_line["job_order"])
                 exit(1)
         else:
-            job_order_object = {"id": args.workflow}
+            job_order_object = {jobloader_id_name: args.workflow}
 
         del cmd_line["job_order"]
 
@@ -507,7 +516,7 @@ def init_job_order(
             process.inputs_record_schema, job_order_object, discover_secondaryFiles=True
         )
         basedir: Optional[str] = None
-        uri = cast(str, job_order_object["id"])
+        uri = cast(str, job_order_object[jobloader_id_name])
         if uri == args.workflow:
             basedir = os.path.dirname(uri)
             uri = ""
@@ -530,8 +539,8 @@ def init_job_order(
 
     if "cwl:tool" in job_order_object:
         del job_order_object["cwl:tool"]
-    if "id" in job_order_object:
-        del job_order_object["id"]
+    if jobloader_id_name in job_order_object:
+        del job_order_object[jobloader_id_name]
     return job_order_object
 
 
@@ -612,7 +621,7 @@ def find_deps(
         nestdirs=nestdirs,
     )
     if sfs is not None:
-        deps["secondaryFiles"] = cast(MutableSequence[CWLOutputAtomType], mergedirs(sfs))
+        deps["secondaryFiles"] = cast(MutableSequence[CWLOutputType], mergedirs(sfs))
 
     return deps
 
@@ -683,8 +692,8 @@ ProvOut = Union[io.TextIOWrapper, WritableBagFile]
 
 def setup_provenance(
     args: argparse.Namespace,
-    argsl: List[str],
     runtimeContext: RuntimeContext,
+    argsl: Optional[List[str]] = None,
 ) -> Tuple[ProvOut, "logging.StreamHandler[ProvOut]"]:
     if not args.compute_checksum:
         _logger.error("--provenance incompatible with --no-compute-checksum")
@@ -982,6 +991,12 @@ def main(
     workflowobj = None
     prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
     global docker_exe
+
+    user_agent = "cwltool"
+    if user_agent not in (progname := os.path.basename(sys.argv[0])):
+        user_agent += f" {progname}"  # append the real program name as well
+    append_word_to_default_user_agent(user_agent)
+
     try:
         if args is None:
             if argsl is None:
@@ -1016,6 +1031,7 @@ def main(
 
         configure_logging(
             stderr_handler,
+            args.no_warnings,
             args.quiet,
             runtimeContext.debug,
             args.enable_color,
@@ -1051,10 +1067,8 @@ def main(
 
         prov_log_stream: Optional[Union[io.TextIOWrapper, WritableBagFile]] = None
         if args.provenance:
-            if argsl is None:
-                raise Exception("argsl cannot be None")
             try:
-                prov_log_stream, prov_log_handler = setup_provenance(args, argsl, runtimeContext)
+                prov_log_stream, prov_log_handler = setup_provenance(args, runtimeContext, argsl)
             except ArgumentException:
                 return 1
 
@@ -1137,7 +1151,7 @@ def main(
                 make_template(tool, stdout)
                 return 0
 
-            if args.validate:
+            if len(args.job_order) == 0 and args.validate:
                 print(f"{args.workflow} is valid CWL.", file=stdout)
                 return 0
 
@@ -1313,10 +1327,14 @@ def main(
                     use_biocontainers=args.beta_use_biocontainers,
                     container_image_cache_path=args.beta_dependencies_directory,
                 )
+            runtimeContext.validate_only = args.validate
+            runtimeContext.validate_stdout = stdout
 
             (out, status) = real_executor(
                 tool, initialized_job_order_object, runtimeContext, logger=_logger
             )
+            if runtimeContext.validate_only is True:
+                return 0
 
             if out is not None:
                 if runtimeContext.research_obj is not None:

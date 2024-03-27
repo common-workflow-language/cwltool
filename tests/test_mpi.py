@@ -1,4 +1,5 @@
 """Tests of the experimental MPI extension."""
+
 import json
 import os.path
 import sys
@@ -6,7 +7,6 @@ from io import StringIO
 from pathlib import Path
 from typing import Any, Generator, List, MutableMapping, Optional, Tuple
 
-import pkg_resources
 import pytest
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Names
@@ -19,6 +19,7 @@ from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
 from cwltool.mpi import MpiConfig, MPIRequirementName
+from cwltool.utils import files
 
 from .util import get_data, working_directory
 
@@ -281,12 +282,11 @@ def test_env_passing(monkeypatch: pytest.MonkeyPatch) -> None:
 # Reading the schema is super slow - cache for the session
 @pytest.fixture(scope="session")
 def schema_ext11() -> Generator[Names, None, None]:
-    with pkg_resources.resource_stream("cwltool", "extensions-v1.1.yml") as res:
-        ext11 = res.read().decode("utf-8")
-        cwltool.process.use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
-        schema = cwltool.process.get_schema("v1.1")[1]
-        assert isinstance(schema, Names)
-        yield schema
+    ext11 = files("cwltool").joinpath("extensions-v1.1.yml").read_text("utf-8")
+    cwltool.process.use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
+    schema = cwltool.process.get_schema("v1.1")[1]
+    assert isinstance(schema, Names)
+    yield schema
 
 
 mpiReq = CommentedMap({"class": MPIRequirementName, "processes": 1})

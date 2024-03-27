@@ -1,7 +1,6 @@
 sphinx >= 2.2
-sphinx-rtd-theme==1.2.1
+sphinx-rtd-theme==2.0.0
 sphinx-autoapi
 sphinx-autodoc-typehints
-typed_ast;python_version<'3.8'
 sphinxcontrib-autoprogram
-importlib_resources
+importlib_resources;python_version<'3.9'

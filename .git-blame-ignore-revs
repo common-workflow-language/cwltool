@@ -6,3 +6,6 @@
 
 # upgrade to black 23.1, longer lines (100)
 7fe8c0739b0515d00daabc7db87bc5fad926d345
+
+# upgrade to black 24
+80c9ec01b4602fc51ac1f53744f98df8baba3c31

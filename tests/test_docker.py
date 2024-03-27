@@ -1,11 +1,21 @@
 """Tests for docker engine."""
+
+import json
 import re
 from pathlib import Path
 from shutil import which
 
+import pytest
+
 from cwltool.main import main
 
-from .util import get_data, get_main_output, needs_docker
+from .util import (
+    get_data,
+    get_main_output,
+    needs_docker,
+    needs_podman,
+    needs_singularity,
+)
 
 
 @needs_docker
@@ -136,3 +146,138 @@ def test_docker_strict_memory_limit_warning(tmp_path: Path) -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert result_code == 0
     assert "Skipping Docker software container '--memory' limit" in stderr
+
+
+@needs_docker
+def test_docker_required_secfile(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/secondary-files-required-container.cwl"),
+        ]
+    )
+    assert result_code == 0, stderr
+    assert (
+        json.loads(stdout)["output"]["secondaryFiles"][0]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
+
+
+@needs_podman
+def test_podman_required_secfile(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--podman",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/secondary-files-required-container.cwl"),
+        ]
+    )
+    assert result_code == 0, stderr
+    assert (
+        json.loads(stdout)["output"]["secondaryFiles"][0]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
+
+
+@needs_singularity
+def test_singularity_required_secfile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    singularity_dir = tmp_path / "singularity"
+    singularity_dir.mkdir()
+    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
+
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--singularity",
+            "--outdir",
+            str(tmp_path / "out"),
+            get_data("tests/secondary-files-required-container.cwl"),
+        ]
+    )
+    assert result_code == 0, stderr
+    assert (
+        json.loads(stdout)["output"]["secondaryFiles"][0]["checksum"]
+        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+    )
+
+
+@needs_docker
+def test_docker_required_missing_secfile(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/secondary-files-required-missing-container.cwl"),
+        ]
+    )
+    assert result_code == 1, stderr
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Job error:" in stderr
+    assert "Error collecting output for parameter 'output'" in stderr
+    assert (
+        "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
+    )
+    assert "file.ext3" in stderr
+
+
+@needs_podman
+def test_podman_required_missing_secfile(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--podman",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/secondary-files-required-missing-container.cwl"),
+        ]
+    )
+    assert result_code == 1, stderr
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Job error:" in stderr
+    assert "Error collecting output for parameter 'output'" in stderr
+    assert (
+        "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
+    )
+    assert "file.ext3" in stderr
+
+
+@needs_singularity
+def test_singularity_required_missing_secfile(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    singularity_dir = tmp_path / "singularity"
+    singularity_dir.mkdir()
+    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--singularity",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/secondary-files-required-missing-container.cwl"),
+        ]
+    )
+    assert result_code == 1, stderr
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Job error:" in stderr
+    assert "Error collecting output for parameter 'output'" in stderr
+    assert (
+        "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
+    )
+    assert "file.ext3" in stderr
+
+
+@needs_docker
+def test_docker_shm_size(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--enable-ext",
+            "--default-container",
+            "docker.io/debian:stable-slim",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/wf/shm_size.cwl"),
+        ]
+    )
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert result_code == 0
+    assert "--shm-size=128m" in stderr

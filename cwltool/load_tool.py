@@ -43,12 +43,21 @@ from .process import Process, get_schema, shortname
 from .update import ALLUPDATES
 from .utils import CWLObjectType, ResolverType, visit_class
 
-jobloaderctx: ContextType = {
+docloaderctx: ContextType = {
     "cwl": "https://w3id.org/cwl/cwl#",
     "cwltool": "http://commonwl.org/cwltool#",
     "path": {"@type": "@id"},
     "location": {"@type": "@id"},
     "id": "@id",
+}
+
+jobloader_id_name = "__id"
+jobloaderctx: ContextType = {
+    "cwl": "https://w3id.org/cwl/cwl#",
+    "cwltool": "http://commonwl.org/cwltool#",
+    "path": {"@type": "@id"},
+    "location": {"@type": "@id"},
+    jobloader_id_name: "@id",
 }
 
 
@@ -72,7 +81,7 @@ def default_loader(
     doc_cache: bool = True,
 ) -> Loader:
     return Loader(
-        jobloaderctx,
+        docloaderctx,
         fetcher_constructor=fetcher_constructor,
         allow_attachments=lambda r: enable_dev,
         doc_cache=doc_cache,
@@ -379,9 +388,7 @@ def resolve_and_validate_document(
     loadingContext = loadingContext.copy()
 
     if not isinstance(workflowobj, MutableMapping):
-        raise ValueError(
-            "workflowjobj must be a dict, got '{}': {}".format(type(workflowobj), workflowobj)
-        )
+        raise ValueError(f"workflowjobj must be a dict, got {type(workflowobj)!r}: {workflowobj}")
 
     jobobj = None
     if "cwl:tool" in workflowobj:

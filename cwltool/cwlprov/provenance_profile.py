@@ -29,7 +29,7 @@ from ..job import CommandLineJob, JobBase
 from ..loghandler import _logger
 from ..process import Process, shortname
 from ..stdfsaccess import StdFsAccess
-from ..utils import CWLObjectType, JobsType, posix_path, versionstring
+from ..utils import CWLObjectType, JobsType, posix_path, versionstring, get_listing
 from ..workflow_job import WorkflowJob
 from . import provenance_constants
 from .provenance_constants import (
@@ -244,7 +244,6 @@ class ProvenanceProfile:
             # record provenance of workflow executions
             self.prospective_prov(job)
             customised_job = copy_job_order(job, job_order_object)
-            # Note to self: Listing goes ok here
             self.used_artefacts(customised_job, self.workflow_run_uri)
 
     def record_process_start(
@@ -414,9 +413,11 @@ class ProvenanceProfile:
         # FIXME: .listing might not be populated yet - hopefully
         # a later call to this method will sort that
         is_empty = True
-
-        # if "listing" not in value:
-        #     get_listing(self.fsaccess, value)
+        
+        # get loadlisting, and load the listing if not no_listing, recursively if deep_listing
+        ll = value.get("loadListing") 
+        if ll and ll != "no_listing":
+            get_listing(self.fsaccess, value, (ll == "deep_listing"))
         for entry in cast(MutableSequence[CWLObjectType], value.get("listing", [])):
             is_empty = False
             # Declare child-artifacts
@@ -505,7 +506,7 @@ class ProvenanceProfile:
             self.research_object.add_uri(entity.identifier.uri)
             return entity
 
-        if isinstance(value, (str, str)):
+        if isinstance(value, str):
             (entity, _) = self.declare_string(value)
             return entity
 

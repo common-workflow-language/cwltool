@@ -1,6 +1,6 @@
 Style guide:
 - PEP-8 (as implemented by the `black` code formatting tool)
-- Python 3.6+ compatible code
+- Python 3.8+ compatible code
 - PEP-484 type hints
 
 The development is done using `git`, we encourage you to get familiar with it.

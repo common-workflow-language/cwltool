@@ -1,4 +1,5 @@
 """Test the prototype loop extension."""
+
 import json
 from io import StringIO
 from typing import MutableMapping, MutableSequence
@@ -218,6 +219,19 @@ def test_loop_inside_scatter() -> None:
     ]
     main(params, stdout=stream)
     expected = {"o1": [10, 10, 10, 10, 10]}
+    assert json.loads(stream.getvalue()) == expected
+
+
+def test_scatter_inside_loop() -> None:
+    """Test a loop workflow with inside a scatter step."""
+    stream = StringIO()
+    params = [
+        "--enable-ext",
+        get_data("tests/loop/scatter-inside-loop.cwl"),
+        get_data("tests/loop/loop-inside-scatter-job.yml"),
+    ]
+    main(params, stdout=stream)
+    expected = {"o1": [10, 11, 12, 13, 14]}
     assert json.loads(stream.getvalue()) == expected
 
 

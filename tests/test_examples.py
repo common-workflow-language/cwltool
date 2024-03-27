@@ -6,6 +6,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import urllib.parse
 from io import StringIO
 from pathlib import Path
 from typing import Any, Dict, List, Union, cast
@@ -1324,6 +1325,28 @@ def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
     assert (tmp_path / "cwltool_cache" / "27903451fc1ee10c148a0bdeb845b2cf").exists()
 
 
+@pytest.mark.parametrize("factor", test_factors)
+def test_cache_default_literal_file(tmp_path: Path, factor: str) -> None:
+    """Confirm that running a CLT with a default literal file with caching succeeds."""
+    test_file = "tests/wf/extract_region_specs.cwl"
+    cache_dir = str(tmp_path / "cwltool_cache")
+    commands = factor.split()
+    commands.extend(
+        [
+            "--out",
+            str(tmp_path / "out"),
+            "--cachedir",
+            cache_dir,
+            get_data(test_file),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
+
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "completed success" in stderr
+    assert error_code == 0
+
+
 def test_write_summary(tmp_path: Path) -> None:
     """Test --write-summary."""
     commands = [
@@ -1473,7 +1496,9 @@ def test_bad_userspace_runtime(factor: str) -> None:
     )
     error_code, stdout, stderr = get_main_output(commands)
     stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "or quaquioN is missing or broken" in stderr, stderr
+    assert ("or quaquioN is missing or broken" in stderr) or (
+        "No such file or directory: 'quaquioN'" in stderr
+    ), stderr
     assert error_code == 1
 
 
@@ -1717,7 +1742,7 @@ def test_expression_tool_class() -> None:
     factory = cwltool.factory.Factory()
     tool_path = get_data("tests/wf/parseInt-tool.cwl")
     expression_tool = factory.make(tool_path).t
-    assert str(expression_tool) == f"ExpressionTool: file://{tool_path}"
+    assert urllib.parse.unquote(str(expression_tool)) == f"ExpressionTool: file://{tool_path}"
 
 
 def test_operation_class() -> None:
@@ -1725,7 +1750,7 @@ def test_operation_class() -> None:
     factory = cwltool.factory.Factory()
     tool_path = get_data("tests/wf/operation/abstract-cosifer.cwl")
     expression_tool = factory.make(tool_path).t
-    assert str(expression_tool) == f"AbstractOperation: file://{tool_path}"
+    assert urllib.parse.unquote(str(expression_tool)) == f"AbstractOperation: file://{tool_path}"
 
 
 def test_command_line_tool_class() -> None:
@@ -1733,7 +1758,7 @@ def test_command_line_tool_class() -> None:
     factory = cwltool.factory.Factory()
     tool_path = get_data("tests/echo.cwl")
     expression_tool = factory.make(tool_path).t
-    assert str(expression_tool) == f"CommandLineTool: file://{tool_path}"
+    assert urllib.parse.unquote(str(expression_tool)) == f"CommandLineTool: file://{tool_path}"
 
 
 def test_record_default_with_long(tmp_path: Path) -> None:
@@ -1839,3 +1864,33 @@ def test_very_small_and_large_floats() -> None:
     )
     assert exit_code == 0, stderr
     assert json.loads(stdout)["result"] == "0.00001 0.0000123 123000 1230000"
+
+
+def test_invalid_nested_array() -> None:
+    """Test feature proposed for CWL v1.3 in a CWL v1.2 document."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--validate",
+            get_data("tests/nested-array.cwl"),
+        ]
+    )
+    assert exit_code == 1, stderr
+    stderr = re.sub(r"\n\s+", " ", stderr)
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Tool definition failed validation:" in stderr
+    assert (
+        "tests/nested-array.cwl:6:5: Field 'type' references unknown identifier 'string[][]'"
+    ) in stderr
+
+
+def test_input_named_id() -> None:
+    """Confirm that it is valid to have an input named "id"."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--validate",
+            "--debug",
+            get_data("tests/wf/input_named_id.cwl"),
+            get_data("tests/wf/input_named_id.yaml"),
+        ]
+    )
+    assert exit_code == 0, stderr

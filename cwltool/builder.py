@@ -1,4 +1,5 @@
 """Command line builder."""
+
 import copy
 import logging
 import math
@@ -532,7 +533,7 @@ class Builder(HasReqsHints):
                                     "Reference, a single format string, or a list of "
                                     "format strings. But the list cannot contain CWL "
                                     "Expressions or CWL Parameter References. List "
-                                    f"entry number {index+1} contains the following "
+                                    f"entry number {index + 1} contains the following "
                                     "unallowed CWL Parameter Reference or Expression: "
                                     f"{entry!r}."
                                 )

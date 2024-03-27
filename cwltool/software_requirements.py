@@ -12,6 +12,7 @@ import os
 import string
 from typing import (
     TYPE_CHECKING,
+    Any,
     Dict,
     List,
     MutableMapping,
@@ -75,6 +76,8 @@ class DependenciesConfiguration:
             self.dependency_resolvers_config_file = None
         else:
             self.use_tool_dependencies = False
+        if self.tool_dependency_dir and not os.path.exists(self.tool_dependency_dir):
+            os.makedirs(self.tool_dependency_dir)
 
     def build_job_script(self, builder: "Builder", command: List[str]) -> str:
         ensure_galaxy_lib_available()
@@ -85,15 +88,15 @@ class DependenciesConfiguration:
         app_config = {
             "conda_auto_install": True,
             "conda_auto_init": True,
+            "debug": builder.debug,
         }
         tool_dependency_manager: "deps.DependencyManager" = deps.build_dependency_manager(
             app_config_dict=app_config,
             resolution_config_dict=resolution_config_dict,
             conf_file=self.dependency_resolvers_config_file,
         )
-        dependencies = get_dependencies(builder)
-        handle_dependencies = ""  # str
-        if dependencies:
+        handle_dependencies: str = ""
+        if dependencies := get_dependencies(builder):
             handle_dependencies = "\n".join(
                 tool_dependency_manager.dependency_shell_commands(
                     dependencies, job_directory=builder.tmpdir
@@ -107,7 +110,7 @@ class DependenciesConfiguration:
 
 def get_dependencies(builder: HasReqsHints) -> ToolRequirements:
     (software_requirement, _) = builder.get_requirement("SoftwareRequirement")
-    dependencies: List["ToolRequirement"] = []
+    dependencies: List[Union["ToolRequirement", Dict[str, Any]]] = []
     if software_requirement and software_requirement.get("packages"):
         packages = cast(
             MutableSequence[MutableMapping[str, Union[str, MutableSequence[str]]]],
@@ -156,7 +159,7 @@ def get_container_from_software_requirements(
             [DOCKER_CONTAINER_TYPE], tool_info
         )
         if container_description:
-            return cast(Optional[str], container_description.identifier)
+            return str(container_description.identifier)
 
     return None
 
