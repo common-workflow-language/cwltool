@@ -50,7 +50,7 @@ def arg_parser() -> argparse.ArgumentParser:
         "--parallel",
         action="store_true",
         default=False,
-        help="[experimental] Run jobs in parallel. ",
+        help="Run jobs in parallel. ",
     )
     envgroup = parser.add_mutually_exclusive_group()
     envgroup.add_argument(
@@ -448,8 +448,8 @@ def arg_parser() -> argparse.ArgumentParser:
         "--singularity",
         action="store_true",
         default=False,
-        help="[experimental] Use "
-        "Singularity runtime for running containers. "
+        help="Use "
+        "Singularity or Apptainer runtime for running containers. "
         "Requires Singularity v2.6.1+ and Linux with kernel "
         "version v3.18+ or with overlayfs support "
         "backported.",
@@ -458,7 +458,7 @@ def arg_parser() -> argparse.ArgumentParser:
         "--podman",
         action="store_true",
         default=False,
-        help="[experimental] Use " "Podman runtime for running containers. ",
+        help="Use Podman runtime for running containers. ",
     )
     dockergroup.add_argument(
         "--no-container",
