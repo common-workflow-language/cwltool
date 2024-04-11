@@ -498,7 +498,7 @@ class ResearchObject:
         """Copy intermediate? inputs to data/ folder."""
         # provenance_constants.DATA = "data/intermediate" # Change to that ???
         # TODO: This also copies the outputs?...
-        # TODO Skip if no-input or no-data is used...?
+        # TODO Skip if no-input or no-data is used
         self.self_check()
         tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
         if self.no_data:
@@ -610,7 +610,7 @@ class ResearchObject:
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                if self.data_option:
+                if self.no_data or self.no_input:
                     checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
                 else:
                     checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)

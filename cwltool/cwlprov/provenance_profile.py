@@ -29,7 +29,7 @@ from ..job import CommandLineJob, JobBase
 from ..loghandler import _logger
 from ..process import Process, shortname
 from ..stdfsaccess import StdFsAccess
-from ..utils import CWLObjectType, JobsType, posix_path, versionstring, get_listing
+from ..utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
 from ..workflow_job import WorkflowJob
 from . import provenance_constants
 from .provenance_constants import (

@@ -174,7 +174,7 @@ def checksum_only(
 ) -> str:
     """Calculate the checksum only, does not copy the data files."""
     if dst_file is not None:
-        _logger.error("Destination file should be None but it is %s", dst_file)
+        _logger.error("[Debug Checksum Only] Destination file should be None but it is %s", dst_file)
     """Compute checksums while copying a file."""
     # TODO: Use hashlib.new(Hasher_str) instead?
     checksum = hasher()
