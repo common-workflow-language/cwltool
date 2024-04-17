@@ -6,7 +6,7 @@ import pwd
 import re
 import uuid
 from getpass import getuser
-from typing import IO, Any, Callable, Dict, List, Optional, Tuple, TypedDict, Union
+from typing import IO, Any, Dict, List, Optional, Tuple, TypedDict, Union
 
 from cwltool.cwlprov.provenance_constants import Hasher
 
@@ -174,7 +174,9 @@ def checksum_only(
 ) -> str:
     """Calculate the checksum only, does not copy the data files."""
     if dst_file is not None:
-        _logger.error("[Debug Checksum Only] Destination file should be None but it is %s", dst_file)
+        _logger.error(
+            "[Debug Checksum Only] Destination file should be None but it is %s", dst_file
+        )
     """Compute checksums while copying a file."""
     # TODO: Use hashlib.new(Hasher_str) instead?
     checksum = hasher()

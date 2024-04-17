@@ -32,7 +32,7 @@ from ..stdfsaccess import StdFsAccess
 from ..utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
 from ..workflow_job import WorkflowJob
 from . import provenance_constants
-from .provenance_constants import (
+from .provenance_constants import (  # DATAX,
     ACCOUNT_UUID,
     CWLPROV,
     ENCODING,
@@ -48,7 +48,7 @@ from .provenance_constants import (
     UUID,
     WF4EVER,
     WFDESC,
-    WFPROV, DATAX,
+    WFPROV,
 )
 from .writablebagfile import create_job, write_bag_file  # change this later
 
@@ -305,7 +305,7 @@ class ProvenanceProfile:
             # TODO Input, intermediate or output file?...
             # if provenance_constants.DATA == 'data/input'
             if method == SHA1 and self.research_object.has_data_file(
-                provenance_constants.DATA, checksum # DATAX
+                provenance_constants.DATA, checksum  # DATAX
             ):
                 entity = self.document.entity("data:" + checksum)
 
@@ -413,9 +413,9 @@ class ProvenanceProfile:
         # FIXME: .listing might not be populated yet - hopefully
         # a later call to this method will sort that
         is_empty = True
-        
+
         # get loadlisting, and load the listing if not no_listing, recursively if deep_listing
-        ll = value.get("loadListing") 
+        ll = value.get("loadListing")
         if ll and ll != "no_listing":
             get_listing(self.fsaccess, value, (ll == "deep_listing"))
         for entry in cast(MutableSequence[CWLObjectType], value.get("listing", [])):
