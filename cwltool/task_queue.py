@@ -7,8 +7,8 @@ import queue
 import threading
 from typing import Callable, Optional
 
-from .loghandler import _logger
 from .errors import WorkflowKillSwitch
+from .loghandler import _logger
 
 
 class TaskQueue:

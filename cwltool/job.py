@@ -217,7 +217,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         runtime: list[str],
         env: MutableMapping[str, str],
         runtimeContext: RuntimeContext,
-        monitor_function: Optional[Callable[["subprocess.Popen[str]"], None]] = None,
+        monitor_function: Optional[
+            Callable[["subprocess.Popen[str]", threading.Event], None]
+        ] = None,
     ) -> None:
         """Execute the tool, either directly or via script.
 
@@ -319,6 +321,10 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             builder: Optional[Builder] = getattr(self, "builder", None)
             if builder is not None:
                 job_script_contents = builder.build_job_script(commands)
+            if runtimeContext.kill_switch is None:
+                runtimeContext.kill_switch = kill_switch = threading.Event()
+            else:
+                kill_switch = runtimeContext.kill_switch
             rcode = _job_popen(
                 commands,
                 stdin_path=stdin_path,
@@ -327,7 +333,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 env=env,
                 cwd=self.outdir,
                 make_job_dir=lambda: runtimeContext.create_outdir(),
-                kill_switch=runtimeContext.kill_switch,
+                kill_switch=kill_switch,
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
                 name=self.name,
@@ -533,7 +539,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             nonlocal ks_tm
             if kill_switch.is_set():
                 _logger.error("[job %s] terminating by kill switch", self.name)
-                if sproc.stdin: sproc.stdin.close()
+                if sproc.stdin:
+                    sproc.stdin.close()
                 sproc.terminate()
             else:
                 ks_tm = Timer(interval=1, function=monitor_kill_switch)

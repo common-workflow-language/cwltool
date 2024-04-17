@@ -468,7 +468,8 @@ class MultithreadedJobExecutor(JobExecutor):
                 self.wait_for_next_completion(runtime_context)
                 self.run_job(None, runtime_context)
         finally:
-            runtime_context.workflow_eval_lock.release()
+            if (lock := runtime_context.workflow_eval_lock) is not None:
+                lock.release()
             self.taskqueue.drain()
             self.taskqueue.join()
 
