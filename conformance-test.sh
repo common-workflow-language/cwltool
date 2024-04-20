@@ -13,15 +13,15 @@ venv() {
 }
 
 # Set these variables when running the script, e.g.:
-# VERSION=v1.2 GIT_TARGET=1.2.1_proposed CONTAINER=podman ./conformance_test.sh
+# VERSION=v1.2 GIT_TARGET=main CONTAINER=podman ./conformance_test.sh
 
 # Version of the standard to test against
 # Current options: v1.0, v1.1, v1.2
 VERSION=${VERSION:-"v1.2"}
 
 # Which commit of the standard's repo to use
-# Defaults to the last commit of the 1.2.1_proposed branch
-GIT_TARGET=${GIT_TARGET:-"1.2.1_proposed"}
+# Defaults to the last commit of the main branch
+GIT_TARGET=${GIT_TARGET:-"main"}
 
 # Which container runtime to use
 # Valid options: docker, singularity
