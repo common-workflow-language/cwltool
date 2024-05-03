@@ -12,7 +12,9 @@ from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
-from cwltool.utils import CWLObjectType
+from cwltool.utils import CWLObjectType, CONTENT_LIMIT, bytes2str_in_dicts
+from cwltool.builder import content_limit_respected_read
+from cwltool.errors import WorkflowException
 
 from .util import needs_docker
 
@@ -214,3 +216,25 @@ def test_clt_returns_specialchar_names(tmp_path: Path) -> None:
         result["location"]
         == "keep:ae755cd1b3cff63152ff4200f4dea7e9+52/%3A%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D"
     )
+
+
+def test_content_limit_respected_read() -> None:
+    b1 = b"abcd" * 100
+    b1io = BytesIO(b1)
+
+    assert(len(b1) < CONTENT_LIMIT)
+    assert(content_limit_respected_read(b1io) == str("abcd" * 100))
+
+    b2 = b"abcd" * 20000
+    b2io = BytesIO(b2)
+
+    assert(len(b2) > CONTENT_LIMIT)
+    with pytest.raises(WorkflowException):
+        content_limit_respected_read(b2io)
+
+def test_bytes2str_in_dicts() -> None:
+    d1 = {"foo": b"bar"}
+
+    d2 = bytes2str_in_dicts(d1)
+
+    assert(d2 == {"foo": "bar"})
