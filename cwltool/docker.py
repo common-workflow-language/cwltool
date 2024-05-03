@@ -116,10 +116,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if (docker_image_id := docker_requirement.get("dockerImageId")) is not None:
             try:
                 manifest = json.loads(
-                    subprocess.check_output(
-                        [self.docker_exec, "inspect", docker_image_id]
-                    ).decode(  # nosec
-                        "utf-8"
+                    str(
+                        subprocess.check_output(
+                            [self.docker_exec, "inspect", docker_image_id]
+                        ),  # nosec
+                        "utf-8",
                     )
                 )
                 found = manifest is not None
