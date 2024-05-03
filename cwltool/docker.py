@@ -117,7 +117,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             try:
                 manifest = json.loads(
                     str(
-                        subprocess.check_output([self.docker_exec, "inspect", docker_image_id]),
+                        subprocess.check_output([self.docker_exec, "inspect", docker_image_id]), # nosec
                         "utf-8",
                     )
                 )
