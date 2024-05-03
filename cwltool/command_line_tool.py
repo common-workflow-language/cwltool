@@ -1369,8 +1369,8 @@ class CommandLineTool(Process):
                     else:
                         if binding.get("loadContents"):
                             with fs_access.open(cast(str, rfile["location"]), "rb") as f:
-                                files["contents"] = content_limit_respected_read_bytes(f).decode(
-                                    "utf-8"
+                                files["contents"] = str(
+                                    content_limit_respected_read_bytes(f), "utf-8"
                                 )
                         if compute_checksum:
                             with fs_access.open(cast(str, rfile["location"]), "rb") as f:
