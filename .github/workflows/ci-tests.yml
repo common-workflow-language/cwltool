@@ -266,7 +266,7 @@ jobs:
 
   macos:
     name: Test on macos-latest
-    runs-on: macos-latest
+    runs-on: macos-13  # not latest, that is now an Apple Silicon M1, for which seqtk is not yet built on bioconda
     env:
       TOXENV: py312-unit
     steps:
