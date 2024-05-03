@@ -234,8 +234,8 @@ def test_content_limit_respected_read() -> None:
 
 
 def test_bytes2str_in_dicts() -> None:
-    d1 = {"foo": b"bar"}
+    assert bytes2str_in_dicts({"foo": b"bar"}) == {"foo": "bar"}
 
-    d2 = bytes2str_in_dicts(d1)
+    assert bytes2str_in_dicts({"foo": [b"bar"]}) == {"foo": ["bar"]}
 
-    assert d2 == {"foo": "bar"}
+    assert bytes2str_in_dicts({"foo": {"foo2": b"bar"}}) == {"foo": {"foo2": "bar"}}
