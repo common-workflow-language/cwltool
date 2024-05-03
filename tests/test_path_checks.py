@@ -222,19 +222,20 @@ def test_content_limit_respected_read() -> None:
     b1 = b"abcd" * 100
     b1io = BytesIO(b1)
 
-    assert(len(b1) < CONTENT_LIMIT)
-    assert(content_limit_respected_read(b1io) == str("abcd" * 100))
+    assert len(b1) < CONTENT_LIMIT
+    assert content_limit_respected_read(b1io) == str("abcd" * 100)
 
     b2 = b"abcd" * 20000
     b2io = BytesIO(b2)
 
-    assert(len(b2) > CONTENT_LIMIT)
+    assert len(b2) > CONTENT_LIMIT
     with pytest.raises(WorkflowException):
         content_limit_respected_read(b2io)
+
 
 def test_bytes2str_in_dicts() -> None:
     d1 = {"foo": b"bar"}
 
     d2 = bytes2str_in_dicts(d1)
 
-    assert(d2 == {"foo": "bar"})
+    assert d2 == {"foo": "bar"}
