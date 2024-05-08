@@ -168,6 +168,64 @@ def test_dockerfile_tmpdir_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert (subdir / "Dockerfile").exists()
 
 
+@needs_docker
+def test_dockerfile_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Test that DockerCommandLineJob.get_image builds a Dockerfile."""
+    (tmp_path / "out").mkdir()
+    tmp_outdir_prefix = tmp_path / "out" / "1"
+    (tmp_path / "3").mkdir()
+    tmpdir_prefix = str(tmp_path / "3" / "ttmp")
+    runtime_context = RuntimeContext(
+        {"tmpdir_prefix": tmpdir_prefix, "user_space_docker_cmd": None}
+    )
+    builder = Builder(
+        {},
+        [],
+        [],
+        {},
+        schema.Names(),
+        [],
+        [],
+        {},
+        None,
+        None,
+        StdFsAccess,
+        StdFsAccess(""),
+        None,
+        0.1,
+        False,
+        False,
+        False,
+        "no_listing",
+        runtime_context.get_outdir(),
+        runtime_context.get_tmpdir(),
+        runtime_context.get_stagedir(),
+        INTERNAL_VERSION,
+        "docker",
+    )
+
+    docker_image_id = sys._getframe().f_code.co_name
+
+    assert DockerCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_image(
+        {
+            "class": "DockerRequirement",
+            "dockerFile": "FROM debian:stable-slim",
+            "dockerImageId": docker_image_id,
+        },
+        pull_image=False,
+        force_pull=False,
+        tmp_outdir_prefix=str(tmp_outdir_prefix),
+    )
+    output = subprocess.check_output(
+        ["docker", "images", "--quiet", docker_image_id], stderr=subprocess.STDOUT, text=True
+    )
+
+    # If the output is empty, the image doesn't exist
+    assert output.strip(), f"Docker image {docker_image_id} does not exist"
+
+
 @needs_singularity
 def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Test that SingularityCommandLineJob.get_image builds a Dockerfile with Singularity."""
