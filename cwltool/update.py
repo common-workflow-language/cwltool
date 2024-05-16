@@ -104,10 +104,19 @@ def v1_0to1_1(
                 if cls in rewrite:
                     r["class"] = rewrite[cls]
         if "hints" in t:
-            for r in cast(MutableSequence[CWLObjectType], t["hints"]):
-                cls = cast(str, r["class"])
-                if cls in rewrite:
-                    r["class"] = rewrite[cls]
+            for index, r in enumerate(cast(MutableSequence[CWLObjectType], t["hints"])):
+                if isinstance(r, MutableMapping):
+                    if "class" not in r:
+                        raise SourceLine(r, None, ValidationException).makeError(
+                            "'hints' entry missing required key 'class'."
+                        )
+                    cls = cast(str, r["class"])
+                    if cls in rewrite:
+                        r["class"] = rewrite[cls]
+                else:
+                    raise SourceLine(t["hints"], index, ValidationException).makeError(
+                        f"'hints' entries must be dictionaries: {type(r)} {r}."
+                    )
         if "steps" in t:
             for s in cast(MutableSequence[CWLObjectType], t["steps"]):
                 rewrite_requirements(s)
