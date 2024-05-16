@@ -8,8 +8,6 @@
 
 **Avro**: https://avro.apache.org/docs/1.8.1/spec.html
 
-**Uniform Resource Identifier (URI) Generic Syntax**: https://tools.ietf.org/html/rfc3986)
-
 **Internationalized Resource Identifiers (IRIs)**:
 https://tools.ietf.org/html/rfc3987
 
@@ -101,6 +99,13 @@ preprocessing steps described in the
 [Semantic Annotations for Linked Avro Data (SALAD) Specification](SchemaSalad.html).
 An implementation may formally validate the structure of a CWL document using
 SALAD schemas located at https://github.com/common-workflow-language/cwl-v1.2/
+
+The official IANA media-type for CWL documents is [`application/cwl`](https://www.iana.org/assignments/media-types/application/cwl)
+for either JSON or YAML format. For JSON formatted CWL documents,
+[`application/cwl+json`](https://www.iana.org/assignments/media-types/application/cwl+json)
+can be used. For specifying a YAML formatted CWL document, one can use
+`application/cwl+yaml` but that is not an official IANA media-type yet; as of
+2023-07-23 the `+yaml` suffix has yet to be approved.
 
 CWL documents commonly reference other CWL documents.  Each document
 must declare the `cwlVersion` of that document.  Implementations must
@@ -287,7 +292,7 @@ Note: The `map<…>` (compact) versions are optional for users, the verbose opti
 always allowed, but for presentation reasons option 3 and 2 may be preferred
 by human readers. Consumers of CWL must support all three options.
 
-The normative explanation for these variations, aimed at implementors, is in the
+The normative explanation for these variations, aimed at implementers, is in the
 [Schema Salad specification](SchemaSalad.html#Identifier_maps).
 
 ## Identifiers
@@ -309,7 +314,8 @@ An implementation must resolve [$import](SchemaSalad.html#Import) and
 
 Another transformation defined in Schema salad is simplification of data type definitions.
 Type `<T>` ending with `?` should be transformed to `[<T>, "null"]`.
-Type `<T>` ending with `[]` should be transformed to `{"type": "array", "items": <T>}`
+Type `<T>` ending with `[]` should be transformed to `{"type": "array", "items": <T>}`.
+This simplification should be applied recursively.
 
 ## Extensions and metadata
 
@@ -445,7 +451,7 @@ a [`cwl:tool`](#Executing_CWL_documents_as_scripts) entry) or by any other means
 1. Perform any further setup required by the specific process type.
 1. Execute the process.
 1. Capture results of process execution into the output object.
-1. Validate the output object against the `outputs` schema for the process.
+1. Validate the output object against the `outputs` schema for the process (with the exception of ExpressionTool outputs, which are always considered valid).
 1. Report the output object to the process caller.
 
 ## Requirements and hints

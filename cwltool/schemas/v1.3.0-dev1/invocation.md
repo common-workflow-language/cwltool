@@ -169,9 +169,9 @@ path within the output directory.  It is an error for "path" to refer
 outside the output directory.
 
 Similarly, if a File or Directory "cwl.output.json" contains
-`location`, it is resolved as relative reference URI with a base URI
+`location`, it is resolved as relative reference IRI with a base IRI
 representing the output directory.  If `location` contains some other
-absolute URI with a scheme supported by the implementation, the
+absolute IRI with a scheme supported by the implementation, the
 implementation may choose to accept it.
 
 If both `path` and `location` are provided on a File or Directory in

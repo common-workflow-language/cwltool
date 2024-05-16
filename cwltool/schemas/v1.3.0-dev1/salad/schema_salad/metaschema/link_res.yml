@@ -2,7 +2,7 @@
   ## Link resolution
 
   The schema may designate one or more fields as link fields that reference other
-  objects.  Processing must resolve links to either absolute URIs using the
+  objects.  Processing must resolve links to absolute URIs using the
   following rules:
 
   * If a reference URI is prefixed with `#` it is a relative

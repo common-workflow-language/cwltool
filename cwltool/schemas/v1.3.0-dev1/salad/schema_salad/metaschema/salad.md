@@ -2,13 +2,15 @@
 
 Author:
 
-* Peter Amstutz <peter.amstutz@curii.com>, Arvados Project, Curii Corporation
+* Peter Amstutz <peter.amstutz@curii.com>, Curii Corporation
 
 Contributors:
 
 * The developers of Apache Avro
 * The developers of JSON-LD
 * Nebojša Tijanić <nebojsa.tijanic@sbgenomics.com>, Seven Bridges Genomics
+* Michael R. Crusoe, ELIXIR-DE
+* Iacopo Colonnelli, University of Torino
 
 # Abstract
 
@@ -86,6 +88,49 @@ specification, the following changes have been made:
   is poorly documented, not included in conformance testing,
   and not widely supported.
 
+## Introduction to v1.2
+
+This is the fourth version of the Schema Salad specification. It was created to
+ease the development of extensions to CWL v1.2. The only change is that
+inherited records can narrow the types of fields if those fields are re-specified
+with a matching jsonldPredicate.
+
+### Changelog for v1.2.1
+
+There are no new features nor behavior changes in Schema Salad v1.2.1
+as compared to Schema-Salad v1.2. Schema Salad v1.2.1 only fixes typos and adds
+clarifications.
+
+* The `salad` directory's contents have been trimmed to the bare necessities.
+  The `salad/README.rst` has been refreshed from the [upstream repository](https://github.com/common-workflow-language/schema_salad/).
+* The [existing behaviour of `$import`](#Import) has been clarified.
+  If the `$import` node is in an array and the import operation yields an
+  array, it is flattened to the parent array. Otherwise the `$import`
+  node is replaced in the document structure by the object or array yielded
+  from the import operation. An [additional example](#import_example2)
+  has been added to illustrate this better.
+* A pair of missing brackets was added to the [Type DSL Example](#Type_DSL_example)'s
+  example input.
+* Missing newlines have been added to the [identifier map example](#Identifier_map_example)'s
+  example source and example result.
+* [Inherited fields in Salad types](#SaladRecordSchema) may be re-specified
+  to narrow their type and/or to override the `doc` field.
+* Clarify that fields with `jsonldPredicate: { _type: "@id" }` indicate that the
+  field is a [link fields](#SaladRecordSchema) and that if the `jsonldPredicate`
+  also has the field `identity` with the value `true`, then field is
+  resolved with [identifier resolution](#Identifier_resolution).
+  Otherwise the field is resolved with [link resolution](#Link_resolution).
+
+## Introduction to v1.3
+
+This is the fifth version of the Schema Salad specification. It was created to
+enhance code generation by representing CWL data types as specific Python objects
+(instead of  relying on the generic `Any` type). The following changes have been made:
+
+* Support for the Avro `map` schema
+* Add named versions of the `map` and `union` Avro types
+* Support for nested named `union` type definitions
+
 ## References to Other Specifications
 
 **Javascript Object Notation (JSON)**: http://json.org
@@ -139,7 +184,7 @@ enable or disable the behavior described.
 ## Data concepts
 
 An **object** is a data structure equivalent to the "object" type in JSON,
-consisting of an unordered set of name/value pairs (referred to here as
+consisting of a unordered set of name/value pairs (referred to here as
 **fields**) and where the name is a string and the value is a string, number,
 boolean, array, or object.
 
@@ -248,8 +293,11 @@ rules:
   field.
 
   * If the value of `jsonldPredicate` is an object, and that
-  object contains the field `_type` with the value `@id`, the field is a
-  link field subject to [link validation](#Link_validation).
+  object contains the field `_type` with the value `@id`, the
+  field is a link field.  If the field `jsonldPredicate` also
+  has the field `identity` with the value `true`, the field is
+  resolved with [identifier resolution](#Identifier_resolution).
+  Otherwise it is resolved with [link resolution](#Link_resolution).
 
   * If the value of `jsonldPredicate` is an object which contains the
   field `_type` with the value `@vocab`, the field value is subject to

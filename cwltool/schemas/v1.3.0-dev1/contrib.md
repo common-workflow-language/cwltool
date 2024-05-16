@@ -1,5 +1,6 @@
 Authors:
 
+This specification is a draft, and has not yet been approved as an official CWL standard.
 
 Contributors to v1.3.0-dev1:
 

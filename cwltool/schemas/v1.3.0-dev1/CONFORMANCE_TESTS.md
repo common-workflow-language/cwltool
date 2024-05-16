@@ -144,7 +144,7 @@ We will use this single entry to explain the format
      Must include one or more of the following tags: `command_line_tool`, `expression_tool` or `workflow`.
      If the test does not test any optional features, the tag `required` is required.
 
-Because `conformance_tests.yaml` is a `schema-salad` processed document, [`$import`](https://www.commonwl.org/v1.2/SchemaSalad.html#Import)
+Because `conformance_tests.yaml` is a `schema-salad` processed document, [`$import`](https://www.commonwl.org/v1.3/SchemaSalad.html#Import)
 can be used to organize the tests into separate files.
 
 Currently, the main file is too big (over 3400 lines); we are slowly re-organizing it.
@@ -166,7 +166,7 @@ At any level, if there is an extra field, then that will be considered an error.
 An exception to this is `class: File` and `class: Directory` objects, the `cwl-runner` under test can add additional fields here without causing a test to fail.
 Likewise, if you don't want to test some aspect of a `class: File` or `class: Directory` object (like `nameext`) you can just omit it.
 
-[According to the CWL standards](https://www.commonwl.org/v1.2/CommandLineTool.html#File), the format of the `location` field in 
+[According to the CWL standards](https://www.commonwl.org/v1.3/CommandLineTool.html#File), the format of the `location` field in 
 `class: File` and `class: Directory` is implementation specific and we should not be testing them.
 Please remember to use `location: Any` for them.
 
@@ -181,7 +181,9 @@ Likewise, please do not test the `path` for `class: File` and `class: Directory`
 
 To add a new conformance test:
 1. Ensure the CWL document you have tests the desired feature or aspect.
-2. All `CommandLineTool`s need a software container (via `DockerRequirement`) for better reproducibility, preferably under `hints`.
+2. The `cwlVersion` should be the latest version (`cwlVersion: v1.2`), unless
+   testing the mixing of versions as in the `tests/mixed-versions` directory.
+3. All `CommandLineTool`s need a software container (via `DockerRequirement`) for better reproducibility, preferably under `hints`.
      Please limit your container usage to the following: 
      - `dockerPull: docker.io/alpine:latest`
      - `dockerPull: docker.io/bash:4.4`
@@ -189,9 +191,9 @@ To add a new conformance test:
      - `dockerPull: docker.io/python:3-slim`
 4. Run your test using the CWL reference runner (`cwltool`) or another CWL runner
      that shows the correct behavior to collect the output, or confirm that validation/execution fails as expected
-3. Add the CWL document and output object to the subdirectory `tests` in this repository.
-4. Fill out a new entry in [conformance_tests.yaml](conformance_tests.yaml) following the [format of the conformance test file](#format-of-the-conformance-test-file)
-5. Send a pull request to [current staging branch for the next revision of the CWL standards](https://github.com/common-workflow-language/cwl-v1.2/tree/1.2.1_proposed) 
+5. Add the CWL document and output object to the subdirectory `tests` in this repository.
+6. Fill out a new entry in [conformance_tests.yaml](conformance_tests.yaml) following the [format of the conformance test file](#format-of-the-conformance-test-file)
+7. Send a pull request to [current staging branch for the next revision of the CWL standards](https://github.com/common-workflow-language/cwl-v1.2/tree/1.2.1_proposed) 
      with your changes
 
 ## Tags for conformance tests

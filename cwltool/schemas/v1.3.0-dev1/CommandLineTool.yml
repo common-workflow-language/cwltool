@@ -1,4 +1,4 @@
-saladVersion: v1.1
+saladVersion: v1.3
 $base: "https://w3id.org/cwl/cwl#"
 
 $namespaces:
@@ -42,14 +42,20 @@ $graph:
       This specification represents the latest development version from the
       CWL group.
 
-      ## Changelog
+      Documents should use `cwlVersion: v1.3.0-dev1` to make use of new
+      syntax and features introduced in v1.3.0-dev1.  Existing v1.2 documents
+      should be trivially updatable by changing `cwlVersion`, however
+      CWL documents that relied on previously undefined or
+      underspecified behavior may have slightly different behavior in
+      v1.3.0-dev1.
 
+      ## Changelog for v1.3.0-dev1
 
       See also the [CWL Workflow Description, v1.3.0-dev1 changelog](Workflow.html#Changelog).
       For other changes since CWL v1.0, see the
       [CWL Command Line Tool Description, v1.1 changelog](https://www.commonwl.org/v1.1/CommandLineTool.html#Changelog)
       and
-      [CWL Command Line Tool Description, v1.2 changelog](https://www.commonwl.org/v1.2/CommandLineTool.html#Changelog).
+      [CWL Command Line Tool Description, v1.2.1 changelog](https://www.commonwl.org/v1.2/CommandLineTool.html#Changelog).
 
       ## Purpose
 
@@ -483,7 +489,7 @@ $graph:
         type: File
         streamable: true
 
-    stdin: ${inputs.an_input_name.path}
+    stdin: $(inputs.an_input_name.path)
     ```
 
 - name: stdout
@@ -1081,7 +1087,7 @@ $graph:
     Modify the behavior of CommandLineTool to generate a single string
     containing a shell command line.  Each item in the `arguments` list must
     be joined into a string separated by single spaces and quoted to prevent
-    intepretation by the shell, unless `CommandLineBinding` for that argument
+    interpretation by the shell, unless `CommandLineBinding` for that argument
     contains `shellQuote: false`.  If `shellQuote: false` is specified, the
     argument is joined into the command string without quoting, which allows
     the use of shell metacharacters such as `|` for pipes.
@@ -1159,7 +1165,7 @@ $graph:
         do not exceed the capacity of the node.
 
         Processes sharing a core must have the same level of isolation
-        (typically a container or VM) that they would normally.
+        (typically a container or VM) that they would normally have.
 
         The reported number of CPU cores reserved for the process,
         which is available to expressions on the CommandLineTool as

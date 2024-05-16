@@ -1,7 +1,10 @@
-# Common Workflow Language Standards, v1.2
+# Common Workflow Language Standards, v1.3.0-dev1
+
+This is an un-official, non-ratified, development version of the future CWL v1.3
+standard. Any changes from v1.2 could be modified before final ratification.
 
 The [User Guide](http://www.commonwl.org/user_guide/) provides a gentle
-introduction to writing CWL command line tools and workflows. Currently the CWL User Guide targets CWL v1.0 only.
+introduction to writing CWL command line tools and workflows.
 
 The CWL [Command Line Tool Description Standard](CommandLineTool.html)
 specifies the document schema and execution semantics for wrapping and

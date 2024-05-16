@@ -16,8 +16,9 @@ document must be the URI used to retrieve the imported document.  If the
 `$import` URI includes a document fragment, the fragment must be excluded
 from the base URI used to preprocess the imported document.
 
-Once loaded and processed, the `$import` node is replaced in the document
-structure by the object or array yielded from the import operation.
+If the `$import` node is in an array and the import operation yields an array,
+it is flattened to the parent array. Otherwise the `$import` node is replaced
+in the document structure by the object or array yielded from the import operation.
 
 URIs may reference document fragments which refer to specific an object in
 the target document.  This indicates that the `$import` node must be
@@ -26,7 +27,7 @@ replaced by only the object with the appropriate fragment identifier.
 It is a fatal error if an import directive refers to an external resource
 or resource fragment which does not exist or is not accessible.
 
-### Import example
+### Import example: replacing the `$import` node
 
 import.json:
 ```
@@ -57,6 +58,38 @@ This becomes:
       "hello": "world"
     }
   }
+}
+```
+
+### Import example: flattening the `$import`ed array
+
+import.json:
+```
+[ "hello", "world" ]
+```
+
+parent.json:
+```
+{
+  "form": [
+    "bar",
+    {
+      "$import": "import.json"
+    }
+  ]
+}
+
+```
+
+This becomes:
+
+```
+{
+  "form": [
+    "bar",
+    "hello",
+    "world"
+  ]
 }
 ```
 

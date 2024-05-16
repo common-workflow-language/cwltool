@@ -125,6 +125,7 @@ supportedProcessRequirements = [
 ]
 
 cwl_files = (
+    "Base.yml",
     "Workflow.yml",
     "CommandLineTool.yml",
     "CommonWorkflowLanguage.yml",

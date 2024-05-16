@@ -154,7 +154,7 @@ $graph:
         then finally `#foo`.  The first valid URI in the search order shall be
         used as the fully resolved value of the identifier.  The value of the
         refScope field is the specified number of levels from the containing
-        identifer scope before starting the search, so if `refScope: 2` then
+        identifier scope before starting the search, so if `refScope: 2` then
         "baz" and "bar" must be stripped to get the base `#foo` and search
         `#foo/foo` and the `#foo`.  The last scope searched must be the top
         level scope before determining if the identifier cannot be resolved.
@@ -274,6 +274,7 @@ $graph:
       doc: |
         If true, indicates that the type is a valid at the document root.  At
         least one type in a schema must be tagged with `documentRoot: true`.
+      jsonldPredicate: sld:documentRoot
 
 
 - name: SaladRecordField
@@ -309,7 +310,8 @@ $graph:
       type: boolean?
       doc: |
         If true, this record is abstract and may be used as a base for other
-        records, but is not valid on its own.
+        records, but is not valid on its own. Inherited fields may be
+        re-specified to narrow their type.
 
     - name: extends
       type:
@@ -321,7 +323,7 @@ $graph:
         refScope: 1
       doc: |
         Indicates that this record inherits fields from one or more base records.
-
+        Inherited fields may be re-specified to narrow their type.
     - name: specialize
       type:
         - SpecializeDef[]?
@@ -355,6 +357,31 @@ $graph:
         Indicates that this enum inherits symbols from a base enum.
 
 
+- name: SaladMapSchema
+  docParent: "#Schema"
+  type: record
+  extends: [NamedType, MapSchema, SchemaDefinedType]
+  documentRoot: true
+  doc: |
+    Define a map type.
+
+
+- name: SaladUnionSchema
+  docParent: "#Schema"
+  type: record
+  extends: [NamedType, UnionSchema, DocType]
+  documentRoot: true
+  doc: |
+    Define a union type.
+  fields:
+    - name: documentRoot
+      type: boolean?
+      doc: |
+        If true, indicates that the type is a valid at the document root.  At
+        least one type in a schema must be tagged with `documentRoot: true`.
+      jsonldPredicate: sld:documentRoot
+
+
 - name: Documentation
   type: record
   docParent: "#Schema"
@@ -368,6 +395,7 @@ $graph:
       doc: "Must be `documentation`"
       type:
         type: enum
+        name: Documentation_name
         symbols:
           - "sld:documentation"
       jsonldPredicate:
