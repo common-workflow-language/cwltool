@@ -106,6 +106,7 @@ class ResearchObject:
         return f"ResearchObject <{self.ro_uuid}> in <{self.folder}>"
 
     def _initialize(self) -> None:
+        """Initialize the bagit folder structure."""
         for research_obj_folder in (
             METADATA,
             DATA,
@@ -359,6 +360,7 @@ class ResearchObject:
         return uri
 
     def _ro_annotations(self) -> List[Annotation]:
+        """Append base RO and provenance annotations to the list of annotations."""
         annotations: List[Annotation] = []
         annotations.append(
             {
@@ -414,6 +416,7 @@ class ResearchObject:
 
     def _authored_by(self) -> Optional[AuthoredBy]:
         authored_by: AuthoredBy = {}
+        """Returns the authoredBy metadata if it was supplied on CLI"""
         if self.orcid:
             authored_by["orcid"] = self.orcid
         if self.full_name:
@@ -542,6 +545,7 @@ class ResearchObject:
                 checksum_file.write(line)
 
     def _add_to_bagit(self, rel_path: str, **checksums: str) -> None:
+        """Computes file size and checksums and adds to bagit manifest."""
         if PurePosixPath(rel_path).is_absolute():
             raise ValueError(f"rel_path must be relative: {rel_path}")
         lpath = os.path.join(self.folder, local_path(rel_path))
