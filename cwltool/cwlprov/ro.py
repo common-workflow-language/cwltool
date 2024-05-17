@@ -545,7 +545,7 @@ class ResearchObject:
                 checksum_file.write(line)
 
     def _add_to_bagit(self, rel_path: str, **checksums: str) -> None:
-        """Computes file size and checksums and adds to bagit manifest."""
+        """Compute file size and checksums and adds to bagit manifest."""
         if PurePosixPath(rel_path).is_absolute():
             raise ValueError(f"rel_path must be relative: {rel_path}")
         lpath = os.path.join(self.folder, local_path(rel_path))
