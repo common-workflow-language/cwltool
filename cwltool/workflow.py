@@ -6,13 +6,11 @@ import random
 from typing import (
     Callable,
     Dict,
-    Iterable,
     List,
     Mapping,
     MutableMapping,
     MutableSequence,
     Optional,
-    Union,
     cast,
 )
 from uuid import UUID
@@ -33,7 +31,6 @@ from .loghandler import _logger
 from .process import Process, get_overrides, shortname
 from .utils import (
     CWLObjectType,
-    CWLOutputType,
     JobsGeneratorType,
     OutputCallbackType,
     StepType,
@@ -219,7 +216,7 @@ class WorkflowStep(Process):
                 if parent_req["class"] == step_req["class"]:
                     found_in_step = True
                     break
-            if not found_in_step and parent_req.get("class") != "http://commonwl.org/cwltool#Loop":
+            if not found_in_step:
                 loadingContext.requirements.append(parent_req)
         loadingContext.requirements.extend(
             cast(
@@ -404,16 +401,6 @@ class WorkflowStep(Process):
                 self.parent_wf = self.embedded_tool.parent_wf
             else:
                 self.parent_wf = self.prov_obj
-
-    def checkRequirements(
-        self,
-        rec: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType, None],
-        supported_process_requirements: Iterable[str],
-    ) -> None:
-        """Check the presence of unsupported requirements."""
-        supported_process_requirements = list(supported_process_requirements)
-        supported_process_requirements.append("http://commonwl.org/cwltool#Loop")
-        super().checkRequirements(rec, supported_process_requirements)
 
     def receive_output(
         self,

@@ -517,42 +517,33 @@ def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -
 
 
 def is_all_output_method_loop_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -> bool:
-    """Check if a step contains a http://commonwl.org/cwltool#Loop requirement with `all` outputMethod."""
+    """Check if a step contains a `loop` directive with `all` outputMethod."""
     source_step: Optional[MutableMapping[str, Any]] = param_to_step.get(parm_id)
     if source_step is not None:
-        for requirement in source_step.get("requirements", []):
-            if (
-                requirement["class"] == "http://commonwl.org/cwltool#Loop"
-                and requirement.get("outputMethod") == "all"
-            ):
-                return True
+        if source_step.get("loop") is not None and source_step.get("outputMethod") == "all":
+            return True
     return False
 
 
 def loop_checker(steps: Iterator[MutableMapping[str, Any]]) -> None:
     """
-    Check http://commonwl.org/cwltool#Loop requirement compatibility with other directives.
+    Check `loop` compatibility with other directives.
 
-    :raises ValidationException: If there is an incompatible combination between
-            cwltool:loop and 'scatter' or 'when'.
+    :raises ValidationException: If there is an incompatible combination between `loop` and `scatter`.
     """
     exceptions = []
     for step in steps:
-        requirements = {
-            **{h["class"]: h for h in step.get("hints", [])},
-            **{r["class"]: r for r in step.get("requirements", [])},
-        }
-        if "http://commonwl.org/cwltool#Loop" in requirements:
-            if "when" in step:
+        if "loop" in step:
+            if "when" not in step:
                 exceptions.append(
                     SourceLine(step, "id").makeError(
-                        "The `cwltool:Loop` clause is not compatible with the `when` directive."
+                        "The `when` clause is mandatory when the `loop` directive is defined."
                     )
                 )
             if "scatter" in step:
                 exceptions.append(
                     SourceLine(step, "id").makeError(
-                        "The `cwltool:Loop` clause is not compatible with the `scatter` directive."
+                        "The `loop` clause is not compatible with the `scatter` directive."
                     )
                 )
     if exceptions:

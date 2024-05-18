@@ -1,0 +1,38 @@
+- |
+  ## Domain Specific Language for types
+
+  Fields may be tagged `typeDSL: true` in `jsonldPredicate`.  If so, the field is expanded using the
+  following micro-DSL for schema salad types:
+
+  * If the type ends with a question mark `?`, the question mark is stripped off and the type is expanded to a union with `null`
+  * If the type ends with square brackets `[]` it is expanded to an array with items of the preceding type symbol
+  * The type may end with both square brackets with one question mark (`[]?`) to indicate it is an optional array.
+  * Identifier resolution is applied after type DSL expansion.
+
+  Starting with Schema Salad version 1.3, fields tagged with `typeDSL: true` in `jsonldPredicate` have the following additional behavior:
+
+  * Square brackes `[]` can be repeated to indicate 2, 3, or more dimensional array types.
+  * These multi-dimensional arrays, like 1-dimensional arrays, can be combined with `?` (for example, `[][]?`) to indicate that it is an optional multi-dimensional array.
+
+  ### Type DSL example
+
+  Given the following schema:
+
+  ```
+- $include: typedsl_res_schema.yml
+- |
+  ```
+
+  Process the following example:
+
+  ```
+- $include: typedsl_res_src.yml
+- |
+  ```
+
+  This becomes:
+
+  ```
+- $include: typedsl_res_proc.yml
+- |
+  ```

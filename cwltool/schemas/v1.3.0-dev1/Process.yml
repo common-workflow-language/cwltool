@@ -1,0 +1,677 @@
+saladVersion: v1.3
+$base: "https://w3id.org/cwl/cwl#"
+
+$namespaces:
+  cwl: "https://w3id.org/cwl/cwl#"
+  sld: "https://w3id.org/cwl/salad#"
+  rdfs: "http://www.w3.org/2000/01/rdf-schema#"
+
+$graph:
+
+- name: "Common Workflow Language, v1.3.0-dev1"
+  type: documentation
+  doc: {$include: concepts.md}
+
+- $import: "salad/schema_salad/metaschema/metaschema_base.yml"
+
+- $import: Base.yml
+
+- name: BaseTypesDoc
+  type: documentation
+  doc: |
+    ## Base types
+  docChild:
+    - "#CWLType"
+    - "#Process"
+
+- type: enum
+  name: CWLVersion
+  doc: "Version symbols for published CWL document versions."
+  symbols:
+    - cwl:draft-2
+    - cwl:draft-3.dev1
+    - cwl:draft-3.dev2
+    - cwl:draft-3.dev3
+    - cwl:draft-3.dev4
+    - cwl:draft-3.dev5
+    - cwl:draft-3
+    - cwl:draft-4.dev1
+    - cwl:draft-4.dev2
+    - cwl:draft-4.dev3
+    - cwl:v1.0.dev4
+    - cwl:v1.0
+    - cwl:v1.1.0-dev1   # a dash is required by the semver 2.0 rules
+    - cwl:v1.1
+    - cwl:v1.2.0-dev1
+    - cwl:v1.2.0-dev2
+    - cwl:v1.2.0-dev3
+    - cwl:v1.2.0-dev4
+    - cwl:v1.2.0-dev5
+    - cwl:v1.2
+    - cwl:v1.3.0-dev1
+
+- name: Labeled
+  type: record
+  abstract: true
+  fields:
+    - name: label
+      type:
+        - "null"
+        - string
+      jsonldPredicate: "rdfs:label"
+      doc: "A short, human-readable label of this object."
+
+
+- name: Identified
+  type: record
+  abstract: true
+  fields:
+    - name: id
+      type: string?
+      jsonldPredicate: "@id"
+      doc: "The unique identifier for this object."
+
+
+- name: LoadListingEnum
+  type: enum
+  symbols: [no_listing, shallow_listing, deep_listing]
+  doc:
+    - |
+      Specify the desired behavior for loading the `listing` field of
+      a Directory object for use by expressions.
+    - "no_listing: Do not load the directory listing."
+    - "shallow_listing: Only load the top level listing, do not recurse into subdirectories."
+    - "deep_listing: Load the directory listing and recursively load all subdirectories as well."
+
+
+- name: LoadContents
+  type: record
+  abstract: true
+  fields:
+    - name: loadContents
+      type: boolean?
+      jsonldPredicate: "cwl:loadContents"
+      doc: |
+        Only valid when `type: File` or is an array of `items: File`.
+
+        If true, the file (or each file in the array) must be a UTF-8
+        text file 64 KiB or smaller, and the implementation must read
+        the entire contents of the file (or file array) and place it
+        in the `contents` field of the File object for use by
+        expressions.  If the size of the file is greater than 64 KiB,
+        the implementation must raise a fatal error.
+
+    - name: loadListing
+      type: LoadListingEnum?
+      jsonldPredicate: "cwl:loadListing"
+      doc: |
+        Only valid when `type: Directory` or is an array of `items: Directory`.
+
+        Specify the desired behavior for loading the `listing` field of
+        a Directory object for use by expressions.
+
+        The order of precedence for loadListing is:
+
+          1. `loadListing` on an individual parameter
+          2. Inherited from `LoadListingRequirement`
+          3. By default: `no_listing`
+
+- name: FieldBase
+  type: record
+  extends: Labeled
+  abstract: true
+  fields:
+    secondaryFiles:
+      type:
+        - "null"
+        - SecondaryFileSchema
+        - type: array
+          items: SecondaryFileSchema
+      jsonldPredicate:
+        _id: "cwl:secondaryFiles"
+        secondaryFilesDSL: true
+      doc: |
+        Only valid when `type: File` or is an array of `items: File`.
+
+        Provides a pattern or expression specifying files or
+        directories that should be included alongside the primary
+        file.  Secondary files may be required or optional.  When not
+        explicitly specified, secondary files specified for `inputs`
+        are required and `outputs` are optional.  An implementation
+        must include matching Files and Directories in the
+        `secondaryFiles` property of the primary file.  These Files
+        and Directories must be transferred and staged alongside the
+        primary file.  An implementation may fail workflow execution
+        if a required secondary file does not exist.
+
+        If the value is an expression, the value of `self` in the expression
+        must be the primary input or output File object to which this binding
+        applies.  The `basename`, `nameroot` and `nameext` fields must be
+        present in `self`.  For `CommandLineTool` outputs the `path` field must
+        also be present.  The expression must return a filename string relative
+        to the path to the primary File, a File or Directory object with either
+        `path` or `location` and `basename` fields set, or an array consisting
+        of strings or File or Directory objects.  It is legal to reference an
+        unchanged File or Directory object taken from input as a secondaryFile.
+        The expression may return "null" in which case there is no secondaryFile
+        from that expression.
+
+        To work on non-filename-preserving storage systems, portable tool
+        descriptions should avoid constructing new values from `location`, but
+        should construct relative references using `basename` or `nameroot`
+        instead.
+
+        If a value in `secondaryFiles` is a string that is not an expression,
+        it specifies that the following pattern should be applied to the path
+        of the primary file to yield a filename relative to the primary File:
+
+          1. If string ends with `?` character, remove the last `?` and mark
+            the resulting secondary file as optional.
+          2. If string begins with one or more caret `^` characters, for each
+            caret, remove the last file extension from the path (the last
+            period `.` and all following characters).  If there are no file
+            extensions, the path is unchanged.
+          3. Append the remainder of the string to the end of the file path.
+
+    streamable:
+      type: boolean?
+      default: false
+      doc: |
+        Only valid when `type: File` or is an array of `items: File`.
+
+        A value of `true` indicates that the file is read or written
+        sequentially without seeking.  An implementation may use this flag to
+        indicate whether it is valid to stream file contents using a named
+        pipe.  Default: `false`.
+
+
+- name: InputFormat
+  type: record
+  abstract: true
+  fields:
+    format:
+      type:
+        - "null"
+        - string
+        - type: array
+          items: string
+        - Expression
+      jsonldPredicate:
+        _id: cwl:format
+        _type: "@id"
+        identity: true
+        noLinkCheck: true
+      doc: |
+        Only valid when `type: File` or is an array of `items: File`.
+
+        This must be one or more IRIs of concept nodes
+        that represents file formats which are allowed as input to this
+        parameter, preferably defined within an ontology.  If no ontology is
+        available, file formats may be tested by exact match.
+
+
+- name: OutputFormat
+  type: record
+  abstract: true
+  fields:
+    format:
+      type:
+        - "null"
+        - string
+        - Expression
+      jsonldPredicate:
+        _id: cwl:format
+        _type: "@id"
+        identity: true
+        noLinkCheck: true
+      doc: |
+        Only valid when `type: File` or is an array of `items: File`.
+
+        This is the file format that will be assigned to the output
+        File object.
+
+
+- name: Parameter
+  type: record
+  extends: [FieldBase, sld:Documented, Identified]
+  abstract: true
+  doc: |
+    Define an input or output parameter to a process.
+
+
+- type: enum
+  name: Expression
+  doc: |
+    'Expression' is not a real type.  It indicates that a field must allow
+    runtime parameter references.  If [InlineJavascriptRequirement](#InlineJavascriptRequirement)
+    is declared and supported by the platform, the field must also allow
+    Javascript expressions.
+  symbols:
+    - cwl:ExpressionPlaceholder
+
+
+- name: InputBinding
+  type: record
+  fields:
+    - name: loadContents
+      type:
+        - "null"
+        - boolean
+      jsonldPredicate: "cwl:loadContents"
+      doc: |
+        Use of `loadContents` in `InputBinding` is deprecated.
+        Preserved for v1.0 backwards compatibility.  Will be removed in
+        CWL v2.0.  Use `InputParameter.loadContents` instead.
+
+- name: IOSchema
+  extends: [Labeled, sld:Documented]
+  type: record
+  abstract: true
+  fields:
+    - name: name
+      type: string?
+      jsonldPredicate: "@id"
+      doc: "The identifier for this type"
+
+- name: InputSchema
+  extends: [IOSchema]
+  type: record
+  abstract: true
+
+- name: OutputSchema
+  extends: [IOSchema]
+  type: record
+  abstract: true
+
+
+- name: InputRecordField
+  type: record
+  extends: [CWLRecordField, FieldBase, InputFormat, LoadContents]
+  specialize:
+    - specializeFrom: CWLRecordSchema
+      specializeTo: InputRecordSchema
+    - specializeFrom: "sld:EnumSchema"
+      specializeTo: InputEnumSchema
+    - specializeFrom: CWLArraySchema
+      specializeTo: InputArraySchema
+    - specializeFrom: "sld:PrimitiveType"
+      specializeTo: CWLType
+
+
+- name: InputRecordSchema
+  type: record
+  extends: [CWLRecordSchema, InputSchema]
+  specialize:
+    - specializeFrom: CWLRecordField
+      specializeTo: InputRecordField
+
+
+- name: InputEnumSchema
+  type: record
+  extends: ["sld:EnumSchema", InputSchema]
+
+
+- name: InputArraySchema
+  type: record
+  extends: [CWLArraySchema, InputSchema]
+  specialize:
+    - specializeFrom: CWLRecordSchema
+      specializeTo: InputRecordSchema
+    - specializeFrom: "sld:EnumSchema"
+      specializeTo: InputEnumSchema
+    - specializeFrom: CWLArraySchema
+      specializeTo: InputArraySchema
+    - specializeFrom: "sld:PrimitiveType"
+      specializeTo: CWLType
+
+
+- name: OutputRecordField
+  type: record
+  extends: [CWLRecordField, FieldBase, OutputFormat]
+  specialize:
+    - specializeFrom: CWLRecordSchema
+      specializeTo: OutputRecordSchema
+    - specializeFrom: "sld:EnumSchema"
+      specializeTo: OutputEnumSchema
+    - specializeFrom: CWLArraySchema
+      specializeTo: OutputArraySchema
+    - specializeFrom: "sld:PrimitiveType"
+      specializeTo: CWLType
+
+
+- name: OutputRecordSchema
+  type: record
+  extends: [CWLRecordSchema, "#OutputSchema"]
+  docParent: "#OutputParameter"
+  specialize:
+    - specializeFrom: CWLRecordField
+      specializeTo: OutputRecordField
+
+
+- name: OutputEnumSchema
+  type: record
+  extends: ["sld:EnumSchema", OutputSchema]
+  docParent: "#OutputParameter"
+
+
+- name: OutputArraySchema
+  type: record
+  extends: [CWLArraySchema, OutputSchema]
+  docParent: "#OutputParameter"
+  specialize:
+    - specializeFrom: CWLRecordSchema
+      specializeTo: OutputRecordSchema
+    - specializeFrom: "sld:EnumSchema"
+      specializeTo: OutputEnumSchema
+    - specializeFrom: CWLArraySchema
+      specializeTo: OutputArraySchema
+    - specializeFrom: "sld:PrimitiveType"
+      specializeTo: CWLType
+
+
+- name: InputParameter
+  type: record
+  abstract: true
+  extends: [Parameter, InputFormat, LoadContents]
+  fields:
+    - name: default
+      type: CWLObjectType?
+      jsonldPredicate:
+        _id: "sld:default"
+        _container: "@list"
+        noLinkCheck: true
+      doc: |
+        The default value to use for this parameter if the parameter is missing
+        from the input object, or if the value of the parameter in the input
+        object is `null`.  Default values are applied before evaluating expressions
+        (e.g. dependent `valueFrom` fields).
+
+
+- name: OutputParameter
+  type: record
+  extends: [Parameter, OutputFormat]
+  abstract: true
+
+
+- type: record
+  name: ProcessRequirement
+  abstract: true
+  doc: |
+    A process requirement declares a prerequisite that may or must be fulfilled
+    before executing a process.  See [`Process.hints`](#process) and
+    [`Process.requirements`](#process).
+
+    Process requirements are the primary mechanism for specifying extensions to
+    the CWL core specification.
+
+
+- type: record
+  name: Process
+  extends: [Identified, Labeled, sld:Documented]
+  abstract: true
+  doc: |
+
+    The base executable type in CWL is the `Process` object defined by the
+    document.  Note that the `Process` object is abstract and cannot be
+    directly executed.
+
+  fields:
+    - name: id
+      type: string?
+      jsonldPredicate: "@id"
+      doc: |
+        The unique identifier for this object.
+
+        Only useful for `$graph` at `Process` level. Should not be exposed
+        to users in graphical or terminal user interfaces.
+    - name: inputs
+      type:
+        type: array
+        items: InputParameter
+      jsonldPredicate:
+        _id: "cwl:inputs"
+        mapSubject: id
+        mapPredicate: type
+      doc: |
+        Defines the input parameters of the process.  The process is ready to
+        run when all required input parameters are associated with concrete
+        values.  Input parameters include a schema for each parameter which is
+        used to validate the input object.  It may also be used to build a user
+        interface for constructing the input object.
+
+        When accepting an input object, all input parameters must have a value.
+        If an input parameter is missing from the input object, it must be
+        assigned a value of `null` (or the value of `default` for that
+        parameter, if provided) for the purposes of validation and evaluation
+        of expressions.
+
+    - name: outputs
+      type:
+        type: array
+        items: OutputParameter
+      jsonldPredicate:
+        _id: "cwl:outputs"
+        mapSubject: id
+        mapPredicate: type
+      doc: |
+        Defines the parameters representing the output of the process.  May be
+        used to generate and/or validate the output object.
+    - name: requirements
+      type: ProcessRequirement[]?
+      jsonldPredicate:
+        _id: "cwl:requirements"
+        mapSubject: class
+      doc: |
+        Declares requirements that apply to either the runtime environment or the
+        workflow engine that must be met in order to execute this process.  If
+        an implementation cannot satisfy all requirements, or a requirement is
+        listed which is not recognized by the implementation, it is a fatal
+        error and the implementation must not attempt to run the process,
+        unless overridden at user option.
+    - name: hints
+      type:
+        - "null"
+        - type: array
+          items: [ProcessRequirement, Any]
+      doc: |
+        Declares hints applying to either the runtime environment or the
+        workflow engine that may be helpful in executing this process.  It is
+        not an error if an implementation cannot satisfy all hints, however
+        the implementation may report a warning.
+      jsonldPredicate:
+        _id: cwl:hints
+        noLinkCheck: true
+        mapSubject: class
+    - name: cwlVersion
+      type: CWLVersion?
+      doc: |
+        CWL document version. Always required at the document root. Not
+        required for a Process embedded inside another Process.
+      jsonldPredicate:
+        "_id": "cwl:cwlVersion"
+        "_type": "@vocab"
+    - name: intent
+      type: string[]?
+      jsonldPredicate:
+        _type: "@id"
+        identity: true
+      doc: |
+        An identifier for the type of computational operation, of this Process.
+        Especially useful for [`Operation`](Workflow.html#Operation), but can also be used for
+        [`CommandLineTool`](CommandLineTool.html#CommandLineTool),
+        [`Workflow`](Workflow.html#Workflow), or [ExpressionTool](Workflow.html#ExpressionTool).
+
+        If provided, then this must be an IRI of a concept node that
+        represents the type of operation, preferably defined within an ontology.
+
+        For example, in the domain of bioinformatics, one can use an IRI from
+        the EDAM Ontology's [Operation concept nodes](http://edamontology.org/operation_0004),
+        like [Alignment](http://edamontology.org/operation_2928),
+        or [Clustering](http://edamontology.org/operation_3432); or a more
+        specific Operation concept like
+        [Split read mapping](http://edamontology.org/operation_3199).
+
+- name: InlineJavascriptRequirement
+  type: record
+  extends: ProcessRequirement
+  doc: |
+    Indicates that the workflow platform must support inline Javascript expressions.
+    If this requirement is not present, the workflow platform must not perform expression
+    interpolation.
+  fields:
+    - name: class
+      type:
+        type: enum
+        name: InlineJavascriptRequirement_class
+        symbols:
+          - cwl:InlineJavascriptRequirement
+      doc: "Always 'InlineJavascriptRequirement'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    - name: expressionLib
+      type: string[]?
+      doc: |
+        Additional code fragments that will also be inserted
+        before executing the expression code.  Allows for function definitions that may
+        be called from CWL expressions.
+
+
+- name: CommandInputSchema
+  type: record
+  abstract: true
+
+- name: SchemaDefRequirement
+  type: record
+  extends: ProcessRequirement
+  doc: |
+    This field consists of an array of type definitions which must be used when
+    interpreting the `inputs` and `outputs` fields.  When a `type` field
+    contains a IRI, the implementation must check if the type is defined in
+    `schemaDefs` and use that definition.  If the type is not found in
+    `schemaDefs`, it is an error.  The entries in `schemaDefs` must be
+    processed in the order listed such that later schema definitions may refer
+    to earlier schema definitions.
+
+    - **Type definitions are allowed for `enum` and `record` types only.**
+    - Type definitions may be shared by defining them in a file and then
+      `$include`-ing them in the `types` field.
+    - A file can contain a list of type definitions
+
+  fields:
+    - name: class
+      type:
+        type: enum
+        name: SchemaDefRequirement_class
+        symbols:
+          - cwl:SchemaDefRequirement
+      doc: "Always 'SchemaDefRequirement'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    - name: types
+      type:
+        type: array
+        items: CommandInputSchema
+      doc: The list of type definitions.
+
+- name: SecondaryFileSchema
+  type: record
+  fields:
+    - name: pattern
+      type:
+        - string
+        - Expression
+      doc: |
+        Provides a pattern or expression specifying files or directories that
+        should be included alongside the primary file.
+
+        If the value is an expression, the value of `self` in the
+        expression must be the primary input or output File object to
+        which this binding applies.  The `basename`, `nameroot` and
+        `nameext` fields must be present in `self`.  For
+        `CommandLineTool` inputs the `location` field must also be
+        present.  For `CommandLineTool` outputs the `path` field must
+        also be present.  If secondary files were included on an input
+        File object as part of the Process invocation, they must also
+        be present in `secondaryFiles` on `self`.
+
+        The expression must return either: a filename string relative
+        to the path to the primary File, a File or Directory object
+        (`class: File` or `class: Directory`) with either `location`
+        (for inputs) or `path` (for outputs) and `basename` fields
+        set, or an array consisting of strings or File or Directory
+        objects as previously described.
+
+        It is legal to use `location` from a File or Directory object
+        passed in as input, including `location` from secondary files
+        on `self`.  If an expression returns a File object with the
+        same `location` but a different `basename` as a secondary file
+        that was passed in, the expression result takes precedence.
+        Setting the basename with an expression this way affects the
+        `path` where the secondary file will be staged to in the
+        CommandLineTool.
+
+        The expression may return "null" in which case there is no
+        secondary file from that expression.
+
+        To work on non-filename-preserving storage systems, portable
+        tool descriptions should treat `location` as an
+        [opaque identifier](#opaque-strings) and avoid constructing new
+        values from `location`, but should construct relative references
+        using `basename` or `nameroot` instead, or propagate `location`
+        from defined inputs.
+
+        If a value in `secondaryFiles` is a string that is not an expression,
+        it specifies that the following pattern should be applied to the path
+        of the primary file to yield a filename relative to the primary File:
+
+          1. If string ends with `?` character, remove the last `?` and mark
+            the resulting secondary file as optional.
+          2. If string begins with one or more caret `^` characters, for each
+            caret, remove the last file extension from the path (the last
+            period `.` and all following characters).  If there are no file
+            extensions, the path is unchanged.
+          3. Append the remainder of the string to the end of the file path.
+    - name: required
+      type: ["null", boolean, Expression]
+      doc: |
+        An implementation must not fail workflow execution if `required` is
+        set to `false` and the expected secondary file does not exist.
+        Default value for `required` field is `true` for secondary files on
+        input and `false` for secondary files on output.
+  doc: |
+    Secondary files are specified using the following micro-DSL for secondary files:
+
+    * If the value is a string, it is transformed to an object with two fields
+      `pattern` and `required`
+    * By default, the value of `required` is `null`
+      (this indicates default behavior, which may be based on the context)
+    * If the value ends with a question mark `?` the question mark is
+      stripped off and the value of the field `required` is set to `False`
+    * The remaining value is assigned to the field `pattern`
+
+    For implementation details and examples, please see
+    [this section](SchemaSalad.html#Domain_Specific_Language_for_secondary_files)
+    in the Schema Salad specification.
+
+- name: LoadListingRequirement
+  type: record
+  extends: ProcessRequirement
+  doc: |
+    Specify the desired behavior for loading the `listing` field of
+    a Directory object for use by expressions.
+  fields:
+    class:
+      type:
+        type: enum
+        name: LoadListingRequirement_class
+        symbols:
+          - cwl:LoadListingRequirement
+      doc: "Always 'LoadListingRequirement'"
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    loadListing:
+      type: LoadListingEnum?
+      jsonldPredicate: "cwl:loadListing"
