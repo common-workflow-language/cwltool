@@ -128,7 +128,7 @@ setup(
         "rdflib >= 4.2.2, < 7.1.0",
         "shellescape >= 3.4.1, < 3.9",
         "schema-salad >= 8.4.20230426093816, < 9",
-        "prov == 1.5.1",
+        "prov == 2.0.0",
         "mypy-extensions",
         "psutil >= 5.6.6",
         "importlib_resources>=1.4;python_version<'3.9'",
