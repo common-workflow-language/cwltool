@@ -200,7 +200,7 @@ def bytes2str_in_dicts(
 
     # if value is bytes, return decoded string,
     elif isinstance(inp, bytes):
-        return inp.decode("utf-8")
+        return str(inp, "utf-8")
 
     # simply return elements itself
     return inp

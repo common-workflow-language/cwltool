@@ -204,7 +204,7 @@ jobs:
         env:
           VERSION: ${{ matrix.cwl-version }}
           CONTAINER: ${{ matrix.container }}
-          GIT_TARGET: ${{ matrix.cwl-version == 'v1.2' && '1.2.1_proposed' || 'main' }}
+          GIT_TARGET: main
           CWLTOOL_OPTIONS: ${{ matrix.cwl-version == 'v1.2' && '--relax-path-checks' || '' }} ${{ matrix.extras }}
         run: ./conformance-test.sh
       - name: Archive test results
@@ -266,7 +266,7 @@ jobs:
 
   macos:
     name: Test on macos-latest
-    runs-on: macos-latest
+    runs-on: macos-13  # not latest, that is now an Apple Silicon M1, for which seqtk is not yet built on bioconda
     env:
       TOXENV: py312-unit
     steps:

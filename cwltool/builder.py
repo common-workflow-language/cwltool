@@ -86,7 +86,7 @@ def content_limit_respected_read(f: IO[bytes]) -> str:
     :returns: the file contents
     :raises WorkflowException: if the file is too large
     """
-    return content_limit_respected_read_bytes(f).decode("utf-8")
+    return str(content_limit_respected_read_bytes(f), "utf-8")
 
 
 def substitute(value: str, replace: str) -> str:

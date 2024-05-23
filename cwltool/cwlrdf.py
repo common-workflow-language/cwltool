@@ -27,7 +27,7 @@ def printrdf(wflow: Process, ctx: ContextType, style: str) -> str:
     rdf = gather(wflow, ctx).serialize(format=style, encoding="utf-8")
     if not rdf:
         return ""
-    return rdf.decode("utf-8")
+    return str(rdf, "utf-8")
 
 
 def lastpart(uri: Any) -> str:
