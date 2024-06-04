@@ -235,6 +235,19 @@ def test_scatter_inside_loop() -> None:
     assert json.loads(stream.getvalue()) == expected
 
 
+def test_loop_opt_variable() -> None:
+    """Test a loop case with two variables but one is optional."""
+    stream = StringIO()
+    params = [
+        "--enable-ext",
+        get_data("tests/loop/opt-var-loop.cwl"),
+        get_data("tests/loop/single-var-loop-job.yml"),
+    ]
+    main(params, stdout=stream)
+    expected = {"o1": 10}
+    assert json.loads(stream.getvalue()) == expected
+
+
 def test_nested_loops() -> None:
     """Test a workflow with two nested loops."""
     stream = StringIO()
