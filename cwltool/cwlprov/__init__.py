@@ -6,7 +6,7 @@ import pwd
 import re
 import uuid
 from getpass import getuser
-from typing import IO, Any, Dict, List, Optional, Tuple, TypedDict, Union
+from typing import IO, Any, Callable, Dict, List, Optional, Tuple, TypedDict, Union
 
 from cwltool.cwlprov.provenance_constants import Hasher
 
@@ -139,17 +139,16 @@ class AuthoredBy(TypedDict, total=False):
 def checksum_copy(
     src_file: IO[Any],
     dst_file: Optional[IO[Any]] = None,
-    hasher=Hasher,  # type: Callable[[], hashlib._Hash]
+    hasher: Optional[str] = Hasher, 
     buffersize: int = 1024 * 1024,
 ) -> str:
     """Compute checksums while copying a file."""
-    # TODO: Use hashlib.new(Hasher_str) instead?
     if hasher:
-        checksum = hasher()
+        checksum = hashlib.new(hasher)
     else:
         from .provenance_constants import Hasher
 
-        checksum = Hasher()
+        checksum = hashlib.new(Hasher)
     contents = src_file.read(buffersize)
     if dst_file and hasattr(dst_file, "name") and hasattr(src_file, "name"):
         temp_location = os.path.join(os.path.dirname(dst_file.name), str(uuid.uuid4()))
@@ -169,7 +168,7 @@ def checksum_copy(
 def checksum_only(
     src_file: IO[Any],
     dst_file: Optional[IO[Any]] = None,
-    hasher=Hasher,  # type: Callable[[], hashlib._Hash]
+    hasher: Optional[str] = Hasher, 
     buffersize: int = 1024 * 1024,
 ) -> str:
     """Calculate the checksum only, does not copy the data files."""
@@ -178,10 +177,8 @@ def checksum_only(
             "[Debug Checksum Only] Destination file should be None but it is %s", dst_file
         )
     """Compute checksums while copying a file."""
-    # TODO: Use hashlib.new(Hasher_str) instead?
-    checksum = hasher()
+    checksum = hashlib.new(hasher)
     contents = src_file.read(buffersize)
-    # TODO Could be a function for both checksum_only and checksum_copy?
     return content_processor(contents, src_file, dst_file, checksum, buffersize)
 
 

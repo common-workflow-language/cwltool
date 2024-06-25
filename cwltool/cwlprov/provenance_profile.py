@@ -31,7 +31,7 @@ from ..process import Process, shortname
 from ..stdfsaccess import StdFsAccess
 from ..utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
 from ..workflow_job import WorkflowJob
-from . import provenance_constants
+# from . import provenance_constants
 from .provenance_constants import (  # DATAX,
     ACCOUNT_UUID,
     CWLPROV,
@@ -44,11 +44,16 @@ from .provenance_constants import (  # DATAX,
     SCHEMA,
     SHA1,
     SHA256,
+    Hasher,
     TEXT_PLAIN,
     UUID,
     WF4EVER,
     WFDESC,
     WFPROV,
+    DATA,
+    OUTPUT_DATA,
+    INPUT_DATA,
+    INTM_DATA,
 )
 from .writablebagfile import create_job, write_bag_file  # change this later
 
@@ -153,7 +158,7 @@ class ProvenanceProfile:
         #  https://tools.ietf.org/html/draft-thiemann-hash-urn-01
         # TODO: Change to nih:sha-256; hashes
         #  https://tools.ietf.org/html/rfc6920#section-7
-        self.document.add_namespace("data", "urn:hash::sha1:")
+        self.document.add_namespace("data", f"urn:hash::{Hasher}:")
         # Also needed for docker images
         self.document.add_namespace(SHA256, "nih:sha-256;")
 
@@ -303,12 +308,12 @@ class ProvenanceProfile:
             csum = cast(str, value["checksum"])
             (method, checksum) = csum.split("$", 1)
             # TODO Input, intermediate or output file?...
-            # if provenance_constants.DATA == 'data/input'
+            # if DATA == 'data/input'
             if method == SHA1 and self.research_object.has_data_file(
-                provenance_constants.DATA, checksum  # DATAX
+                DATA, checksum  # DATAX
             ):
                 entity = self.document.entity("data:" + checksum)
-
+        
         if not entity and "location" in value:
             location = str(value["location"])
             # If we made it here, we'll have to add it to the RO
@@ -645,7 +650,7 @@ class ProvenanceProfile:
     ) -> None:
         """Call wasGeneratedBy() for each output, copy the files into the RO."""
         # TODO: Change INPUT_DATA to OUTPUT_DATA?
-        provenance_constants.DATA = provenance_constants.OUTPUT_DATA
+        DATA = OUTPUT_DATA
 
         if isinstance(final_output, MutableSequence):
             for entry in final_output:
