@@ -292,7 +292,7 @@ def arg_parser() -> argparse.ArgumentParser:
         "--no-data",  # Maybe change to no-input and no-intermediate to ignore those kind of files?...
         default=False,
         action="store_true",
-        help="Disables the storage of input and output data files",
+        help="Disables the storage of input and output data files in provenence folder",
         dest="no_data",
     )
 
@@ -301,7 +301,7 @@ def arg_parser() -> argparse.ArgumentParser:
         "--no-input",  # Maybe change to no-input and no-intermediate to ignore those kind of files?...
         default=False,
         action="store_true",
-        help="Disables the storage of input data files",
+        help="Disables the storage of input data files in provenence folder",
         dest="no_input",
     )
 

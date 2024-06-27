@@ -45,7 +45,7 @@ from . import (
     checksum_only,
     provenance_constants,
 )
-from .provenance_constants import (  # DATAX,
+from .provenance_constants import (  
     ACCOUNT_UUID,
     CWLPROV_VERSION,
     ENCODING,
@@ -63,6 +63,9 @@ from .provenance_constants import (  # DATAX,
     UUID,
     WORKFLOW,
     Hasher,
+    INPUT_DATA,
+    INTM_DATA, # NOT USED
+    OUTPUT_DATA,
 )
 
 
@@ -102,8 +105,6 @@ class ResearchObject:
         self.no_data = no_data
         self.no_input = no_input
 
-        # TODO Fix...? Set the INPUT_DATA to default for input
-        # modify_data("data/inputs")
 
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
@@ -124,9 +125,9 @@ class ResearchObject:
         """Initialize the bagit folder structure."""
         for research_obj_folder in (
             METADATA,
-            provenance_constants.INPUT_DATA,
-            provenance_constants.INTM_DATA,
-            provenance_constants.OUTPUT_DATA,
+            INPUT_DATA,
+            INTM_DATA, # NOT POPULATED
+            OUTPUT_DATA,
             WORKFLOW,
             SNAPSHOT,
             PROVENANCE,
@@ -198,23 +199,14 @@ class ResearchObject:
             # adding checksums after closing.
             # Below probably OK for now as metadata files
             # are not too large..?
-            # x = provenance_constants.DATA
-            if self.no_input and provenance_constants.DATA == "data/input":
-                _logger.debug("NO INPUT DATA TO BE CAPTURED!!!")
 
-                checksums[SHA1] = checksum_only(tag_file, hasher=hashlib.sha1)
-                tag_file.seek(0)
-                checksums[SHA256] = checksum_only(tag_file, hasher=hashlib.sha256)
-                tag_file.seek(0)
-                checksums[SHA512] = checksum_only(tag_file, hasher=hashlib.sha512)
-            else:
-                checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
+            checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
 
-                tag_file.seek(0)
-                checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
+            tag_file.seek(0)
+            checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
 
-                tag_file.seek(0)
-                checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
+            tag_file.seek(0)
+            checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
 
         rel_path = posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
@@ -476,7 +468,7 @@ class ResearchObject:
                         else:
                             shutil.copy(filepath, path)
                         timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))
-                        self.add_tagfile(path, timestamp)
+                        self.add_tagfile(path, timestamp) # add snapshots as tag files to the RO
                     except PermissionError:
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
             elif key in ("secondaryFiles", "listing"):
@@ -495,48 +487,44 @@ class ResearchObject:
     def add_data_file(
         self,
         from_fp: IO[Any],
+        current_source: str = None, # source/destination of the incoming file, e.g. "data/input" or "data/output"
         timestamp: Optional[datetime.datetime] = None,
         content_type: Optional[str] = None,
     ) -> str:
-        """Copy intermediate? inputs to data/ folder."""
-        # provenance_constants.DATA = "data/intermediate" # Change to that ???
-        # TODO: This also copies the outputs?...
-        # TODO Skip if no-input or no-data is used
+        """Copy data files to data/ folder."""
+        # This also copies the outputs via declare_artefacts -> generate_output_prov
+        # Skip certain files if no-input or no-data is used
         self.self_check()
         tmp_dir, tmp_prefix = os.path.split(self.temp_prefix)
         if self.no_data:
             checksum = checksum_only(from_fp)
             # Create rel_path
-            folder = os.path.join(self.folder, provenance_constants.DATA, checksum[0:2])  # DATAX
-            path = os.path.join(folder, checksum)
-            # Relative posix path
-            rel_path = posix_path(os.path.relpath(path, self.folder))
-        elif self.no_input and provenance_constants.DATA == provenance_constants.INPUT_DATA:
-            checksum = checksum_only(from_fp)
-            # Create rel_path
-            folder = os.path.join(self.folder, provenance_constants.DATA, checksum[0:2])  # DATAX
+            folder = os.path.join(
+                self.folder, current_source, checksum[0:2]
+                )  
             path = os.path.join(folder, checksum)
             # Relative posix path
             rel_path = posix_path(os.path.relpath(path, self.folder))
         else:
+            # calculate checksum and copy file to a tmp location 
             with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
                 checksum = checksum_copy(from_fp, tmp)
                 folder = os.path.join(
-                    self.folder, provenance_constants.DATA, checksum[0:2]
-                )  # DATAX
+                    self.folder, current_source, checksum[0:2]
+                    )  
                 path = os.path.join(folder, checksum)
                 if not os.path.isdir(folder):
                     os.makedirs(folder)
                 # Only rename when neither no data and no input is used
                 os.rename(tmp.name, path)
-                _logger.debug("Renaming %s to %s", tmp.name, path)
+                _logger.debug("Renaming %s to %s", tmp.name, path) # path is still a temp dir but in "data/input/checksum last 2 digit/checksum"
 
                 # Relative posix path
                 rel_path = posix_path(os.path.relpath(path, self.folder))
 
                 # Register in bagit checksum
                 if Hasher == hashlib.sha1:
-                    self._add_to_bagit(rel_path, sha1=checksum)
+                    self._add_to_bagit(rel_path, sha1=checksum) # that is actually saving the file to the prov RO folder
                 else:
                     _logger.warning(
                         "[provenance] Unknown hash method %s for bagit manifest", Hasher
@@ -573,7 +561,7 @@ class ResearchObject:
         )
 
     def add_to_manifest(self, rel_path: str, checksums: Dict[str, str]) -> None:
-        """Add files to the research object manifest."""
+        """Add files to the research object manifest. Data files are added to manifest regardless of the state of no_data/no_input flags"""
         self.self_check()
         if PurePosixPath(rel_path).is_absolute():
             raise ValueError(f"rel_path must be relative: {rel_path}")
@@ -598,10 +586,13 @@ class ResearchObject:
                 checksum_file.write(line)
 
     def _add_to_bagit(self, rel_path: str, **checksums: str) -> None:
-        """Compute file size and checksums and adds to bagit manifest."""
+        """
+        Compute data file size and checksums and adds to bagit manifest.
+        NOTE: THIS IS WHERE DATAFILE COPYING REALLY HAPPENS WITH checksum_copy
+        """
         if PurePosixPath(rel_path).is_absolute():
             raise ValueError(f"rel_path must be relative: {rel_path}")
-        lpath = os.path.join(self.folder, local_path(rel_path))
+        lpath = os.path.join(self.folder, local_path(rel_path)) 
         if not os.path.exists(lpath):
             raise OSError(f"File {rel_path} does not exist within RO: {lpath}")
 
@@ -614,8 +605,9 @@ class ResearchObject:
             # ensure we always have sha1
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
-                # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
-                if self.no_data or self.no_input:
+                # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile? maybe slowing down the process a lot.
+                if self.no_input and os.path.commonprefix(
+                    [provenance_constants.INPUT_DATA, lpath]) == provenance_constants.INPUT_DATA:
                     checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
                 else:
                     checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
@@ -643,7 +635,7 @@ class ResearchObject:
                             f"Only SHA1 CWL checksums are currently supported: {structure}"
                         )
 
-                    if self.has_data_file(provenance_constants.DATA, checksum):  # DATAX
+                    if self.has_data_file(provenance_constants.INPUT_DATA, checksum): 
                         prefix = checksum[0:2]
                         relative_path = PurePosixPath("data/input") / prefix / checksum
 

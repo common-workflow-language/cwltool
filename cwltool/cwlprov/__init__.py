@@ -176,7 +176,6 @@ def checksum_only(
         _logger.error(
             "[Debug Checksum Only] Destination file should be None but it is %s", dst_file
         )
-    """Compute checksums while copying a file."""
     checksum = hashlib.new(hasher)
     contents = src_file.read(buffersize)
     return content_processor(contents, src_file, dst_file, checksum, buffersize)

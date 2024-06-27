@@ -32,7 +32,7 @@ from ..stdfsaccess import StdFsAccess
 from ..utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
 from ..workflow_job import WorkflowJob
 # from . import provenance_constants
-from .provenance_constants import (  # DATAX,
+from .provenance_constants import (  
     ACCOUNT_UUID,
     CWLPROV,
     ENCODING,
@@ -51,9 +51,8 @@ from .provenance_constants import (  # DATAX,
     WFDESC,
     WFPROV,
     DATA,
-    OUTPUT_DATA,
     INPUT_DATA,
-    INTM_DATA,
+    OUTPUT_DATA,
 )
 from .writablebagfile import create_job, write_bag_file  # change this later
 
@@ -117,6 +116,7 @@ class ProvenanceProfile:
             _logger.debug("[provenance] Creator Full name: %s", self.full_name)
         self.workflow_run_uuid = run_uuid or uuid.uuid4()
         self.workflow_run_uri = self.workflow_run_uuid.urn
+        self.current_data_source = INPUT_DATA # default to input data, now only INPUT_DATA and OUTPUT_DATA are possible values
         self.generate_prov_doc()
 
     def __str__(self) -> str:
@@ -124,7 +124,15 @@ class ProvenanceProfile:
         return f"ProvenanceProfile <{self.workflow_run_uri}> in <{self.research_object}>"
 
     def generate_prov_doc(self) -> Tuple[str, ProvDocument]:
-        """Add basic namespaces."""
+        """Generates a provenance document.
+
+        This method adds basic namespaces to the provenance document and records host provenance.
+        It also adds information about the cwltool version, namespaces for various entities,
+        and creates agents, activities, and associations to represent the workflow execution.
+
+        Returns:
+            A tuple containing the workflow run URI and the generated ProvDocument.
+        """
 
         def host_provenance(document: ProvDocument) -> None:
             """Record host provenance."""
@@ -307,18 +315,17 @@ class ProvenanceProfile:
         if "checksum" in value:
             csum = cast(str, value["checksum"])
             (method, checksum) = csum.split("$", 1)
-            # TODO Input, intermediate or output file?...
-            # if DATA == 'data/input'
+            # TODO intermediate file?...
             if method == SHA1 and self.research_object.has_data_file(
-                DATA, checksum  # DATAX
-            ):
+                self.current_data_source, checksum  
+                ):
                 entity = self.document.entity("data:" + checksum)
         
         if not entity and "location" in value:
             location = str(value["location"])
             # If we made it here, we'll have to add it to the RO
             with self.fsaccess.open(location, "rb") as fhandle:
-                relative_path = self.research_object.add_data_file(fhandle)
+                relative_path = self.research_object.add_data_file(fhandle, current_source = self.current_data_source)
                 # FIXME: This naively relies on add_data_file setting hash as filename
                 checksum = PurePath(relative_path).name
                 entity = self.document.entity("data:" + checksum, {PROV_TYPE: WFPROV["Artifact"]})
@@ -419,8 +426,8 @@ class ProvenanceProfile:
         # a later call to this method will sort that
         is_empty = True
 
-        # get loadlisting, and load the listing if not no_listing, recursively if deep_listing
-        ll = value.get("loadListing")
+        # get loadlisting, and populate the listing of value if not no_listing, recursively if deep_listing
+        ll = value.get("loadListing") 
         if ll and ll != "no_listing":
             get_listing(self.fsaccess, value, (ll == "deep_listing"))
         for entry in cast(MutableSequence[CWLObjectType], value.get("listing", [])):
@@ -485,7 +492,7 @@ class ProvenanceProfile:
     def declare_string(self, value: str) -> Tuple[ProvEntity, str]:
         """Save as string in UTF-8."""
         byte_s = BytesIO(str(value).encode(ENCODING))
-        data_file = self.research_object.add_data_file(byte_s, content_type=TEXT_PLAIN)
+        data_file = self.research_object.add_data_file(byte_s, current_source = self.current_data_source, content_type=TEXT_PLAIN)
         checksum = PurePosixPath(data_file).name
         # FIXME: Don't naively assume add_data_file uses hash in filename!
         data_id = f"data:{PurePosixPath(data_file).stem}"
@@ -518,7 +525,7 @@ class ProvenanceProfile:
         if isinstance(value, bytes):
             # If we got here then we must be in Python 3
             byte_s = BytesIO(value)
-            data_file = self.research_object.add_data_file(byte_s)
+            data_file = self.research_object.add_data_file(byte_s, current_source = self.current_data_source)
             # FIXME: Don't naively assume add_data_file uses hash in filename!
             data_id = f"data:{PurePosixPath(data_file).stem}"
             return self.document.entity(
@@ -649,8 +656,9 @@ class ProvenanceProfile:
         name: Optional[str],
     ) -> None:
         """Call wasGeneratedBy() for each output, copy the files into the RO."""
-        # TODO: Change INPUT_DATA to OUTPUT_DATA?
-        DATA = OUTPUT_DATA
+        # To save output data in ro.py add_data_file() method, use a var current_data_source to keep track of whether it's input or output (maybe intermediate in the future) data
+        # it is later injected to add_data_file() method to save the data in the correct folder, thus avoid changing the provenance_constants DATA
+        self.current_data_source = OUTPUT_DATA
 
         if isinstance(final_output, MutableSequence):
             for entry in final_output:
@@ -677,6 +685,7 @@ class ProvenanceProfile:
                 self.document.wasGeneratedBy(
                     entity, process_run_id, timestamp, None, {"prov:role": role}
                 )
+        # return current_data_source
 
     def prospective_prov(self, job: JobsType) -> None:
         """Create prospective prov recording as wfdesc prov:Plan."""
@@ -750,6 +759,7 @@ class ProvenanceProfile:
         # TODO: Also support other profiles than CWLProv, e.g. ProvOne
 
         # list of prov identifiers of provenance files
+        # prov_ids are file names prepared for provenance/RO files in metadata/provenance for each sub-workflow of main workflow
         prov_ids = []
 
         # https://www.w3.org/TR/prov-xml/

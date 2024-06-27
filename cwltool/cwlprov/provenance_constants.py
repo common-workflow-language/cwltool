@@ -19,8 +19,7 @@ CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.6.0"
 # Research Object folders
 METADATA = "metadata"
 # sub-folders for data
-DATA = "data/input"
-# DATAX = "data"
+DATA = "data"
 INPUT_DATA = "data/input"
 INTM_DATA = "data/intermediate"
 OUTPUT_DATA = "data/output"
