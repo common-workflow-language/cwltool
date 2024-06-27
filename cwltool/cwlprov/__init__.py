@@ -6,7 +6,7 @@ import pwd
 import re
 import uuid
 from getpass import getuser
-from typing import IO, Any, Callable, Dict, List, Optional, Tuple, TypedDict, Union
+from typing import IO, Any, Dict, List, Optional, Tuple, TypedDict, Union
 
 from cwltool.cwlprov.provenance_constants import Hasher
 
@@ -139,7 +139,7 @@ class AuthoredBy(TypedDict, total=False):
 def checksum_copy(
     src_file: IO[Any],
     dst_file: Optional[IO[Any]] = None,
-    hasher: Optional[str] = Hasher, 
+    hasher: Optional[str] = Hasher,
     buffersize: int = 1024 * 1024,
 ) -> str:
     """Compute checksums while copying a file."""
@@ -168,7 +168,7 @@ def checksum_copy(
 def checksum_only(
     src_file: IO[Any],
     dst_file: Optional[IO[Any]] = None,
-    hasher: Optional[str] = Hasher, 
+    hasher: Optional[str] = Hasher,
     buffersize: int = 1024 * 1024,
 ) -> str:
     """Calculate the checksum only, does not copy the data files."""

@@ -46,7 +46,9 @@ class WritableBagFile(FileIO):
             SHA512: hashlib.sha512(),
         }
         # Open file in Research Object folder
-        path = os.path.abspath(os.path.join(research_object.folder, local_path(rel_path)))
+        path = os.path.abspath(
+            os.path.join(research_object.folder, local_path(rel_path))
+        )
         if not path.startswith(os.path.abspath(research_object.folder)):
             raise ValueError("Path is outside Research Object: %s" % path)
         _logger.debug("[provenance] Creating WritableBagFile at %s.", path)
@@ -55,14 +57,14 @@ class WritableBagFile(FileIO):
     def write(self, b: Any) -> int:
         """Write some content to the Bag."""
         real_b = b if isinstance(b, (bytes, mmap, array)) else b.encode("utf-8")
-        total = 0 # to record the total bytes written
+        total = 0  # to record the total bytes written
         length = len(real_b)
         while total < length:
             ret = super().write(real_b)
             if ret:
                 total += ret
         for val in self.hashes.values():
-            val.update(real_b) # update hash with the written content
+            val.update(real_b)  # update hash with the written content
         return total
 
     def close(self) -> None:
@@ -238,7 +240,9 @@ def packed_workflow(research_object: "ResearchObject", packed: str) -> None:
 
 
 def create_job(
-    research_object: "ResearchObject", builder_job: CWLObjectType, is_output: bool = False
+    research_object: "ResearchObject",
+    builder_job: CWLObjectType,
+    is_output: bool = False,
 ) -> CWLObjectType:
     # TODO customise the file
     """Generate the new job object with RO specific relative paths."""

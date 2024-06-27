@@ -45,7 +45,7 @@ from . import (
     checksum_only,
     provenance_constants,
 )
-from .provenance_constants import (  
+from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV_VERSION,
     ENCODING,
@@ -64,7 +64,7 @@ from .provenance_constants import (
     WORKFLOW,
     Hasher,
     INPUT_DATA,
-    INTM_DATA, # NOT USED
+    INTM_DATA,  # NOT USED
     OUTPUT_DATA,
 )
 
@@ -105,7 +105,6 @@ class ResearchObject:
         self.no_data = no_data
         self.no_input = no_input
 
-
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
 
@@ -126,7 +125,7 @@ class ResearchObject:
         for research_obj_folder in (
             METADATA,
             INPUT_DATA,
-            INTM_DATA, # NOT POPULATED
+            INTM_DATA,  # NOT POPULATED
             OUTPUT_DATA,
             WORKFLOW,
             SNAPSHOT,
@@ -185,7 +184,9 @@ class ResearchObject:
         # get their name wrong!)
         document.actedOnBehalfOf(account, user)
 
-    def add_tagfile(self, path: str, timestamp: Optional[datetime.datetime] = None) -> None:
+    def add_tagfile(
+        self, path: str, timestamp: Optional[datetime.datetime] = None
+    ) -> None:
         """Add tag files to our research object."""
         self.self_check()
         checksums = {}
@@ -200,13 +201,13 @@ class ResearchObject:
             # Below probably OK for now as metadata files
             # are not too large..?
 
-            checksums[SHA1] = checksum_copy(tag_file, hasher=hashlib.sha1)
+            checksums[SHA1] = checksum_copy(tag_file, hasher=SHA1)
 
             tag_file.seek(0)
-            checksums[SHA256] = checksum_copy(tag_file, hasher=hashlib.sha256)
+            checksums[SHA256] = checksum_copy(tag_file, hasher=SHA256)
 
             tag_file.seek(0)
-            checksums[SHA512] = checksum_copy(tag_file, hasher=hashlib.sha512)
+            checksums[SHA512] = checksum_copy(tag_file, hasher=SHA512)
 
         rel_path = posix_path(os.path.relpath(path, self.folder))
         self.tagfiles.add(rel_path)
@@ -262,11 +263,16 @@ class ResearchObject:
                 extension = None
 
             mediatype: Optional[str] = media_types.get(extension, None)
-            conformsTo: Optional[Union[str, List[str]]] = conforms_to.get(extension, None)
+            conformsTo: Optional[Union[str, List[str]]] = conforms_to.get(
+                extension, None
+            )
             # TODO: Open CWL file to read its declared "cwlVersion", e.g.
             # cwlVersion = "v1.0"
 
-            if rel_path.startswith(posix_path(PROVENANCE)) and extension in prov_conforms_to:
+            if (
+                rel_path.startswith(posix_path(PROVENANCE))
+                and extension in prov_conforms_to
+            ):
                 if ".cwlprov" in rel_path:
                     # Our own!
                     conformsTo = [
@@ -321,7 +327,9 @@ class ResearchObject:
 
         for path in self.tagfiles:
             if not (
-                path.startswith(METADATA) or path.startswith(WORKFLOW) or path.startswith(SNAPSHOT)
+                path.startswith(METADATA)
+                or path.startswith(WORKFLOW)
+                or path.startswith(SNAPSHOT)
             ):
                 # probably a bagit file
                 continue
@@ -353,7 +361,9 @@ class ResearchObject:
         aggregates.extend(self._external_aggregates)
         return aggregates
 
-    def add_uri(self, uri: str, timestamp: Optional[datetime.datetime] = None) -> Aggregate:
+    def add_uri(
+        self, uri: str, timestamp: Optional[datetime.datetime] = None
+    ) -> Aggregate:
         self.self_check()
         aggr: Aggregate = {"uri": uri}
         aggr["createdOn"], aggr["createdBy"] = self._self_made(timestamp=timestamp)
@@ -467,8 +477,12 @@ class ResearchObject:
                             shutil.copytree(filepath, path)
                         else:
                             shutil.copy(filepath, path)
-                        timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))
-                        self.add_tagfile(path, timestamp) # add snapshots as tag files to the RO
+                        timestamp = datetime.datetime.fromtimestamp(
+                            os.path.getmtime(filepath)
+                        )
+                        self.add_tagfile(
+                            path, timestamp
+                        )  # add snapshots as tag files to the RO
                     except PermissionError:
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
             elif key in ("secondaryFiles", "listing"):
@@ -487,7 +501,7 @@ class ResearchObject:
     def add_data_file(
         self,
         from_fp: IO[Any],
-        current_source: str = None, # source/destination of the incoming file, e.g. "data/input" or "data/output"
+        current_source: str = None,  # source/destination of the incoming file, e.g. "data/input" or "data/output"
         timestamp: Optional[datetime.datetime] = None,
         content_type: Optional[str] = None,
     ) -> str:
@@ -499,32 +513,34 @@ class ResearchObject:
         if self.no_data:
             checksum = checksum_only(from_fp)
             # Create rel_path
-            folder = os.path.join(
-                self.folder, current_source, checksum[0:2]
-                )  
+            folder = os.path.join(self.folder, current_source, checksum[0:2])
             path = os.path.join(folder, checksum)
             # Relative posix path
             rel_path = posix_path(os.path.relpath(path, self.folder))
         else:
-            # calculate checksum and copy file to a tmp location 
-            with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
+            # calculate checksum and copy file to a tmp location
+            with tempfile.NamedTemporaryFile(
+                prefix=tmp_prefix, dir=tmp_dir, delete=False
+            ) as tmp:
                 checksum = checksum_copy(from_fp, tmp)
-                folder = os.path.join(
-                    self.folder, current_source, checksum[0:2]
-                    )  
+                folder = os.path.join(self.folder, current_source, checksum[0:2])
                 path = os.path.join(folder, checksum)
                 if not os.path.isdir(folder):
                     os.makedirs(folder)
                 # Only rename when neither no data and no input is used
                 os.rename(tmp.name, path)
-                _logger.debug("Renaming %s to %s", tmp.name, path) # path is still a temp dir but in "data/input/checksum last 2 digit/checksum"
+                _logger.debug(
+                    "Renaming %s to %s", tmp.name, path
+                )  # path is still a temp dir but in "data/input/checksum last 2 digit/checksum"
 
                 # Relative posix path
                 rel_path = posix_path(os.path.relpath(path, self.folder))
 
                 # Register in bagit checksum
                 if Hasher == hashlib.sha1:
-                    self._add_to_bagit(rel_path, sha1=checksum) # that is actually saving the file to the prov RO folder
+                    self._add_to_bagit(
+                        rel_path, sha1=checksum
+                    )  # that is actually saving the file to the prov RO folder
                 else:
                     _logger.warning(
                         "[provenance] Unknown hash method %s for bagit manifest", Hasher
@@ -561,7 +577,7 @@ class ResearchObject:
         )
 
     def add_to_manifest(self, rel_path: str, checksums: Dict[str, str]) -> None:
-        """Add files to the research object manifest. Data files are added to manifest regardless of the state of no_data/no_input flags"""
+        """Add files to the research object manifest. Data files are added to manifest regardless of the state of no_data/no_input flag."""
         self.self_check()
         if PurePosixPath(rel_path).is_absolute():
             raise ValueError(f"rel_path must be relative: {rel_path}")
@@ -580,19 +596,23 @@ class ResearchObject:
             # existence in bagged_size above
             manifestpath = os.path.join(self.folder, f"{manifest}-{method.lower()}.txt")
             # encoding: match Tag-File-Character-Encoding: UTF-8
-            with open(manifestpath, "a", encoding=ENCODING, newline="\n") as checksum_file:
+            with open(
+                manifestpath, "a", encoding=ENCODING, newline="\n"
+            ) as checksum_file:
                 line = f"{hash_value}  {rel_path}\n"
                 _logger.debug("[provenance] Added to %s: %s", manifestpath, line)
                 checksum_file.write(line)
 
     def _add_to_bagit(self, rel_path: str, **checksums: str) -> None:
+        
         """
         Compute data file size and checksums and adds to bagit manifest.
         NOTE: THIS IS WHERE DATAFILE COPYING REALLY HAPPENS WITH checksum_copy
         """
+        
         if PurePosixPath(rel_path).is_absolute():
             raise ValueError(f"rel_path must be relative: {rel_path}")
-        lpath = os.path.join(self.folder, local_path(rel_path)) 
+        lpath = os.path.join(self.folder, local_path(rel_path))
         if not os.path.exists(lpath):
             raise OSError(f"File {rel_path} does not exist within RO: {lpath}")
 
@@ -606,11 +626,14 @@ class ResearchObject:
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile? maybe slowing down the process a lot.
-                if self.no_input and os.path.commonprefix(
-                    [provenance_constants.INPUT_DATA, lpath]) == provenance_constants.INPUT_DATA:
-                    checksums[SHA1] = checksum_only(file_path, hasher=hashlib.sha1)
+                if (
+                    self.no_input
+                    and os.path.commonprefix([provenance_constants.INPUT_DATA, lpath])
+                    == provenance_constants.INPUT_DATA
+                ):
+                    checksums[SHA1] = checksum_only(file_path, hasher=SHA1)
                 else:
-                    checksums[SHA1] = checksum_copy(file_path, hasher=hashlib.sha1)
+                    checksums[SHA1] = checksum_copy(file_path, hasher=SHA1)
 
         self.add_to_manifest(rel_path, checksums)
 
@@ -635,7 +658,7 @@ class ResearchObject:
                             f"Only SHA1 CWL checksums are currently supported: {structure}"
                         )
 
-                    if self.has_data_file(provenance_constants.INPUT_DATA, checksum): 
+                    if self.has_data_file(provenance_constants.INPUT_DATA, checksum):
                         prefix = checksum[0:2]
                         relative_path = PurePosixPath("data/input") / prefix / checksum
 
@@ -647,7 +670,9 @@ class ResearchObject:
                         structure["basename"],
                         structure["location"],
                     )
-                    with self.fsaccess.open(cast(str, structure["location"]), "rb") as fp:
+                    with self.fsaccess.open(
+                        cast(str, structure["location"]), "rb"
+                    ) as fp:
                         relative_path = self.add_data_file(fp)
                         checksum = PurePosixPath(relative_path).name
                         structure["checksum"] = f"{SHA1}${checksum}"
