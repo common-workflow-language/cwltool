@@ -502,11 +502,15 @@ class ResearchObject:
     def add_data_file(
         self,
         from_fp: IO[Any],
-        current_source: str = INPUT_DATA,  # source/destination of the incoming file, e.g. "data/input" or "data/output"
+        current_source: str = INPUT_DATA,  
         timestamp: Optional[datetime.datetime] = None,
         content_type: Optional[str] = None,
     ) -> str:
-        """Copy data files to data/ folder."""
+        """
+        Copy data files to data/ folder.
+        
+        current_sourcw is the destination of the incoming file, e.g. "data/input" or "data/output"
+        """
         # This also copies the outputs via declare_artefacts -> generate_output_prov
         # Skip certain files if no-input or no-data is used
         self.self_check()
@@ -551,7 +555,8 @@ class ResearchObject:
                 # check if self.relativised_input_object is dict
                 if isinstance(self.relativised_input_object, MutableMapping):
                     # check if "dir" exist and is a dict
-                    if "dir" in self.relativised_input_object and isinstance(self.relativised_input_object["dir"], MutableMapping):
+                    if "dir" in self.relativised_input_object and \
+                        isinstance(self.relativised_input_object["dir"], MutableMapping):
                         # now safe to access "basename" key
                         JustABasename = self.relativised_input_object["dir"]["basename"]
                         _logger.debug(
@@ -614,7 +619,7 @@ class ResearchObject:
     def _add_to_bagit(self, rel_path: str, **checksums: str) -> None:
         """
         Compute data file size and checksums and adds to bagit manifest.
-        
+
         NOTE: THIS IS WHERE DATAFILE COPYING REALLY HAPPENS WITH checksum_copy
         """
         if PurePosixPath(rel_path).is_absolute():
@@ -632,7 +637,7 @@ class ResearchObject:
             # ensure we always have sha1
             checksums = dict(checksums)
             with open(lpath, "rb") as file_path:
-                # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile? maybe slowing down the process a lot.
+                # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
                 if (
                     self.no_input
                     and os.path.commonprefix([provenance_constants.INPUT_DATA, lpath])

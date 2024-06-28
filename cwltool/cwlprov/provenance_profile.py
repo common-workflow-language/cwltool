@@ -688,9 +688,15 @@ class ProvenanceProfile:
         process_run_id: Optional[str],
         name: Optional[str],
     ) -> None:
-        """Call wasGeneratedBy() for each output, copy the files into the RO."""
-        # To save output data in ro.py add_data_file() method, use a var current_data_source to keep track of whether it's input or output (maybe intermediate in the future) data
-        # it is later injected to add_data_file() method to save the data in the correct folder, thus avoid changing the provenance_constants DATA
+        """
+        Call wasGeneratedBy() for each output, copy the files into the RO.
+        
+        To save output data in ro.py add_data_file() method, 
+        use a var current_data_source to keep track of whether it's 
+        input or output (maybe intermediate in the future) data
+        it is later injected to add_data_file() method to save the data in the correct folder, 
+        thus avoid changing the provenance_constants DATA
+        """
         self.current_data_source = OUTPUT_DATA
 
         if isinstance(final_output, MutableSequence):
@@ -794,7 +800,8 @@ class ProvenanceProfile:
         # TODO: Also support other profiles than CWLProv, e.g. ProvOne
 
         # list of prov identifiers of provenance files
-        # prov_ids are file names prepared for provenance/RO files in metadata/provenance for each sub-workflow of main workflow
+        # NOTE: prov_ids are file names prepared for provenance/RO files in 
+        # metadata/provenance for each sub-workflow of main workflow
         prov_ids = []
 
         # https://www.w3.org/TR/prov-xml/
