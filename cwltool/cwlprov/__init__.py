@@ -168,7 +168,7 @@ def checksum_copy(
 def checksum_only(
     src_file: IO[Any],
     dst_file: Optional[IO[Any]] = None,
-    hasher: Optional[str] = Hasher,
+    hasher: str = Hasher,
     buffersize: int = 1024 * 1024,
 ) -> str:
     """Calculate the checksum only, does not copy the data files."""

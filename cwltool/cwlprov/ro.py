@@ -565,8 +565,7 @@ class ResearchObject:
                         )
                     else:
                         _logger.debug("[provenance] Added data file %s", path)
-                else:
-                    _logger.debug("[provenance] Input CWL object is not indexable")
+
         if timestamp is not None:
             createdOn, createdBy = self._self_made(timestamp)
             self._file_provenance[rel_path] = cast(
@@ -591,7 +590,7 @@ class ResearchObject:
 
     def add_to_manifest(self, rel_path: str, checksums: Dict[str, str]) -> None:
         """
-        Add files to the research object manifest. 
+        Add files to the research object manifest.
 
         Data files are added to manifest regardless of the state of no_data/no_input flag.
         """
