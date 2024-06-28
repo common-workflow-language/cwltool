@@ -502,13 +502,13 @@ class ResearchObject:
     def add_data_file(
         self,
         from_fp: IO[Any],
-        current_source: str = INPUT_DATA,  
+        current_source: str = INPUT_DATA,
         timestamp: Optional[datetime.datetime] = None,
         content_type: Optional[str] = None,
     ) -> str:
         """
         Copy data files to data/ folder.
-        
+
         current_sourcw is the destination of the incoming file, e.g. "data/input" or "data/output"
         """
         # This also copies the outputs via declare_artefacts -> generate_output_prov
@@ -556,7 +556,7 @@ class ResearchObject:
                 if isinstance(self.relativised_input_object, MutableMapping):
                     # check if "dir" exist and is a dict
                     if "dir" in self.relativised_input_object and \
-                        isinstance(self.relativised_input_object["dir"], MutableMapping):
+                            isinstance(self.relativised_input_object["dir"], MutableMapping):
                         # now safe to access "basename" key
                         JustABasename = self.relativised_input_object["dir"]["basename"]
                         _logger.debug(
@@ -590,7 +590,11 @@ class ResearchObject:
         )
 
     def add_to_manifest(self, rel_path: str, checksums: Dict[str, str]) -> None:
-        """Add files to the research object manifest. Data files are added to manifest regardless of the state of no_data/no_input flag."""
+        """
+        Add files to the research object manifest. 
+
+        Data files are added to manifest regardless of the state of no_data/no_input flag.
+        """
         self.self_check()
         if PurePosixPath(rel_path).is_absolute():
             raise ValueError(f"rel_path must be relative: {rel_path}")
