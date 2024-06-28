@@ -290,7 +290,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     job_order,
                     runtimeContext.process_run_id,
                     str(self.name),
-                    load_listing=self.builder.loadListing,
+                    # load_listing=self.builder.loadListing,
                 )
             else:
                 _logger.warning(
