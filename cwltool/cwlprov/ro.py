@@ -1,7 +1,7 @@
 """Stores class definition of ResearchObject and WritableBagFile."""
 
 import datetime
-import hashlib
+# import hashlib
 import os
 import shutil
 import tempfile
@@ -364,6 +364,7 @@ class ResearchObject:
     def add_uri(
         self, uri: str, timestamp: Optional[datetime.datetime] = None
     ) -> Aggregate:
+        """Add external URI to the Research Object."""
         self.self_check()
         aggr: Aggregate = {"uri": uri}
         aggr["createdOn"], aggr["createdBy"] = self._self_made(timestamp=timestamp)
@@ -501,7 +502,7 @@ class ResearchObject:
     def add_data_file(
         self,
         from_fp: IO[Any],
-        current_source: str = None,  # source/destination of the incoming file, e.g. "data/input" or "data/output"
+        current_source: str = INPUT_DATA,  # source/destination of the incoming file, e.g. "data/input" or "data/output"
         timestamp: Optional[datetime.datetime] = None,
         content_type: Optional[str] = None,
     ) -> str:
@@ -537,7 +538,7 @@ class ResearchObject:
                 rel_path = posix_path(os.path.relpath(path, self.folder))
 
                 # Register in bagit checksum
-                if Hasher == hashlib.sha1:
+                if Hasher == SHA1:
                     self._add_to_bagit(
                         rel_path, sha1=checksum
                     )  # that is actually saving the file to the prov RO folder
@@ -547,13 +548,20 @@ class ResearchObject:
                     )
                     # Inefficient, bagit support need to checksum again
                     self._add_to_bagit(rel_path)
-                if "dir" in self.relativised_input_object:
-                    _logger.debug(
-                        "[provenance] Directory :%s",
-                        self.relativised_input_object["dir"]["basename"],
-                    )
+                # check if self.relativised_input_object is dict
+                if isinstance(self.relativised_input_object, MutableMapping):
+                    # check if "dir" exist and is a dict
+                    if "dir" in self.relativised_input_object and isinstance(self.relativised_input_object["dir"], MutableMapping):
+                        # now safe to access "basename" key
+                        JustABasename = self.relativised_input_object["dir"]["basename"]
+                        _logger.debug(
+                            "[provenance] Directory :%s",
+                            JustABasename,
+                        )
+                    else:
+                        _logger.debug("[provenance] Added data file %s", path)
                 else:
-                    _logger.debug("[provenance] Added data file %s", path)
+                    _logger.debug("[provenance] Input CWL object is not indexable")
         if timestamp is not None:
             createdOn, createdBy = self._self_made(timestamp)
             self._file_provenance[rel_path] = cast(
@@ -604,12 +612,11 @@ class ResearchObject:
                 checksum_file.write(line)
 
     def _add_to_bagit(self, rel_path: str, **checksums: str) -> None:
-        
         """
         Compute data file size and checksums and adds to bagit manifest.
+        
         NOTE: THIS IS WHERE DATAFILE COPYING REALLY HAPPENS WITH checksum_copy
         """
-        
         if PurePosixPath(rel_path).is_absolute():
             raise ValueError(f"rel_path must be relative: {rel_path}")
         lpath = os.path.join(self.folder, local_path(rel_path))

@@ -657,7 +657,7 @@ class ProvenanceProfile:
         job_order: Union[CWLObjectType, List[CWLObjectType]],
         process_run_id: str,
         name: Optional[str] = None,
-        load_listing=None,
+        # load_listing=None,
     ) -> None:
         """Add used() for each data artefact."""
         if isinstance(job_order, list):
