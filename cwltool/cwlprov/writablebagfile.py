@@ -46,9 +46,7 @@ class WritableBagFile(FileIO):
             SHA512: hashlib.sha512(),
         }
         # Open file in Research Object folder
-        path = os.path.abspath(
-            os.path.join(research_object.folder, local_path(rel_path))
-        )
+        path = os.path.abspath(os.path.join(research_object.folder, local_path(rel_path)))
         if not path.startswith(os.path.abspath(research_object.folder)):
             raise ValueError("Path is outside Research Object: %s" % path)
         _logger.debug("[provenance] Creating WritableBagFile at %s.", path)

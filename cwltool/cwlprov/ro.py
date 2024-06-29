@@ -1,6 +1,7 @@
 """Stores class definition of ResearchObject and WritableBagFile."""
 
 import datetime
+
 # import hashlib
 import os
 import shutil
@@ -184,9 +185,7 @@ class ResearchObject:
         # get their name wrong!)
         document.actedOnBehalfOf(account, user)
 
-    def add_tagfile(
-        self, path: str, timestamp: Optional[datetime.datetime] = None
-    ) -> None:
+    def add_tagfile(self, path: str, timestamp: Optional[datetime.datetime] = None) -> None:
         """Add tag files to our research object."""
         self.self_check()
         checksums = {}
@@ -263,16 +262,11 @@ class ResearchObject:
                 extension = None
 
             mediatype: Optional[str] = media_types.get(extension, None)
-            conformsTo: Optional[Union[str, List[str]]] = conforms_to.get(
-                extension, None
-            )
+            conformsTo: Optional[Union[str, List[str]]] = conforms_to.get(extension, None)
             # TODO: Open CWL file to read its declared "cwlVersion", e.g.
             # cwlVersion = "v1.0"
 
-            if (
-                rel_path.startswith(posix_path(PROVENANCE))
-                and extension in prov_conforms_to
-            ):
+            if rel_path.startswith(posix_path(PROVENANCE)) and extension in prov_conforms_to:
                 if ".cwlprov" in rel_path:
                     # Our own!
                     conformsTo = [
@@ -327,9 +321,7 @@ class ResearchObject:
 
         for path in self.tagfiles:
             if not (
-                path.startswith(METADATA)
-                or path.startswith(WORKFLOW)
-                or path.startswith(SNAPSHOT)
+                path.startswith(METADATA) or path.startswith(WORKFLOW) or path.startswith(SNAPSHOT)
             ):
                 # probably a bagit file
                 continue
@@ -361,9 +353,7 @@ class ResearchObject:
         aggregates.extend(self._external_aggregates)
         return aggregates
 
-    def add_uri(
-        self, uri: str, timestamp: Optional[datetime.datetime] = None
-    ) -> Aggregate:
+    def add_uri(self, uri: str, timestamp: Optional[datetime.datetime] = None) -> Aggregate:
         """Add external URI to the Research Object."""
         self.self_check()
         aggr: Aggregate = {"uri": uri}
@@ -478,12 +468,8 @@ class ResearchObject:
                             shutil.copytree(filepath, path)
                         else:
                             shutil.copy(filepath, path)
-                        timestamp = datetime.datetime.fromtimestamp(
-                            os.path.getmtime(filepath)
-                        )
-                        self.add_tagfile(
-                            path, timestamp
-                        )  # add snapshots as tag files to the RO
+                        timestamp = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))
+                        self.add_tagfile(path, timestamp)  # add snapshots as tag files to the RO
                     except PermissionError:
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
             elif key in ("secondaryFiles", "listing"):
@@ -524,9 +510,7 @@ class ResearchObject:
             rel_path = posix_path(os.path.relpath(path, self.folder))
         else:
             # calculate checksum and copy file to a tmp location
-            with tempfile.NamedTemporaryFile(
-                prefix=tmp_prefix, dir=tmp_dir, delete=False
-            ) as tmp:
+            with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
                 checksum = checksum_copy(from_fp, tmp)
                 folder = os.path.join(self.folder, current_source, checksum[0:2])
                 path = os.path.join(folder, checksum)
@@ -555,8 +539,9 @@ class ResearchObject:
                 # check if self.relativised_input_object is dict
                 if isinstance(self.relativised_input_object, MutableMapping):
                     # check if "dir" exist and is a dict
-                    if "dir" in self.relativised_input_object and \
-                            isinstance(self.relativised_input_object["dir"], MutableMapping):
+                    if "dir" in self.relativised_input_object and isinstance(
+                        self.relativised_input_object["dir"], MutableMapping
+                    ):
                         # now safe to access "basename" key
                         JustABasename = self.relativised_input_object["dir"]["basename"]
                         _logger.debug(
@@ -612,9 +597,7 @@ class ResearchObject:
             # existence in bagged_size above
             manifestpath = os.path.join(self.folder, f"{manifest}-{method.lower()}.txt")
             # encoding: match Tag-File-Character-Encoding: UTF-8
-            with open(
-                manifestpath, "a", encoding=ENCODING, newline="\n"
-            ) as checksum_file:
+            with open(manifestpath, "a", encoding=ENCODING, newline="\n") as checksum_file:
                 line = f"{hash_value}  {rel_path}\n"
                 _logger.debug("[provenance] Added to %s: %s", manifestpath, line)
                 checksum_file.write(line)
@@ -685,9 +668,7 @@ class ResearchObject:
                         structure["basename"],
                         structure["location"],
                     )
-                    with self.fsaccess.open(
-                        cast(str, structure["location"]), "rb"
-                    ) as fp:
+                    with self.fsaccess.open(cast(str, structure["location"]), "rb") as fp:
                         relative_path = self.add_data_file(fp)
                         checksum = PurePosixPath(relative_path).name
                         structure["checksum"] = f"{SHA1}${checksum}"
