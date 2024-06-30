@@ -860,7 +860,7 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
         p = folder / "data" / "input" / prefix / file_hash
         # File should be empty and in the future not existing...
         # assert os.path.getsize(p.absolute()) == 0
-        # To be discared when file really does not exist anymore
+        # To be discared, discard when file really does not exist anymore
         if f in ["d", "e", "f", "g", "h", "i"]:
             print(f"Analysing file {f}")
             assert not p.is_file(), f"Could find {f} as {p}"

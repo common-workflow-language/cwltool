@@ -626,10 +626,11 @@ class ResearchObject:
                 # FIXME: Need sha-256 / sha-512 as well for Research Object BagIt profile?
                 if (
                     self.no_input
-                    and os.path.commonprefix([provenance_constants.INPUT_DATA, lpath])
+                    and os.path.commonprefix([provenance_constants.INPUT_DATA, rel_path])
                     == provenance_constants.INPUT_DATA
                 ):
                     checksums[SHA1] = checksum_only(file_path, hasher=SHA1)
+                    _logger.debug(f"[provenance] No input - skipped copying: {rel_path}")
                 else:
                     checksums[SHA1] = checksum_copy(file_path, hasher=SHA1)
 
