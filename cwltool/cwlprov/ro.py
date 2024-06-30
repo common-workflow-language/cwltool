@@ -508,6 +508,14 @@ class ResearchObject:
             path = os.path.join(folder, checksum)
             # Relative posix path
             rel_path = posix_path(os.path.relpath(path, self.folder))
+        elif self.no_input and current_source == INPUT_DATA:
+            # for now do the same as no_data when no_input is used for input files
+            checksum = checksum_only(from_fp)
+            # Create rel_path
+            folder = os.path.join(self.folder, current_source, checksum[0:2])
+            path = os.path.join(folder, checksum)
+            # Relative posix path
+            rel_path = posix_path(os.path.relpath(path, self.folder))
         else:
             # calculate checksum and copy file to a tmp location
             with tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir, delete=False) as tmp:
