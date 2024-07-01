@@ -55,14 +55,14 @@ class WritableBagFile(FileIO):
     def write(self, b: Any) -> int:
         """Write some content to the Bag."""
         real_b = b if isinstance(b, (bytes, mmap, array)) else b.encode("utf-8")
-        total = 0
+        total = 0  # to record the total bytes written
         length = len(real_b)
         while total < length:
             ret = super().write(real_b)
             if ret:
                 total += ret
         for val in self.hashes.values():
-            val.update(real_b)
+            val.update(real_b)  # update hash with the written content
         return total
 
     def close(self) -> None:
@@ -238,13 +238,17 @@ def packed_workflow(research_object: "ResearchObject", packed: str) -> None:
 
 
 def create_job(
-    research_object: "ResearchObject", builder_job: CWLObjectType, is_output: bool = False
+    research_object: "ResearchObject",
+    builder_job: CWLObjectType,
+    is_output: bool = False,
 ) -> CWLObjectType:
     # TODO customise the file
     """Generate the new job object with RO specific relative paths."""
     copied = copy.deepcopy(builder_job)
     relativised_input_objecttemp: CWLObjectType = {}
-    research_object._relativise_files(copied)
+    # No inputs when either no_input or no_data is True
+    if not research_object.no_input and not research_object.no_data:
+        research_object._relativise_files(copied)
 
     def jdefault(o: Any) -> Dict[Any, Any]:
         return dict(o)
