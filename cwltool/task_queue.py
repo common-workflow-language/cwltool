@@ -7,6 +7,7 @@ import queue
 import threading
 from typing import Callable, Optional
 
+from .errors import WorkflowKillSwitch
 from .loghandler import _logger
 
 
@@ -55,6 +56,9 @@ class TaskQueue:
                 return
             try:
                 task()
+            except WorkflowKillSwitch:
+                self.drain()
+                break
             except BaseException as e:  # noqa: B036
                 _logger.exception("Unhandled exception running task", exc_info=e)
                 self.error = e
