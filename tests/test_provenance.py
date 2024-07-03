@@ -4,7 +4,7 @@ import pickle
 import sys
 import urllib
 from pathlib import Path
-from typing import IO, Any, Generator, cast
+from typing import IO, Any, Generator, cast, Tuple, Dict
 
 import arcp
 import bagit
@@ -795,7 +795,7 @@ def test_research_object_picklability(research_object: ResearchObject) -> None:
 
 
 # Function to list filestructure
-def list_files(startpath):
+def list_files(startpath: Path) -> None:
     startpath = str(startpath)
     print("Root: ", startpath)
     for root, _dirs, files in os.walk(startpath):
@@ -869,7 +869,7 @@ def test_directory_workflow_no_listing(tmp_path: Path) -> None:
             assert p.is_file(), f"Could not find {f} as {p}"
 
 
-def prepare_input_files(tmp_path: Path) -> None:
+def prepare_input_files(tmp_path: Path) -> Tuple[Dict[str, str], Path, Path, Path]:
     sha1 = {
         # Expected hashes of ASCII letters (no linefeed)
         # as returned from:
