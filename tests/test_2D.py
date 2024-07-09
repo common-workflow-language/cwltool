@@ -1,21 +1,19 @@
-import subprocess
-import sys
 from pathlib import Path
+import pytest
+from .util import get_data, get_main_output
 
-from .util import get_data
-
-
-def test_output_2D_file_format() -> None:
+@pytest.fixture(scope="session")
+def test_output_2d_file_format(tmp_path_factory: pytest.TempPathFactory) -> None:
     """A simple test for format tag fix for 2D output arrays."""
 
-    Path("filename.txt").touch()
-    params = [
-        sys.executable,
-        "-m",
-        "cwltool",
-        "--cachedir",  # just so that the relative path of file works out
-        "foo",
-        get_data("tests/output_2D_file_format.cwl"),
-    ]
+    tmp_path: Path = tmp_path_factory.mktemp("tmp")
+    # still need to create 'filename.txt' as it is needed in output_2D_file_format.cwl
+    _ = tmp_path / "filename.txt"
+    commands = [
+        "--cachedir",
+        str(tmp_path / "foo"),  # just so that the relative path of file works out
+        get_data("tests/output_2D_file_format.cwl")]
 
-    assert subprocess.check_call(params) == 0
+    error_code, _, stderr = get_main_output(commands)
+
+    assert error_code == 0, stderr

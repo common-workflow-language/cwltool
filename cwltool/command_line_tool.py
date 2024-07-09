@@ -1498,9 +1498,9 @@ class CommandLineTool(Process):
 
                     def recursively_insert(j_dict: Any, key: Any, val: Any) -> Any:
                         """Recursively insert a value into any dictionary."""
-                        if isinstance(j_dict, List):
+                        if isinstance(j_dict, MutableSequence):
                             return [recursively_insert(x, key, val) for x in j_dict]
-                        if isinstance(j_dict, Dict):
+                        if isinstance(j_dict, MutableMapping):
                             if j_dict.get("class") == "File":
                                 j_dict[key] = val
                             else:
