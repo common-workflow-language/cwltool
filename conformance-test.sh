@@ -78,7 +78,7 @@ else
 	pip uninstall -y cwltool
 	pip install -r"${SCRIPT_DIRECTORY}/mypy-requirements.txt"
 	CWLTOOL_USE_MYPYC=1 MYPYPATH="${SCRIPT_DIRECTORY}/mypy-stubs" pip install "${SCRIPT_DIRECTORY}" -r"${SCRIPT_DIRECTORY}/requirements.txt"
-	pip install 'cwltest>=2.5' pytest-cov pytest-xdist>=3.2.0 psutil
+	pip install 'cwltest>=2.5,!=2.5.20240709060407' pytest-cov pytest-xdist>=3.2.0 psutil
 fi
 
 # Set conformance test filename
