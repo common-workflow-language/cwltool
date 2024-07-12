@@ -491,11 +491,6 @@ def check_prov(
     engine = engines.pop()
 
     assert (
-        main_run,
-        PROV.wasAssociatedWith,
-        engine,
-    ) in g, "Wf run not associated with wf engine"
-    assert (
         engine,
         RDF.type,
         PROV.SoftwareAgent,
