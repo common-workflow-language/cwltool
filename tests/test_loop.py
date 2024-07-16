@@ -39,7 +39,7 @@ def test_validate_loop_fail_scatter() -> None:
 
 
 def test_validate_loop_fail_no_loop_when() -> None:
-    """Affirm that a loop workflow does not validate if no loopWhen directive is specified."""
+    """Affirm that a loop workflow does not validate if no 'when' directive is specified."""
     params = [
         "--enable-dev",
         "--validate",
@@ -49,7 +49,7 @@ def test_validate_loop_fail_no_loop_when() -> None:
 
 
 def test_loop_fail_loop_when_exception() -> None:
-    """Affirm that a loop workflow fails if loopWhen directive throws an exception."""
+    """Affirm that a loop workflow fails if 'when' directive throws an exception."""
     params = [
         "--enable-dev",
         get_data("tests/loop/invalid-loop-when-exception.cwl"),
@@ -57,9 +57,19 @@ def test_loop_fail_loop_when_exception() -> None:
     ]
     assert main(params) == 1
 
+def test_loop_fail_loop_when_exception_second_iteration() -> None:
+    """Affirm that a loop workflow fails if when directive throws an
+    exception on second iteration."""
+    params = [
+        "--enable-dev",
+        get_data("tests/loop/invalid-loop-when-exception2.cwl"),
+        get_data("tests/loop/two-vars-loop-job.yml"),
+    ]
+    assert main(params) == 1
+
 
 def test_loop_fail_non_boolean_loop_when() -> None:
-    """Affirm that a loop workflow fails if loopWhen directive returns a non-boolean value."""
+    """Affirm that a loop workflow fails if 'when' directive returns a non-boolean value."""
     params = [
         "--enable-dev",
         get_data("tests/loop/invalid-non-boolean-loopWhen.cwl"),
@@ -69,7 +79,7 @@ def test_loop_fail_non_boolean_loop_when() -> None:
 
 
 def test_loop_fail_non_boolean_loop_second_when() -> None:
-    """Affirm that a loop workflow fails if loopWhen directive returns
+    """Affirm that a loop workflow fails if 'when' directive returns
     a non-boolean value on the second iteration."""
     params = [
         "--enable-dev",
@@ -93,7 +103,7 @@ def test_loop_single_variable() -> None:
 
 
 def test_loop_single_variable_no_iteration() -> None:
-    """Test a simple loop case with a single variable and a false loopWhen condition."""
+    """Test a simple loop case with a single variable and a false 'when' condition."""
     stream = StringIO()
     params = [
         "--enable-dev",
@@ -145,7 +155,7 @@ def test_loop_with_all_output_method() -> None:
 
 
 def test_loop_with_all_output_method_no_iteration() -> None:
-    """Test a loop case with outputMethod set to all and a false loopWhen condition."""
+    """Test a loop case with outputMethod set to all and a false 'when' condition."""
     stream = StringIO()
     params = [
         "--enable-dev",
