@@ -1,6 +1,4 @@
-class WorkflowException(Exception):
-    pass
-
+from cwl_utils.errors import WorkflowException, GraphTargetMissingException
 
 class UnsupportedRequirement(WorkflowException):
     pass
@@ -8,7 +6,3 @@ class UnsupportedRequirement(WorkflowException):
 
 class ArgumentException(Exception):
     """Mismatched command line arguments provided."""
-
-
-class GraphTargetMissingException(WorkflowException):
-    """When a ``$graph`` is encountered and there is no target and no ``main``/``#main``."""
