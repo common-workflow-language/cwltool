@@ -98,16 +98,6 @@ def test_validate_loop_fail_on_hint() -> None:
     assert main(params) == 1
 
 
-def test_loop_fail_non_boolean_loop_when() -> None:
-    """Affirm that a loop workflow fails if loopWhen directive returns a non-boolean value."""
-    params = [
-        "--enable-ext",
-        get_data("tests/loop/invalid-non-boolean-loopWhen.cwl"),
-        get_data("tests/loop/two-vars-loop-job.yml"),
-    ]
-    assert main(params) == 1
-
-
 def test_loop_fail_loop_when_exception() -> None:
     """Affirm that a loop workflow fails if loopWhen directive throws an exception."""
     params = [
@@ -129,7 +119,8 @@ def test_loop_fail_non_boolean_loop_when() -> None:
 
 
 def test_loop_fail_non_boolean_loop_second_when() -> None:
-    """Affirm that a loop workflow fails if loopWhen directive returns a non-boolean value on the second iteration."""
+    """Affirm that a loop workflow fails if loopWhen directive returns
+    a non-boolean value on the second iteration."""
     params = [
         "--enable-ext",
         get_data("tests/loop/invalid-non-boolean-loopWhen2.cwl"),
