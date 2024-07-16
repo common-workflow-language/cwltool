@@ -480,7 +480,7 @@ $graph:
         The value of `inputs` in the parameter reference or expression must be
         the input object to the previous iteration of the workflow step (or the initial
         inputs for the first iteration).
-    
+
 
 - name: ScatterMethod
   type: enum
@@ -504,6 +504,7 @@ $graph:
 - name: AbstractWorkflowStep
   type: record
   extends: [Identified, Labeled, sld:Documented]
+  abstract: true
   docParent: "#Workflow"
   doc: |
     A workflow step is an executable element of a workflow.  It specifies the
@@ -655,9 +656,9 @@ $graph:
           producing a job for every combination of the scattered inputs.  The
           output arrays must be flattened to a single level, but otherwise listed in the
           order that the input arrays are listed in the `scatter` field.
-    
+
     # Conditional execution (Optional)
-    
+
     The condition is evaluated after `scatter`, using the input object
     of each individual scatter job.  This means over a set of scatter
     jobs, some may be executed and some may be skipped.  When the
@@ -689,30 +690,30 @@ $graph:
   docParent: "#Workflow"
   doc: |
     # Iterative execution (Optional)
-    
+
     The `loop` field controls iterative execution. It defines the input
     parameters of the loop iterations after the first one (inputs of the
     first iteration are the step input parameters, as usual). If no
     `loop` rule is specified for a given step `in` field, the initial
     value is kept constant among all iterations.
-    
+
     When a `loop` field is present, the `when` field is mandatory. It is
     evaluated before each loop iteration and acts as a termination condition:
     as soon as the `when` expression evaluates to `false`, the loop terminates
     and the step outputs are propagated to the subsequent workflow steps.
-    
+
     The `outputMethod` field describes how to deal with loop outputs after
     termination:
 
       * **last** specifies that only the last computed element for each output
-        parameter should be propagated to the subsequent steps. This is the 
+        parameter should be propagated to the subsequent steps. This is the
         default value.
-    
+
       * **all** specifies that an array with all output values computed at the
         end of each loop iteration should be propagated to the subsequent steps.
         Elements in the array must be ordered according to the loop iterations
         that produced them.
-    
+
     Iterative execution in CWL is an optional feature and is not required
     to be implemented by all consumers of CWL documents. An implementation that
     does not support iterative executions must return a fatal error when

@@ -1,8 +1,6 @@
 #!/usr/bin/env cwl-runner
-cwlVersion: v1.2
+cwlVersion: v1.3.0-dev1
 class: Workflow
-$namespaces:
-  cwltool: "http://commonwl.org/cwltool#"
 requirements:
   InlineJavascriptRequirement: {}
   ScatterFeatureRequirement: {}
@@ -25,15 +23,13 @@ steps:
         o1: int
       expression: >
         ${return {'o1': inputs.i1 + inputs.i2};}
-    requirements:
-      cwltool:Loop:
-        loopWhen: |
-          ${
-          throw new Error("failed");
-          }
-        loop:
-          i1: o1
-        outputMethod: last
+    when: |
+      ${
+      throw new Error("failed");
+      }
+    loop:
+      i1: o1
+    outputMethod: last
     in:
       i1: i1
       i2: i2

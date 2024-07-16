@@ -1,6 +1,8 @@
 #!/usr/bin/env cwl-runner
-cwlVersion: v1.3.0-dev1
+cwlVersion: v1.2
 class: Workflow
+$namespaces:
+  cwltool: "http://commonwl.org/cwltool#"
 requirements:
   InlineJavascriptRequirement: {}
   ScatterFeatureRequirement: {}
@@ -56,9 +58,11 @@ steps:
     in:
       i1: i1
     out: [osmall, obig]
-    when: $(inputs.i1 < 20)
-    loop:
-      i1:
-        loopSource: [osmall, obig]
-        pickValue: the_only_non_null
-    outputMethod: all
+    requirements:
+      cwltool:Loop:
+        loopWhen: $(inputs.i1 < 20)
+        loop:
+          i1:
+            loopSource: [osmall, obig]
+            pickValue: the_only_non_null
+        outputMethod: all

@@ -1,6 +1,8 @@
 #!/usr/bin/env cwl-runner
-cwlVersion: v1.3.0-dev1
+cwlVersion: v1.2
 class: Workflow
+$namespaces:
+  cwltool: "http://commonwl.org/cwltool#"
 requirements:
   InlineJavascriptRequirement: {}
   ScatterFeatureRequirement: {}
@@ -11,7 +13,11 @@ inputs:
   i2: int
 outputs:
   o1:
-    type: int[]
+    type:
+      type: array
+      items:
+        type: array
+        items: int
     outputSource: loop1/o1
 steps:
   loop1:
@@ -22,7 +28,7 @@ steps:
         i2: int
       outputs:
         o1:
-          type: int
+          type: int[]
           outputSource: loop2/o1
       steps:
         loop2:
@@ -39,16 +45,20 @@ steps:
             i1: i1
             i2: i2
           out: [o1]
-          when: $(inputs.i1 <= inputs.i2)
-          loop:
-            i1: o1
-          outputMethod: last
+          requirements:
+            cwltool:Loop:
+              loopWhen: $(inputs.i1 <= inputs.i2)
+              loop:
+                i1: o1
+              outputMethod: all
     in:
       i1: i1
       i2: i2
     out: [o1]
-    when: $(inputs.i2 < 4)
-    loop:
-      i2:
-        valueFrom: $(inputs.i2 + 1)
-    outputMethod: all
+    requirements:
+      cwltool:Loop:
+        loopWhen: $(inputs.i2 < 4)
+        loop:
+          i2:
+            valueFrom: $(inputs.i2 + 1)
+        outputMethod: all
