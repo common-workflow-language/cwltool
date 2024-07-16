@@ -57,6 +57,7 @@ def test_loop_fail_loop_when_exception() -> None:
     ]
     assert main(params) == 1
 
+
 def test_loop_fail_loop_when_exception_second_iteration() -> None:
     """Affirm that a loop workflow fails if when directive throws an
     exception on second iteration."""
