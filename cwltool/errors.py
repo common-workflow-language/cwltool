@@ -1,4 +1,8 @@
+# flake8: noqa: F401
+
 from cwl_utils.errors import WorkflowException as WorkflowException
+
+
 from cwl_utils.errors import GraphTargetMissingException as GraphTargetMissingException
 
 
