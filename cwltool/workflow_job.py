@@ -940,7 +940,7 @@ class WorkflowJobLoopStep:
             _logger.exception("Unhandled exception")
             self.processStatus = "permanentFail"
             if self.iteration == 0:
-                self._set_empty_output(outputMethod)
+                self._set_empty_output(outputMethod)  # pragma: no cover
             output_callback(self.output_buffer, self.processStatus)
 
     def loop_callback(

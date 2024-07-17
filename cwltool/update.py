@@ -38,7 +38,9 @@ def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> Tuple[Comm
                                 "The `cwltool:Loop` clause is not compatible with the `when` directive."
                             )
                         if "loopWhen" not in r:
-                            raise SourceLine(r, raise_type=ValidationException).makeError(
+                            raise SourceLine(
+                                r, raise_type=ValidationException
+                            ).makeError(  # pragma: no cover
                                 "The `loopWhen` clause is mandatory within the `cwltool:Loop` requirement."
                             )
                         s["when"] = r["loopWhen"]
