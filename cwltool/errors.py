@@ -1,5 +1,17 @@
-class WorkflowException(Exception):
-    pass
+"""Common errors.
+
+WorkflowException and GraphTargetMissingException are aliased to
+equivalent errors from cwl_utils.errors and re-exported by this module
+to avoid breaking the interface for other code.
+
+"""
+
+# flake8: noqa: F401
+
+from cwl_utils.errors import WorkflowException as WorkflowException
+
+
+from cwl_utils.errors import GraphTargetMissingException as GraphTargetMissingException
 
 
 class UnsupportedRequirement(WorkflowException):
@@ -8,7 +20,3 @@ class UnsupportedRequirement(WorkflowException):
 
 class ArgumentException(Exception):
     """Mismatched command line arguments provided."""
-
-
-class GraphTargetMissingException(WorkflowException):
-    """When a ``$graph`` is encountered and there is no target and no ``main``/``#main``."""

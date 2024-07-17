@@ -1,8 +1,6 @@
 #!/usr/bin/env cwl-runner
-cwlVersion: v1.2
+cwlVersion: v1.3.0-dev1
 class: Workflow
-$namespaces:
-  cwltool: "http://commonwl.org/cwltool#"
 requirements:
   InlineJavascriptRequirement: {}
   ScatterFeatureRequirement: {}
@@ -45,20 +43,16 @@ steps:
             i1: i1
             i2: i2
           out: [o1]
-          requirements:
-            cwltool:Loop:
-              loopWhen: $(inputs.i1 <= inputs.i2)
-              loop:
-                i1: o1
-              outputMethod: all
+          when: $(inputs.i1 <= inputs.i2)
+          loop:
+            i1: o1
+          outputMethod: all
     in:
       i1: i1
       i2: i2
     out: [o1]
-    requirements:
-      cwltool:Loop:
-        loopWhen: $(inputs.i2 < 4)
-        loop:
-          i2:
-            valueFrom: $(inputs.i2 + 1)
-        outputMethod: all
+    when: $(inputs.i2 < 4)
+    loop:
+      i2:
+        valueFrom: $(inputs.i2 + 1)
+    outputMethod: all
