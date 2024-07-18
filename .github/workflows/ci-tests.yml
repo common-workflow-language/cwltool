@@ -173,6 +173,8 @@ jobs:
           - cwl-version: v1.2
             container: docker
             extras: "--fast-parser"
+          - cwl-version: v1.3.0-dev1
+            extras: "--relax-path-checks"
 
     steps:
       - uses: actions/checkout@v4
