@@ -11,13 +11,61 @@ from typing import (
     cast,
 )
 
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from schema_salad.sourceline import SourceLine
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+
 from .loghandler import _logger
 from .utils import CWLObjectType, CWLOutputType, aslist, visit_class, visit_field
+
+
+def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> Tuple[CommentedMap, str]:
+    """Public updater for v1.2 to v1.3.0-dev1."""
+    doc = copy.deepcopy(doc)
+
+    def rewrite_loop_requirements(t: CWLObjectType) -> None:
+        for s in cast(MutableSequence[CWLObjectType], t["steps"]):
+            if "requirements" in s:
+                for i, r in enumerate(
+                    list(cast(MutableSequence[CWLObjectType], s["requirements"]))
+                ):
+                    cls = cast(str, r["class"])
+                    if cls == "http://commonwl.org/cwltool#Loop":
+                        if "when" in s:
+                            raise SourceLine(s, "when", ValidationException).makeError(
+                                "The `cwltool:Loop` clause is not compatible with the `when` directive."
+                            )
+                        if "loopWhen" not in r:
+                            raise SourceLine(
+                                r, raise_type=ValidationException
+                            ).makeError(  # pragma: no cover
+                                "The `loopWhen` clause is mandatory within the `cwltool:Loop` requirement."
+                            )
+                        s["when"] = r["loopWhen"]
+                        if "loop" in r:
+                            for el in cast(MutableSequence[CWLObjectType], r["loop"]):
+                                source = el.pop("loopSource", None)
+                                if source is not None:
+                                    el["outputSource"] = source
+                            s["loop"] = r["loop"]
+                        if "outputMethod" in r:
+                            s["outputMethod"] = r["outputMethod"]
+                        cast(
+                            MutableSequence[CWLObjectType],
+                            s["requirements"],
+                        ).pop(index=i)
+            if "hints" in s:
+                for r in cast(MutableSequence[CWLObjectType], s["hints"]):
+                    cls = cast(str, r["class"])
+                    if cls == "http://commonwl.org/cwltool#Loop":
+                        raise SourceLine(s["hints"], r, ValidationException).makeError(
+                            "http://commonwl.org/cwltool#Loop is valid only under requirements."
+                        )
+
+    visit_class(doc, "Workflow", rewrite_loop_requirements)
+    return doc, "v1.3.0-dev1"
 
 
 def v1_1to1_2(
@@ -205,12 +253,13 @@ ORDERED_VERSIONS = [
     "v1.2.0-dev4",
     "v1.2.0-dev5",
     "v1.2",
+    "v1.3.0-dev1",
 ]
 
 UPDATES: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]] = {
     "v1.0": v1_0to1_1,
     "v1.1": v1_1to1_2,
-    "v1.2": None,
+    "v1.2": v1_2to1_3dev1,
 }
 
 DEVUPDATES: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]] = {
@@ -220,13 +269,14 @@ DEVUPDATES: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[Comme
     "v1.2.0-dev3": v1_2_0dev3todev4,
     "v1.2.0-dev4": v1_2_0dev4todev5,
     "v1.2.0-dev5": v1_2_0dev5to1_2,
+    "v1.3.0-dev1": None,
 }
 
 
 ALLUPDATES = UPDATES.copy()
 ALLUPDATES.update(DEVUPDATES)
 
-INTERNAL_VERSION = "v1.2"
+INTERNAL_VERSION = "v1.3.0-dev1"
 
 ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 

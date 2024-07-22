@@ -2,12 +2,12 @@
 requires = [
     "setuptools>=45",
     "setuptools_scm[toml]>=8.0.4,<9",
-    "mypy==1.10.0",  # also update mypy-requirements.txt
+    "mypy==1.10.1",  # also update mypy-requirements.txt
     "types-requests",
     "types-psutil",
     "importlib_resources>=1.4;python_version<'3.9'",
     "ruamel.yaml>=0.16.0,<0.18",
-    "schema-salad>=8.4.20230426093816,<9",
+    "schema-salad>=8.7,<9",
     "cwl-utils>=0.32",
     "toml",
     "argcomplete>=1.12.0",

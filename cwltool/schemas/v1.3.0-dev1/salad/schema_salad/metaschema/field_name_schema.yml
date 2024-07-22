@@ -1,0 +1,15 @@
+{
+  "$namespaces": {
+    "acid": "http://example.com/acid#"
+  },
+  "$graph": [{
+    "name": "ExampleType",
+    "type": "record",
+    "documentRoot": true,
+    "fields": [{
+      "name": "base",
+      "type": "string",
+      "jsonldPredicate": "http://example.com/base"
+    }]
+  }]
+}

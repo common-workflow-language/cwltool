@@ -8,6 +8,6 @@ mock>=2.0.0
 pytest-mock>=1.10.0
 pytest-cov
 arcp>=0.2.0
--rrequirements.txt
-galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<24.1
-galaxy-util<24.1
+-r requirements.txt
+galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<24.2
+galaxy-util<24.2

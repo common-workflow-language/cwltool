@@ -917,7 +917,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             self.name,
             int((max_mem_percent / 100 * max_mem) / (2**20)),
         )
-        if cleanup_cidfile:
+        if cleanup_cidfile and os.path.exists(cidfile):
             os.remove(cidfile)
 
 

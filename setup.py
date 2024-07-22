@@ -127,13 +127,13 @@ setup(
         "ruamel.yaml >= 0.16, < 0.19",
         "rdflib >= 4.2.2, < 7.1.0",
         "shellescape >= 3.4.1, < 3.9",
-        "schema-salad >= 8.4.20230426093816, < 9",
+        "schema-salad >= 8.7, < 9",
         "prov == 1.5.1",
         "mypy-extensions",
         "psutil >= 5.6.6",
         "importlib_resources>=1.4;python_version<'3.9'",
         "coloredlogs",
-        "pydot >= 1.4.1",
+        "pydot >= 1.4.1, <3",
         "argcomplete",
         "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
         "cwl-utils >= 0.32",
@@ -141,8 +141,8 @@ setup(
     ],
     extras_require={
         "deps": [
-            "galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<24.1",
-            "galaxy-util <24.1",
+            "galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<24.2",
+            "galaxy-util <24.2",
         ],
     },
     python_requires=">=3.8, <4",

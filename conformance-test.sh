@@ -16,7 +16,7 @@ venv() {
 # VERSION=v1.2 GIT_TARGET=main CONTAINER=podman ./conformance_test.sh
 
 # Version of the standard to test against
-# Current options: v1.0, v1.1, v1.2
+# Current options: v1.0, v1.1, v1.2, v1.3.0-dev1
 VERSION=${VERSION:-"v1.2"}
 
 # Which commit of the standard's repo to use
@@ -78,7 +78,7 @@ else
 	pip uninstall -y cwltool
 	pip install -r"${SCRIPT_DIRECTORY}/mypy-requirements.txt"
 	CWLTOOL_USE_MYPYC=1 MYPYPATH="${SCRIPT_DIRECTORY}/mypy-stubs" pip install "${SCRIPT_DIRECTORY}" -r"${SCRIPT_DIRECTORY}/requirements.txt"
-	pip install 'cwltest>=2.5' pytest-cov pytest-xdist>=3.2.0 psutil
+	pip install 'cwltest>=2.5,!=2.5.20240709060407' pytest-cov pytest-xdist>=3.2.0 psutil
 fi
 
 # Set conformance test filename
@@ -121,7 +121,7 @@ if (( "${#exclusions[*]}" > 0 )); then
 fi
 
 # Build command
-TEST_COMMAND="python -m pytest ${CONFORMANCE_TEST} -n logical --dist worksteal -rs --junit-xml=${TMP_DIR}/cwltool_conf_${VERSION}_${GIT_TARGET}_${CONTAINER}.xml -o junit_suite_name=cwltool_$(echo "${CWLTOOL_OPTIONS}" | tr "[:blank:]-" _)"
+TEST_COMMAND="python -m pytest ${CONFORMANCE_TEST} -n logical --dist worksteal -rsfE --junit-xml=${TMP_DIR}/cwltool_conf_${VERSION}_${GIT_TARGET}_${CONTAINER}.xml -o junit_suite_name=cwltool_$(echo "${CWLTOOL_OPTIONS}" | tr "[:blank:]-" _)"
 if [[ -n "${EXCLUDE}" ]] ; then
   TEST_COMMAND="${TEST_COMMAND} --cwl-exclude ${EXCLUDE}"
 fi
