@@ -976,8 +976,8 @@ def test_directory_workflow_no_listing_no_input(tmp_path: Path) -> None:
 
         if p.is_file():
             print(f"Analysing file {f!r} {p!r}")
-            with open(p, "r", encoding="ascii") as f:
-                content = f.read()
+            with open(p, "r", encoding="ascii") as fh:
+                content = fh.read()
                 print(f"Content: {content!r}")
             assert not p.is_file(), f"Could find {f!r} as {p!r}"
         else:
