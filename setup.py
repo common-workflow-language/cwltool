@@ -151,7 +151,7 @@ setup(
     test_suite="tests",
     tests_require=[
         "bagit >= 1.6.4, < 1.9",
-        "pytest >= 6.2, < 8.3",
+        "pytest >= 6.2, < 8.4",
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
         "pytest-httpserver",
