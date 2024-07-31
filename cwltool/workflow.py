@@ -153,7 +153,7 @@ class Workflow(Process):
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: Optional[OutputCallbackType],
+        output_callbacks: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         builder = self._init_job(job_order, runtimeContext)
@@ -420,7 +420,7 @@ class WorkflowStep(Process):
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: Optional[OutputCallbackType],
+        output_callbacks: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         """Initialize sub-workflow as a step in the parent profile."""

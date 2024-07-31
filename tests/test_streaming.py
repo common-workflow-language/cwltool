@@ -61,7 +61,7 @@ def test_regular_file() -> None:
         }
     }
 
-    job = next(clt.job(joborder, None, runtime_context))
+    job = next(clt.job(joborder, lambda output, process_status: None, runtime_context))
     assert isinstance(job, JobBase)
 
     job._setup(runtime_context)
@@ -99,7 +99,7 @@ def test_input_can_be_named_pipe(
         }
     }
 
-    job = next(clt.job(joborder, None, runtime_context))
+    job = next(clt.job(joborder, lambda output, process_status: None, runtime_context))
     assert isinstance(job, JobBase)
 
     if raise_exception:

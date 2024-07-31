@@ -806,7 +806,7 @@ class CommandLineTool(Process):
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: Optional[OutputCallbackType],
+        output_callbacks: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> Generator[Union[JobBase, CallbackJob], None, None]:
         workReuse, _ = self.get_requirement("WorkReuse")

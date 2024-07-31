@@ -14,8 +14,8 @@ def test_replace_default_stdout_stderr() -> None:
     original_stdout = sys.stdout
     original_stderr = sys.stderr
 
-    sys.stdout = ""  # type: ignore
-    sys.stderr = ""  # type: ignore
+    sys.stdout = ""
+    sys.stderr = ""
 
     runtime_context = RuntimeContext()
     runtime_context.default_stdout = subprocess.DEVNULL  # type: ignore

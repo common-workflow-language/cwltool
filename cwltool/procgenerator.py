@@ -30,7 +30,7 @@ class ProcessGeneratorJob:
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: Optional[OutputCallbackType],
+        output_callbacks: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         try:
@@ -41,7 +41,7 @@ class ProcessGeneratorJob:
             while self.processStatus is None:
                 yield None
 
-            if self.processStatus != "success" and output_callbacks:
+            if self.processStatus != "success":
                 output_callbacks(self.jobout, self.processStatus)
                 return
 
@@ -89,7 +89,7 @@ class ProcessGenerator(Process):
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: Optional[OutputCallbackType],
+        output_callbacks: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         return ProcessGeneratorJob(self).job(job_order, output_callbacks, runtimeContext)

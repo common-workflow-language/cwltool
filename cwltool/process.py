@@ -1075,7 +1075,7 @@ hints:
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: Optional[OutputCallbackType],
+        output_callbacks: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         pass
