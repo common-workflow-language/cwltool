@@ -284,6 +284,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     "{}".format(runtimeContext)
                 )
         outputs: CWLObjectType = {}
+        processStatus = "indeterminate"
         try:
             stdin_path = None
             if self.stdin is not None:
@@ -355,6 +356,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 
             if processStatus != "success":
                 if runtimeContext.kill_switch.is_set():
+                    processStatus = "killed"
                     return
                 elif rcode < 0:
                     _logger.warning(
@@ -398,62 +400,64 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             _logger.error("[job %s] Job error:\n%s", self.name, str(err))
             processStatus = "permanentFail"
         except WorkflowKillSwitch:
+            processStatus = "permanentFail"
             raise
         except Exception:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
-        if (
-            runtimeContext.research_obj is not None
-            and self.prov_obj is not None
-            and runtimeContext.process_run_id is not None
-        ):
-            # creating entities for the outputs produced by each step (in the provenance document)
-            self.prov_obj.record_process_end(
-                str(self.name),
-                runtimeContext.process_run_id,
-                outputs,
-                datetime.datetime.now(),
-            )
-        if processStatus != "success":
-            _logger.warning("[job %s] completed %s", self.name, processStatus)
-        else:
-            _logger.info("[job %s] completed %s", self.name, processStatus)
+        finally:
+            if (
+                runtimeContext.research_obj is not None
+                and self.prov_obj is not None
+                and runtimeContext.process_run_id is not None
+            ):
+                # creating entities for the outputs produced by each step (in the provenance document)
+                self.prov_obj.record_process_end(
+                    str(self.name),
+                    runtimeContext.process_run_id,
+                    outputs,
+                    datetime.datetime.now(),
+                )
+            if processStatus != "success":
+                _logger.warning("[job %s] completed %s", self.name, processStatus)
+            else:
+                _logger.info("[job %s] completed %s", self.name, processStatus)
 
-        if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug("[job %s] outputs %s", self.name, json_dumps(outputs, indent=4))
+            if _logger.isEnabledFor(logging.DEBUG):
+                _logger.debug("[job %s] outputs %s", self.name, json_dumps(outputs, indent=4))
 
-        if self.generatemapper is not None and runtimeContext.secret_store is not None:
-            # Delete any runtime-generated files containing secrets.
-            for _, p in self.generatemapper.items():
-                if p.type == "CreateFile":
-                    if runtimeContext.secret_store.has_secret(p.resolved):
-                        host_outdir = self.outdir
-                        container_outdir = self.builder.outdir
-                        host_outdir_tgt = p.target
-                        if p.target.startswith(container_outdir + "/"):
-                            host_outdir_tgt = os.path.join(
-                                host_outdir, p.target[len(container_outdir) + 1 :]
-                            )
-                        os.remove(host_outdir_tgt)
+            if self.generatemapper is not None and runtimeContext.secret_store is not None:
+                # Delete any runtime-generated files containing secrets.
+                for _, p in self.generatemapper.items():
+                    if p.type == "CreateFile":
+                        if runtimeContext.secret_store.has_secret(p.resolved):
+                            host_outdir = self.outdir
+                            container_outdir = self.builder.outdir
+                            host_outdir_tgt = p.target
+                            if p.target.startswith(container_outdir + "/"):
+                                host_outdir_tgt = os.path.join(
+                                    host_outdir, p.target[len(container_outdir) + 1 :]
+                                )
+                            os.remove(host_outdir_tgt)
 
-        if runtimeContext.workflow_eval_lock is None:
-            raise WorkflowException("runtimeContext.workflow_eval_lock must not be None")
+            if runtimeContext.workflow_eval_lock is None:
+                raise WorkflowException("runtimeContext.workflow_eval_lock must not be None")
 
-        if self.output_callback:
-            with runtimeContext.workflow_eval_lock:
-                self.output_callback(outputs, processStatus)
+            if self.output_callback:
+                with runtimeContext.workflow_eval_lock:
+                    self.output_callback(outputs, processStatus)
 
-        if runtimeContext.rm_tmpdir and self.stagedir is not None and os.path.exists(self.stagedir):
-            _logger.debug(
-                "[job %s] Removing input staging directory %s",
-                self.name,
-                self.stagedir,
-            )
-            shutil.rmtree(self.stagedir, True)
+            if runtimeContext.rm_tmpdir and self.stagedir is not None and os.path.exists(self.stagedir):
+                _logger.debug(
+                    "[job %s] Removing input staging directory %s",
+                    self.name,
+                    self.stagedir,
+                )
+                shutil.rmtree(self.stagedir, True)
 
-        if runtimeContext.rm_tmpdir:
-            _logger.debug("[job %s] Removing temporary directory %s", self.name, self.tmpdir)
-            shutil.rmtree(self.tmpdir, True)
+            if runtimeContext.rm_tmpdir:
+                _logger.debug("[job %s] Removing temporary directory %s", self.name, self.tmpdir)
+                shutil.rmtree(self.tmpdir, True)
 
     @abstractmethod
     def _required_env(self) -> dict[str, str]:
