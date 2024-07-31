@@ -30,13 +30,13 @@ def test_check_version() -> None:
     joborder: CWLObjectType = {"inp": "abc"}
     loadingContext = LoadingContext({"do_update": True})
     tool = load_tool(get_data("tests/echo.cwl"), loadingContext)
-    for _ in tool.job(joborder, None, RuntimeContext()):
+    for _ in tool.job(joborder, lambda output, process_status: None, RuntimeContext()):
         pass
 
     loadingContext = LoadingContext({"do_update": False})
     tool = load_tool(get_data("tests/echo.cwl"), loadingContext)
     with pytest.raises(WorkflowException):
-        for _ in tool.job(joborder, None, RuntimeContext()):
+        for _ in tool.job(joborder, lambda output, process_status: None, RuntimeContext()):
             pass
 
 

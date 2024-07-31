@@ -65,7 +65,7 @@ class WorkflowJobStep:
     def job(
         self,
         joborder: CWLObjectType,
-        output_callback: Optional[OutputCallbackType],
+        output_callback: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         runtimeContext = runtimeContext.copy()
@@ -584,7 +584,7 @@ class WorkflowJob:
     def try_make_job(
         self,
         step: WorkflowJobStep,
-        final_output_callback: Optional[OutputCallbackType],
+        final_output_callback: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         container_engine = "docker"
@@ -773,7 +773,7 @@ class WorkflowJob:
     def job(
         self,
         joborder: CWLObjectType,
-        output_callback: Optional[OutputCallbackType],
+        output_callback: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         self.state = {}
@@ -848,7 +848,7 @@ class WorkflowJob:
                 else:
                     yield None
 
-        if not self.did_callback and output_callback:
+        if not self.did_callback:
             # could have called earlier on line 336;
             self.do_output_callback(output_callback)
             # depends which one comes first. All steps are completed
