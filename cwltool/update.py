@@ -11,11 +11,10 @@ from typing import (
     cast,
 )
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from schema_salad.sourceline import SourceLine
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .loghandler import _logger
 from .utils import CWLObjectType, CWLOutputType, aslist, visit_class, visit_field
