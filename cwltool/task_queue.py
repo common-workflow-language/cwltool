@@ -7,8 +7,8 @@ import queue
 import threading
 from typing import Callable, Optional
 
-from .errors import WorkflowKillSwitch
 from .context import RuntimeContext
+from .errors import WorkflowKillSwitch
 from .loghandler import _logger
 
 
@@ -103,10 +103,7 @@ class TaskQueue:
             try:
                 if unlock is not None:
                     unlock.release()
-                if (
-                        (check_done is not None and check_done.is_set())
-                        or self.kill_switch.is_set()
-                ):
+                if (check_done is not None and check_done.is_set()) or self.kill_switch.is_set():
                     with self.lock:
                         self.in_flight -= 1
                     return
