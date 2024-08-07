@@ -64,6 +64,12 @@ class CWLViewer:
             )
             n.set_name(str(inner_edge_row["source_step"]))
             self._dot_graph.add_node(n)
+
+            # Add the edge with a label specifying the output and input files
+            edge_from_output_of = urlparse(inner_edge_row["output_ref"]).fragment
+            edge_to_input_of = urlparse(inner_edge_row["target_ref_input"]).fragment
+            edge_label = f"{edge_from_output_of} -> {edge_to_input_of}"
+
             target_label = (
                 inner_edge_row["target_label"]
                 if inner_edge_row["target_label"] is not None
@@ -91,6 +97,11 @@ class CWLViewer:
                 pydot.Edge(
                     str(inner_edge_row["source_step"]),
                     str(inner_edge_row["target_step"]),
+                    label=edge_label,
+                    fontsize="10",  #  set the font size for edge labels
+                    fontcolor="blue",  # set the font color for edge labels
+                    color="black",  # set the edge color
+                    arrowsize="0.7"  # set the arrow size
                 )
             )
 
@@ -175,8 +186,29 @@ class CWLViewer:
         graph.set("bgcolor", "#eeeeee")
         graph.set("clusterrank", "local")
         graph.set("labelloc", "bottom")
-        graph.set("labelloc", "bottom")
         graph.set("labeljust", "right")
+        graph.set("nodesep", "0.75")  # Increase the space between nodes
+        graph.set("ranksep", "1.25")  # Increase the space between ranks
+        graph.set("splines", "true")  # Use smooth splines for edges
+
+        # Additional styling for nodes
+        graph.set_node_defaults(
+            style="filled",
+            fillcolor="lightgrey",
+            shape="box",
+            fontname="Helvetica",
+            fontsize="14",
+            margin="0.2,0.1"
+        )
+
+        # Additional styling for edges
+        graph.set_edge_defaults(
+            color="black",
+            arrowhead="normal",
+            fontname="Helvetica",
+            fontsize="10",
+            fontcolor="blue"
+        )
 
         return graph
 
