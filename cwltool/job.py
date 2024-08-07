@@ -447,7 +447,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 with runtimeContext.workflow_eval_lock:
                     self.output_callback(outputs, processStatus)
 
-            if runtimeContext.rm_tmpdir and self.stagedir is not None and os.path.exists(self.stagedir):
+            if (
+                runtimeContext.rm_tmpdir
+                and self.stagedir is not None
+                and os.path.exists(self.stagedir)
+            ):
                 _logger.debug(
                     "[job %s] Removing input staging directory %s",
                     self.name,
@@ -875,7 +879,6 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         kill_switch: threading.Event,
     ) -> None:
         """Record memory usage of the running Docker container. Terminate if kill_switch is activated."""
-
         ks_tm: "Optional[Timer]" = None
         cid: Optional[str] = None
 
