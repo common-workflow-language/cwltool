@@ -100,7 +100,6 @@ class CWLViewer:
         inputs_subgraph = pydot.Subgraph(graph_name="cluster_inputs")
         self._dot_graph.add_subgraph(inputs_subgraph)
         inputs_subgraph.set("rank", "same")
-        inputs_subgraph.create_attribute_methods(["style"])
         inputs_subgraph.set("style", "dashed")
         inputs_subgraph.set("label", "Workflow Inputs")
 
@@ -128,7 +127,6 @@ class CWLViewer:
         outputs_graph = pydot.Subgraph(graph_name="cluster_outputs")
         self._dot_graph.add_subgraph(outputs_graph)
         outputs_graph.set("rank", "same")
-        outputs_graph.create_attribute_methods(["style"])
         outputs_graph.set("style", "dashed")
         outputs_graph.set("label", "Workflow Outputs")
         outputs_graph.set("labelloc", "b")

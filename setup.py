@@ -133,7 +133,7 @@ setup(
         "psutil >= 5.6.6",
         "importlib_resources>=1.4;python_version<'3.9'",
         "coloredlogs",
-        "pydot >= 1.4.1, <3",
+        "pydot >= 1.4.1",
         "argcomplete",
         "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
         "cwl-utils >= 0.32",
