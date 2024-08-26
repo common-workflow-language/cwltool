@@ -34,9 +34,11 @@ OA = Namespace("http://www.w3.org/ns/oa#")
 
 
 def cwltool(tmp_path: Path, *args: Any) -> Path:
+    out_folder = tmp_path / "out"
+    out_folder.mkdir()
     prov_folder = tmp_path / "provenance"
     prov_folder.mkdir()
-    new_args = ["--provenance", str(prov_folder)]
+    new_args = ["--provenance", str(prov_folder), "--outdir", str(out_folder)]
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
     tmp_dir = tmp_path / "cwltool-run"
@@ -81,6 +83,49 @@ def test_revsort_workflow(tmp_path: Path) -> None:
     )
     check_output_object(folder)
     check_provenance(folder)
+
+
+@needs_docker
+def test_revsort_label_annotations(tmp_path: Path) -> None:
+    """Affirm that EDAM file formats in the input object make it into CWLProv."""
+    base_path = cwltool(
+        tmp_path,
+        get_data("tests/wf/revsort.cwl"),
+        get_data("tests/wf/revsort-job.json"),
+    )
+    prov_file = base_path / "metadata" / "provenance" / "primary.cwlprov.nt"
+    arcp_root = find_arcp(base_path)
+    g = Graph()
+    with open(prov_file, "rb") as f:
+        g.parse(file=f, format="nt", publicID=arcp_root)
+    mime_having_objects = list(g.subjects(SCHEMA.encodingFormat))
+    assert len(mime_having_objects) == 2
+    for obj in mime_having_objects:
+        assert (
+            cast(Literal, list(g.objects(obj, SCHEMA.encodingFormat))[0]).value
+            == "https://www.iana.org/assignments/media-types/text/plain"
+        )
+
+
+def test_advanced_prov_annotations(tmp_path: Path) -> None:
+    """Pass through of advanced input annotations."""
+    base_path = cwltool(
+        tmp_path,
+        get_data("tests/wf/adv_prov/niaa_wf.cwl"),
+        get_data("tests/wf/adv_prov/niaa_wf_job.yml"),
+    )
+    prov_file = base_path / "metadata" / "provenance" / "primary.cwlprov.nt"
+    arcp_root = find_arcp(base_path)
+    g = Graph()
+    with open(prov_file, "rb") as f:
+        g.parse(file=f, format="nt", publicID=arcp_root)
+    mime_having_objects = list(g.subjects(SCHEMA.encodingFormat))
+    assert len(mime_having_objects) == 8
+    # for obj in mime_having_objects:
+    #     assert (
+    #         cast(Literal, list(g.objects(obj, SCHEMA.encodingFormat))[0]).value
+    #         == "https://www.iana.org/assignments/media-types/text/plain"
+    #     )
 
 
 @needs_docker

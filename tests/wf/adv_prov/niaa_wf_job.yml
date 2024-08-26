@@ -1,0 +1,78 @@
+cwlprov:prov:
+  sabdab_search:
+    s:additionalType: s:SearchAction
+    s:query: "All structures"
+    s:endTime: 2022-05-27
+    s:object:
+      s:name: "Structural Antibody Database"
+      s:citation:
+        s:identifier: https://doi.org/10.1093/nar/gkab1050
+    s:result: sabdab_summary
+    s:description: "Search Action for metadata on antibody-antigen complexes in SAbDab"
+
+
+pdb_search_api_query:
+  class: File
+  location: ./data/pdb_query.json
+  format: iana:application/json
+  s:description: "Input query for PDB search API."
+  s:additionalType:
+  - edam:data_3786 # Query script
+
+sabdab_summary:
+  class: File
+  path: ./data/sabdab_summary_all_20220527.tsv
+  format: iana:text/tab-separated-values
+  s:description: "Summary file downloaded from SAbDAb database, containing metadata for all structures."
+  s:additionalType:
+  - edam:data_2080 # database search results
+  - s:Dataset
+      
+
+biodl_train_dataset:
+  class: File
+  path: data/prepared_biolip_win_p_training.csv
+  #location: https://www.ibi.vu.nl/downloads/PIPENN/PIPENN/BioDL-Datasets/prepared_biolip_win_p_training.csv
+  format: iana:text/csv
+  s:description: "BioDL training set containing PPI annotations for protein sequences (UniProt IDs)"
+  s:name: "BioDL training dataset"
+  s:citation:
+    s:identifier: https://doi.org/10.1093/bioinformatics/btac071
+  s:additionalType:
+  - s:Dataset
+  - edam:data_1277 # protein features
+
+biodl_test_dataset:
+  class: File
+  path: data/prepared_biolip_win_p_testing.csv
+  #location: https://www.ibi.vu.nl/downloads/PIPENN/PIPENN/BioDL-Datasets/prepared_biolip_win_p_testing.csv
+  s:description: "BioDL test set containing PPI annotations for protein sequences (UniProt IDs)."
+  s:name: "BioDL test dataset"
+  s:citation:
+    s:identifier: https://doi.org/10.1093/bioinformatics/btac071
+  s:additionalType:
+  - s:Dataset
+  - edam:data_1277 # protein features
+
+hhblits_db: 
+  class: Directory
+  location: ../hhblits/databases
+  s:citation:
+    s:identifier: https://doi.org/10.1038/nmeth.1818
+  s:name: "pdb70"
+  s:description: "Directory containing HHBlits reference database."
+  s:additionalType:
+  - s:Dataset
+  - edam:data_0955 # data index
+
+hhblits_db_name: pdb70
+hhblits_n_iterations: 1
+
+s:description: "Demonstration run of epitope prediction workflow. Some steps are emulated, so the results of the workflow are not yet biologically meaningful."
+
+$namespaces:
+  iana: "https://www.iana.org/assignments/media-types/"
+  s: "https://schema.org/"
+  edam: "http://edamontology.org/"
+  cwlprov: "https://w3id.org/cwl/prov#"
+

@@ -51,8 +51,13 @@ from .provenance_constants import (
 )
 from .writablebagfile import create_job, write_bag_file  # change this later
 
+# from schema_salad.utils import convert_to_dict
+
+
 if TYPE_CHECKING:
     from .ro import ResearchObject
+
+ProvType = Dict[Union[str, Identifier], Any]
 
 
 def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectType) -> CWLObjectType:
@@ -177,14 +182,14 @@ class ProvenanceProfile:
         # by a user account, as cwltool is a command line tool
         account = self.document.agent(ACCOUNT_UUID)
         if self.orcid or self.full_name:
-            person: Dict[Union[str, Identifier], Any] = {
+            person: ProvType = {
                 PROV_TYPE: PROV["Person"],
                 "prov:type": SCHEMA["Person"],
             }
             if self.full_name:
                 person["prov:label"] = self.full_name
                 person["foaf:name"] = self.full_name
-                person["schema:name"] = self.full_name
+                person[SCHEMA["name"]] = self.full_name
             else:
                 # TODO: Look up name from ORCID API?
                 pass
@@ -235,15 +240,25 @@ class ProvenanceProfile:
         """Evaluate the nature of job."""
         if not hasattr(process, "steps"):
             # record provenance of independent commandline tool executions
-            self.prospective_prov(job)
+            self.prospective_prov(job, process)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
             create_job(research_obj, customised_job)
         elif hasattr(job, "workflow"):
             # record provenance of workflow executions
-            self.prospective_prov(job)
+            self.prospective_prov(job, process)
             customised_job = copy_job_order(job, job_order_object)
             self.used_artefacts(customised_job, self.workflow_run_uri)
+            # if CWLPROV['prov'].uri in job_order_object: # maybe move this to another place
+            #     metadata = job_order_object[CWLPROV['prov'].uri] # change uri to CWLPROV['prov'].uri
+            #     for item in metadata:
+            #         # make a new entity with id
+            #         # give it type additionalType value
+            #         # add nested annotations
+            #         # how much of this can we reuse from _add_nested_annotations?
+            #         # how do we identify the correct file to write to? self.workflow_run_uri?
+            #         #
+            #         pass
 
     def record_process_start(
         self, process: Process, job: JobsType, process_run_id: Optional[str] = None
@@ -290,6 +305,30 @@ class ProvenanceProfile:
     ) -> None:
         self.generate_output_prov(outputs, process_run_id, process_name)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
+
+    def _add_nested_annotations(
+        self, annotation_key: str, annotation_value: Any, e: ProvEntity
+    ) -> ProvEntity:
+        """Propagate input data annotations to provenance."""
+        # Change https:// into http:// first
+        if (schema2_uri := "https://schema.org/") in annotation_key:
+            annotation_key = SCHEMA[annotation_key.replace(schema2_uri, "")].uri
+
+        if not isinstance(annotation_value, (MutableSequence, MutableMapping)):
+            e.add_attributes({annotation_key: str(annotation_value)})
+        elif isinstance(annotation_value, MutableSequence):
+            for item_value in annotation_value:
+                e = self._add_nested_annotations(annotation_key, item_value, e)
+        else:
+            nested_id = uuid.uuid4().urn
+            nested_entity = self.document.entity(nested_id)
+            e.add_attributes({annotation_key: nested_entity.identifier})
+            for nested_key in annotation_value:
+                nested_value = annotation_value[nested_key]
+                nested_entity = self._add_nested_annotations(
+                    nested_key, nested_value, nested_entity
+                )
+        return e
 
     def declare_file(self, value: CWLObjectType) -> Tuple[ProvEntity, ProvEntity, str]:
         if value["class"] != "File":
@@ -340,6 +379,29 @@ class ProvenanceProfile:
         if "nameext" in value:
             file_entity.add_attributes({CWLPROV["nameext"]: cast(str, value["nameext"])})
         self.document.specializationOf(file_entity, entity)
+
+        # Identify all schema annotations
+        schema_annotations = {
+            v: value[v] for v in value.keys() if v.startswith("https://schema.org")
+        }
+
+        # Transfer SCHEMA annotations to provenance
+        for s in schema_annotations:
+            if "additionalType" in s:
+                atype = schema_annotations[s]
+                if isinstance(atype, str):
+                    additional_type = atype.split(sep="/")[-1]  # find better method?
+                    file_entity.add_attributes({PROV_TYPE: SCHEMA[additional_type]})
+                else:
+                    for a_entry in cast(List[str], atype):
+                        additional_type = a_entry.split(sep="/")[-1]  # find better method?
+                        file_entity.add_attributes({PROV_TYPE: SCHEMA[additional_type]})
+            else:
+                file_entity = self._add_nested_annotations(s, schema_annotations[s], file_entity)
+
+        # Transfer format annotations to provenance:
+        if "format" in value:
+            file_entity.add_attributes({SCHEMA["encodingFormat"]: value["format"]})
 
         # Check for secondaries
         for sec in cast(MutableSequence[CWLObjectType], value.get("secondaryFiles", [])):
@@ -449,6 +511,21 @@ class ProvenanceProfile:
 
         coll.add_attributes(coll_attribs)
         coll_b.add_attributes(coll_b_attribs)
+
+        # Identify all schema annotations
+        schema_annotations = {
+            v: value[v] for v in value.keys() if v.startswith("https://schema.org")
+        }
+
+        # Transfer SCHEMA annotations to provenance
+        for s in schema_annotations:
+            if "additionalType" in s:
+                additional_type = cast(str, schema_annotations[s]).split(sep="/")[
+                    -1
+                ]  # find better method?
+                coll.add_attributes({PROV_TYPE: SCHEMA[additional_type]})
+            elif "hasPart" not in s:
+                coll = self._add_nested_annotations(s, schema_annotations[s], coll)
 
         # Also Save ORE Folder as annotation metadata
         ore_doc = ProvDocument()
@@ -661,35 +738,39 @@ class ProvenanceProfile:
                     entity, process_run_id, timestamp, None, {"prov:role": role}
                 )
 
-    def prospective_prov(self, job: JobsType) -> None:
+    def prospective_prov(self, job: JobsType, process: Process) -> None:
         """Create prospective prov recording as wfdesc prov:Plan."""
+        prov_items: ProvType = {
+            PROV_TYPE: WFDESC["Workflow"] if isinstance(job, WorkflowJob) else WFDESC["Process"],
+            "prov:type": PROV["Plan"],
+            "prov:label": "Prospective provenance",
+        }
+        if "doc" in process.tool:
+            prov_items[SCHEMA["description"]] = process.tool["doc"]
+        if "label" in process.tool:
+            prov_items[SCHEMA["name"]] = process.tool["label"]
+        # # TypeError: unhashable type: 'list'
+        # if "intent" in process.tool:
+        #     prov_items[SCHEMA["featureList"]] = convert_to_dict(process.tool["intent"])
+        self.document.entity("wf:main", prov_items)
         if not isinstance(job, WorkflowJob):
-            # direct command line tool execution
-            self.document.entity(
-                "wf:main",
-                {
-                    PROV_TYPE: WFDESC["Process"],
-                    "prov:type": PROV["Plan"],
-                    "prov:label": "Prospective provenance",
-                },
-            )
             return
-
-        self.document.entity(
-            "wf:main",
-            {
-                PROV_TYPE: WFDESC["Workflow"],
-                "prov:type": PROV["Plan"],
-                "prov:label": "Prospective provenance",
-            },
-        )
 
         for step in job.steps:
             stepnametemp = "wf:main/" + str(step.name)[5:]
             stepname = urllib.parse.quote(stepnametemp, safe=":/,#")
+            provstep_items: ProvType = {
+                PROV_TYPE: WFDESC["Process"],
+                "prov:type": PROV["Plan"],
+            }
+            # WorkflowStep level annotations
+            if "doc" in step.tool:
+                provstep_items[SCHEMA["description"]] = step.tool["doc"]
+            if "label" in step.tool:
+                provstep_items[SCHEMA["name"]] = step.tool["label"]
             provstep = self.document.entity(
                 stepname,
-                {PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]},
+                provstep_items,
             )
             self.document.entity(
                 "wf:main",
