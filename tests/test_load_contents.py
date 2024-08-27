@@ -1,5 +1,4 @@
 """Test the loadContents feature."""
-import os.path
 
 import json
 from pathlib import Path
