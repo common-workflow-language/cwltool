@@ -1,4 +1,5 @@
 """Test the loadContents feature."""
+import os.path
 
 import json
 from pathlib import Path
@@ -14,7 +15,7 @@ def test_load_contents_file_array(tmp_path: Path) -> None:
         "--outdir",
         str(tmp_path),
         get_data("tests/load_contents-array.cwl"),
-        "tests/load_contents-array.yml",
+        str(Path(__file__) / "../load_contents-array.yml"),
     ]
     assert main(params) == 0
     with open(tmp_path / "data.json") as out_fd:
