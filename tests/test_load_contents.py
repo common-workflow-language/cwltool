@@ -1,4 +1,5 @@
 """Test the loadContents feature."""
+
 import json
 from pathlib import Path
 
@@ -10,7 +11,8 @@ from .util import get_data
 def test_load_contents_file_array(tmp_path: Path) -> None:
     """Ensures that a File[] input with loadContents loads each file."""
     params = [
-        "--outdir", str(tmp_path),
+        "--outdir",
+        str(tmp_path),
         get_data("tests/load_contents-array.cwl"),
         "tests/load_contents-array.yml",
     ]
