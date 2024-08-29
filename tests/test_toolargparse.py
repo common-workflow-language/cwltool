@@ -156,12 +156,12 @@ scripts_argparse_params = [
     (
         "foo with f for long value (large number)",
         script_f,
-        lambda x: [x, "--foo", str(2**31+10)],
+        lambda x: [x, "--foo", str(2**31 + 10)],
     ),
     (
         "foo with f for long value (small number)",
         script_f,
-        lambda x: [x, "--foo", str(-1*(2**31)-10)],
+        lambda x: [x, "--foo", str(-1 * (2**31) - 10)],
     ),
     (
         "foo with g",
