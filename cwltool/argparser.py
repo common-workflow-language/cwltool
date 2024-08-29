@@ -906,7 +906,7 @@ def add_argument(
             items = inptype["items"]
             if items == "int" or items == "long":
                 atype = int
-            elif items == "double" or items == "fload":
+            elif items == "double" or items == "float":
                 atype = float
     elif isinstance(inptype, MutableMapping) and inptype["type"] == "enum":
         atype = str
