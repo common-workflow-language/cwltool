@@ -101,6 +101,34 @@ expression: '{"bar": $(inputs.foo.location)}'
 outputs: []
 """
 
+script_f = """
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+class: ExpressionTool
+
+inputs:
+  foo: int[]
+
+expression: '{"bar": $(inputs.foo)}'
+
+outputs: []
+"""
+
+script_g = """
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+class: ExpressionTool
+
+inputs:
+  foo: double[]
+
+expression: '{"bar": $(inputs.foo)}'
+
+outputs: []
+"""
+
 scripts_argparse_params = [
     ("help", script_a, lambda x: ["--debug", x, "--input", get_data("tests/echo.cwl")]),
     ("boolean", script_b, lambda x: [x, "--help"]),
@@ -119,6 +147,16 @@ scripts_argparse_params = [
         "foo with e",
         script_e,
         lambda x: [x, "--foo", "http://example.com"],
+    ),
+    (
+        "foo with f",
+        script_f,
+        lambda x: [x, "--foo", "1", "--foo", "2"],
+    ),
+    (
+        "foo with g",
+        script_g,
+        lambda x: [x, "--foo", "1.2", "--foo", "3.4"],
     ),
 ]
 
