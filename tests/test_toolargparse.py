@@ -122,6 +122,34 @@ cwlVersion: v1.0
 class: ExpressionTool
 
 inputs:
+  foo: long[]
+
+expression: '{"bar": $(inputs.foo)}'
+
+outputs: []
+"""
+
+script_h = """
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+class: ExpressionTool
+
+inputs:
+  foo: float[]
+
+expression: '{"bar": $(inputs.foo)}'
+
+outputs: []
+"""
+
+script_i = """
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+class: ExpressionTool
+
+inputs:
   foo: double[]
 
 expression: '{"bar": $(inputs.foo)}'
@@ -154,17 +182,22 @@ scripts_argparse_params = [
         lambda x: [x, "--foo", "1", "--foo", "2"],
     ),
     (
-        "foo with f for long value (large number)",
+        "foo with g for long value (large number)",
         script_f,
         lambda x: [x, "--foo", str(2**31 + 10)],
     ),
     (
-        "foo with f for long value (small number)",
+        "foo with g for long value (small number)",
         script_f,
         lambda x: [x, "--foo", str(-1 * (2**31) - 10)],
     ),
     (
-        "foo with g",
+        "foo with h",
+        script_g,
+        lambda x: [x, "--foo", "1.2", "--foo", "3.4"],
+    ),
+    (
+        "foo with i",
         script_g,
         lambda x: [x, "--foo", "1.2", "--foo", "3.4"],
     ),
