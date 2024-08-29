@@ -101,7 +101,7 @@ expression: '{"bar": $(inputs.foo.location)}'
 outputs: []
 """
 
-script_f = """
+script_int = """
 #!/usr/bin/env cwl-runner
 
 cwlVersion: v1.0
