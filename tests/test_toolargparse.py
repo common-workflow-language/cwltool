@@ -115,7 +115,7 @@ expression: '{"bar": $(inputs.foo)}'
 outputs: []
 """
 
-script_g = """
+script_long = """
 #!/usr/bin/env cwl-runner
 
 cwlVersion: v1.0
@@ -129,7 +129,7 @@ expression: '{"bar": $(inputs.foo)}'
 outputs: []
 """
 
-script_h = """
+script_float = """
 #!/usr/bin/env cwl-runner
 
 cwlVersion: v1.0
@@ -143,7 +143,7 @@ expression: '{"bar": $(inputs.foo)}'
 outputs: []
 """
 
-script_i = """
+script_double = """
 #!/usr/bin/env cwl-runner
 
 cwlVersion: v1.0
@@ -177,28 +177,28 @@ scripts_argparse_params = [
         lambda x: [x, "--foo", "http://example.com"],
     ),
     (
-        "foo with f",
-        script_f,
+        "foo with int",
+        script_int,
         lambda x: [x, "--foo", "1", "--foo", "2"],
     ),
     (
-        "foo with g for long value (large number)",
-        script_g,
+        "foo with long for large value",
+        script_long,
         lambda x: [x, "--foo", str(2**31 + 10)],
     ),
     (
-        "foo with g for long value (small number)",
-        script_g,
+        "foo with long for small value",
+        script_long,
         lambda x: [x, "--foo", str(-1 * (2**31) - 10)],
     ),
     (
-        "foo with h",
-        script_h,
+        "foo with float",
+        script_float,
         lambda x: [x, "--foo", "1.2", "--foo", "3.4"],
     ),
     (
-        "foo with i",
-        script_i,
+        "foo with double",
+        script_double,
         lambda x: [x, "--foo", "1.2", "--foo", "3.4"],
     ),
 ]
