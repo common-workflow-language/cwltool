@@ -7,6 +7,8 @@ import queue
 import threading
 from typing import Callable, Optional
 
+from .context import RuntimeContext
+from .errors import WorkflowKillSwitch
 from .loghandler import _logger
 
 
@@ -33,7 +35,7 @@ class TaskQueue:
     in_flight: int = 0
     """The number of tasks in the queue."""
 
-    def __init__(self, lock: threading.Lock, thread_count: int):
+    def __init__(self, lock: threading.Lock, thread_count: int, runtime_context: RuntimeContext):
         """Create a new task queue using the specified lock and number of threads."""
         self.thread_count = thread_count
         self.task_queue: queue.Queue[Optional[Callable[[], None]]] = queue.Queue(
@@ -43,6 +45,11 @@ class TaskQueue:
         self.lock = lock
         self.error: Optional[BaseException] = None
 
+        if runtime_context.kill_switch is None:
+            self.kill_switch = runtime_context.kill_switch = threading.Event()
+        else:
+            self.kill_switch = runtime_context.kill_switch
+
         for _r in range(0, self.thread_count):
             t = threading.Thread(target=self._task_queue_func)
             self.task_queue_threads.append(t)
@@ -51,10 +58,14 @@ class TaskQueue:
     def _task_queue_func(self) -> None:
         while True:
             task = self.task_queue.get()
-            if task is None:
+            if task is None or self.kill_switch.is_set():
                 return
             try:
                 task()
+            except WorkflowKillSwitch:
+                self.kill_switch.set()
+                self.drain()
+                break
             except BaseException as e:  # noqa: B036
                 _logger.exception("Unhandled exception running task", exc_info=e)
                 self.error = e
@@ -92,7 +103,7 @@ class TaskQueue:
             try:
                 if unlock is not None:
                     unlock.release()
-                if check_done is not None and check_done.is_set():
+                if (check_done is not None and check_done.is_set()) or self.kill_switch.is_set():
                     with self.lock:
                         self.in_flight -= 1
                     return
