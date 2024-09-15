@@ -7,6 +7,7 @@ import locale
 import logging
 import os
 import re
+import shlex
 import shutil
 import threading
 import urllib
@@ -31,7 +32,6 @@ from typing import (
     cast,
 )
 
-import shellescape
 from mypy_extensions import mypyc_attr
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Schema
@@ -1164,7 +1164,7 @@ class CommandLineTool(Process):
             for b in builder.bindings:
                 arg = builder.generate_arg(b)
                 if b.get("shellQuote", True):
-                    arg = [shellescape.quote(a) for a in aslist(arg)]
+                    arg = [shlex.quote(a) for a in aslist(arg)]
                 cmd.extend(aslist(arg))
             j.command_line = ["/bin/sh", "-c", " ".join(cmd)]
         else:

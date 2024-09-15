@@ -5,6 +5,7 @@ import logging
 import math
 import os
 import re
+import shlex
 import shutil
 import signal
 import stat
@@ -35,7 +36,6 @@ from typing import (
 )
 
 import psutil
-import shellescape
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
@@ -271,7 +271,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             self.outdir,
             " \\\n    ".join(
                 [
-                    shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg)
+                    shlex.quote(str(arg)) if shouldquote(str(arg)) else str(arg)
                     for arg in (runtime + self.command_line)
                 ]
             ),
