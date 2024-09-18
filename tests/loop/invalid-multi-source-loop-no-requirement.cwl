@@ -61,4 +61,4 @@ steps:
       i1:
         loopSource: [osmall, obig]
         pickValue: the_only_non_null
-    outputMethod: all
+    outputMethod: all_iterations

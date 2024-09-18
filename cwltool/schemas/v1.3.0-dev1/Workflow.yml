@@ -497,8 +497,8 @@ $graph:
   docParent: "#LoopWorkflowStep"
   doc: The loop output method, as described in [workflow step loop](#LoopWorkflowStep).
   symbols:
-    - last
-    - all
+    - last_iteration
+    - all_iterations
 
 
 - name: AbstractWorkflowStep
@@ -705,14 +705,14 @@ $graph:
     The `outputMethod` field describes how to deal with loop outputs after
     termination:
 
-      * **last** specifies that only the last computed element for each output
-        parameter should be propagated to the subsequent steps. This is the
-        default value.
+      * **last_iteration** specifies that only the last computed element for
+        each output parameter should be propagated to the subsequent steps.
+        This is the default value.
 
-      * **all** specifies that an array with all output values computed at the
-        end of each loop iteration should be propagated to the subsequent steps.
-        Elements in the array must be ordered according to the loop iterations
-        that produced them.
+      * **all_iterations** specifies that an array with all output values
+        computed at the end of each loop iteration should be propagated to
+        the subsequent steps. Elements in the array must be ordered according
+        to the loop iterations that produced them.
 
     Iterative execution in CWL is an optional feature and is not required
     to be implemented by all consumers of CWL documents. An implementation that
@@ -734,9 +734,9 @@ $graph:
         mapPredicate: outputSource
     - name: outputMethod
       doc: |
-        If not specified, the default method is "last".
+        If not specified, the default method is "last_iteration".
       type: LoopOutputMethod?
-      default: last
+      default: last_iteration
       jsonldPredicate:
         "_id": "cwl:outputMethod"
         "_type": "@vocab"
@@ -748,7 +748,8 @@ $graph:
         Only run the next iteration when the expression evaluates to `true`.
         If the first iteration evaluates to `false` the step is skipped.
         A skipped step produces a `null` on each output if the `outputMethod`
-        is set to `last`, and an empty array if the `outputMethod` is set to `all`.
+        is set to `last_iteration`, and an empty array if the `outputMethod`
+        is set to `all_iterations`.
 
 
 - name: Workflow

@@ -11,11 +11,10 @@ from typing import (
     cast,
 )
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from schema_salad.sourceline import SourceLine
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .loghandler import _logger
 from .utils import CWLObjectType, CWLOutputType, aslist, visit_class, visit_field
@@ -51,7 +50,16 @@ def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> Tuple[Comm
                                     el["outputSource"] = source
                             s["loop"] = r["loop"]
                         if "outputMethod" in r:
-                            s["outputMethod"] = r["outputMethod"]
+                            if r["outputMethod"] == "all":
+                                s["outputMethod"] = "all_iterations"
+                            elif r["outputMethod"] == "last":
+                                s["outputMethod"] = "last_iteration"
+                            else:
+                                raise SourceLine(
+                                    r, raise_type=ValidationException
+                                ).makeError(  # pragma: no cover
+                                    f"Invalid value {r['outputMethod']} for `outputMethod`."
+                                )
                         cast(
                             MutableSequence[CWLObjectType],
                             s["requirements"],
