@@ -29,7 +29,7 @@ steps:
       }
     loop:
       i1: o1
-    outputMethod: last
+    outputMethod: last_iteration
     in:
       i1: i1
       i2: i2

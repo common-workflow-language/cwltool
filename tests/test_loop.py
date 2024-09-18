@@ -143,7 +143,7 @@ def test_loop_two_variables_single_backpropagation() -> None:
 
 
 def test_loop_with_all_output_method() -> None:
-    """Test a loop case with outputMethod set to all."""
+    """Test a loop case with outputMethod set to all_iterations."""
     stream = StringIO()
     params = [
         "--enable-dev",
@@ -156,7 +156,7 @@ def test_loop_with_all_output_method() -> None:
 
 
 def test_loop_with_all_output_method_no_iteration() -> None:
-    """Test a loop case with outputMethod set to all and a false 'when' condition."""
+    """Test a loop case with outputMethod set to all_iterations and a false 'when' condition."""
     stream = StringIO()
     params = [
         "--enable-dev",
@@ -244,7 +244,7 @@ def test_nested_loops() -> None:
 
 
 def test_nested_loops_all() -> None:
-    """Test a workflow with two nested loops, both with outputMethod set to all."""
+    """Test a workflow with two nested loops, both with outputMethod set to all_iterations."""
     stream = StringIO()
     params = [
         "--enable-dev",

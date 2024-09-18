@@ -7,14 +7,14 @@ import pytest
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
+from cwltool.builder import content_limit_respected_read
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
+from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
-from cwltool.utils import CWLObjectType, CONTENT_LIMIT, bytes2str_in_dicts
-from cwltool.builder import content_limit_respected_read
-from cwltool.errors import WorkflowException
+from cwltool.utils import CONTENT_LIMIT, CWLObjectType, bytes2str_in_dicts
 
 from .util import needs_docker
 
