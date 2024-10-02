@@ -282,7 +282,7 @@ class Builder(HasReqsHints):
                 and "itemSeparator" not in binding
             ):
                 st["inputBinding"] = {}
-            for k in ("secondaryFiles", "format", "streamable"):
+            for k in ("secondaryFiles", "format", "streamable", "loadContents"):
                 if k in schema:
                     st[k] = schema[k]
             if value_from_expression:
@@ -349,7 +349,7 @@ class Builder(HasReqsHints):
                         "type": schema["items"],
                         "inputBinding": b2,
                     }
-                    for k in ("secondaryFiles", "format", "streamable"):
+                    for k in ("secondaryFiles", "format", "streamable", "loadContents"):
                         if k in schema:
                             itemschema[k] = schema[k]
                     bindings.extend(

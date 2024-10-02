@@ -517,10 +517,13 @@ def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -
 
 
 def is_all_output_method_loop_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -> bool:
-    """Check if a step contains a `loop` directive with `all` outputMethod."""
+    """Check if a step contains a `loop` directive with `all_iterations` outputMethod."""
     source_step: Optional[MutableMapping[str, Any]] = param_to_step.get(parm_id)
     if source_step is not None:
-        if source_step.get("loop") is not None and source_step.get("outputMethod") == "all":
+        if (
+            source_step.get("loop") is not None
+            and source_step.get("outputMethod") == "all_iterations"
+        ):
             return True
     return False
 

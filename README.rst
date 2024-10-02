@@ -1,5 +1,5 @@
 #############################################################################################
-``cwltool``: The reference reference implementation of the Common Workflow Language standards
+``cwltool``: The reference implementation of the Common Workflow Language standards
 #############################################################################################
 
 |Linux Status| |Coverage Status| |Docs Status|

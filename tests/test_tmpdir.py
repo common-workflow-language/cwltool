@@ -66,7 +66,7 @@ def test_docker_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
             "tmp_outdir_prefix": tmp_outdir_prefix,
         }
     )
-    job = next(clt.job({}, None, runtime_context))
+    job = next(clt.job({}, lambda output, process_status: None, runtime_context))
     assert isinstance(job, JobBase)
     assert job.stagedir and job.stagedir.startswith(tmpdir_prefix)
     assert job.tmpdir and job.tmpdir.startswith(tmpdir_prefix)
@@ -106,7 +106,7 @@ def test_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
             "tmp_outdir_prefix": tmp_outdir_prefix,
         }
     )
-    job = next(clt.job({}, None, runtime_context))
+    job = next(clt.job({}, lambda output, process_status: None, runtime_context))
     assert isinstance(job, JobBase)
     assert job.stagedir and job.stagedir.startswith(tmpdir_prefix)
     assert job.tmpdir and job.tmpdir.startswith(tmpdir_prefix)

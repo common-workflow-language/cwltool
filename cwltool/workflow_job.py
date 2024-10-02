@@ -65,7 +65,7 @@ class WorkflowJobStep:
     def job(
         self,
         joborder: CWLObjectType,
-        output_callback: Optional[OutputCallbackType],
+        output_callback: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         runtimeContext = runtimeContext.copy()
@@ -584,7 +584,7 @@ class WorkflowJob:
     def try_make_job(
         self,
         step: WorkflowJobStep,
-        final_output_callback: Optional[OutputCallbackType],
+        final_output_callback: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         container_engine = "docker"
@@ -744,7 +744,7 @@ class WorkflowJob:
                     _logger.info("[%s] will be skipped", step.name)
                     if (
                         step.tool.get("loop") is not None
-                        and step.tool.get("outputMethod", "last") == "all"
+                        and step.tool.get("outputMethod", "last_iteration") == "all_iterations"
                     ):
                         callback({k["id"]: [] for k in outputparms}, "skipped")
                     else:
@@ -773,7 +773,7 @@ class WorkflowJob:
     def job(
         self,
         joborder: CWLObjectType,
-        output_callback: Optional[OutputCallbackType],
+        output_callback: OutputCallbackType,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         self.state = {}
@@ -848,7 +848,7 @@ class WorkflowJob:
                 else:
                     yield None
 
-        if not self.did_callback and output_callback:
+        if not self.did_callback:
             # could have called earlier on line 336;
             self.do_output_callback(output_callback)
             # depends which one comes first. All steps are completed
@@ -874,7 +874,7 @@ class WorkflowJobLoopStep:
         for i in self.step.tool["outputs"]:
             if "id" in i:
                 iid = cast(str, i["id"])
-                if outputMethod == "all":
+                if outputMethod == "all_iterations":
                     self.output_buffer[iid] = cast(MutableSequence[Optional[CWLOutputType]], [])
                 else:
                     self.output_buffer[iid] = None
@@ -887,7 +887,7 @@ class WorkflowJobLoopStep:
     ) -> JobsGeneratorType:
         """Generate a WorkflowJobStep job until the `when` condition evaluates to False."""
         self.joborder = joborder
-        outputMethod = self.step.tool.get("outputMethod", "last")
+        outputMethod = self.step.tool.get("outputMethod", "last_iteration")
 
         callback = functools.partial(
             self.loop_callback,
@@ -953,14 +953,14 @@ class WorkflowJobLoopStep:
         self.iteration += 1
         try:
             loop = cast(MutableSequence[CWLObjectType], self.step.tool.get("loop", []))
-            outputMethod = self.step.tool.get("outputMethod", "last")
+            outputMethod = self.step.tool.get("outputMethod", "last_iteration")
             state: Dict[str, Optional[WorkflowStateItem]] = {}
             for i in self.step.tool["outputs"]:
                 if "id" in i:
                     iid = cast(str, i["id"])
                     if iid in jobout:
                         state[iid] = WorkflowStateItem(i, jobout[iid], processStatus)
-                        if outputMethod == "all":
+                        if outputMethod == "all_iterations":
                             if iid not in self.output_buffer:
                                 self.output_buffer[iid] = cast(
                                     MutableSequence[Optional[CWLOutputType]], []

@@ -1,5 +1,5 @@
 bagit>=1.6.4,<1.9
-pytest>= 6.2,< 8.3
+pytest>= 6.2,< 8.4
 pytest-xdist>=3.2.0 # for the worksteal scheduler
 psutil # enhances pytest-xdist to allow "-n logical"
 pytest-httpserver
