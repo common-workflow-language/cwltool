@@ -4,17 +4,8 @@ import os
 import stat
 import urllib
 import uuid
-from typing import (
-    Dict,
-    ItemsView,
-    Iterable,
-    Iterator,
-    KeysView,
-    List,
-    Optional,
-    Tuple,
-    cast,
-)
+from collections.abc import ItemsView, Iterable, Iterator, KeysView
+from typing import Optional, cast
 
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
@@ -92,20 +83,20 @@ class PathMapper:
 
     def __init__(
         self,
-        referenced_files: List[CWLObjectType],
+        referenced_files: list[CWLObjectType],
         basedir: str,
         stagedir: str,
         separateDirs: bool = True,
     ) -> None:
         """Initialize the PathMapper."""
-        self._pathmap: Dict[str, MapperEnt] = {}
+        self._pathmap: dict[str, MapperEnt] = {}
         self.stagedir = stagedir
         self.separateDirs = separateDirs
         self.setup(dedup(referenced_files), basedir)
 
     def visitlisting(
         self,
-        listing: List[CWLObjectType],
+        listing: list[CWLObjectType],
         stagedir: str,
         basedir: str,
         copy: bool = False,
@@ -147,7 +138,7 @@ class PathMapper:
             if location.startswith("file://"):
                 staged = False
             self.visitlisting(
-                cast(List[CWLObjectType], obj.get("listing", [])),
+                cast(list[CWLObjectType], obj.get("listing", [])),
                 tgt,
                 basedir,
                 copy=copy,
@@ -189,14 +180,14 @@ class PathMapper:
                         deref, tgt, "WritableFile" if copy else "File", staged
                     )
             self.visitlisting(
-                cast(List[CWLObjectType], obj.get("secondaryFiles", [])),
+                cast(list[CWLObjectType], obj.get("secondaryFiles", [])),
                 stagedir,
                 basedir,
                 copy=copy,
                 staged=staged,
             )
 
-    def setup(self, referenced_files: List[CWLObjectType], basedir: str) -> None:
+    def setup(self, referenced_files: list[CWLObjectType], basedir: str) -> None:
         # Go through each file and set the target to its own directory along
         # with any secondary files.
         stagedir = self.stagedir
@@ -246,7 +237,7 @@ class PathMapper:
     def reversemap(
         self,
         target: str,
-    ) -> Optional[Tuple[str, str]]:
+    ) -> Optional[tuple[str, str]]:
         """Find the (source, resolved_path) for the given target, if any."""
         for k, v in self._pathmap.items():
             if v[1] == target:

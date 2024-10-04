@@ -3,19 +3,8 @@
 import argparse
 import os
 import urllib
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Sequence,
-    Type,
-    Union,
-    cast,
-)
+from collections.abc import MutableMapping, MutableSequence, Sequence
+from typing import Any, Callable, Optional, Union, cast
 
 from .loghandler import _logger
 from .process import Process, shortname
@@ -718,7 +707,7 @@ def arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_default_args() -> Dict[str, Any]:
+def get_default_args() -> dict[str, Any]:
     """Get default values of cwltool's command line options."""
     ap = arg_parser()
     args = ap.parse_args([])
@@ -732,7 +721,7 @@ class FSAction(argparse.Action):
 
     def __init__(
         self,
-        option_strings: List[str],
+        option_strings: list[str],
         dest: str,
         nargs: Any = None,
         urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
@@ -770,7 +759,7 @@ class FSAppendAction(argparse.Action):
 
     def __init__(
         self,
-        option_strings: List[str],
+        option_strings: list[str],
         dest: str,
         nargs: Any = None,
         urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
@@ -827,7 +816,7 @@ class AppendAction(argparse.Action):
 
     def __init__(
         self,
-        option_strings: List[str],
+        option_strings: list[str],
         dest: str,
         nargs: Any = None,
         **kwargs: Any,
@@ -859,7 +848,7 @@ def add_argument(
     toolparser: argparse.ArgumentParser,
     name: str,
     inptype: Any,
-    records: List[str],
+    records: list[str],
     description: str = "",
     default: Any = None,
     input_required: bool = True,
@@ -888,9 +877,9 @@ def add_argument(
             return None
 
     ahelp = description.replace("%", "%%")
-    action: Optional[Union[Type[argparse.Action], str]] = None
+    action: Optional[Union[type[argparse.Action], str]] = None
     atype: Optional[Any] = None
-    typekw: Dict[str, Any] = {}
+    typekw: dict[str, Any] = {}
 
     if inptype == "File":
         action = FileAction
@@ -962,8 +951,8 @@ def add_argument(
 def generate_parser(
     toolparser: argparse.ArgumentParser,
     tool: Process,
-    namemap: Dict[str, str],
-    records: List[str],
+    namemap: dict[str, str],
+    records: list[str],
     input_required: bool = True,
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     base_uri: str = "",

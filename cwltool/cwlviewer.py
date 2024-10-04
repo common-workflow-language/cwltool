@@ -1,7 +1,8 @@
 """Visualize a CWL workflow."""
 
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, List, cast
+from typing import cast
 from urllib.parse import urlparse
 
 import pydot
@@ -154,7 +155,7 @@ class CWLViewer:
         with open(_get_root_query_path) as f:
             get_root_query = f.read()
         root = cast(
-            List[rdflib.query.ResultRow],
+            list[rdflib.query.ResultRow],
             list(
                 self._rdf_graph.query(
                     get_root_query,

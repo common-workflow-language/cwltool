@@ -13,25 +13,9 @@ import stat
 import textwrap
 import urllib.parse
 import uuid
+from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence, Sized
 from os import scandir
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Set,
-    Sized,
-    Tuple,
-    Type,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
 from cwl_utils import expression
 from mypy_extensions import mypyc_attr
@@ -161,14 +145,14 @@ salad_files = (
     "vocab_res_proc.yml",
 )
 
-SCHEMA_CACHE: Dict[
-    str, Tuple[Loader, Union[Names, SchemaParseException], CWLObjectType, Loader]
+SCHEMA_CACHE: dict[
+    str, tuple[Loader, Union[Names, SchemaParseException], CWLObjectType, Loader]
 ] = {}
 SCHEMA_FILE: Optional[CWLObjectType] = None
 SCHEMA_DIR: Optional[CWLObjectType] = None
 SCHEMA_ANY: Optional[CWLObjectType] = None
 
-custom_schemas: Dict[str, Tuple[str, str]] = {}
+custom_schemas: dict[str, tuple[str, str]] = {}
 
 
 def use_standard_schema(version: str) -> None:
@@ -186,11 +170,11 @@ def use_custom_schema(version: str, name: str, text: str) -> None:
 
 def get_schema(
     version: str,
-) -> Tuple[Loader, Union[Names, SchemaParseException], CWLObjectType, Loader]:
+) -> tuple[Loader, Union[Names, SchemaParseException], CWLObjectType, Loader]:
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
-    cache: Dict[str, Union[str, Graph, bool]] = {}
+    cache: dict[str, Union[str, Graph, bool]] = {}
     version = version.split("#")[-1]
     if ".dev" in version:
         version = ".".join(version.split(".")[:-1])
@@ -244,7 +228,7 @@ def stage_files(
     :raises WorkflowException: if there is a file staging conflict
     """
     items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
-    targets: Dict[str, MapperEnt] = {}
+    targets: dict[str, MapperEnt] = {}
     for key, entry in list(items):
         if "File" not in entry.type:
             continue
@@ -309,11 +293,11 @@ def stage_files(
 def relocateOutputs(
     outputObj: CWLObjectType,
     destination_path: str,
-    source_directories: Set[str],
+    source_directories: set[str],
     action: str,
     fs_access: StdFsAccess,
     compute_checksum: bool = True,
-    path_mapper: Type[PathMapper] = PathMapper,
+    path_mapper: type[PathMapper] = PathMapper,
 ) -> CWLObjectType:
     adjustDirObjs(outputObj, functools.partial(get_listing, fs_access, recursive=True))
 
@@ -414,7 +398,7 @@ def add_sizes(fsaccess: StdFsAccess, obj: CWLObjectType) -> None:
 
 
 def fill_in_defaults(
-    inputs: List[CWLObjectType],
+    inputs: list[CWLObjectType],
     job: CWLObjectType,
     fsaccess: StdFsAccess,
 ) -> None:
@@ -578,7 +562,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             self.tool["id"] = "_:" + str(uuid.uuid4())
         self.requirements.extend(
             cast(
-                List[CWLObjectType],
+                list[CWLObjectType],
                 get_overrides(getdefault(loadingContext.overrides_list, []), self.tool["id"]).get(
                     "requirements", []
                 ),
@@ -617,7 +601,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             avroize_type(cast(MutableSequence[CWLOutputType], sdtypes))
             av = make_valid_avro(
                 sdtypes,
-                {cast(str, t["name"]): cast(Dict[str, Any], t) for t in sdtypes},
+                {cast(str, t["name"]): cast(dict[str, Any], t) for t in sdtypes},
                 set(),
                 vocab=INPUT_OBJ_VOCAB,
             )
@@ -655,9 +639,9 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
 
                 c["type"] = avroize_type(c["type"], c["name"])
                 if key == "inputs":
-                    cast(List[CWLObjectType], self.inputs_record_schema["fields"]).append(c)
+                    cast(list[CWLObjectType], self.inputs_record_schema["fields"]).append(c)
                 elif key == "outputs":
-                    cast(List[CWLObjectType], self.outputs_record_schema["fields"]).append(c)
+                    cast(list[CWLObjectType], self.outputs_record_schema["fields"]).append(c)
 
         with SourceLine(toolpath_object, "inputs", ValidationException, debug):
             self.inputs_record_schema = cast(
@@ -681,7 +665,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         if toolpath_object.get("class") is not None and not getdefault(
             loadingContext.disable_js_validation, False
         ):
-            validate_js_options: Optional[Dict[str, Union[List[str], str, int]]] = None
+            validate_js_options: Optional[dict[str, Union[list[str], str, int]]] = None
             if loadingContext.js_hint_options_file is not None:
                 try:
                     with open(loadingContext.js_hint_options_file) as options_file:
@@ -784,7 +768,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     v = job[k]
                     dircount = [0]
 
-                    def inc(d: List[int]) -> None:
+                    def inc(d: list[int]) -> None:
                         d[0] += 1
 
                     visit_class(v, ("Directory",), lambda x: inc(dircount))  # noqa: B023
@@ -820,7 +804,7 @@ hints:
         except (ValidationException, WorkflowException) as err:
             raise WorkflowException("Invalid job input record:\n" + str(err)) from err
 
-        files: List[CWLObjectType] = []
+        files: list[CWLObjectType] = []
         bindings = CommentedSeq()
         outdir = ""
         tmpdir = ""
@@ -947,7 +931,7 @@ hints:
 
     def evalResources(
         self, builder: Builder, runtimeContext: RuntimeContext
-    ) -> Dict[str, Union[int, float]]:
+    ) -> dict[str, Union[int, float]]:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -957,7 +941,7 @@ hints:
             ram = 1024
         else:
             ram = 256
-        request: Dict[str, Union[int, float, str]] = {
+        request: dict[str, Union[int, float, str]] = {
             "coresMin": 1,
             "coresMax": 1,
             "ramMin": ram,
@@ -1005,7 +989,7 @@ hints:
                 request[a + "Min"] = mn
                 request[a + "Max"] = cast(Union[int, float], mx)
 
-        request_evaluated = cast(Dict[str, Union[int, float]], request)
+        request_evaluated = cast(dict[str, Union[int, float]], request)
         if runtimeContext.select_resources is not None:
             # Call select resources hook
             return runtimeContext.select_resources(request_evaluated, runtimeContext)
@@ -1038,7 +1022,7 @@ hints:
                                 f"Unsupported requirement {entry['class']}."
                             )
 
-    def validate_hints(self, avsc_names: Names, hints: List[CWLObjectType], strict: bool) -> None:
+    def validate_hints(self, avsc_names: Names, hints: list[CWLObjectType], strict: bool) -> None:
         """Process the hints field."""
         if self.doc_loader is None:
             return
@@ -1085,10 +1069,10 @@ hints:
         return f"{type(self).__name__}: {self.tool['id']}"
 
 
-_names: Set[str] = set()
+_names: set[str] = set()
 
 
-def uniquename(stem: str, names: Optional[Set[str]] = None) -> str:
+def uniquename(stem: str, names: Optional[set[str]] = None) -> str:
     global _names
     if names is None:
         names = _names
@@ -1123,8 +1107,8 @@ def nestdir(base: str, deps: CWLObjectType) -> CWLObjectType:
 def mergedirs(
     listing: MutableSequence[CWLObjectType],
 ) -> MutableSequence[CWLObjectType]:
-    r: List[CWLObjectType] = []
-    ents: Dict[str, CWLObjectType] = {}
+    r: list[CWLObjectType] = []
+    ents: dict[str, CWLObjectType] = {}
     for e in listing:
         basename = cast(str, e["basename"])
         if basename not in ents:
@@ -1138,14 +1122,14 @@ def mergedirs(
             if e.get("listing"):
                 # name already in entries
                 # merge it into the existing listing
-                cast(List[CWLObjectType], ents[basename].setdefault("listing", [])).extend(
-                    cast(List[CWLObjectType], e["listing"])
+                cast(list[CWLObjectType], ents[basename].setdefault("listing", [])).extend(
+                    cast(list[CWLObjectType], e["listing"])
                 )
     for e in ents.values():
         if e["class"] == "Directory" and "listing" in e:
             e["listing"] = cast(
                 MutableSequence[CWLOutputType],
-                mergedirs(cast(List[CWLObjectType], e["listing"])),
+                mergedirs(cast(list[CWLObjectType], e["listing"])),
             )
     r.extend(ents.values())
     return r
@@ -1157,8 +1141,8 @@ CWL_IANA = "https://www.iana.org/assignments/media-types/application/cwl"
 def scandeps(
     base: str,
     doc: Union[CWLObjectType, MutableSequence[CWLObjectType]],
-    reffields: Set[str],
-    urlfields: Set[str],
+    reffields: set[str],
+    urlfields: set[str],
     loadref: Callable[[str, str], Union[CommentedMap, CommentedSeq, str, None]],
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,

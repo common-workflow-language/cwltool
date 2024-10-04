@@ -7,20 +7,9 @@ import shutil
 import tempfile
 import urllib
 import uuid
+from collections.abc import MutableMapping, MutableSequence
 from pathlib import Path, PurePosixPath
-from typing import (
-    IO,
-    Any,
-    Dict,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import IO, Any, Optional, Union, cast
 
 import prov.model as provM
 from prov.model import PROV, ProvDocument
@@ -75,12 +64,12 @@ class ResearchObject:
         self.folder = create_tmp_dir(temp_prefix_ro)
         self.closed = False
         # map of filename "data/de/alsdklkas": 12398123 bytes
-        self.bagged_size: Dict[str, int] = {}
-        self.tagfiles: Set[str] = set()
-        self._file_provenance: Dict[str, Aggregate] = {}
-        self._external_aggregates: List[Aggregate] = []
-        self.annotations: List[Annotation] = []
-        self._content_types: Dict[str, str] = {}
+        self.bagged_size: dict[str, int] = {}
+        self.tagfiles: set[str] = set()
+        self._file_provenance: dict[str, Aggregate] = {}
+        self._external_aggregates: list[Aggregate] = []
+        self.annotations: list[Annotation] = []
+        self._content_types: dict[str, str] = {}
         self.fsaccess = fsaccess
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engine_uuid = f"urn:uuid:{uuid.uuid4()}"
@@ -202,14 +191,14 @@ class ResearchObject:
                 "conformsTo": None,
             }
 
-    def _ro_aggregates(self) -> List[Aggregate]:
+    def _ro_aggregates(self) -> list[Aggregate]:
         """Gather dictionary of files to be added to the manifest."""
 
         def guess_mediatype(
             rel_path: str,
-        ) -> Tuple[Optional[str], Optional[Union[str, List[str]]]]:
+        ) -> tuple[Optional[str], Optional[Union[str, list[str]]]]:
             """Return the mediatypes."""
-            media_types: Dict[Union[str, None], str] = {
+            media_types: dict[Union[str, None], str] = {
                 # Adapted from
                 # https://w3id.org/bundle/2014-11-05/#media-types
                 "txt": TEXT_PLAIN,
@@ -223,12 +212,12 @@ class ResearchObject:
                 "provn": 'text/provenance-notation; charset="UTF-8"',
                 "nt": "application/n-triples",
             }
-            conforms_to: Dict[Union[str, None], str] = {
+            conforms_to: dict[Union[str, None], str] = {
                 "provn": "http://www.w3.org/TR/2013/REC-prov-n-20130430/",
                 "cwl": "https://w3id.org/cwl/",
             }
 
-            prov_conforms_to: Dict[str, str] = {
+            prov_conforms_to: dict[str, str] = {
                 "provn": "http://www.w3.org/TR/2013/REC-prov-n-20130430/",
                 "rdf": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
                 "ttl": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
@@ -244,7 +233,7 @@ class ResearchObject:
                 extension = None
 
             mediatype: Optional[str] = media_types.get(extension, None)
-            conformsTo: Optional[Union[str, List[str]]] = conforms_to.get(extension, None)
+            conformsTo: Optional[Union[str, list[str]]] = conforms_to.get(extension, None)
             # TODO: Open CWL file to read its declared "cwlVersion", e.g.
             # cwlVersion = "v1.0"
 
@@ -261,7 +250,7 @@ class ResearchObject:
                     conformsTo = prov_conforms_to[extension]
             return (mediatype, conformsTo)
 
-        aggregates: List[Aggregate] = []
+        aggregates: list[Aggregate] = []
         for path in self.bagged_size.keys():
             temp_path = PurePosixPath(path)
             folder = temp_path.parent
@@ -291,7 +280,7 @@ class ResearchObject:
                     bundledAs.update(self._file_provenance[path])
                 else:
                     aggregate_dict["bundledAs"] = cast(
-                        Optional[Dict[str, Any]], self._file_provenance[path]
+                        Optional[dict[str, Any]], self._file_provenance[path]
                     )
             else:
                 # Probably made outside wf run, part of job object?
@@ -343,7 +332,7 @@ class ResearchObject:
         return aggr
 
     def add_annotation(
-        self, about: str, content: List[str], motivated_by: str = "oa:describing"
+        self, about: str, content: list[str], motivated_by: str = "oa:describing"
     ) -> str:
         """Cheap URI relativize for current directory and /."""
         self.self_check()
@@ -359,9 +348,9 @@ class ResearchObject:
         self.annotations.append(ann)
         return uri
 
-    def _ro_annotations(self) -> List[Annotation]:
+    def _ro_annotations(self) -> list[Annotation]:
         """Append base RO and provenance annotations to the list of annotations."""
-        annotations: List[Annotation] = []
+        annotations: list[Annotation] = []
         annotations.append(
             {
                 "uri": uuid.uuid4().urn,
@@ -511,7 +500,7 @@ class ResearchObject:
 
     def _self_made(
         self, timestamp: Optional[datetime.datetime] = None
-    ) -> Tuple[str, Dict[str, str]]:  # createdOn, createdBy
+    ) -> tuple[str, dict[str, str]]:  # createdOn, createdBy
         if timestamp is None:
             timestamp = datetime.datetime.now()
         return (
@@ -519,7 +508,7 @@ class ResearchObject:
             {"uri": self.engine_uuid, "name": self.cwltool_version},
         )
 
-    def add_to_manifest(self, rel_path: str, checksums: Dict[str, str]) -> None:
+    def add_to_manifest(self, rel_path: str, checksums: dict[str, str]) -> None:
         """Add files to the research object manifest."""
         self.self_check()
         if PurePosixPath(rel_path).is_absolute():

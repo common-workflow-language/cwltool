@@ -3,22 +3,11 @@ import datetime
 import logging
 import urllib
 import uuid
+from collections.abc import MutableMapping, MutableSequence, Sequence
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from socket import getfqdn
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Sequence,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from prov.identifier import Identifier, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
@@ -117,7 +106,7 @@ class ProvenanceProfile:
         """Represent this Provenvance profile as a string."""
         return f"ProvenanceProfile <{self.workflow_run_uri}> in <{self.research_object}>"
 
-    def generate_prov_doc(self) -> Tuple[str, ProvDocument]:
+    def generate_prov_doc(self) -> tuple[str, ProvDocument]:
         """Add basic namespaces."""
 
         def host_provenance(document: ProvDocument) -> None:
@@ -177,7 +166,7 @@ class ProvenanceProfile:
         # by a user account, as cwltool is a command line tool
         account = self.document.agent(ACCOUNT_UUID)
         if self.orcid or self.full_name:
-            person: Dict[Union[str, Identifier], Any] = {
+            person: dict[Union[str, Identifier], Any] = {
                 PROV_TYPE: PROV["Person"],
                 "prov:type": SCHEMA["Person"],
             }
@@ -291,7 +280,7 @@ class ProvenanceProfile:
         self.generate_output_prov(outputs, process_run_id, process_name)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
-    def declare_file(self, value: CWLObjectType) -> Tuple[ProvEntity, ProvEntity, str]:
+    def declare_file(self, value: CWLObjectType) -> tuple[ProvEntity, ProvEntity, str]:
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
@@ -399,10 +388,10 @@ class ProvenanceProfile:
         #     dir_bundle.identifier, {PROV["type"]: ORE["ResourceMap"],
         #                             ORE["describes"]: coll_b.identifier})
 
-        coll_attribs: List[Tuple[Union[str, Identifier], Any]] = [
+        coll_attribs: list[tuple[Union[str, Identifier], Any]] = [
             (ORE["isDescribedBy"], dir_bundle.identifier)
         ]
-        coll_b_attribs: List[Tuple[Union[str, Identifier], Any]] = []
+        coll_b_attribs: list[tuple[Union[str, Identifier], Any]] = []
 
         # FIXME: .listing might not be populated yet - hopefully
         # a later call to this method will sort that
@@ -469,7 +458,7 @@ class ProvenanceProfile:
         self.research_object.add_uri(coll.identifier.uri)
         return coll
 
-    def declare_string(self, value: str) -> Tuple[ProvEntity, str]:
+    def declare_string(self, value: str) -> tuple[ProvEntity, str]:
         """Save as string in UTF-8."""
         byte_s = BytesIO(str(value).encode(ENCODING))
         data_file = self.research_object.add_data_file(byte_s, content_type=TEXT_PLAIN)
@@ -518,7 +507,7 @@ class ProvenanceProfile:
                 # Already processed this value, but it might not be in this PROV
                 entities = self.document.get_record(value["@id"])
                 if entities:
-                    return cast(List[ProvEntity], entities)[0]
+                    return cast(list[ProvEntity], entities)[0]
                 # else, unknown in PROV, re-add below as if it's fresh
 
             # Base case - we found a File we need to update
@@ -549,7 +538,7 @@ class ProvenanceProfile:
                 coll.add_asserted_type(CWLPROV[value["class"]])
 
             # Let's iterate and recurse
-            coll_attribs: List[Tuple[Union[str, Identifier], Any]] = []
+            coll_attribs: list[tuple[Union[str, Identifier], Any]] = []
             for key, val in value.items():
                 v_ent = self.declare_artefact(val)
                 self.document.membership(coll, v_ent)
@@ -601,7 +590,7 @@ class ProvenanceProfile:
 
     def used_artefacts(
         self,
-        job_order: Union[CWLObjectType, List[CWLObjectType]],
+        job_order: Union[CWLObjectType, list[CWLObjectType]],
         process_run_id: str,
         name: Optional[str] = None,
     ) -> None:
@@ -704,7 +693,7 @@ class ProvenanceProfile:
         """Add http://www.w3.org/TR/prov-aq/ relations to nested PROV files."""
         # NOTE: The below will only work if the corresponding metadata/provenance arcp URI
         # is a pre-registered namespace in the PROV Document
-        attribs: List[Tuple[Union[str, Identifier], Any]] = [
+        attribs: list[tuple[Union[str, Identifier], Any]] = [
             (PROV["has_provenance"], prov_id) for prov_id in prov_ids
         ]
         self.document.activity(activity, other_attributes=attribs)
@@ -713,7 +702,7 @@ class ProvenanceProfile:
         uris = [i.uri for i in prov_ids]
         self.research_object.add_annotation(activity, uris, PROV["has_provenance"].uri)
 
-    def finalize_prov_profile(self, name: Optional[str]) -> List[QualifiedName]:
+    def finalize_prov_profile(self, name: Optional[str]) -> list[QualifiedName]:
         """Transfer the provenance related files to the RO."""
         # NOTE: Relative posix path
         if name is None:

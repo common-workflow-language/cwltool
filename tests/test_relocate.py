@@ -1,17 +1,12 @@
 import json
 import os
 import shutil
-import sys
+from io import StringIO
 from pathlib import Path
 
 from cwltool.main import main
 
 from .util import get_data, needs_docker
-
-if sys.version_info[0] < 3:
-    from StringIO import StringIO
-else:
-    from io import StringIO
 
 
 @needs_docker

@@ -6,10 +6,10 @@ import pwd
 import re
 import uuid
 from getpass import getuser
-from typing import IO, Any, Callable, Dict, List, Optional, Tuple, TypedDict, Union
+from typing import IO, Any, Callable, Optional, TypedDict, Union
 
 
-def _whoami() -> Tuple[str, str]:
+def _whoami() -> tuple[str, str]:
     """Return the current operating system account as (username, fullname)."""
     username = getuser()
     try:
@@ -106,8 +106,8 @@ Annotation = TypedDict(
     {
         "uri": str,
         "about": str,
-        "content": Optional[Union[str, List[str]]],
-        "oa:motivatedBy": Dict[str, str],
+        "content": Optional[Union[str, list[str]]],
+        "oa:motivatedBy": dict[str, str],
     },
 )
 
@@ -116,11 +116,11 @@ class Aggregate(TypedDict, total=False):
     """RO Aggregate class."""
 
     uri: Optional[str]
-    bundledAs: Optional[Dict[str, Any]]
+    bundledAs: Optional[dict[str, Any]]
     mediatype: Optional[str]
-    conformsTo: Optional[Union[str, List[str]]]
+    conformsTo: Optional[Union[str, list[str]]]
     createdOn: Optional[str]
-    createdBy: Optional[Dict[str, str]]
+    createdBy: Optional[dict[str, str]]
 
 
 # Aggregate.bundledAs is actually type Aggregate, but cyclic definitions are not supported

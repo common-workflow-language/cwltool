@@ -3,8 +3,9 @@ import os
 import pickle
 import sys
 import urllib
+from collections.abc import Generator
 from pathlib import Path
-from typing import IO, Any, Generator, cast
+from typing import IO, Any, cast
 
 import arcp
 import bagit

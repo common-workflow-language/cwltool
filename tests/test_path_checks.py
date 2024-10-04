@@ -1,7 +1,7 @@
 import urllib.parse
 from io import BytesIO
 from pathlib import Path
-from typing import IO, Any, List, cast
+from typing import IO, Any, cast
 
 import pytest
 from ruamel.yaml.comments import CommentedMap
@@ -112,7 +112,7 @@ def test_unicode_in_output_files(tmp_path: Path, filename: str) -> None:
 class StubFsAccess(StdFsAccess):
     """Stub fs access object that doesn't rely on the filesystem."""
 
-    def glob(self, pattern: str) -> List[str]:
+    def glob(self, pattern: str) -> list[str]:
         """glob."""
         return [pattern]
 

@@ -2,8 +2,9 @@
 
 import os
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Union
+from typing import Any, Callable, Union
 
 import pytest
 
@@ -17,7 +18,7 @@ from .util import env_accepts_null, get_tool_env, needs_docker, needs_singularit
 # TODO: maybe add regex?
 Env = Mapping[str, str]
 CheckerTypes = Union[None, str, Callable[[str, Env], bool]]
-EnvChecks = Dict[str, CheckerTypes]
+EnvChecks = dict[str, CheckerTypes]
 
 
 def assert_envvar_matches(check: CheckerTypes, k: str, env: Mapping[str, str]) -> None:
@@ -66,7 +67,7 @@ class CheckHolder(ABC):
         """Return a mapping from environment variable names to how to check for correctness."""
 
     # Any flags to pass to cwltool to force use of the correct container
-    flags: List[str]
+    flags: list[str]
 
     # Does the env tool (maybe in our container) accept a `-0` flag?
     env_accepts_null: bool

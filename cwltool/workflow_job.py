@@ -3,19 +3,8 @@ import datetime
 import functools
 import logging
 import threading
-from typing import (
-    TYPE_CHECKING,
-    Dict,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Set,
-    Sized,
-    Tuple,
-    Union,
-    cast,
-)
+from collections.abc import MutableMapping, MutableSequence, Sized
+from typing import TYPE_CHECKING, Optional, Union, cast
 
 from cwl_utils import expression
 from schema_salad.sourceline import SourceLine
@@ -89,11 +78,11 @@ class ReceiveScatterOutput:
     ) -> None:
         """Initialize."""
         self.dest = dest
-        self._completed: Set[int] = set()
+        self._completed: set[int] = set()
         self.processStatus = "success"
         self.total = total
         self.output_callback = output_callback
-        self.steps: List[Optional[JobsGeneratorType]] = []
+        self.steps: list[Optional[JobsGeneratorType]] = []
 
     @property
     def completed(self) -> int:
@@ -123,7 +112,7 @@ class ReceiveScatterOutput:
     def setTotal(
         self,
         total: int,
-        steps: List[Optional[JobsGeneratorType]],
+        steps: list[Optional[JobsGeneratorType]],
     ) -> None:
         """
         Set the total number of expected outputs along with the steps.
@@ -137,7 +126,7 @@ class ReceiveScatterOutput:
 
 
 def parallel_steps(
-    steps: List[Optional[JobsGeneratorType]],
+    steps: list[Optional[JobsGeneratorType]],
     rc: ReceiveScatterOutput,
     runtimeContext: RuntimeContext,
 ) -> JobsGeneratorType:
@@ -187,7 +176,7 @@ def nested_crossproduct_scatter(
 
     rc = ReceiveScatterOutput(output_callback, output, jobl)
 
-    steps: List[Optional[JobsGeneratorType]] = []
+    steps: list[Optional[JobsGeneratorType]] = []
     for index in range(0, jobl):
         sjob: Optional[CWLObjectType] = copy.copy(joborder)
         assert sjob is not None  # nosec
@@ -254,11 +243,11 @@ def _flat_crossproduct_scatter(
     callback: ReceiveScatterOutput,
     startindex: int,
     runtimeContext: RuntimeContext,
-) -> Tuple[List[Optional[JobsGeneratorType]], int]:
+) -> tuple[list[Optional[JobsGeneratorType]], int]:
     """Inner loop."""
     scatter_key = scatter_keys[0]
     jobl = len(cast(Sized, joborder[scatter_key]))
-    steps: List[Optional[JobsGeneratorType]] = []
+    steps: list[Optional[JobsGeneratorType]] = []
     put = startindex
     for index in range(0, jobl):
         sjob: Optional[CWLObjectType] = copy.copy(joborder)
@@ -309,7 +298,7 @@ def dotproduct_scatter(
 
     rc = ReceiveScatterOutput(output_callback, output, jobl)
 
-    steps: List[Optional[JobsGeneratorType]] = []
+    steps: list[Optional[JobsGeneratorType]] = []
     for index in range(0, jobl):
         sjobo: Optional[CWLObjectType] = copy.copy(joborder)
         assert sjobo is not None  # nosec
@@ -357,7 +346,7 @@ def match_types(
     elif linkMerge:
         if iid not in inputobj:
             inputobj[iid] = []
-        sourceTypes = cast(List[Optional[CWLOutputType]], inputobj[iid])
+        sourceTypes = cast(list[Optional[CWLOutputType]], inputobj[iid])
         if linkMerge == "merge_nested":
             sourceTypes.append(src.value)
         elif linkMerge == "merge_flattened":
@@ -380,7 +369,7 @@ def match_types(
 
 
 def object_from_state(
-    state: Dict[str, Optional[WorkflowStateItem]],
+    state: dict[str, Optional[WorkflowStateItem]],
     params: ParametersType,
     frag_only: bool,
     supportsMultipleInput: bool,
@@ -487,7 +476,7 @@ class WorkflowJob:
             self.prov_obj = workflow.provenance_object
             self.parent_wf = workflow.parent_wf
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
-        self.state: Dict[str, Optional[WorkflowStateItem]] = {}
+        self.state: dict[str, Optional[WorkflowStateItem]] = {}
         self.processStatus = ""
         self.did_callback = False
         self.made_progress: Optional[bool] = None
@@ -554,7 +543,7 @@ class WorkflowJob:
     def receive_output(
         self,
         step: WorkflowJobStep,
-        outputparms: List[CWLObjectType],
+        outputparms: list[CWLObjectType],
         final_output_callback: OutputCallbackType,
         jobout: CWLObjectType,
         processStatus: str,
@@ -701,7 +690,7 @@ class WorkflowJob:
                 return psio
 
             if "scatter" in step.tool:
-                scatter = cast(List[str], aslist(step.tool["scatter"]))
+                scatter = cast(list[str], aslist(step.tool["scatter"]))
                 method = step.tool.get("scatterMethod")
                 if method is None and len(scatter) != 1:
                     raise WorkflowException(
@@ -961,7 +950,7 @@ class WorkflowJobLoopStep:
         try:
             loop = cast(MutableSequence[CWLObjectType], self.step.tool.get("loop", []))
             outputMethod = self.step.tool.get("outputMethod", "last_iteration")
-            state: Dict[str, Optional[WorkflowStateItem]] = {}
+            state: dict[str, Optional[WorkflowStateItem]] = {}
             for i in self.step.tool["outputs"]:
                 if "id" in i:
                     iid = cast(str, i["id"])

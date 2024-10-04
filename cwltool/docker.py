@@ -9,8 +9,9 @@ import shutil
 import subprocess  # nosec
 import sys
 import threading
+from collections.abc import MutableMapping
 from io import StringIO  # pylint: disable=redefined-builtin
-from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple, cast
+from typing import Callable, Optional, cast
 
 import requests
 
@@ -23,13 +24,13 @@ from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .utils import CWLObjectType, create_tmp_dir, ensure_writable
 
-_IMAGES: Set[str] = set()
+_IMAGES: set[str] = set()
 _IMAGES_LOCK = threading.Lock()
-__docker_machine_mounts: Optional[List[str]] = None
+__docker_machine_mounts: Optional[list[str]] = None
 __docker_machine_mounts_lock = threading.Lock()
 
 
-def _get_docker_machine_mounts() -> List[str]:
+def _get_docker_machine_mounts() -> list[str]:
     global __docker_machine_mounts
     if __docker_machine_mounts is None:
         with __docker_machine_mounts_lock:
@@ -83,9 +84,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[List[CWLObjectType], str, RuntimeContext, bool], PathMapper],
-        requirements: List[CWLObjectType],
-        hints: List[CWLObjectType],
+        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        requirements: list[CWLObjectType],
+        hints: list[CWLObjectType],
         name: str,
     ) -> None:
         """Initialize a command line builder using the Docker software container engine."""
@@ -94,7 +95,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def get_image(
         self,
-        docker_requirement: Dict[str, str],
+        docker_requirement: dict[str, str],
         pull_image: bool,
         force_pull: bool,
         tmp_outdir_prefix: str,
@@ -127,7 +128,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             except (OSError, subprocess.CalledProcessError, UnicodeError):
                 pass
 
-        cmd: List[str] = []
+        cmd: list[str] = []
         if "dockerFile" in docker_requirement:
             dockerfile_dir = create_tmp_dir(tmp_outdir_prefix)
             with open(os.path.join(dockerfile_dir, "Dockerfile"), "w") as dfile:
@@ -204,13 +205,13 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if not shutil.which(self.docker_exec):
             raise WorkflowException(f"{self.docker_exec} executable is not available")
 
-        if self.get_image(cast(Dict[str, str], r), pull_image, force_pull, tmp_outdir_prefix):
+        if self.get_image(cast(dict[str, str], r), pull_image, force_pull, tmp_outdir_prefix):
             return cast(Optional[str], r["dockerImageId"])
         raise WorkflowException("Docker image %s not found" % r["dockerImageId"])
 
     @staticmethod
     def append_volume(
-        runtime: List[str],
+        runtime: list[str],
         source: str,
         target: str,
         writable: bool = False,
@@ -233,7 +234,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             os.makedirs(source)
 
     def add_file_or_directory_volume(
-        self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
+        self, runtime: list[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
     ) -> None:
         """Append volume a file/dir mapping to the runtime option list."""
         if not volume.resolved.startswith("_:"):
@@ -242,7 +243,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_file_volume(
         self,
-        runtime: List[str],
+        runtime: list[str],
         volume: MapperEnt,
         host_outdir_tgt: Optional[str],
         tmpdir_prefix: str,
@@ -266,7 +267,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_directory_volume(
         self,
-        runtime: List[str],
+        runtime: list[str],
         volume: MapperEnt,
         host_outdir_tgt: Optional[str],
         tmpdir_prefix: str,
@@ -295,7 +296,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                     shutil.copytree(volume.resolved, host_outdir_tgt)
                 ensure_writable(host_outdir_tgt or new_dir)
 
-    def _required_env(self) -> Dict[str, str]:
+    def _required_env(self) -> dict[str, str]:
         # spec currently says "HOME must be set to the designated output
         # directory." but spec might change to designated temp directory.
         # runtime.append("--env=HOME=/tmp")
@@ -306,7 +307,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def create_runtime(
         self, env: MutableMapping[str, str], runtimeContext: RuntimeContext
-    ) -> Tuple[List[str], Optional[str]]:
+    ) -> tuple[list[str], Optional[str]]:
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] or False
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if user_space_docker_cmd:
@@ -445,9 +446,9 @@ class PodmanCommandLineJob(DockerCommandLineJob):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[List[CWLObjectType], str, RuntimeContext, bool], PathMapper],
-        requirements: List[CWLObjectType],
-        hints: List[CWLObjectType],
+        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        requirements: list[CWLObjectType],
+        hints: list[CWLObjectType],
         name: str,
     ) -> None:
         """Initialize a command line builder using the Podman software container engine."""

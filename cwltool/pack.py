@@ -2,17 +2,8 @@
 
 import copy
 import urllib
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Set,
-    Union,
-    cast,
-)
+from collections.abc import MutableMapping, MutableSequence
+from typing import Any, Callable, Optional, Union, cast
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, SubLoader
@@ -30,7 +21,7 @@ LoadRefType = Callable[[Optional[str], str], ResolveType]
 def find_run(
     d: Union[CWLObjectType, ResolveType],
     loadref: LoadRefType,
-    runs: Set[str],
+    runs: set[str],
 ) -> None:
     if isinstance(d, MutableSequence):
         for s in d:
@@ -46,7 +37,7 @@ def find_run(
 
 def find_ids(
     d: Union[CWLObjectType, CWLOutputType, MutableSequence[CWLObjectType], None],
-    ids: Set[str],
+    ids: set[str],
 ) -> None:
     if isinstance(d, MutableSequence):
         for s in d:
@@ -59,7 +50,7 @@ def find_ids(
             find_ids(cast(CWLOutputType, s2), ids)
 
 
-def replace_refs(d: Any, rewrite: Dict[str, str], stem: str, newstem: str) -> None:
+def replace_refs(d: Any, rewrite: dict[str, str], stem: str, newstem: str) -> None:
     if isinstance(d, MutableSequence):
         for s, v in enumerate(d):
             if isinstance(v, str):
@@ -88,7 +79,7 @@ def replace_refs(d: Any, rewrite: Dict[str, str], stem: str, newstem: str) -> No
 
 def import_embed(
     d: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType],
-    seen: Set[str],
+    seen: set[str],
 ) -> None:
     if isinstance(d, MutableSequence):
         for v in d:
@@ -114,7 +105,7 @@ def import_embed(
 def pack(
     loadingContext: LoadingContext,
     uri: str,
-    rewrite_out: Optional[Dict[str, str]] = None,
+    rewrite_out: Optional[dict[str, str]] = None,
     loader: Optional[Loader] = None,
 ) -> CWLObjectType:
     # The workflow document we have in memory right now may have been
@@ -153,7 +144,7 @@ def pack(
             document_loader.idx[po["id"]] = CommentedMap(po.items())
         document_loader.idx[metadata["id"]] = CommentedMap(metadata.items())
 
-    found_versions = {cast(str, loadingContext.metadata["cwlVersion"])}  # type: Set[str]
+    found_versions: set[str] = {cast(str, loadingContext.metadata["cwlVersion"])}
 
     def loadref(base: Optional[str], lr_uri: str) -> ResolveType:
         lr_loadingContext = loadingContext.copy()
@@ -167,15 +158,15 @@ def pack(
             raise Exception("loader should not be None")
         return lr_loadingContext.loader.resolve_ref(lr_uri, base_url=base)[0]
 
-    input_ids: Set[str] = set()
-    output_ids: Set[str] = set()
+    input_ids: set[str] = set()
+    output_ids: set[str] = set()
 
     if isinstance(processobj, MutableSequence):
         mainobj = processobj[0]
     else:
         mainobj = processobj
-    find_ids(cast(Dict[str, Any], mainobj)["inputs"], input_ids)
-    find_ids(cast(Dict[str, Any], mainobj)["outputs"], output_ids)
+    find_ids(cast(dict[str, Any], mainobj)["inputs"], input_ids)
+    find_ids(cast(dict[str, Any], mainobj)["outputs"], output_ids)
 
     runs = {uri}
     find_run(processobj, loadref, runs)
@@ -190,15 +181,15 @@ def pack(
     for f in runs:
         find_ids(document_loader.resolve_ref(f)[0], input_ids)
 
-    input_names: Set[str] = set()
-    output_names: Set[str] = set()
+    input_names: set[str] = set()
+    output_names: set[str] = set()
 
-    rewrite_inputs: Dict[str, str] = {}
-    rewrite_outputs: Dict[str, str] = {}
+    rewrite_inputs: dict[str, str] = {}
+    rewrite_outputs: dict[str, str] = {}
 
     mainpath, _ = urllib.parse.urldefrag(uri)
 
-    def rewrite_id(r: str, mainuri: str, rewrite: Dict[str, str], names: Set[str]) -> None:
+    def rewrite_id(r: str, mainuri: str, rewrite: dict[str, str], names: set[str]) -> None:
         if r == mainuri:
             rewrite[r] = "#main"
         elif r.startswith(mainuri) and r[len(mainuri)] in ("#", "/"):
@@ -225,7 +216,7 @@ def pack(
     packed = CommentedMap((("$graph", CommentedSeq()), ("cwlVersion", update_to_version)))
     namespaces = metadata.get("$namespaces", None)
 
-    schemas: Set[str] = set()
+    schemas: set[str] = set()
     if "$schemas" in metadata:
         for each_schema in metadata["$schemas"]:
             schemas.add(each_schema)
@@ -261,7 +252,7 @@ def pack(
             "Operation",
         ):
             continue
-        dc = cast(Dict[str, Any], copy.deepcopy(dcr))
+        dc = cast(dict[str, Any], copy.deepcopy(dcr))
         v = rewrite_inputs[r]
         dc["id"] = v
         for n in ("name", "cwlVersion", "$namespaces", "$schemas"):
