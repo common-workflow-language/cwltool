@@ -126,7 +126,6 @@ setup(
         # https://github.com/ionrock/cachecontrol/issues/137
         "ruamel.yaml >= 0.16, < 0.19",
         "rdflib >= 4.2.2, < 7.1.0",
-        "shellescape >= 3.4.1, < 3.9",
         "schema-salad >= 8.7, < 9",
         "prov == 1.5.1",
         "mypy-extensions",
