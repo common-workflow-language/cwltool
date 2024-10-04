@@ -121,7 +121,6 @@ setup(
     package_dir={"cwltool.tests": "tests"},
     include_package_data=True,
     install_requires=[
-        "setuptools",
         "requests >= 2.6.1",  # >= 2.6.1 to workaround
         # https://github.com/ionrock/cachecontrol/issues/137
         "ruamel.yaml >= 0.16, < 0.19",
