@@ -38,6 +38,12 @@ def subgraph_visit(
 
 
 def declare_node(nodes: dict[str, Node], nodeid: str, tp: Optional[str]) -> Node:
+    """
+    Record the given nodeid in the graph.
+
+    If the nodeid is already present, but its type is unset, set it.
+    :returns: The Node tuple (even if already present in the graph).
+    """
     if nodeid in nodes:
         n = nodes[nodeid]
         if n.type is None:

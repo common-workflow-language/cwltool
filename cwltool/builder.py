@@ -161,6 +161,7 @@ class Builder(HasReqsHints):
         self.container_engine = container_engine
 
     def build_job_script(self, commands: list[str]) -> Optional[str]:
+        """Use the job_script_provider to turn the commands into a job script."""
         if self.job_script_provider is not None:
             return self.job_script_provider.build_job_script(self, commands)
         return None
@@ -607,6 +608,7 @@ class Builder(HasReqsHints):
             return str(value)
 
     def generate_arg(self, binding: CWLObjectType) -> list[str]:
+        """Convert an input binding to a list of command line arguments."""
         value = binding.get("datum")
         debug = _logger.isEnabledFor(logging.DEBUG)
         if "valueFrom" in binding:

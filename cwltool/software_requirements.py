@@ -71,6 +71,7 @@ class DependenciesConfiguration:
             os.makedirs(self.tool_dependency_dir)
 
     def build_job_script(self, builder: "Builder", command: list[str]) -> str:
+        """Use the galaxy-tool-util library to construct a build script."""
         ensure_galaxy_lib_available()
         resolution_config_dict = {
             "use": self.use_tool_dependencies,
