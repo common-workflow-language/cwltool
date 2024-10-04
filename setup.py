@@ -134,7 +134,7 @@ setup(
         "importlib_resources>=1.4;python_version<'3.9'",
         "coloredlogs",
         "pydot >= 1.4.1, <3",
-        "argcomplete",
+        "argcomplete >= 1.12.0",
         "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
         "cwl-utils >= 0.32",
         "spython >= 0.3.0",

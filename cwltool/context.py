@@ -31,6 +31,7 @@ from .stdfsaccess import StdFsAccess
 from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, HasReqsHints, ResolverType
 
 if TYPE_CHECKING:
+    from _typeshed import SupportsWrite
     from cwl_utils.parser.cwl_v1_2 import LoadingOptions
 
     from .builder import Builder
@@ -199,7 +200,7 @@ class RuntimeContext(ContextBase):
         self.default_stdout: Optional[Union[IO[bytes], TextIO]] = None
         self.default_stderr: Optional[Union[IO[bytes], TextIO]] = None
         self.validate_only: bool = False
-        self.validate_stdout: Optional[Union[IO[bytes], TextIO, IO[str]]] = None
+        self.validate_stdout: Optional["SupportsWrite[str]"] = None
         super().__init__(kwargs)
         if self.tmp_outdir_prefix == "":
             self.tmp_outdir_prefix = self.tmpdir_prefix
