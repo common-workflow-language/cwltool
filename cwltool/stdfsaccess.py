@@ -32,6 +32,7 @@ class StdFsAccess:
         return abspath(p, self.basedir)
 
     def glob(self, pattern: str) -> list[str]:
+        """Return a possibly empty list of absolute URI paths that match pathname."""
         return [file_uri(str(self._abs(line))) for line in glob.glob(self._abs(pattern))]
 
     def open(self, fn: str, mode: str) -> IO[Any]:
@@ -50,6 +51,7 @@ class StdFsAccess:
         return os.path.isdir(self._abs(fn))
 
     def listdir(self, fn: str) -> list[str]:
+        """Return a list containing the absolute path URLs of the entries in the directory given by path."""
         return [abspath(urllib.parse.quote(entry), fn) for entry in os.listdir(self._abs(fn))]
 
     def join(self, path, *paths):  # type: (str, *str) -> str

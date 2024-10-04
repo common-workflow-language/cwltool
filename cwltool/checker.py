@@ -156,6 +156,7 @@ def _compare_records(src: CWLObjectType, sink: CWLObjectType, strict: bool = Fal
 
 
 def missing_subset(fullset: list[Any], subset: list[Any]) -> list[Any]:
+    """Calculate the items missing from the fullset given the subset."""
     missing = []
     for i in subset:
         if i not in fullset:
@@ -498,6 +499,7 @@ def get_step_id(field_id: str) -> str:
 
 
 def is_conditional_step(param_to_step: dict[str, CWLObjectType], parm_id: str) -> bool:
+    """Return True if the step given by the parm_id is a conditional step."""
     if (source_step := param_to_step.get(parm_id)) is not None:
         if source_step.get("when") is not None:
             return True

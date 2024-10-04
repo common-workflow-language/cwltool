@@ -281,6 +281,7 @@ class ProvenanceProfile:
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
     def declare_file(self, value: CWLObjectType) -> tuple[ProvEntity, ProvEntity, str]:
+        """Construct a FileEntity for the given CWL File object."""
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename

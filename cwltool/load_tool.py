@@ -626,6 +626,7 @@ def resolve_overrides(
 
 
 def load_overrides(ov: str, base_url: str) -> list[CWLObjectType]:
+    """Load and resolve any overrides."""
     ovloader = Loader(overrides_ctx)
     return resolve_overrides(ovloader.fetch(ov), ov, base_url)
 

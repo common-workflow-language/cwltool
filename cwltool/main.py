@@ -626,6 +626,7 @@ def print_pack(
 
 
 def supported_cwl_versions(enable_dev: bool) -> list[str]:
+    """Return a list of currently supported CWL versions."""
     # ALLUPDATES and UPDATES are dicts
     if enable_dev:
         versions = list(ALLUPDATES)

@@ -188,8 +188,11 @@ class PathMapper:
             )
 
     def setup(self, referenced_files: list[CWLObjectType], basedir: str) -> None:
-        # Go through each file and set the target to its own directory along
-        # with any secondary files.
+        """
+        For each file, set the target to its own directory.
+
+        Also processes secondary files into that same directory.
+        """
         stagedir = self.stagedir
         for fob in referenced_files:
             if self.separateDirs:

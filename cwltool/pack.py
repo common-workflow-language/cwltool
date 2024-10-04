@@ -51,6 +51,7 @@ def find_ids(
 
 
 def replace_refs(d: Any, rewrite: dict[str, str], stem: str, newstem: str) -> None:
+    """Replace references with the actual value."""
     if isinstance(d, MutableSequence):
         for s, v in enumerate(d):
             if isinstance(v, str):

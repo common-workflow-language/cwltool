@@ -228,6 +228,7 @@ class AbstractOperation(Process):
 
 
 def remove_path(f: CWLObjectType) -> None:
+    """Remove any 'path' property, if present."""
     if "path" in f:
         del f["path"]
 
@@ -404,6 +405,7 @@ class CommandLineTool(Process):
         )
 
     def make_job_runner(self, runtimeContext: RuntimeContext) -> type[JobBase]:
+        """Return the correct CommandLineJob class given the container settings."""
         dockerReq, dockerRequired = self.get_requirement("DockerRequirement")
         mpiReq, mpiRequired = self.get_requirement(MPIRequirementName)
 
