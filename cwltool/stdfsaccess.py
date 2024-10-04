@@ -3,7 +3,7 @@
 import glob
 import os
 import urllib
-from typing import IO, Any, List
+from typing import IO, Any
 
 from schema_salad.ref_resolver import file_uri, uri_file_path
 
@@ -31,7 +31,7 @@ class StdFsAccess:
     def _abs(self, p: str) -> str:
         return abspath(p, self.basedir)
 
-    def glob(self, pattern: str) -> List[str]:
+    def glob(self, pattern: str) -> list[str]:
         return [file_uri(str(self._abs(line))) for line in glob.glob(self._abs(pattern))]
 
     def open(self, fn: str, mode: str) -> IO[Any]:
@@ -49,7 +49,7 @@ class StdFsAccess:
     def isdir(self, fn: str) -> bool:
         return os.path.isdir(self._abs(fn))
 
-    def listdir(self, fn: str) -> List[str]:
+    def listdir(self, fn: str) -> list[str]:
         return [abspath(urllib.parse.quote(entry), fn) for entry in os.listdir(self._abs(fn))]
 
     def join(self, path, *paths):  # type: (str, *str) -> str

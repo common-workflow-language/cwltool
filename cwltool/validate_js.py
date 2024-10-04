@@ -3,17 +3,8 @@ import itertools
 import json
 import logging
 from collections import namedtuple
-from typing import (
-    Any,
-    Dict,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from collections.abc import MutableMapping, MutableSequence
+from typing import Any, Optional, Union, cast
 
 from cwl_utils.errors import SubstitutionError
 from cwl_utils.expression import scanner as scan_expression
@@ -63,7 +54,7 @@ def get_expressions(
     tool: Union[CommentedMap, str, CommentedSeq],
     schema: Optional[Union[Schema, ArraySchema]],
     source_line: Optional[SourceLine] = None,
-) -> List[Tuple[str, Optional[SourceLine]]]:
+) -> list[tuple[str, Optional[SourceLine]]]:
     debug = _logger.isEnabledFor(logging.DEBUG)
     if is_expression(tool, schema):
         return [(cast(str, tool), source_line)]
@@ -124,8 +115,8 @@ JSHintJSReturn = namedtuple("JSHintJSReturn", ["errors", "globals"])
 
 def jshint_js(
     js_text: str,
-    globals: Optional[List[str]] = None,
-    options: Optional[Dict[str, Union[List[str], str, int]]] = None,
+    globals: Optional[list[str]] = None,
+    options: Optional[dict[str, Union[list[str], str, int]]] = None,
     container_engine: str = "docker",
     eval_timeout: float = 60,
 ) -> JSHintJSReturn:
@@ -177,7 +168,7 @@ def jshint_js(
     except ValueError:
         dump_jshint_error()
 
-    jshint_errors: List[str] = []
+    jshint_errors: list[str] = []
 
     js_text_lines = js_text.split("\n")
 
@@ -193,7 +184,7 @@ def jshint_js(
     return JSHintJSReturn(jshint_errors, jshint_json.get("globals", []))
 
 
-def print_js_hint_messages(js_hint_messages: List[str], source_line: Optional[SourceLine]) -> None:
+def print_js_hint_messages(js_hint_messages: list[str], source_line: Optional[SourceLine]) -> None:
     """Log the message from JSHint, using the line number."""
     if source_line is not None:
         for js_hint_message in js_hint_messages:
@@ -203,7 +194,7 @@ def print_js_hint_messages(js_hint_messages: List[str], source_line: Optional[So
 def validate_js_expressions(
     tool: CommentedMap,
     schema: Schema,
-    jshint_options: Optional[Dict[str, Union[List[str], str, int]]] = None,
+    jshint_options: Optional[dict[str, Union[list[str], str, int]]] = None,
     container_engine: str = "docker",
     eval_timeout: float = 60,
 ) -> None:

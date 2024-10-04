@@ -1,8 +1,8 @@
 """Test the 1.3 loop feature."""
 
 import json
+from collections.abc import MutableMapping, MutableSequence
 from io import StringIO
-from typing import MutableMapping, MutableSequence
 
 from cwltool.main import main
 

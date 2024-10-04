@@ -1,7 +1,7 @@
 import argparse
 from io import StringIO
 from pathlib import Path
-from typing import Callable, List
+from typing import Callable
 
 import pytest
 
@@ -296,7 +296,7 @@ def test_argparser_without_doc() -> None:
         ),
     ],
 )
-def test_argparse_append_with_default(job_order: List[str], expected_values: List[str]) -> None:
+def test_argparse_append_with_default(job_order: list[str], expected_values: list[str]) -> None:
     """
     Confirm that the appended arguments must not include the default.
 

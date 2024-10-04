@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, cast
+from typing import cast
 
 import pytest
 from ruamel.yaml.comments import CommentedMap
@@ -318,7 +318,7 @@ def test_docker_tmpdir_prefix(tmp_path: Path) -> None:
         "docker",
     )
     job = DockerCommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
-    runtime: List[str] = []
+    runtime: list[str] = []
 
     volume_writable_file = MapperEnt(
         resolved=get_data("tests/2.fastq"), target="foo", type=None, staged=None

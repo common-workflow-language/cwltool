@@ -3,21 +3,9 @@
 import copy
 import logging
 import math
+from collections.abc import MutableMapping, MutableSequence
 from decimal import Decimal
-from typing import (
-    IO,
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Type,
-    Union,
-    cast,
-)
+from typing import IO, TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
 from cwl_utils import expression
 from cwl_utils.file_formats import check_format
@@ -55,7 +43,7 @@ if TYPE_CHECKING:
     )
     from .pathmapper import PathMapper
 
-INPUT_OBJ_VOCAB: Dict[str, str] = {
+INPUT_OBJ_VOCAB: dict[str, str] = {
     "Any": "https://w3id.org/cwl/salad#Any",
     "File": "https://w3id.org/cwl/cwl#File",
     "Directory": "https://w3id.org/cwl/cwl#Directory",
@@ -107,16 +95,16 @@ class Builder(HasReqsHints):
     def __init__(
         self,
         job: CWLObjectType,
-        files: List[CWLObjectType],
-        bindings: List[CWLObjectType],
+        files: list[CWLObjectType],
+        bindings: list[CWLObjectType],
         schemaDefs: MutableMapping[str, CWLObjectType],
         names: Names,
-        requirements: List[CWLObjectType],
-        hints: List[CWLObjectType],
-        resources: Dict[str, Union[int, float]],
+        requirements: list[CWLObjectType],
+        hints: list[CWLObjectType],
+        resources: dict[str, Union[int, float]],
         mutation_manager: Optional[MutationManager],
         formatgraph: Optional[Graph],
-        make_fs_access: Type[StdFsAccess],
+        make_fs_access: type[StdFsAccess],
         fs_access: StdFsAccess,
         job_script_provider: Optional[DependenciesConfiguration],
         timeout: float,
@@ -172,7 +160,7 @@ class Builder(HasReqsHints):
         self.find_default_container: Optional[Callable[[], str]] = None
         self.container_engine = container_engine
 
-    def build_job_script(self, commands: List[str]) -> Optional[str]:
+    def build_job_script(self, commands: list[str]) -> Optional[str]:
         if self.job_script_provider is not None:
             return self.job_script_provider.build_job_script(self, commands)
         return None
@@ -180,11 +168,11 @@ class Builder(HasReqsHints):
     def bind_input(
         self,
         schema: CWLObjectType,
-        datum: Union[CWLObjectType, List[CWLObjectType]],
+        datum: Union[CWLObjectType, list[CWLObjectType]],
         discover_secondaryFiles: bool,
-        lead_pos: Optional[Union[int, List[int]]] = None,
-        tail_pos: Optional[Union[str, List[int]]] = None,
-    ) -> List[MutableMapping[str, Union[str, List[int]]]]:
+        lead_pos: Optional[Union[int, list[int]]] = None,
+        tail_pos: Optional[Union[str, list[int]]] = None,
+    ) -> list[MutableMapping[str, Union[str, list[int]]]]:
         """
         Bind an input object to the command line.
 
@@ -200,8 +188,8 @@ class Builder(HasReqsHints):
         if lead_pos is None:
             lead_pos = []
 
-        bindings: List[MutableMapping[str, Union[str, List[int]]]] = []
-        binding: Union[MutableMapping[str, Union[str, List[int]]], CommentedMap] = {}
+        bindings: list[MutableMapping[str, Union[str, list[int]]]] = []
+        binding: Union[MutableMapping[str, Union[str, list[int]]], CommentedMap] = {}
         value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
             binding = CommentedMap(schema["inputBinding"].items())
@@ -324,7 +312,7 @@ class Builder(HasReqsHints):
 
             if schema["type"] == "record":
                 datum = cast(CWLObjectType, datum)
-                for f in cast(List[CWLObjectType], schema["fields"]):
+                for f in cast(list[CWLObjectType], schema["fields"]):
                     name = cast(str, f["name"])
                     if name in datum and datum[name] is not None:
                         bindings.extend(
@@ -372,7 +360,7 @@ class Builder(HasReqsHints):
                 self.files.append(datum)
 
                 loadContents_sourceline: Union[
-                    None, MutableMapping[str, Union[str, List[int]]], CWLObjectType
+                    None, MutableMapping[str, Union[str, list[int]]], CWLObjectType
                 ] = None
                 if binding and binding.get("loadContents"):
                     loadContents_sourceline = binding
@@ -513,7 +501,7 @@ class Builder(HasReqsHints):
                 if "format" in schema:
                     eval_format: Any = self.do_eval(schema["format"])
                     if isinstance(eval_format, str):
-                        evaluated_format: Union[str, List[str]] = eval_format
+                        evaluated_format: Union[str, list[str]] = eval_format
                     elif isinstance(eval_format, MutableSequence):
                         for index, entry in enumerate(eval_format):
                             message = None
@@ -541,7 +529,7 @@ class Builder(HasReqsHints):
                                 raise SourceLine(
                                     schema["format"], index, WorkflowException, debug
                                 ).makeError(message)
-                        evaluated_format = cast(List[str], eval_format)
+                        evaluated_format = cast(list[str], eval_format)
                     else:
                         raise SourceLine(schema, "format", WorkflowException, debug).makeError(
                             "An expression in the 'format' field must "
@@ -586,8 +574,8 @@ class Builder(HasReqsHints):
         # Position to front of the sort key
         if binding:
             for bi in bindings:
-                bi["position"] = cast(List[int], binding["position"]) + cast(
-                    List[int], bi["position"]
+                bi["position"] = cast(list[int], binding["position"]) + cast(
+                    list[int], bi["position"]
                 )
             bindings.append(binding)
 
@@ -618,7 +606,7 @@ class Builder(HasReqsHints):
         else:
             return str(value)
 
-    def generate_arg(self, binding: CWLObjectType) -> List[str]:
+    def generate_arg(self, binding: CWLObjectType) -> list[str]:
         value = binding.get("datum")
         debug = _logger.isEnabledFor(logging.DEBUG)
         if "valueFrom" in binding:
@@ -648,7 +636,7 @@ class Builder(HasReqsHints):
                 argl = [itemSeparator.join([self.tostr(v) for v in value])]
             elif binding.get("valueFrom"):
                 value = [self.tostr(v) for v in value]
-                return cast(List[str], ([prefix] if prefix else [])) + cast(List[str], value)
+                return cast(list[str], ([prefix] if prefix else [])) + cast(list[str], value)
             elif prefix and value:
                 return [prefix]
             else:

@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, cast
+from typing import Any, Callable, cast
 
 # http://rightfootin.blogspot.com/2006/09/more-on-python-flatten.html
 
@@ -22,4 +22,4 @@ def flatten(thing, ltypes=(list, tuple)):
             else:
                 thing_list[i : i + 1] = thing_list[i]
         i += 1
-    return cast(Callable[[Any], List[Any]], ltype)(thing_list)
+    return cast(Callable[[Any], list[Any]], ltype)(thing_list)

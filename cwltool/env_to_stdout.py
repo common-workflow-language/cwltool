@@ -11,10 +11,9 @@ produces equivalent output.
 """
 
 import os
-from typing import Dict
 
 
-def deserialize_env(data: str) -> Dict[str, str]:
+def deserialize_env(data: str) -> dict[str, str]:
     """Deserialize the output of `env -0` to dictionary."""
     result = {}
     for item in data.strip("\0").split("\0"):

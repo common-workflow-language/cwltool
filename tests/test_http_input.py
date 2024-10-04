@@ -1,10 +1,7 @@
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
-import pytest
 from pytest_httpserver import HTTPServer
 
 from cwltool.pathmapper import PathMapper
@@ -15,7 +12,7 @@ def test_http_path_mapping(tmp_path: Path) -> None:
     input_file_path = (
         "https://raw.githubusercontent.com/common-workflow-language/cwltool/main/tests/2.fasta"
     )
-    base_file: List[CWLObjectType] = [
+    base_file: list[CWLObjectType] = [
         {
             "class": "File",
             "location": "https://raw.githubusercontent.com/common-workflow-language/"
@@ -34,7 +31,6 @@ def test_http_path_mapping(tmp_path: Path) -> None:
     assert ">Sequence 561 BP; 135 A; 106 C; 98 G; 222 T; 0 other;" in contents
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="timesout on CI")
 def test_modification_date(tmp_path: Path) -> None:
     """Local copies of remote files should preserve last modification date."""
     # Initialize the server
@@ -58,7 +54,7 @@ def test_modification_date(tmp_path: Path) -> None:
         )
         location = httpserver.url_for(f"/{remote_file_name}")
 
-        base_file: List[CWLObjectType] = [
+        base_file: list[CWLObjectType] = [
             {
                 "class": "File",
                 "location": location,

@@ -1,6 +1,7 @@
 import urllib
 from codecs import StreamWriter
-from typing import IO, Any, Dict, Iterator, Optional, TextIO, Union, cast
+from collections.abc import Iterator
+from typing import IO, Any, Optional, TextIO, Union, cast
 
 from rdflib import Graph
 from rdflib.query import ResultRow
@@ -117,7 +118,7 @@ def dot_with_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
 
 
 def dot_without_parameters(g: Graph, stdout: Union[TextIO, StreamWriter]) -> None:
-    dotname: Dict[str, str] = {}
+    dotname: dict[str, str] = {}
     clusternode = {}
 
     stdout.write("compound=true\n")

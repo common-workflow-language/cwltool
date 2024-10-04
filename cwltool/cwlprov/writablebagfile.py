@@ -8,10 +8,11 @@ import shutil
 import uuid
 from array import array
 from collections import OrderedDict
+from collections.abc import MutableMapping
 from io import FileIO, TextIOWrapper
 from mmap import mmap
 from pathlib import Path, PurePosixPath
-from typing import Any, BinaryIO, Dict, MutableMapping, Optional, Union, cast
+from typing import Any, BinaryIO, Optional, Union, cast
 
 from schema_salad.utils import json_dumps
 
@@ -246,7 +247,7 @@ def create_job(
     relativised_input_objecttemp: CWLObjectType = {}
     research_object._relativise_files(copied)
 
-    def jdefault(o: Any) -> Dict[Any, Any]:
+    def jdefault(o: Any) -> dict[Any, Any]:
         return dict(o)
 
     if is_output:
