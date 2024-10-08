@@ -88,7 +88,7 @@ class ReceiveScatterOutput:
     ) -> None:
         """Initialize."""
         self.dest = dest
-        self._completed = set()
+        self._completed: Set[int] = set()
         self.processStatus = "success"
         self.total = total
         self.output_callback = output_callback
