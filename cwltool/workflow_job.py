@@ -88,11 +88,15 @@ class ReceiveScatterOutput:
     ) -> None:
         """Initialize."""
         self.dest = dest
-        self.completed = 0
+        self._completed = set()
         self.processStatus = "success"
         self.total = total
         self.output_callback = output_callback
         self.steps: List[Optional[JobsGeneratorType]] = []
+
+    @property
+    def completed(self) -> int:
+        return len(self._completed)
 
     def receive_scatter_output(self, index: int, jobout: CWLObjectType, processStatus: str) -> None:
         """Record the results of a scatter operation."""
@@ -108,10 +112,11 @@ class ReceiveScatterOutput:
             if self.processStatus != "permanentFail":
                 self.processStatus = processStatus
 
-        self.completed += 1
+        if index not in self._completed:
+            self._completed.add(index)
 
-        if self.completed == self.total:
-            self.output_callback(self.dest, self.processStatus)
+            if self.completed == self.total:
+                self.output_callback(self.dest, self.processStatus)
 
     def setTotal(
         self,
