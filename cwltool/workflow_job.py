@@ -97,6 +97,7 @@ class ReceiveScatterOutput:
 
     @property
     def completed(self) -> int:
+        """The number of completed internal jobs."""
         return len(self._completed)
 
     def receive_scatter_output(self, index: int, jobout: CWLObjectType, processStatus: str) -> None:
