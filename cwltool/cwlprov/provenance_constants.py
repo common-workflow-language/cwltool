@@ -1,4 +1,3 @@
-import hashlib
 import os
 import uuid
 
@@ -18,7 +17,12 @@ CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.6.0"
 
 # Research Object folders
 METADATA = "metadata"
+# sub-folders for data
 DATA = "data"
+INPUT_DATA = "data/input"
+INTM_DATA = "data/intermediate"
+OUTPUT_DATA = "data/output"
+
 WORKFLOW = "workflow"
 SNAPSHOT = "snapshot"
 # sub-folders
@@ -43,10 +47,11 @@ TEXT_PLAIN = f"text/plain; charset={ENCODING!r}"
 # sha1, compatible with the File type's "checksum" field
 # e.g. "checksum" = "sha1$47a013e660d408619d894b20806b1d5086aab03b"
 # See ./cwltool/schemas/v1.0/Process.yml
-Hasher = hashlib.sha1
 SHA1 = "sha1"
 SHA256 = "sha256"
 SHA512 = "sha512"
+# set the default hash function as SHA1 for hashlib.new
+Hasher = SHA1
 
 # TODO: Better identifiers for user, at least
 # these should be preserved in ~/.config/cwl for every execution

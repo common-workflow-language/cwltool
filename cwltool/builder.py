@@ -573,6 +573,10 @@ class Builder(HasReqsHints):
                 datum = cast(CWLObjectType, datum)
                 ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
+                    # Debug show
+                    for k in datum:
+                        _logger.debug("Datum:  %s: %s" % (k, datum[k]))
+                    _logger.debug("----------------------------------------")
                     get_listing(
                         self.fs_access,
                         datum,
