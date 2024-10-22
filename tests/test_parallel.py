@@ -49,4 +49,3 @@ def test_on_error_kill() -> None:
     except WorkflowStatus as e:
         assert e.out == {"instructed_sleep_times": [sleep_time] * n_sleepers}
         assert time.time() - start_time < sleep_time
-        print("sharty barty")
