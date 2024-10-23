@@ -6,7 +6,6 @@ requirements:
   ScatterFeatureRequirement: {}
   InlineJavascriptRequirement: {}
   StepInputExpressionRequirement: {}
-  ResourceRequirement: {coresMin: 0, ramMin: 0}
 
 
 doc: |
