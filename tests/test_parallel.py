@@ -1,6 +1,6 @@
 import json
-import time
 import math
+import time
 from pathlib import Path
 
 from cwltool.context import RuntimeContext
@@ -35,12 +35,13 @@ def test_scattered_workflow() -> None:
 
 def test_on_error_kill() -> None:
     test_file = "tests/wf/on-error_kill.cwl"
+
     def selectResources(request, _):
         # Remove the "one job per core" resource constraint so that
         # parallel jobs aren't withheld on machines with few cores
         return {
             "cores": 0,
-            "ram": math.ceil(request["ramMin"]),            # default
+            "ram": math.ceil(request["ramMin"]),  # default
             "tmpdirSize": math.ceil(request["tmpdirMin"]),  # default
             "outdirSize": math.ceil(request["outdirMin"]),  # default
         }
