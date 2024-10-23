@@ -1,0 +1,130 @@
+name: Python package build and publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}
+  repository_dispatch: {}
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: wheels-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_wheels:
+    name: ${{ matrix.image }} wheels
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - image: manylinux_2_28_x86_64
+            build: "*manylinux*"
+          - image: musllinux_1_1_x86_64
+            build: "*musllinux*"
+          - image: musllinux_1_2_x86_64
+            build: "*musllinux*"
+
+    steps:
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name != 'repository_dispatch' }}
+        with:
+          fetch-depth: 0  # slow, but gets all the tags
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name == 'repository_dispatch' }}
+        with:
+          fetch-depth: 0  # slow, but gets all the tags
+          ref: ${{ github.event.client_payload.ref }}
+
+      # - name: Set up QEMU
+      #   if: runner.os == 'Linux'
+      #   uses: docker/setup-qemu-action@v2
+      #   with:
+      #     platforms: all
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.21.3
+        env:
+          CIBW_BUILD: ${{ matrix.build }}
+          CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/${{ matrix.image }}
+          CIBW_MUSLLINUX_X86_64_IMAGE: quay.io/pypa/${{ matrix.image }}
+          # configure cibuildwheel to build native 64-bit archs ('auto64'), and some
+          # emulated ones
+          # Linux arm64 wheels are built on circleci
+          CIBW_ARCHS_LINUX: auto64 # ppc64le s390x
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifact-${{ matrix.image }}
+          path: ./wheelhouse/*.whl
+
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name != 'repository_dispatch' }}
+        with:
+          fetch-depth: 0  # slow, but gets all the tags
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name == 'repository_dispatch' }}
+        with:
+          fetch-depth: 0  # slow, but gets all the tags
+          ref: ${{ github.event.client_payload.ref }}
+
+      - name: Build sdist
+        run: pipx run build --sdist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifact-source
+          path: dist/*.tar.gz
+
+  build_wheels_macos:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # macos-13 is an intel runner, macos-14 is apple silicon
+        os: [macos-13, macos-14]
+    steps:
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name != 'repository_dispatch' }}
+        with:
+          fetch-depth: 0  # slow, but gets all the tags
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name == 'repository_dispatch' }}
+        with:
+          fetch-depth: 0  # slow, but gets all the tags
+          ref: ${{ github.event.client_payload.ref }}
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.21.3
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifact-${{ matrix.os }}-${{ strategy.job-index }}
+          path: ./wheelhouse/*.whl
+
+  # upload_pypi:
+  #   needs: [build_wheels, build_sdist]
+  #   runs-on: ubuntu-24.04
+  #   environment: deploy
+  #   permissions:
+  #     id-token: write
+  #   if: (github.event_name == 'release' && github.event.action == 'published') || (github.event_name == 'repository_dispatch' && github.event.client_payload.publish_wheel == true)
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         # unpacks default artifact into dist/
+  #         pattern: artifact-*
+  #         merge-multiple: true
+  #         path: dist
+
+  #     - name: Publish package distributions to PyPI
+  #       uses: pypa/gh-action-pypi-publish@release/v1
+  #       with:
+  #         skip-existing: true
