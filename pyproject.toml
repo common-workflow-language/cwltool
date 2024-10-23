@@ -17,6 +17,19 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools_scm]
 write_to = "cwltool/_version.py"
 
+[tool.cibuildwheel]
+test-command = "python -m pytest -n 2 --junitxml={project}/test-results/junit_$(python -V | awk '{print $2}')_${AUDITWHEEL_PLAT}.xml -k 'not (test_bioconda or test_env_filtering or test_udocker)' --pyargs cwltool"
+test-requires = "-r test-requirements.txt"
+test-extras = "deps"
+skip = "pp*"
+#      ^ skip building wheels on PyPy (any version)
+build-verbosity = 1
+environment = { CWLTOOL_USE_MYPYC="1", MYPYPATH="$(pwd)/mypy-stubs" }
+
+# Install system library
+[tool.cibuildwheel.linux]
+before-all = "apk add libxml2-dev libxslt-dev nodejs || yum install -y libxml2-devel libxslt-devel nodejs environment-modules || apt-get install -y --no-install-recommends libxml2-dev libxslt-dev nodejs environment-modules"
+
 [tool.black]
 line-length = 100
 target-version = [ "py39" ]

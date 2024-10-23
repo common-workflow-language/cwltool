@@ -50,6 +50,8 @@ class DependenciesConfiguration:
 
     def __init__(self, args: argparse.Namespace) -> None:
         """Initialize."""
+        self.tool_dependency_dir: Optional[str] = None
+        self.dependency_resolvers_config_file: Optional[str] = None
         conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)
         tool_dependency_dir = getattr(args, "beta_dependencies_directory", None)
         conda_dependencies = getattr(args, "beta_conda_dependencies", None)
