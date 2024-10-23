@@ -36,7 +36,7 @@ def test_scattered_workflow() -> None:
 def test_on_error_kill() -> None:
     test_file = "tests/wf/on-error_kill.cwl"
 
-    def selectResources(request, _):
+    def selectResources(request, _):  # type: ignore
         # Remove the "one job per core" resource constraint so that
         # parallel jobs aren't withheld on machines with few cores
         return {
