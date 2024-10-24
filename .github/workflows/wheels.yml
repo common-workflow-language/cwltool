@@ -5,7 +5,6 @@ on:
     types: [published]
   workflow_dispatch: {}
   repository_dispatch: {}
-  pull_request:
   push:
     branches:
       - main
@@ -23,8 +22,6 @@ jobs:
         include:
           - image: manylinux_2_28_x86_64
             build: "*manylinux*"
-          - image: musllinux_1_1_x86_64
-            build: "*musllinux*"
           - image: musllinux_1_2_x86_64
             build: "*musllinux*"
 

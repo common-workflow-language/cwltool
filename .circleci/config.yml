@@ -15,8 +15,8 @@ jobs:
         type: string
 
     machine:
-      image: ubuntu-2204:current
-    resource_class: arm.medium  # two vCPUs
+      image: ubuntu-2404:current
+    resource_class: arm.medium  # 2 vCPUs
 
     environment:
       CIBW_ARCHS: "aarch64"
@@ -84,20 +84,17 @@ workflows:
       - arm-wheels:
           name: arm-wheels-manylinux_2_28
           filters:
+            branches:
+              only: main
             tags:
               only: /.*/
           build: "*manylinux*"
           image: quay.io/pypa/manylinux_2_28_aarch64
       - arm-wheels:
-          name: arm-wheels-musllinux_1_1
-          filters:
-            tags:
-              only: /.*/
-          build: "*musllinux*"
-          image: quay.io/pypa/musllinux_1_1_aarch64
-      - arm-wheels:
           name: arm-wheels-musllinux_1_2
           filters:
+            branches:
+              only: main
             tags:
               only: /.*/
           build: "*musllinux*"
