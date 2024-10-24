@@ -18,7 +18,7 @@ build-backend = "setuptools.build_meta"
 write_to = "cwltool/_version.py"
 
 [tool.cibuildwheel]
-test-command = "python -m pytest -n 2 --junitxml={project}/test-results/junit_$(python -V | awk '{print $2}')_${AUDITWHEEL_PLAT}.xml -k 'not (test_bioconda or test_env_filtering or test_udocker)' --pyargs cwltool"
+test-command = "python -m pytest --ignore cwltool/schemas -n logical --dist worksteal --junitxml={project}/test-results/junit_$(python -V | awk '{print $2}')_${AUDITWHEEL_PLAT}.xml -k 'not (test_bioconda or test_env_filtering or test_udocker)' --pyargs cwltool"
 test-requires = "-r test-requirements.txt"
 test-extras = "deps"
 skip = "pp*"
