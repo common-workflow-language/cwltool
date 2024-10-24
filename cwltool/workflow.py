@@ -401,12 +401,13 @@ class WorkflowStep(Process):
         processStatus: str,
     ) -> None:
         output = {}
-        for i in self.tool["outputs"]:
-            field = shortname(i["id"])
-            if field in jobout:
-                output[i["id"]] = jobout[field]
-            else:
-                processStatus = "permanentFail"
+        if processStatus != "killed":
+            for i in self.tool["outputs"]:
+                field = shortname(i["id"])
+                if field in jobout:
+                    output[i["id"]] = jobout[field]
+                else:
+                    processStatus = "permanentFail"
         output_callback(output, processStatus)
 
     def job(

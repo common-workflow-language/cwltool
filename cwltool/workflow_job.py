@@ -548,24 +548,25 @@ class WorkflowJob:
         jobout: CWLObjectType,
         processStatus: str,
     ) -> None:
-        for i in outputparms:
-            if "id" in i:
-                iid = cast(str, i["id"])
-                if iid in jobout:
-                    self.state[iid] = WorkflowStateItem(i, jobout[iid], processStatus)
-                else:
-                    _logger.error("[%s] Output is missing expected field %s", step.name, iid)
-                    processStatus = "permanentFail"
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug("[%s] produced output %s", step.name, json_dumps(jobout, indent=4))
+        if processStatus != "killed":
+            for i in outputparms:
+                if "id" in i:
+                    iid = cast(str, i["id"])
+                    if iid in jobout:
+                        self.state[iid] = WorkflowStateItem(i, jobout[iid], processStatus)
+                    else:
+                        _logger.error("[%s] Output is missing expected field %s", step.name, iid)
+                        processStatus = "permanentFail"
 
-        if processStatus not in ("success", "skipped"):
-            if self.processStatus != "permanentFail":
-                self.processStatus = processStatus
+            if processStatus not in ("success", "skipped"):
+                if self.processStatus != "permanentFail":
+                    self.processStatus = processStatus
 
-            _logger.warning("[%s] completed %s", step.name, processStatus)
-        else:
-            _logger.info("[%s] completed %s", step.name, processStatus)
+                _logger.warning("[%s] completed %s", step.name, processStatus)
+            else:
+                _logger.info("[%s] completed %s", step.name, processStatus)
 
         step.completed = True
         # Release the iterable related to this step to
