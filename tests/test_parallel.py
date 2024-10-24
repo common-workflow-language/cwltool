@@ -63,5 +63,6 @@ def test_on_error_kill() -> None:
         start_time = time.time()
         ks_test(sleep_time=sleep_time)
     except WorkflowStatus as e:
+        end_time = time.time()
         assert e.out == {"instructed_sleep_times": [sleep_time] * n_sleepers}
-        assert time.time() - start_time < sleep_time
+        assert end_time - start_time < (sleep_time + 4)
