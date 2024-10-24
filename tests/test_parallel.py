@@ -2,6 +2,7 @@ import json
 import math
 import time
 from pathlib import Path
+from typing import Union
 
 from cwltool.context import RuntimeContext
 from cwltool.executors import MultithreadedJobExecutor
@@ -36,7 +37,9 @@ def test_scattered_workflow() -> None:
 def test_on_error_kill() -> None:
     test_file = "tests/wf/on-error_kill.cwl"
 
-    def selectResources(request, _):  # type: ignore
+    def selectResources(
+        request: dict[str, Union[int, float]], _: RuntimeContext
+    ) -> dict[str, Union[int, float]]:
         # Remove the "one job per core" resource constraint so that
         # parallel jobs aren't withheld on machines with few cores
         return {
