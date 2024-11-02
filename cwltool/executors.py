@@ -273,7 +273,7 @@ class MultithreadedJobExecutor(JobExecutor):
         self.pending_jobs_lock = threading.Lock()
 
         self.max_ram = int(psutil.virtual_memory().available / 2**20)
-        self.max_cores = float(psutil.cpu_count())
+        self.max_cores = float(psutil.cpu_count() or 1)
         self.max_cuda = cuda_version_and_device_count()[1]
         self.allocated_ram = float(0)
         self.allocated_cores = float(0)
@@ -429,7 +429,7 @@ class MultithreadedJobExecutor(JobExecutor):
         logger: logging.Logger,
         runtime_context: RuntimeContext,
     ) -> None:
-        self.taskqueue: TaskQueue = TaskQueue(threading.Lock(), psutil.cpu_count())
+        self.taskqueue: TaskQueue = TaskQueue(threading.Lock(), psutil.cpu_count() or 1)
         try:
             jobiter = process.job(job_order_object, self.output_callback, runtime_context)
 
