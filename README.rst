@@ -202,7 +202,7 @@ To fix this, export the following environment variable before executing `cwltool
 
 ``export DOCKER_DEFAULT_PLATFORM=linux/amd64``
 
-To automically have this variable set in the future, add the same command to ones respective shell profile (e.g. ``~/.zshrc``, ``~/.bash_profile``).
+To automatically have this variable set in the future, add the same command to ones respective shell profile (e.g. ``~/.zshrc``, ``~/.bash_profile``).
 
 
 Using uDocker
