@@ -189,6 +189,20 @@ and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 
     $ cwl-runner --tmp-outdir-prefix=/Users/username/project --tmpdir-prefix=/Users/username/project wc-tool.cwl wc-job.json
 
+
+Docker default platform on macOS with Apple Silicon
+===================================================
+
+If macOS cwltool users want to run tools/workflows that reference software containers that only support amd64 (64-bit x86), but they have an Apple Silicon (aarch64/arm64) CPU,
+they run into the error `WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested`. 
+
+To circumvent this, export the following environment variable before executing the `cwltool`:
+
+`export DOCKER_DEFAULT_PLATFORM=linux/amd64`
+
+To automatically enable this variable in new shells, this can be added to the respective shell profiles (e.g. `~/.zshrc`, `~/.bash_profile`).
+
+
 Using uDocker
 =============
 
