@@ -159,6 +159,9 @@ class Singularity(CheckHolder):
                         return v.startswith(tmp_prefix) and v.endswith(":/tmp")
 
                     sing_vars["SINGULARITY_BIND"] = BIND
+        if vminor >= 10:
+            sing_vars["SINGULARITY_COMMAND"] = "run"
+            sing_vars["SINGULARITY_NO_EVAL"] = None
 
         result.update(sing_vars)
 

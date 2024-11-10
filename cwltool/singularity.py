@@ -75,6 +75,14 @@ def is_apptainer_1_or_newer() -> bool:
     return v[0][0] >= 1
 
 
+def is_apptainer_1_1_or_newer() -> bool:
+    """Check if apptainer singularity distribution is version 1.1 or higher."""
+    v = get_version()
+    if v[1] != "apptainer":
+        return False
+    return v[0][0] >= 2 or (v[0][0] >= 1 and v[0][1] >= 1)
+
+
 def is_version_2_6() -> bool:
     """
     Check if this singularity version is exactly version 2.6.
@@ -117,6 +125,12 @@ def is_version_3_9_or_newer() -> bool:
         return True  # this is equivalent to singularity-ce > 3.9.5
     v = get_version()
     return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 9)
+
+
+def is_version_3_10_or_newer() -> bool:
+    """Detect if Singularity v3.10+ is available."""
+    v = get_version()
+    return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 10)
 
 
 def _normalize_image_id(string: str) -> str:
@@ -464,14 +478,18 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
     ) -> tuple[list[str], Optional[str]]:
         """Return the Singularity runtime list of commands and options."""
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] or False
+
         runtime = [
             "singularity",
             "--quiet",
-            "exec",
+            "run" if is_apptainer_1_1_or_newer() or is_version_3_10_or_newer() else "exec",
             "--contain",
             "--ipc",
             "--cleanenv",
         ]
+        if is_apptainer_1_1_or_newer() or is_version_3_10_or_newer():
+            runtime.append("--no-eval")
+
         if singularity_supports_userns():
             runtime.append("--userns")
         else:
