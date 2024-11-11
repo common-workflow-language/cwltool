@@ -6,7 +6,7 @@ from getpass import getuser
 from pathlib import Path
 from shutil import which
 from types import ModuleType
-from typing import Optional, Tuple
+from typing import Optional
 
 import pytest
 
@@ -56,7 +56,7 @@ def test_biocontainers_resolution(tmp_path: Path) -> None:
 
 
 @pytest.fixture(scope="session")
-def bioconda_setup(request: pytest.FixtureRequest) -> Tuple[Optional[int], str]:
+def bioconda_setup(request: pytest.FixtureRequest) -> tuple[Optional[int], str]:
     """
     Caches the conda environment created for seqtk_seq.cwl.
 
@@ -108,7 +108,7 @@ def bioconda_setup(request: pytest.FixtureRequest) -> Tuple[Optional[int], str]:
 
 
 @pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
-def test_bioconda(bioconda_setup: Tuple[Optional[int], str]) -> None:
+def test_bioconda(bioconda_setup: tuple[Optional[int], str]) -> None:
     error_code, stderr = bioconda_setup
     assert error_code == 0, stderr
 
@@ -119,15 +119,15 @@ def test_modules(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Do a basic smoke test using environment modules to satisfy a SoftwareRequirement."""
     wflow = get_data("tests/random_lines.cwl")
     job = get_data("tests/random_lines_job.json")
-    monkeypatch.setenv("MODULEPATH", os.path.join(os.getcwd(), "tests/test_deps_env/modulefiles"))
+    monkeypatch.setenv("MODULEPATH", get_data("tests/test_deps_env/modulefiles"))
     error_code, _, stderr = get_main_output(
         [
             "--outdir",
             str(tmp_path / "out"),
-            "--beta-dependency-resolvers-configuration",
             "--beta-dependencies-directory",
             str(tmp_path / "deps"),
-            "tests/test_deps_env_modules_resolvers_conf.yml",
+            "--beta-dependency-resolvers-configuration",
+            get_data("tests/test_deps_env_modules_resolvers_conf.yml"),
             "--debug",
             wflow,
             job,
@@ -145,7 +145,7 @@ def test_modules_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 
     Do so by  by running `env` as the tool and parsing its output.
     """
-    monkeypatch.setenv("MODULEPATH", os.path.join(os.getcwd(), "tests/test_deps_env/modulefiles"))
+    monkeypatch.setenv("MODULEPATH", get_data("tests/test_deps_env/modulefiles"))
     tool_env = get_tool_env(
         tmp_path,
         [
@@ -155,6 +155,6 @@ def test_modules_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         get_data("tests/env_with_software_req.yml"),
     )
 
-    assert tool_env["TEST_VAR_MODULE"] == "environment variable ends in space "
+    assert tool_env["TEST_VAR_MODULE"] == "environment variable ends in space ", tool_env
     tool_path = tool_env["PATH"].split(":")
     assert get_data("tests/test_deps_env/random-lines/1.0/scripts") in tool_path

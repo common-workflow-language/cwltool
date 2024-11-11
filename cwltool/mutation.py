@@ -1,5 +1,5 @@
 from collections import namedtuple
-from typing import Dict, cast
+from typing import cast
 
 from .errors import WorkflowException
 from .utils import CWLObjectType
@@ -20,7 +20,7 @@ class MutationManager:
 
     def __init__(self) -> None:
         """Initialize."""
-        self.generations: Dict[str, MutationState] = {}
+        self.generations: dict[str, MutationState] = {}
 
     def register_reader(self, stepname: str, obj: CWLObjectType) -> None:
         loc = cast(str, obj["location"])

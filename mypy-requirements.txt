@@ -1,6 +1,7 @@
-mypy==1.11.1  # also update pyproject.toml
+mypy==1.13.0  # also update pyproject.toml
 ruamel.yaml>=0.16.0,<0.19
 cwl-utils>=0.32
+cwltest
 types-requests
 types-setuptools
 types-psutil

@@ -1,7 +1,5 @@
 """Enables Docker software containers via the udocker runtime."""
 
-from typing import List
-
 from .docker import DockerCommandLineJob
 
 
@@ -10,7 +8,7 @@ class UDockerCommandLineJob(DockerCommandLineJob):
 
     @staticmethod
     def append_volume(
-        runtime: List[str],
+        runtime: list[str],
         source: str,
         target: str,
         writable: bool = False,

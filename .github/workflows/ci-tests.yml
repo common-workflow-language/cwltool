@@ -32,7 +32,7 @@ jobs:
     strategy:
       matrix:
         py-ver-major: [3]
-        py-ver-minor: [8, 9, 10, 11, 12]
+        py-ver-minor: [9, 10, 11, 12, 13]
         step: [lint, unit, bandit, mypy]
 
     env:
@@ -44,11 +44,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Singularity
+      - name: Set up Singularity and environment-modules
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
         run: |
           wget --no-verbose https://github.com/sylabs/singularity/releases/download/v3.10.4/singularity-ce_3.10.4-focal_amd64.deb
-          sudo apt-get install -y ./singularity-ce_3.10.4-focal_amd64.deb
+          sudo apt-get install -y ./singularity-ce_3.10.4-focal_amd64.deb environment-modules
 
       - name: Give the test runner user a name to make provenance happy.
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
@@ -132,10 +132,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Singularity
+      - name: Set up Singularity and environment-modules
         run: |
           wget --no-verbose https://github.com/sylabs/singularity/releases/download/v3.10.4/singularity-ce_3.10.4-focal_amd64.deb
-          sudo apt-get install -y ./singularity-ce_3.10.4-focal_amd64.deb
+          sudo apt-get install -y ./singularity-ce_3.10.4-focal_amd64.deb environment-modules
 
       - name: Give the test runner user a name to make provenance happy.
         run: sudo usermod -c 'CI Runner' "$(whoami)"
@@ -165,6 +165,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     strategy:
+      fail-fast: false
       matrix:
         cwl-version: [v1.0, v1.1, v1.2]
         container: [docker, singularity, podman]
@@ -179,11 +180,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Singularity
+      - name: Set up Singularity and environment-modules
         if: ${{ matrix.container == 'singularity' }}
         run: |
           wget --no-verbose https://github.com/sylabs/singularity/releases/download/v3.10.4/singularity-ce_3.10.4-jammy_amd64.deb
-          sudo apt-get install -y ./singularity-ce_3.10.4-jammy_amd64.deb
+          sudo apt-get install -y ./singularity-ce_3.10.4-jammy_amd64.deb environment-modules
 
       - name: Singularity cache
         if: ${{ matrix.container == 'singularity' }}
@@ -228,10 +229,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Singularity
+      - name: Set up Singularity and environment-modules
         run: |
           wget --no-verbose https://github.com/sylabs/singularity/releases/download/v3.10.4/singularity-ce_3.10.4-jammy_amd64.deb
-          sudo apt-get install -y ./singularity-ce_3.10.4-jammy_amd64.deb
+          sudo apt-get install -y ./singularity-ce_3.10.4-jammy_amd64.deb environment-modules
 
       - name: Set up Python
         uses: actions/setup-python@v5

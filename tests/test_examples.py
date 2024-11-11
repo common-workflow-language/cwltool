@@ -9,7 +9,7 @@ import sys
 import urllib.parse
 from io import StringIO
 from pathlib import Path
-from typing import Any, Dict, List, Union, cast
+from typing import Any, Union, cast
 
 import cwl_utils.expression as expr
 import pydot
@@ -69,7 +69,7 @@ def test_expression_match(expression: str, expected: bool) -> None:
     assert (match is not None) == expected
 
 
-interpolate_input = {
+interpolate_input: dict[str, Any] = {
     "foo": {
         "bar": {"baz": "zab1"},
         "b ar": {"baz": 2},
@@ -77,7 +77,7 @@ interpolate_input = {
         'b"ar': {"baz": None},
     },
     "lst": ["A", "B"],
-}  # type: Dict[str, Any]
+}
 
 interpolate_parameters = [
     ("$(foo)", interpolate_input["foo"]),
@@ -410,7 +410,7 @@ def test_scandeps() -> None:
         raise Exception("test case can't load things")
 
     scanned_deps = cast(
-        List[Dict[str, Any]],
+        list[dict[str, Any]],
         cwltool.process.scandeps(
             cast(str, obj["id"]),
             obj,
@@ -473,7 +473,7 @@ def test_scandeps() -> None:
     assert scanned_deps == expected_deps
 
     scanned_deps2 = cast(
-        List[Dict[str, Any]],
+        list[dict[str, Any]],
         cwltool.process.scandeps(
             cast(str, obj["id"]),
             obj,
@@ -515,7 +515,7 @@ def test_scandeps_samedirname() -> None:
         raise Exception("test case can't load things")
 
     scanned_deps = cast(
-        List[Dict[str, Any]],
+        list[dict[str, Any]],
         cwltool.process.scandeps(
             "",
             obj,
@@ -576,7 +576,7 @@ def test_scandeps_defaults_with_secondaryfiles() -> None:
 
 
 def test_dedupe() -> None:
-    not_deduped = [
+    not_deduped: list[CWLObjectType] = [
         {"class": "File", "location": "file:///example/a"},
         {"class": "File", "location": "file:///example/a"},
         {"class": "File", "location": "file:///example/d"},
@@ -585,7 +585,7 @@ def test_dedupe() -> None:
             "location": "file:///example/c",
             "listing": [{"class": "File", "location": "file:///example/d"}],
         },
-    ]  # type: List[CWLObjectType]
+    ]
 
     expected = [
         {"class": "File", "location": "file:///example/a"},
@@ -649,7 +649,7 @@ source_to_sink = [
 
 @pytest.mark.parametrize("name, source, sink, expected", source_to_sink)
 def test_compare_types(
-    name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
+    name: str, source: dict[str, Any], sink: dict[str, Any], expected: bool
 ) -> None:
     assert can_assign_src_to_sink(source, sink) == expected, name
 
@@ -675,7 +675,7 @@ source_to_sink_strict = [
 
 @pytest.mark.parametrize("name, source, sink, expected", source_to_sink_strict)
 def test_compare_types_strict(
-    name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
+    name: str, source: dict[str, Any], sink: dict[str, Any], expected: bool
 ) -> None:
     assert can_assign_src_to_sink(source, sink, strict=True) == expected, name
 
@@ -1682,7 +1682,7 @@ def test_arguments_self() -> None:
         else:
             factory.runtime_context.use_container = False
     check = factory.make(get_data("tests/wf/paramref_arguments_self.cwl"))
-    outputs = cast(Dict[str, Any], check())
+    outputs = cast(dict[str, Any], check())
     assert "self_review" in outputs
     assert len(outputs) == 1
     assert outputs["self_review"]["checksum"] == "sha1$724ba28f4a9a1b472057ff99511ed393a45552e1"

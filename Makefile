@@ -24,7 +24,7 @@ MODULE=cwltool
 
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
-PYSOURCES=$(wildcard ${MODULE}/**.py cwltool/cwlprov/*.py tests/*.py) setup.py
+PYSOURCES=$(wildcard ${MODULE}/**.py cwltool/cwlprov/*.py tests/*.py tests/cwl-conformance/*.py) setup.py
 DEVPKGS=diff_cover pylint pep257 pydocstyle 'tox<4' tox-pyenv auto-walrus \
 	isort wheel autoflake pyupgrade bandit -rlint-requirements.txt\
 	-rtest-requirements.txt -rmypy-requirements.txt -rdocs/requirements.txt
@@ -190,7 +190,7 @@ shellcheck: FORCE
 		cwltool-in-docker.sh
 
 pyupgrade: $(PYSOURCES)
-	pyupgrade --exit-zero-even-if-changed --py38-plus $^
+	pyupgrade --exit-zero-even-if-changed --py39-plus $^
 	auto-walrus $^
 
 release-test: FORCE

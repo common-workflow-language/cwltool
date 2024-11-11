@@ -3,7 +3,8 @@
 import inspect
 import os
 import re
-from typing import List, Mapping, MutableMapping, Optional, Type, TypeVar, Union
+from collections.abc import Mapping, MutableMapping
+from typing import Optional, TypeVar, Union
 
 from schema_salad.utils import yaml_no_ts
 
@@ -18,9 +19,9 @@ class MpiConfig:
         runner: str = "mpirun",
         nproc_flag: str = "-n",
         default_nproc: Union[int, str] = 1,
-        extra_flags: Optional[List[str]] = None,
-        env_pass: Optional[List[str]] = None,
-        env_pass_regex: Optional[List[str]] = None,
+        extra_flags: Optional[list[str]] = None,
+        env_pass: Optional[list[str]] = None,
+        env_pass_regex: Optional[list[str]] = None,
         env_set: Optional[Mapping[str, str]] = None,
     ) -> None:
         """
@@ -46,7 +47,7 @@ class MpiConfig:
         self.env_set = env_set or {}
 
     @classmethod
-    def load(cls: Type[MpiConfigT], config_file_name: str) -> MpiConfigT:
+    def load(cls: type[MpiConfigT], config_file_name: str) -> MpiConfigT:
         """Create the MpiConfig object from the contents of a YAML file.
 
         The file must contain exactly one object, whose attributes must

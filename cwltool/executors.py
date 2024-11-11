@@ -7,18 +7,9 @@ import math
 import os
 import threading
 from abc import ABCMeta, abstractmethod
+from collections.abc import Iterable, MutableSequence
 from threading import Lock
-from typing import (
-    Dict,
-    Iterable,
-    List,
-    MutableSequence,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Optional, Union, cast
 
 import psutil
 from mypy_extensions import mypyc_attr
@@ -50,8 +41,8 @@ class JobExecutor(metaclass=ABCMeta):
     def __init__(self) -> None:
         """Initialize."""
         self.final_output: MutableSequence[Optional[CWLObjectType]] = []
-        self.final_status: List[str] = []
-        self.output_dirs: Set[str] = set()
+        self.final_status: list[str] = []
+        self.output_dirs: set[str] = set()
 
     def __call__(
         self,
@@ -59,7 +50,7 @@ class JobExecutor(metaclass=ABCMeta):
         job_order_object: CWLObjectType,
         runtime_context: RuntimeContext,
         logger: logging.Logger = _logger,
-    ) -> Tuple[Optional[CWLObjectType], str]:
+    ) -> tuple[Optional[CWLObjectType], str]:
         return self.execute(process, job_order_object, runtime_context, logger)
 
     def output_callback(self, out: Optional[CWLObjectType], process_status: str) -> None:
@@ -83,7 +74,7 @@ class JobExecutor(metaclass=ABCMeta):
         job_order_object: CWLObjectType,
         runtime_context: RuntimeContext,
         logger: logging.Logger = _logger,
-    ) -> Tuple[Union[Optional[CWLObjectType]], str]:
+    ) -> tuple[Union[Optional[CWLObjectType]], str]:
         """Execute the process."""
 
         self.final_output = []
@@ -112,7 +103,7 @@ class JobExecutor(metaclass=ABCMeta):
         runtime_context.toplevel = True
         runtime_context.workflow_eval_lock = threading.Condition(threading.RLock())
 
-        job_reqs: Optional[List[CWLObjectType]] = None
+        job_reqs: Optional[list[CWLObjectType]] = None
         if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
             if process.metadata.get(ORIGINAL_CWLVERSION) == "v1.0":
                 raise WorkflowException(
@@ -121,7 +112,7 @@ class JobExecutor(metaclass=ABCMeta):
                     "can set the cwlVersion to v1.1"
                 )
             job_reqs = cast(
-                List[CWLObjectType],
+                list[CWLObjectType],
                 job_order_object["https://w3id.org/cwl/cwl#requirements"],
             )
         elif "cwl:defaults" in process.metadata and "https://w3id.org/cwl/cwl#requirements" in cast(
@@ -134,7 +125,7 @@ class JobExecutor(metaclass=ABCMeta):
                     "can set the cwlVersion to v1.1"
                 )
             job_reqs = cast(
-                Optional[List[CWLObjectType]],
+                Optional[list[CWLObjectType]],
                 cast(CWLObjectType, process.metadata["cwl:defaults"])[
                     "https://w3id.org/cwl/cwl#requirements"
                 ],
@@ -277,22 +268,22 @@ class MultithreadedJobExecutor(JobExecutor):
     def __init__(self) -> None:
         """Initialize."""
         super().__init__()
-        self.exceptions: List[WorkflowException] = []
-        self.pending_jobs: List[JobsType] = []
+        self.exceptions: list[WorkflowException] = []
+        self.pending_jobs: list[JobsType] = []
         self.pending_jobs_lock = threading.Lock()
 
         self.max_ram = int(psutil.virtual_memory().available / 2**20)
-        self.max_cores = float(psutil.cpu_count())
+        self.max_cores = float(psutil.cpu_count() or 1)
         self.max_cuda = cuda_version_and_device_count()[1]
         self.allocated_ram = float(0)
         self.allocated_cores = float(0)
         self.allocated_cuda: int = 0
 
     def select_resources(
-        self, request: Dict[str, Union[int, float]], runtime_context: RuntimeContext
-    ) -> Dict[str, Union[int, float]]:  # pylint: disable=unused-argument
+        self, request: dict[str, Union[int, float]], runtime_context: RuntimeContext
+    ) -> dict[str, Union[int, float]]:  # pylint: disable=unused-argument
         """Naïve check for available cpu cores and memory."""
-        result: Dict[str, Union[int, float]] = {}
+        result: dict[str, Union[int, float]] = {}
         maxrsc = {"cores": self.max_cores, "ram": self.max_ram}
         resources_types = {"cores", "ram"}
         if "cudaDeviceCountMin" in request or "cudaDeviceCountMax" in request:
@@ -438,7 +429,7 @@ class MultithreadedJobExecutor(JobExecutor):
         logger: logging.Logger,
         runtime_context: RuntimeContext,
     ) -> None:
-        self.taskqueue: TaskQueue = TaskQueue(threading.Lock(), self.max_cores )
+        self.taskqueue: TaskQueue = TaskQueue(threading.Lock(), self.max_cores)
         try:
             jobiter = process.job(job_order_object, self.output_callback, runtime_context)
 
@@ -491,5 +482,5 @@ class NoopJobExecutor(JobExecutor):
         job_order_object: CWLObjectType,
         runtime_context: RuntimeContext,
         logger: Optional[logging.Logger] = None,
-    ) -> Tuple[Optional[CWLObjectType], str]:
+    ) -> tuple[Optional[CWLObjectType], str]:
         return {}, "success"

@@ -1,5 +1,5 @@
 import copy
-from typing import Dict, Optional, Tuple, cast
+from typing import Optional, cast
 
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
@@ -99,12 +99,12 @@ class ProcessGenerator(Process):
         job_order: CWLObjectType,
         jobout: CWLObjectType,
         runtimeContext: RuntimeContext,
-    ) -> Tuple[Process, CWLObjectType]:
+    ) -> tuple[Process, CWLObjectType]:
         try:
             loadingContext = self.loadingContext.copy()
             loadingContext.metadata = {}
             embedded_tool = load_tool(
-                cast(Dict[str, str], jobout["runProcess"])["location"], loadingContext
+                cast(dict[str, str], jobout["runProcess"])["location"], loadingContext
             )
         except ValidationException as vexc:
             if runtimeContext.debug:
