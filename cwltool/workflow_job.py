@@ -89,7 +89,7 @@ class ReceiveScatterOutput:
         """The number of completed internal jobs."""
         return len(self._completed)
 
-    def receive_scatter_output(self, index: int, jobout: CWLObjectType, processStatus: str) -> None:
+    def receive_scatter_output(self, index: int, runtimeContext: RuntimeContext, jobout: CWLObjectType, processStatus: str) -> None:
         """Record the results of a scatter operation."""
         for key, val in jobout.items():
             self.dest[key][index] = val
@@ -102,6 +102,8 @@ class ReceiveScatterOutput:
         if processStatus != "success":
             if self.processStatus != "permanentFail":
                 self.processStatus = processStatus
+            if runtimeContext.on_error == "kill":
+                self.output_callback(self.dest, self.processStatus)
 
         if index not in self._completed:
             self._completed.add(index)
@@ -156,7 +158,7 @@ def parallel_steps(
             except WorkflowException as exc:
                 _logger.error("Cannot make scatter job: %s", str(exc))
                 _logger.debug("", exc_info=True)
-                rc.receive_scatter_output(index, {}, "permanentFail")
+                rc.receive_scatter_output(index, runtimeContext, {}, "permanentFail")
         if not made_progress and rc.completed < rc.total:
             yield None
 
@@ -185,7 +187,7 @@ def nested_crossproduct_scatter(
         if len(scatter_keys) == 1:
             if runtimeContext.postScatterEval is not None:
                 sjob = runtimeContext.postScatterEval(sjob)
-            curriedcallback = functools.partial(rc.receive_scatter_output, index)
+            curriedcallback = functools.partial(rc.receive_scatter_output, index, runtimeContext)
             if sjob is not None:
                 steps.append(process.job(sjob, curriedcallback, runtimeContext))
             else:
@@ -197,7 +199,7 @@ def nested_crossproduct_scatter(
                     process,
                     sjob,
                     scatter_keys[1:],
-                    functools.partial(rc.receive_scatter_output, index),
+                    functools.partial(rc.receive_scatter_output, index, runtimeContext),
                     runtimeContext,
                 )
             )
@@ -257,7 +259,7 @@ def _flat_crossproduct_scatter(
         if len(scatter_keys) == 1:
             if runtimeContext.postScatterEval is not None:
                 sjob = runtimeContext.postScatterEval(sjob)
-            curriedcallback = functools.partial(callback.receive_scatter_output, put)
+            curriedcallback = functools.partial(callback.receive_scatter_output, put, runtimeContext)
             if sjob is not None:
                 steps.append(process.job(sjob, curriedcallback, runtimeContext))
             else:
@@ -307,7 +309,7 @@ def dotproduct_scatter(
 
         if runtimeContext.postScatterEval is not None:
             sjobo = runtimeContext.postScatterEval(sjobo)
-        curriedcallback = functools.partial(rc.receive_scatter_output, index)
+        curriedcallback = functools.partial(rc.receive_scatter_output, index, runtimeContext)
         if sjobo is not None:
             steps.append(process.job(sjobo, curriedcallback, runtimeContext))
         else:
