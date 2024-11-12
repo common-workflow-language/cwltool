@@ -102,6 +102,7 @@ class JobExecutor(metaclass=ABCMeta):
         runtime_context.mutation_manager = MutationManager()
         runtime_context.toplevel = True
         runtime_context.workflow_eval_lock = threading.Condition(threading.RLock())
+        runtime_context.kill_switch = threading.Event()
 
         job_reqs: Optional[list[CWLObjectType]] = None
         if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
@@ -439,9 +440,13 @@ class MultithreadedJobExecutor(JobExecutor):
         logger: logging.Logger,
         runtime_context: RuntimeContext,
     ) -> None:
+        if runtime_context.kill_switch is None:
+            runtime_context.kill_switch = threading.Event()
+
         self.taskqueue: TaskQueue = TaskQueue(
-            threading.Lock(), int(math.ceil(self.max_cores)), runtime_context
+            threading.Lock(), int(math.ceil(self.max_cores)), runtime_context.kill_switch
         )
+
         try:
             jobiter = process.job(job_order_object, self.output_callback, runtime_context)
 

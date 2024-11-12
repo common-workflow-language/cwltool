@@ -7,7 +7,6 @@ import queue
 import threading
 from typing import Callable, Optional
 
-from .context import RuntimeContext
 from .errors import WorkflowKillSwitch
 from .loghandler import _logger
 
@@ -35,7 +34,7 @@ class TaskQueue:
     in_flight: int = 0
     """The number of tasks in the queue."""
 
-    def __init__(self, lock: threading.Lock, thread_count: int, runtime_context: RuntimeContext):
+    def __init__(self, lock: threading.Lock, thread_count: int, kill_switch: threading.Event):
         """Create a new task queue using the specified lock and number of threads."""
         self.thread_count = thread_count
         self.task_queue: queue.Queue[Optional[Callable[[], None]]] = queue.Queue(
@@ -44,11 +43,7 @@ class TaskQueue:
         self.task_queue_threads = []
         self.lock = lock
         self.error: Optional[BaseException] = None
-
-        if runtime_context.kill_switch is None:
-            self.kill_switch = runtime_context.kill_switch = threading.Event()
-        else:
-            self.kill_switch = runtime_context.kill_switch
+        self.kill_switch = kill_switch
 
         for _r in range(0, self.thread_count):
             t = threading.Thread(target=self._task_queue_func)
