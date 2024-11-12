@@ -66,6 +66,9 @@ class WorkflowJobStep:
 
         yield from self.step.job(joborder, output_callback, runtimeContext)
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} [{self.name}]>"
+
 
 class ReceiveScatterOutput:
     """Produced by the scatter generators."""
@@ -851,6 +854,8 @@ class WorkflowJob:
             # depends which one comes first. All steps are completed
             # or all outputs have been produced.
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} [{self.name}]>"
 
 class WorkflowJobLoopStep:
     """Generated for each step in Workflow.steps() containing a `loop` directive."""

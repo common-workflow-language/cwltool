@@ -1,3 +1,4 @@
+import os
 import copy
 import datetime
 import functools
@@ -452,3 +453,6 @@ class WorkflowStep(Process):
 
     def visit(self, op: Callable[[CommentedMap], None]) -> None:
         self.embedded_tool.visit(op)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} [{os.path.basename(self.id)}]>"
