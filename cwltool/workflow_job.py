@@ -858,7 +858,6 @@ class WorkflowJob:
             # depends which one comes first. All steps are completed
             # or all outputs have been produced.
 
-    def __repr__(self):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} [{self.name}]>"
 
