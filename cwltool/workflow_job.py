@@ -563,13 +563,13 @@ class WorkflowJob:
                         _logger.error("[%s] Output is missing expected field %s", step.name, iid)
                         processStatus = "permanentFail"
 
-            if processStatus not in ("success", "skipped"):
-                if self.processStatus != "permanentFail":
-                    self.processStatus = processStatus
+        if processStatus not in ("success", "skipped"):
+            if self.processStatus != "permanentFail":
+                self.processStatus = processStatus
 
-                _logger.warning("[%s] completed %s", step.name, processStatus)
-            else:
-                _logger.info("[%s] completed %s", step.name, processStatus)
+            _logger.warning("[%s] completed %s", step.name, processStatus)
+        else:
+            _logger.info("[%s] completed %s", step.name, processStatus)
 
         step.completed = True
         # Release the iterable related to this step to
