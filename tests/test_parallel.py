@@ -56,13 +56,18 @@ def test_on_error_kill() -> None:
     ks_test = factory.make(get_data(test_file))
 
     # arbitrary test values
-    sleep_time = 33  # a "sufficiently large" timeout
-    n_sleepers = 5
+    sleep_time = 3333  # a "sufficiently large" timeout
+    n_sleepers = 4
+    start_time = 0
 
     try:
         start_time = time.time()
-        ks_test(sleep_time=sleep_time)
+        ks_test(
+            sleep_time=sleep_time,
+            n_sleepers=n_sleepers,
+        )
     except WorkflowStatus as e:
         end_time = time.time()
-        assert e.out == {"instructed_sleep_times": [sleep_time] * n_sleepers}
-        assert end_time - start_time < (sleep_time + 4)
+        output = e.out["roulette_mask"]
+        assert len(output) == n_sleepers and sum(output) == 1
+        assert end_time - start_time < sleep_time

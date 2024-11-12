@@ -17,77 +17,70 @@ doc: |
 
 
 inputs:
-  sleep_time: { type: int, default: 33 }
-  n_sleepers: { type: int?, default: 5 }
+  sleep_time: {type: int, default: 3333}
+  n_sleepers: {type: int, default: 4}
 
 
 steps:
-  make_array:
+  roulette:
     doc: |
-      This step produces an array of sleep_time values to be used
-      as inputs for the scatter_step. The array also serves as the
-      workflow output which should be collected despite the 
-      kill switch triggered in the kill step below.
-    in: { sleep_time: sleep_time, n_sleepers: n_sleepers }
-    out: [ times ]
+      This step produces a boolean array with exactly one true value
+      whose index is assigned at random.
+    in: {n_sleepers: n_sleepers}
+    out: [mask]
     run:
       class: ExpressionTool
-      inputs:
-          sleep_time: { type: int }
-          n_sleepers: { type: int }
-      outputs: { times: { type: "int[]" } }
+      inputs: {n_sleepers: {type: int}}
+      outputs: {mask: {type: "boolean[]"}}
       expression: |
-        ${ return {"times": Array(inputs.n_sleepers).fill(inputs.sleep_time)} }
+        ${
+          var mask = Array(inputs.n_sleepers).fill(false);
+          var spin = Math.floor(Math.random() * inputs.n_sleepers);
+          mask[spin] = true;
+          return {"mask": mask}
+        }
 
   scatter_step:
     doc: |
       This step starts several parallel jobs that each sleep for
-      sleep_time seconds.
+      sleep_time seconds. The job whose k_mask value is true will
+      self-terminate early, thereby activating the kill switch.
     in:
-      time: make_array/times
-    scatter: time
-    out: [ ]
+      time: sleep_time
+      k_mask: roulette/mask
+    scatter: k_mask
+    out: [placeholder]
     run:
       class: CommandLineTool
+      requirements:
+        ToolTimeLimit:
+          timelimit: '${return inputs.k_mask ? 5 : inputs.time + 5}'  # 5 is an arbitrary value
       baseCommand: sleep
       inputs:
-        time: { type: int, inputBinding: { position: 1 } }
-      outputs: { }
-
-  kill:
-    doc: |
-      This step waits a few seconds and selects a random scatter_step job to kill. 
-      When `--on-error kill` is used, the runner should respond by terminating all 
-      remaining jobs and exiting. This means the workflow's overall runtime should be 
-      much less than max(sleep_time). The input force_upstream_order ensures that 
-      this step runs after make_array, and therefore roughly parallel to scatter_step.
-    in:
-      force_upstream_order: make_array/times
-      sleep_time: sleep_time
-      search_str:
-        valueFrom: $("sleep " + inputs.sleep_time)
-    out: [ pid ]
-    run: ../process_roulette.cwl
+        time: {type: int, inputBinding: {position: 1}}
+        k_mask: {type: boolean}
+      outputs:
+        placeholder: {type: string, outputBinding: {outputEval: $("foo")}}
 
   dangling_step:
     doc: |
       This step should never run. It confirms that additional jobs aren't
       submitted and allowed to run to completion after the kill switch has
-      been set. The input force_downstream_order ensures that this step runs
-      after the kill step.
+      been set. The input force_downstream_order ensures that this step
+      doesn't run before scatter_step completes.
     in:
-      force_downstream_order: kill/pid
+      force_downstream_order: scatter_step/placeholder
       time: sleep_time
-    out: [ ]
+    out: []
     run:
       class: CommandLineTool
       baseCommand: sleep
       inputs:
-        time: { type: int, inputBinding: { position: 1 } }
-      outputs: { }
+        time: {type: int, inputBinding: {position: 1}}
+      outputs: {}
 
 
 outputs:
-  instructed_sleep_times:
-    type: int[]
-    outputSource: make_array/times
+  roulette_mask:
+    type: boolean[]
+    outputSource: roulette/mask
