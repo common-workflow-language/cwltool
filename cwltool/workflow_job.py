@@ -67,7 +67,8 @@ class WorkflowJobStep:
         yield from self.step.job(joborder, output_callback, runtimeContext)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} [{self.name}]>"
+        """Return a non-expression string representation of the object instance."""
+        return f"<{self.__class__.__name__} [{self.name}] at {hex(id(self))}>"
 
 
 class ReceiveScatterOutput:
@@ -137,6 +138,7 @@ def parallel_steps(
     rc: ReceiveScatterOutput,
     runtimeContext: RuntimeContext,
 ) -> JobsGeneratorType:
+    """Yield scatter jobs (or None if there's no work to do) until all scatter jobs complete."""
     while rc.completed < rc.total:
         made_progress = False
         for index, step in enumerate(steps):
@@ -859,7 +861,8 @@ class WorkflowJob:
             # or all outputs have been produced.
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} [{self.name}]>"
+        """Return a non-expression string representation of the object instance."""
+        return f"<{self.__class__.__name__} [{self.name}] at {hex(id(self))}>"
 
 
 class WorkflowJobLoopStep:

@@ -455,4 +455,11 @@ class WorkflowStep(Process):
         self.embedded_tool.visit(op)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} [{os.path.basename(self.id)}]>"
+        """Return a non-expression string representation of the object instance."""
+        if "#" in self.id:
+            wf_file, step_id = self.id.rsplit("#", 1)
+            step_name = "#".join([os.path.basename(wf_file), step_id])
+        else:
+            step_name = self.id
+
+        return f"<{self.__class__.__name__} [{step_name}] at {hex(id(self))}>"
