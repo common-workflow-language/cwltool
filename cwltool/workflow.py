@@ -1,8 +1,8 @@
-import os
 import copy
 import datetime
 import functools
 import logging
+import os
 import random
 from collections.abc import Mapping, MutableMapping, MutableSequence
 from typing import Callable, Optional, cast
@@ -454,5 +454,5 @@ class WorkflowStep(Process):
     def visit(self, op: Callable[[CommentedMap], None]) -> None:
         self.embedded_tool.visit(op)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.__class__.__name__} [{os.path.basename(self.id)}]>"

@@ -439,7 +439,9 @@ class MultithreadedJobExecutor(JobExecutor):
         logger: logging.Logger,
         runtime_context: RuntimeContext,
     ) -> None:
-        self.taskqueue: TaskQueue = TaskQueue(threading.Lock(), int(math.ceil(self.max_cores)), runtime_context)
+        self.taskqueue: TaskQueue = TaskQueue(
+            threading.Lock(), int(math.ceil(self.max_cores)), runtime_context
+        )
         try:
             jobiter = process.job(job_order_object, self.output_callback, runtime_context)
 

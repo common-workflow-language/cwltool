@@ -66,7 +66,7 @@ class WorkflowJobStep:
 
         yield from self.step.job(joborder, output_callback, runtimeContext)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.__class__.__name__} [{self.name}]>"
 
 
@@ -92,7 +92,9 @@ class ReceiveScatterOutput:
         """The number of completed internal jobs."""
         return len(self._completed)
 
-    def receive_scatter_output(self, index: int, runtimeContext: RuntimeContext, jobout: CWLObjectType, processStatus: str) -> None:
+    def receive_scatter_output(
+        self, index: int, runtimeContext: RuntimeContext, jobout: CWLObjectType, processStatus: str
+    ) -> None:
         """Record the results of a scatter operation."""
         for key, val in jobout.items():
             self.dest[key][index] = val
@@ -147,7 +149,10 @@ def parallel_steps(
                 continue
             try:
                 for j in step:
-                    if runtimeContext.on_error != "continue" and rc.processStatus not in ("success", "skipped"):
+                    if runtimeContext.on_error != "continue" and rc.processStatus not in (
+                        "success",
+                        "skipped",
+                    ):
                         break
                     if j is not None:
                         made_progress = True
@@ -260,7 +265,9 @@ def _flat_crossproduct_scatter(
         if len(scatter_keys) == 1:
             if runtimeContext.postScatterEval is not None:
                 sjob = runtimeContext.postScatterEval(sjob)
-            curriedcallback = functools.partial(callback.receive_scatter_output, put, runtimeContext)
+            curriedcallback = functools.partial(
+                callback.receive_scatter_output, put, runtimeContext
+            )
             if sjob is not None:
                 steps.append(process.job(sjob, curriedcallback, runtimeContext))
             else:
@@ -808,10 +815,7 @@ class WorkflowJob:
             self.made_progress = False
 
             for step in self.steps:
-                if (
-                    runtimeContext.on_error  != "continue"
-                    and self.processStatus != "success"
-                ):
+                if runtimeContext.on_error != "continue" and self.processStatus != "success":
                     break
 
                 if not step.submitted:
@@ -855,7 +859,9 @@ class WorkflowJob:
             # or all outputs have been produced.
 
     def __repr__(self):
+    def __repr__(self) -> str:
         return f"<{self.__class__.__name__} [{self.name}]>"
+
 
 class WorkflowJobLoopStep:
     """Generated for each step in Workflow.steps() containing a `loop` directive."""

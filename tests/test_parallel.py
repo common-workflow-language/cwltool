@@ -2,7 +2,7 @@ import json
 import math
 import time
 from pathlib import Path
-from typing import Union
+from typing import Union, cast
 
 from cwltool.context import RuntimeContext
 from cwltool.executors import MultithreadedJobExecutor
@@ -58,7 +58,7 @@ def test_on_error_kill() -> None:
     # arbitrary test values
     sleep_time = 3333  # a "sufficiently large" timeout
     n_sleepers = 4
-    start_time = 0
+    start_time = 0.0
 
     try:
         start_time = time.time()
@@ -68,6 +68,6 @@ def test_on_error_kill() -> None:
         )
     except WorkflowStatus as e:
         end_time = time.time()
-        output = e.out["roulette_mask"]
+        output = cast(dict[str, list[bool]], e.out)["roulette_mask"]
         assert len(output) == n_sleepers and sum(output) == 1
         assert end_time - start_time < sleep_time
