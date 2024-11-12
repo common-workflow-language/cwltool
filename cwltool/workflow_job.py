@@ -135,7 +135,7 @@ def parallel_steps(
     while rc.completed < rc.total:
         made_progress = False
         for index, step in enumerate(steps):
-            if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus not in (
+            if runtimeContext.on_error != "continue" and rc.processStatus not in (
                 "success",
                 "skipped",
             ):
@@ -144,9 +144,7 @@ def parallel_steps(
                 continue
             try:
                 for j in step:
-                    if getdefault(
-                        runtimeContext.on_error, "stop"
-                    ) == "stop" and rc.processStatus not in ("success", "skipped"):
+                    if runtimeContext.on_error != "continue" and rc.processStatus not in ("success", "skipped"):
                         break
                     if j is not None:
                         made_progress = True
@@ -808,7 +806,7 @@ class WorkflowJob:
 
             for step in self.steps:
                 if (
-                    getdefault(runtimeContext.on_error, "stop") == "stop"
+                    runtimeContext.on_error  != "continue"
                     and self.processStatus != "success"
                 ):
                     break
@@ -825,7 +823,7 @@ class WorkflowJob:
                     try:
                         for newjob in step.iterable:
                             if (
-                                getdefault(runtimeContext.on_error, "stop") == "stop"
+                                runtimeContext.on_error != "continue"
                                 and self.processStatus != "success"
                             ):
                                 break
