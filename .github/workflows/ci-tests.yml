@@ -9,7 +9,7 @@ on:
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   TOX_SKIP_MISSING_INTERPRETERS: False
@@ -82,8 +82,6 @@ jobs:
       - name: Upload coverage to Codecov
         if: ${{ matrix.step == 'unit' }}
         uses: codecov/codecov-action@v4
-        with:
-          fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -218,8 +216,6 @@ jobs:
             **/cwltool_conf*.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
-        with:
-          fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   release_test:
@@ -303,7 +299,5 @@ jobs:
         run: tox
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
-        with:
-          fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
