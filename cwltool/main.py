@@ -330,10 +330,10 @@ def generate_input_template(tool: Process) -> CWLObjectType:
     """Generate an example input object for the given CWL process."""
     template = ruamel.yaml.comments.CommentedMap()
     for inp in cast(
-        list[MutableMapping[str, str]],
+        list[CWLObjectType],
         realize_input_schema(tool.tool["inputs"], tool.schemaDefs),
     ):
-        name = shortname(inp["id"])
+        name = shortname(cast(str, inp["id"]))
         value, comment = generate_example_input(inp["type"], inp.get("default", None))
         template.insert(0, name, value, comment)
     return template
