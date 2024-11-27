@@ -1894,3 +1894,15 @@ def test_input_named_id() -> None:
         ]
     )
     assert exit_code == 0, stderr
+
+
+def test_make_template() -> None:
+    """End-to-end test of --make-template, especially for mypyc mode."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--make-template",
+            "--debug",
+            get_data("tests/CometAdapter.cwl"),
+        ]
+    )
+    assert exit_code == 0, stderr
