@@ -245,6 +245,7 @@ $graph:
         - Specify the desired method of dealing with loop outputs
         - Default. Propagates only the last computed element to the subsequent steps when the loop terminates.
         - Propagates a single array with all output values to the subsequent steps when the loop terminates.
+
 - name: ShmSize
   type: record
   extends: cwl:ProcessRequirement
@@ -263,3 +264,34 @@ $graph:
         than 0. Unit is optional and can be `b` (bytes), `k` (kilobytes), `m`
         (megabytes), or `g` (gigabytes). If you omit the unit, the default is
         bytes. If you omit the size entirely, the value is `64m`."
+
+- name: Grouping
+  type: record
+  extends: [ sld:Documented ]
+  fields:
+    - name: GroupName
+      type: string
+    - name: groupMembers
+      type: string[]
+      jsonldPredicate:
+        "_type": "@id"
+        "_container": "@list"
+        refScope: 0
+
+- name: Groups
+  type: record
+  extends: cwl:ProcessRequirement
+  inVocab: false
+  fields:
+    class:
+      type: string
+      doc: 'cwltool:Groups'
+      jsonldPredicate:
+        "_id": "@type"
+        "_type": "@vocab"
+    group:
+      type:
+        - type: array
+          items: "#Grouping"
+      jsonldPredicate:
+        mapSubject: GroupName
