@@ -285,3 +285,16 @@ def test_ext_validation_no_namespace_warning() -> None:
         "URI prefix 'cwltool' of 'cwltool:loop' not recognized, are you "
         "missing a $namespaces section?"
     ) not in stderr
+
+
+def test_ext_groups_help(capsys: pytest.CaptureFixture[str]) -> None:
+    error_code, stdout, stderr = get_main_output([get_data("tests/echo-groups.cwl"), "--help"])
+    assert error_code == 0
+    assert (
+        """my great inputs:
+  parameters related to the foobar feature
+
+  --first FIRST
+  --second SECOND"""
+        in capsys.readouterr().out
+    )
