@@ -4,7 +4,7 @@ import os
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Callable, Union
+from typing import Callable, Union
 
 import pytest
 
@@ -198,7 +198,7 @@ CRT_PARAMS = pytest.mark.parametrize(
 
 
 @CRT_PARAMS
-def test_basic(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> None:
+def test_basic(crt_params: CheckHolder, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that basic env vars (only) show up."""
     tmp_prefix = str(tmp_path / "canary")
     extra_env = {
@@ -218,7 +218,9 @@ def test_basic(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> Non
 
 
 @CRT_PARAMS
-def test_preserve_single(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> None:
+def test_preserve_single(
+    crt_params: CheckHolder, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Test that preserving a single env var works."""
     tmp_prefix = str(tmp_path / "canary")
     extra_env = {
@@ -242,7 +244,9 @@ def test_preserve_single(crt_params: CheckHolder, tmp_path: Path, monkeypatch: A
 
 
 @CRT_PARAMS
-def test_preserve_all(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> None:
+def test_preserve_all(
+    crt_params: CheckHolder, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Test that preserving all works."""
     tmp_prefix = str(tmp_path / "canary")
     extra_env = {

@@ -157,7 +157,7 @@ jobs:
           chmod a-w .
 
       - name: run tests
-        run: APPTAINER_TMPDIR=${RUNNER_TEMP} make test
+        run: APPTAINER_TMPDIR=${RUNNER_TEMP} make test PYTEST_EXTRA=-vvv
 
 
   conformance_tests:
