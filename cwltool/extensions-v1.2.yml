@@ -3,7 +3,7 @@ $namespaces:
   cwl: "https://w3id.org/cwl/cwl#"
   cwltool: "http://commonwl.org/cwltool#"
 $graph:
-- $import: https://w3id.org/cwl/CommonWorkflowLanguage.yml
+- $import: https://github.com/common-workflow-language/cwl-v1.2/raw/codegen/CommonWorkflowLanguage.yml
 
 - name: Secrets
   type: record
@@ -159,6 +159,7 @@ $graph:
         default must be applied prior to scattering or evaluating `valueFrom`.
       jsonldPredicate:
         _id: "sld:default"
+        _container: "@list"
         noLinkCheck: true
     valueFrom:
       type:
@@ -236,7 +237,7 @@ $graph:
         name: LoopOutputModes
         symbols: [ last, all ]
       default: last
-      doc:
+      doc: |
         - Specify the desired method of dealing with loop outputs
         - Default. Propagates only the last computed element to the subsequent steps when the loop terminates.
         - Propagates a single array with all output values to the subsequent steps when the loop terminates.
