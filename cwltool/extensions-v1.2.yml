@@ -236,7 +236,7 @@ $graph:
         name: LoopOutputModes
         symbols: [ last, all ]
       default: last
-      doc:
+      doc: |
         - Specify the desired method of dealing with loop outputs
         - Default. Propagates only the last computed element to the subsequent steps when the loop terminates.
         - Propagates a single array with all output values to the subsequent steps when the loop terminates.
