@@ -20,7 +20,7 @@ from .command_line_tool import CallbackJob, ExpressionJob
 from .context import RuntimeContext, getdefault
 from .cuda import cuda_version_and_device_count
 from .cwlprov.provenance_profile import ProvenanceProfile
-from .errors import WorkflowException
+from .errors import WorkflowException, WorkflowKillSwitch
 from .job import JobBase
 from .loghandler import _logger
 from .mutation import MutationManager
@@ -102,6 +102,7 @@ class JobExecutor(metaclass=ABCMeta):
         runtime_context.mutation_manager = MutationManager()
         runtime_context.toplevel = True
         runtime_context.workflow_eval_lock = threading.Condition(threading.RLock())
+        runtime_context.kill_switch = threading.Event()
 
         job_reqs: Optional[list[CWLObjectType]] = None
         if "https://w3id.org/cwl/cwl#requirements" in job_order_object:
@@ -251,6 +252,11 @@ class SingleJobExecutor(JobExecutor):
             WorkflowException,
         ):  # pylint: disable=try-except-raise
             raise
+        except WorkflowKillSwitch as err:
+            _logger.error(
+                f"Workflow kill switch activated by [job {err.job_id}] "
+                f"because on-error={runtime_context.on_error}"
+            )
         except Exception as err:
             logger.exception("Got workflow error")
             raise WorkflowException(str(err)) from err
@@ -323,6 +329,11 @@ class MultithreadedJobExecutor(JobExecutor):
         except WorkflowException as err:
             _logger.exception(f"Got workflow error: {err}")
             self.exceptions.append(err)
+        except WorkflowKillSwitch as err:
+            _logger.error(
+                f"Workflow kill switch activated by [job {err.job_id}] "
+                f"because on-error={runtime_context.on_error}"
+            )
         except Exception as err:  # pylint: disable=broad-except
             _logger.exception(f"Got workflow error: {err}")
             self.exceptions.append(WorkflowException(str(err)))
@@ -429,7 +440,13 @@ class MultithreadedJobExecutor(JobExecutor):
         logger: logging.Logger,
         runtime_context: RuntimeContext,
     ) -> None:
-        self.taskqueue: TaskQueue = TaskQueue(threading.Lock(), int(math.ceil(self.max_cores)))
+        if runtime_context.kill_switch is None:
+            runtime_context.kill_switch = threading.Event()
+
+        self.taskqueue: TaskQueue = TaskQueue(
+            threading.Lock(), int(math.ceil(self.max_cores)), runtime_context.kill_switch
+        )
+
         try:
             jobiter = process.job(job_order_object, self.output_callback, runtime_context)
 
@@ -457,9 +474,9 @@ class MultithreadedJobExecutor(JobExecutor):
             while self.taskqueue.in_flight > 0:
                 self.wait_for_next_completion(runtime_context)
                 self.run_job(None, runtime_context)
-
-            runtime_context.workflow_eval_lock.release()
         finally:
+            if (lock := runtime_context.workflow_eval_lock) is not None:
+                lock.release()
             self.taskqueue.drain()
             self.taskqueue.join()
 

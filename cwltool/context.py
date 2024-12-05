@@ -172,7 +172,7 @@ class RuntimeContext(ContextBase):
         self.select_resources: Optional[select_resources_callable] = None
         self.eval_timeout: float = 60
         self.postScatterEval: Optional[Callable[[CWLObjectType], Optional[CWLObjectType]]] = None
-        self.on_error: Union[Literal["stop"], Literal["continue"]] = "stop"
+        self.on_error: Union[Literal["stop"], Literal["continue"], Literal["kill"]] = "stop"
         self.strict_memory_limit: bool = False
         self.strict_cpu_limit: bool = False
         self.cidfile_dir: Optional[str] = None
@@ -189,6 +189,7 @@ class RuntimeContext(ContextBase):
         self.default_stderr: Optional[Union[IO[bytes], TextIO]] = None
         self.validate_only: bool = False
         self.validate_stdout: Optional["SupportsWrite[str]"] = None
+        self.kill_switch: Optional[threading.Event] = None
         super().__init__(kwargs)
         if self.tmp_outdir_prefix == "":
             self.tmp_outdir_prefix = self.tmpdir_prefix

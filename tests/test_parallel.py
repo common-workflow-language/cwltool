@@ -1,9 +1,12 @@
 import json
+import math
+import time
 from pathlib import Path
+from typing import Union, cast
 
 from cwltool.context import RuntimeContext
 from cwltool.executors import MultithreadedJobExecutor
-from cwltool.factory import Factory
+from cwltool.factory import Factory, WorkflowStatus
 
 from .util import get_data, needs_docker
 
@@ -29,3 +32,42 @@ def test_scattered_workflow() -> None:
     echo = factory.make(get_data(test_file))
     with open(get_data(job_file)) as job:
         assert echo(**json.load(job)) == {"out": ["foo one three", "foo two four"]}
+
+
+def test_on_error_kill() -> None:
+    test_file = "tests/wf/on-error_kill.cwl"
+
+    def selectResources(
+        request: dict[str, Union[int, float]], _: RuntimeContext
+    ) -> dict[str, Union[int, float]]:
+        # Remove the "one job per core" resource constraint so that
+        # parallel jobs aren't withheld on machines with few cores
+        return {
+            "cores": 0,
+            "ram": math.ceil(request["ramMin"]),  # default
+            "tmpdirSize": math.ceil(request["tmpdirMin"]),  # default
+            "outdirSize": math.ceil(request["outdirMin"]),  # default
+        }
+
+    runtime_context = RuntimeContext()
+    runtime_context.on_error = "kill"
+    runtime_context.select_resources = selectResources
+    factory = Factory(MultithreadedJobExecutor(), None, runtime_context)
+    ks_test = factory.make(get_data(test_file))
+
+    # arbitrary test values
+    sleep_time = 3333  # a "sufficiently large" timeout
+    n_sleepers = 4
+    start_time = 0.0
+
+    try:
+        start_time = time.time()
+        ks_test(
+            sleep_time=sleep_time,
+            n_sleepers=n_sleepers,
+        )
+    except WorkflowStatus as e:
+        end_time = time.time()
+        output = cast(dict[str, list[bool]], e.out)["roulette_mask"]
+        assert len(output) == n_sleepers and sum(output) == 1
+        assert end_time - start_time < sleep_time

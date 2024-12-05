@@ -66,6 +66,10 @@ class WorkflowJobStep:
 
         yield from self.step.job(joborder, output_callback, runtimeContext)
 
+    def __repr__(self) -> str:
+        """Return a non-expression string representation of the object instance."""
+        return f"<{self.__class__.__name__} [{self.name}] at {hex(id(self))}>"
+
 
 class ReceiveScatterOutput:
     """Produced by the scatter generators."""
@@ -89,7 +93,9 @@ class ReceiveScatterOutput:
         """The number of completed internal jobs."""
         return len(self._completed)
 
-    def receive_scatter_output(self, index: int, jobout: CWLObjectType, processStatus: str) -> None:
+    def receive_scatter_output(
+        self, index: int, runtimeContext: RuntimeContext, jobout: CWLObjectType, processStatus: str
+    ) -> None:
         """Record the results of a scatter operation."""
         for key, val in jobout.items():
             self.dest[key][index] = val
@@ -102,6 +108,8 @@ class ReceiveScatterOutput:
         if processStatus != "success":
             if self.processStatus != "permanentFail":
                 self.processStatus = processStatus
+            if runtimeContext.on_error == "kill":
+                self.output_callback(self.dest, self.processStatus)
 
         if index not in self._completed:
             self._completed.add(index)
@@ -130,10 +138,11 @@ def parallel_steps(
     rc: ReceiveScatterOutput,
     runtimeContext: RuntimeContext,
 ) -> JobsGeneratorType:
+    """Yield scatter jobs (or None if there's no work to do) until all scatter jobs complete."""
     while rc.completed < rc.total:
         made_progress = False
         for index, step in enumerate(steps):
-            if getdefault(runtimeContext.on_error, "stop") == "stop" and rc.processStatus not in (
+            if runtimeContext.on_error != "continue" and rc.processStatus not in (
                 "success",
                 "skipped",
             ):
@@ -142,9 +151,10 @@ def parallel_steps(
                 continue
             try:
                 for j in step:
-                    if getdefault(
-                        runtimeContext.on_error, "stop"
-                    ) == "stop" and rc.processStatus not in ("success", "skipped"):
+                    if runtimeContext.on_error != "continue" and rc.processStatus not in (
+                        "success",
+                        "skipped",
+                    ):
                         break
                     if j is not None:
                         made_progress = True
@@ -156,7 +166,7 @@ def parallel_steps(
             except WorkflowException as exc:
                 _logger.error("Cannot make scatter job: %s", str(exc))
                 _logger.debug("", exc_info=True)
-                rc.receive_scatter_output(index, {}, "permanentFail")
+                rc.receive_scatter_output(index, runtimeContext, {}, "permanentFail")
         if not made_progress and rc.completed < rc.total:
             yield None
 
@@ -185,7 +195,7 @@ def nested_crossproduct_scatter(
         if len(scatter_keys) == 1:
             if runtimeContext.postScatterEval is not None:
                 sjob = runtimeContext.postScatterEval(sjob)
-            curriedcallback = functools.partial(rc.receive_scatter_output, index)
+            curriedcallback = functools.partial(rc.receive_scatter_output, index, runtimeContext)
             if sjob is not None:
                 steps.append(process.job(sjob, curriedcallback, runtimeContext))
             else:
@@ -197,7 +207,7 @@ def nested_crossproduct_scatter(
                     process,
                     sjob,
                     scatter_keys[1:],
-                    functools.partial(rc.receive_scatter_output, index),
+                    functools.partial(rc.receive_scatter_output, index, runtimeContext),
                     runtimeContext,
                 )
             )
@@ -257,7 +267,9 @@ def _flat_crossproduct_scatter(
         if len(scatter_keys) == 1:
             if runtimeContext.postScatterEval is not None:
                 sjob = runtimeContext.postScatterEval(sjob)
-            curriedcallback = functools.partial(callback.receive_scatter_output, put)
+            curriedcallback = functools.partial(
+                callback.receive_scatter_output, put, runtimeContext
+            )
             if sjob is not None:
                 steps.append(process.job(sjob, curriedcallback, runtimeContext))
             else:
@@ -307,7 +319,7 @@ def dotproduct_scatter(
 
         if runtimeContext.postScatterEval is not None:
             sjobo = runtimeContext.postScatterEval(sjobo)
-        curriedcallback = functools.partial(rc.receive_scatter_output, index)
+        curriedcallback = functools.partial(rc.receive_scatter_output, index, runtimeContext)
         if sjobo is not None:
             steps.append(process.job(sjobo, curriedcallback, runtimeContext))
         else:
@@ -548,16 +560,17 @@ class WorkflowJob:
         jobout: CWLObjectType,
         processStatus: str,
     ) -> None:
-        for i in outputparms:
-            if "id" in i:
-                iid = cast(str, i["id"])
-                if iid in jobout:
-                    self.state[iid] = WorkflowStateItem(i, jobout[iid], processStatus)
-                else:
-                    _logger.error("[%s] Output is missing expected field %s", step.name, iid)
-                    processStatus = "permanentFail"
         if _logger.isEnabledFor(logging.DEBUG):
             _logger.debug("[%s] produced output %s", step.name, json_dumps(jobout, indent=4))
+        if processStatus != "killed":
+            for i in outputparms:
+                if "id" in i:
+                    iid = cast(str, i["id"])
+                    if iid in jobout:
+                        self.state[iid] = WorkflowStateItem(i, jobout[iid], processStatus)
+                    else:
+                        _logger.error("[%s] Output is missing expected field %s", step.name, iid)
+                        processStatus = "permanentFail"
 
         if processStatus not in ("success", "skipped"):
             if self.processStatus != "permanentFail":
@@ -804,10 +817,7 @@ class WorkflowJob:
             self.made_progress = False
 
             for step in self.steps:
-                if (
-                    getdefault(runtimeContext.on_error, "stop") == "stop"
-                    and self.processStatus != "success"
-                ):
+                if runtimeContext.on_error != "continue" and self.processStatus != "success":
                     break
 
                 if not step.submitted:
@@ -822,7 +832,7 @@ class WorkflowJob:
                     try:
                         for newjob in step.iterable:
                             if (
-                                getdefault(runtimeContext.on_error, "stop") == "stop"
+                                runtimeContext.on_error != "continue"
                                 and self.processStatus != "success"
                             ):
                                 break
@@ -849,6 +859,10 @@ class WorkflowJob:
             self.do_output_callback(output_callback)
             # depends which one comes first. All steps are completed
             # or all outputs have been produced.
+
+    def __repr__(self) -> str:
+        """Return a non-expression string representation of the object instance."""
+        return f"<{self.__class__.__name__} [{self.name}] at {hex(id(self))}>"
 
 
 class WorkflowJobLoopStep:

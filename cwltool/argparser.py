@@ -596,10 +596,11 @@ def arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--on-error",
         help="Desired workflow behavior when a step fails.  One of 'stop' (do "
-        "not submit any more steps) or 'continue' (may submit other steps that "
-        "are not downstream from the error). Default is 'stop'.",
+        "not submit any more steps), 'continue' (may submit other steps that "
+        "are not downstream from the error), or 'kill' (same as 'stop', but also "
+        "terminates running jobs in the active step(s)). Default is 'stop'.",
         default="stop",
-        choices=("stop", "continue"),
+        choices=("stop", "continue", "kill"),
     )
 
     checkgroup = parser.add_mutually_exclusive_group()

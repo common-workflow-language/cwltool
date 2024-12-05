@@ -2,6 +2,7 @@ import copy
 import datetime
 import functools
 import logging
+import os
 import random
 from collections.abc import Mapping, MutableMapping, MutableSequence
 from typing import Callable, Optional, cast
@@ -401,12 +402,13 @@ class WorkflowStep(Process):
         processStatus: str,
     ) -> None:
         output = {}
-        for i in self.tool["outputs"]:
-            field = shortname(i["id"])
-            if field in jobout:
-                output[i["id"]] = jobout[field]
-            else:
-                processStatus = "permanentFail"
+        if processStatus != "killed":
+            for i in self.tool["outputs"]:
+                field = shortname(i["id"])
+                if field in jobout:
+                    output[i["id"]] = jobout[field]
+                else:
+                    processStatus = "permanentFail"
         output_callback(output, processStatus)
 
     def job(
@@ -451,3 +453,13 @@ class WorkflowStep(Process):
 
     def visit(self, op: Callable[[CommentedMap], None]) -> None:
         self.embedded_tool.visit(op)
+
+    def __repr__(self) -> str:
+        """Return a non-expression string representation of the object instance."""
+        if "#" in self.id:
+            wf_file, step_id = self.id.rsplit("#", 1)
+            step_name = "#".join([os.path.basename(wf_file), step_id])
+        else:
+            step_name = self.id
+
+        return f"<{self.__class__.__name__} [{step_name}] at {hex(id(self))}>"

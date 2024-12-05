@@ -30,7 +30,7 @@ from . import env_to_stdout, run_job
 from .builder import Builder
 from .context import RuntimeContext
 from .cuda import cuda_check
-from .errors import UnsupportedRequirement, WorkflowException
+from .errors import UnsupportedRequirement, WorkflowException, WorkflowKillSwitch
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .process import stage_files
@@ -217,7 +217,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         runtime: list[str],
         env: MutableMapping[str, str],
         runtimeContext: RuntimeContext,
-        monitor_function: Optional[Callable[["subprocess.Popen[str]"], None]] = None,
+        monitor_function: Optional[
+            Callable[["subprocess.Popen[str]", threading.Event], None]
+        ] = None,
     ) -> None:
         """Execute the tool, either directly or via script.
 
@@ -282,6 +284,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     "{}".format(runtimeContext)
                 )
         outputs: CWLObjectType = {}
+        processStatus = "indeterminate"
         try:
             stdin_path = None
             if self.stdin is not None:
@@ -319,6 +322,10 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             builder: Optional[Builder] = getattr(self, "builder", None)
             if builder is not None:
                 job_script_contents = builder.build_job_script(commands)
+            if runtimeContext.kill_switch is None:
+                runtimeContext.kill_switch = kill_switch = threading.Event()
+            else:
+                kill_switch = runtimeContext.kill_switch
             rcode = _job_popen(
                 commands,
                 stdin_path=stdin_path,
@@ -327,6 +334,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 env=env,
                 cwd=self.outdir,
                 make_job_dir=lambda: runtimeContext.create_outdir(),
+                kill_switch=kill_switch,
                 job_script_contents=job_script_contents,
                 timelimit=self.timelimit,
                 name=self.name,
@@ -347,7 +355,10 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 processStatus = "permanentFail"
 
             if processStatus != "success":
-                if rcode < 0:
+                if runtimeContext.kill_switch.is_set():
+                    processStatus = "killed"
+                    return
+                elif rcode < 0:
                     _logger.warning(
                         "[job %s] was terminated by signal: %s",
                         self.name,
@@ -355,6 +366,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     )
                 else:
                     _logger.warning("[job %s] exited with status: %d", self.name, rcode)
+                if runtimeContext.on_error == "kill":
+                    runtimeContext.kill_switch.set()
+                    raise WorkflowKillSwitch(self.name, rcode)
 
             if "listing" in self.generatefiles:
                 if self.generatemapper:
@@ -385,61 +399,69 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         except WorkflowException as err:
             _logger.error("[job %s] Job error:\n%s", self.name, str(err))
             processStatus = "permanentFail"
+        except WorkflowKillSwitch:
+            processStatus = "permanentFail"
+            raise
         except Exception:
             _logger.exception("Exception while running job")
             processStatus = "permanentFail"
-        if (
-            runtimeContext.research_obj is not None
-            and self.prov_obj is not None
-            and runtimeContext.process_run_id is not None
-        ):
-            # creating entities for the outputs produced by each step (in the provenance document)
-            self.prov_obj.record_process_end(
-                str(self.name),
-                runtimeContext.process_run_id,
-                outputs,
-                datetime.datetime.now(),
-            )
-        if processStatus != "success":
-            _logger.warning("[job %s] completed %s", self.name, processStatus)
-        else:
-            _logger.info("[job %s] completed %s", self.name, processStatus)
+        finally:
+            if (
+                runtimeContext.research_obj is not None
+                and self.prov_obj is not None
+                and runtimeContext.process_run_id is not None
+            ):
+                # creating entities for the outputs produced by each step (in the provenance document)
+                self.prov_obj.record_process_end(
+                    str(self.name),
+                    runtimeContext.process_run_id,
+                    outputs,
+                    datetime.datetime.now(),
+                )
+            if processStatus != "success":
+                _logger.warning("[job %s] completed %s", self.name, processStatus)
+            else:
+                _logger.info("[job %s] completed %s", self.name, processStatus)
 
-        if _logger.isEnabledFor(logging.DEBUG):
-            _logger.debug("[job %s] outputs %s", self.name, json_dumps(outputs, indent=4))
+            if _logger.isEnabledFor(logging.DEBUG):
+                _logger.debug("[job %s] outputs %s", self.name, json_dumps(outputs, indent=4))
 
-        if self.generatemapper is not None and runtimeContext.secret_store is not None:
-            # Delete any runtime-generated files containing secrets.
-            for _, p in self.generatemapper.items():
-                if p.type == "CreateFile":
-                    if runtimeContext.secret_store.has_secret(p.resolved):
-                        host_outdir = self.outdir
-                        container_outdir = self.builder.outdir
-                        host_outdir_tgt = p.target
-                        if p.target.startswith(container_outdir + "/"):
-                            host_outdir_tgt = os.path.join(
-                                host_outdir, p.target[len(container_outdir) + 1 :]
-                            )
-                        os.remove(host_outdir_tgt)
+            if self.generatemapper is not None and runtimeContext.secret_store is not None:
+                # Delete any runtime-generated files containing secrets.
+                for _, p in self.generatemapper.items():
+                    if p.type == "CreateFile":
+                        if runtimeContext.secret_store.has_secret(p.resolved):
+                            host_outdir = self.outdir
+                            container_outdir = self.builder.outdir
+                            host_outdir_tgt = p.target
+                            if p.target.startswith(container_outdir + "/"):
+                                host_outdir_tgt = os.path.join(
+                                    host_outdir, p.target[len(container_outdir) + 1 :]
+                                )
+                            os.remove(host_outdir_tgt)
 
-        if runtimeContext.workflow_eval_lock is None:
-            raise WorkflowException("runtimeContext.workflow_eval_lock must not be None")
+            if runtimeContext.workflow_eval_lock is None:
+                raise WorkflowException("runtimeContext.workflow_eval_lock must not be None")
 
-        if self.output_callback:
-            with runtimeContext.workflow_eval_lock:
-                self.output_callback(outputs, processStatus)
+            if self.output_callback:
+                with runtimeContext.workflow_eval_lock:
+                    self.output_callback(outputs, processStatus)
 
-        if runtimeContext.rm_tmpdir and self.stagedir is not None and os.path.exists(self.stagedir):
-            _logger.debug(
-                "[job %s] Removing input staging directory %s",
-                self.name,
-                self.stagedir,
-            )
-            shutil.rmtree(self.stagedir, True)
+            if (
+                runtimeContext.rm_tmpdir
+                and self.stagedir is not None
+                and os.path.exists(self.stagedir)
+            ):
+                _logger.debug(
+                    "[job %s] Removing input staging directory %s",
+                    self.name,
+                    self.stagedir,
+                )
+                shutil.rmtree(self.stagedir, True)
 
-        if runtimeContext.rm_tmpdir:
-            _logger.debug("[job %s] Removing temporary directory %s", self.name, self.tmpdir)
-            shutil.rmtree(self.tmpdir, True)
+            if runtimeContext.rm_tmpdir:
+                _logger.debug("[job %s] Removing temporary directory %s", self.name, self.tmpdir)
+                shutil.rmtree(self.tmpdir, True)
 
     @abstractmethod
     def _required_env(self) -> dict[str, str]:
@@ -492,13 +514,14 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # Set on ourselves
         self.environment = env
 
-    def process_monitor(self, sproc: "subprocess.Popen[str]") -> None:
-        """Watch a process, logging its max memory usage."""
+    def process_monitor(self, sproc: "subprocess.Popen[str]", kill_switch: threading.Event) -> None:
+        """Watch a process, logging its max memory usage or terminating it if kill_switch is activated."""
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
         memory_usage: MutableSequence[Optional[int]] = [None]
 
         mem_tm: "Optional[Timer]" = None
+        ks_tm: "Optional[Timer]" = None
 
         def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
             nonlocal mem_tm
@@ -520,10 +543,28 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 if mem_tm is not None:
                     mem_tm.cancel()
 
+        def monitor_kill_switch() -> None:
+            nonlocal ks_tm
+            if kill_switch.is_set():
+                _logger.error("[job %s] terminating by kill switch", self.name)
+                if sproc.stdin:
+                    sproc.stdin.close()
+                sproc.terminate()
+            else:
+                ks_tm = Timer(interval=1, function=monitor_kill_switch)
+                ks_tm.daemon = True
+                ks_tm.start()
+
+        ks_tm = Timer(interval=1, function=monitor_kill_switch)
+        ks_tm.daemon = True
+        ks_tm.start()
+
         mem_tm = Timer(interval=1, function=get_tree_mem_usage, args=(memory_usage,))
         mem_tm.daemon = True
         mem_tm.start()
+
         sproc.wait()
+        ks_tm.cancel()
         mem_tm.cancel()
         if memory_usage[0] is not None:
             _logger.info(
@@ -835,14 +876,41 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         cleanup_cidfile: bool,
         docker_exe: str,
         process: "subprocess.Popen[str]",
+        kill_switch: threading.Event,
     ) -> None:
-        """Record memory usage of the running Docker container."""
+        """Record memory usage of the running Docker container. Terminate if kill_switch is activated."""
+        ks_tm: "Optional[Timer]" = None
+        cid: Optional[str] = None
+
+        def monitor_kill_switch() -> None:
+            nonlocal ks_tm
+            if kill_switch.is_set():
+                _logger.error("[job %s] terminating by kill switch", self.name)
+                if process.stdin:
+                    process.stdin.close()
+                if cid is not None:
+                    kill_proc = subprocess.Popen(  # nosec
+                        [docker_exe, "kill", cid], shell=False  # nosec
+                    )
+                    try:
+                        kill_proc.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        kill_proc.kill()
+                process.terminate()  # Always terminate, even if we tried with the cidfile
+            else:
+                ks_tm = Timer(interval=1, function=monitor_kill_switch)
+                ks_tm.daemon = True
+                ks_tm.start()
+
+        ks_tm = Timer(interval=1, function=monitor_kill_switch)
+        ks_tm.daemon = True
+        ks_tm.start()
+
         # Todo: consider switching to `docker create` / `docker start`
         # instead of `docker run` as `docker create` outputs the container ID
         # to stdout, but the container is frozen, thus allowing us to start the
         # monitoring process without dealing with the cidfile or too-fast
         # container execution
-        cid: Optional[str] = None
         while cid is None:
             time.sleep(1)
             # This is needed to avoid a race condition where the job
@@ -850,6 +918,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             if process.returncode is None:
                 process.poll()
             if process.returncode is not None:
+                ks_tm.cancel()
                 if cleanup_cidfile:
                     try:
                         os.remove(cidfile)
@@ -881,6 +950,9 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         except OSError as exc:
             _logger.warning("Ignored error with %s stats: %s", docker_exe, exc)
             return
+        finally:
+            ks_tm.cancel()
+
         max_mem_percent: float = 0.0
         mem_percent: float = 0.0
         with open(stats_file_name) as stats:
@@ -911,10 +983,11 @@ def _job_popen(
     env: Mapping[str, str],
     cwd: str,
     make_job_dir: Callable[[], str],
+    kill_switch: threading.Event,
     job_script_contents: Optional[str] = None,
     timelimit: Optional[int] = None,
     name: Optional[str] = None,
-    monitor_function: Optional[Callable[["subprocess.Popen[str]"], None]] = None,
+    monitor_function: Optional[Callable[["subprocess.Popen[str]", "threading.Event"], None]] = None,
     default_stdout: Optional[Union[IO[bytes], TextIO]] = None,
     default_stderr: Optional[Union[IO[bytes], TextIO]] = None,
 ) -> int:
@@ -969,7 +1042,7 @@ def _job_popen(
             tm.daemon = True
             tm.start()
         if monitor_function:
-            monitor_function(sproc)
+            monitor_function(sproc, kill_switch)
         rcode = sproc.wait()
 
         if tm is not None:
@@ -1045,7 +1118,7 @@ def _job_popen(
                 tm.daemon = True
                 tm.start()
             if monitor_function:
-                monitor_function(sproc)
+                monitor_function(sproc, kill_switch)
 
             rcode = sproc.wait()
 
