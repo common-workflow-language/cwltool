@@ -6,6 +6,9 @@ import urllib
 from collections.abc import MutableMapping, MutableSequence, Sequence
 from typing import Any, Callable, Optional, Union, cast
 
+import rich.markup
+from rich_argparse import RichHelpFormatter
+
 from .loghandler import _logger
 from .process import Process, shortname
 from .resolver import ga4gh_tool_registries
@@ -15,8 +18,9 @@ from .utils import DEFAULT_TMP_PREFIX
 
 def arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
+        formatter_class=RichHelpFormatter,
         description="Reference executor for Common Workflow Language standards. "
-        "Not for production use."
+        "Not for production use.",
     )
     parser.add_argument("--basedir", type=str)
     parser.add_argument(
@@ -855,6 +859,7 @@ def add_argument(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     base_uri: str = "",
 ) -> None:
+    description = rich.markup.escape(description)
     if len(name) == 1:
         flag = "-"
     else:
