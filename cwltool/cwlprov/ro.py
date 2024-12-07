@@ -8,6 +8,7 @@ import tempfile
 import urllib
 import uuid
 from pathlib import Path, PurePosixPath
+from socket import getfqdn
 from typing import (
     IO,
     Any,
@@ -23,7 +24,7 @@ from typing import (
 )
 
 import prov.model as provM
-from prov.model import PROV, ProvDocument
+from prov.model import ProvDocument
 
 from ..loghandler import _logger
 from ..stdfsaccess import StdFsAccess
@@ -38,6 +39,7 @@ from ..utils import (
 from . import Aggregate, Annotation, AuthoredBy, _valid_orcid, _whoami, checksum_copy
 from .provenance_constants import (
     ACCOUNT_UUID,
+    CWLPROV,
     CWLPROV_VERSION,
     DATA,
     ENCODING,
@@ -56,6 +58,7 @@ from .provenance_constants import (
     WORKFLOW,
     Hasher,
 )
+from .provenance_profile import ProvenanceProfile
 
 
 class ResearchObject:
@@ -93,6 +96,26 @@ class ResearchObject:
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
 
+    def initialize_provenance(
+        self,
+        full_name: str,
+        host_provenance: bool,
+        user_provenance: bool,
+        orcid: str,
+        fsaccess: StdFsAccess,
+        run_uuid: Optional[uuid.UUID] = None,
+    ):
+        """Hook function allowing calling code to extend the provenance details if needed."""
+        return ProvenanceProfile(
+            research_object=self,
+            full_name=full_name,
+            host_provenance=host_provenance,
+            user_provenance=user_provenance,
+            orcid=orcid,
+            fsaccess=fsaccess,
+            run_uuid=run_uuid,
+        )
+
     def self_check(self) -> None:
         """Raise ValueError if this RO is closed."""
         if self.closed:
@@ -128,10 +151,14 @@ class ResearchObject:
             bag_it_file.write("BagIt-Version: 0.97\n")
             bag_it_file.write(f"Tag-File-Character-Encoding: {ENCODING}\n")
 
+    def resolve_user(self) -> tuple[str, str]:
+        """Hook function in case the calling code can provide a better resolution."""
+        return _whoami()
+
     def user_provenance(self, document: ProvDocument) -> None:
         """Add the user provenance."""
         self.self_check()
-        (username, fullname) = _whoami()
+        (username, fullname) = self.resolve_user()
 
         if not self.full_name:
             self.full_name = fullname
@@ -143,7 +170,7 @@ class ResearchObject:
             ACCOUNT_UUID,
             {
                 provM.PROV_TYPE: FOAF["OnlineAccount"],
-                "prov:label": username,
+                provM.PROV_LABEL: username,
                 FOAF["accountName"]: username,
             },
         )
@@ -151,8 +178,8 @@ class ResearchObject:
         user = document.agent(
             self.orcid or USER_UUID,
             {
-                provM.PROV_TYPE: PROV["Person"],
-                "prov:label": self.full_name,
+                provM.PROV_TYPE: provM.PROV["Person"],
+                provM.PROV_LABEL: self.full_name,
                 FOAF["name"]: self.full_name,
                 FOAF["account"]: account,
             },
@@ -166,6 +193,29 @@ class ResearchObject:
         # acting in behalf of that user (even if we might
         # get their name wrong!)
         document.actedOnBehalfOf(account, user)
+
+    def resolve_host(self) -> tuple[str, str]:
+        """Hook function in case the calling code can provide a better resolution."""
+        fqdn = getfqdn()
+        return fqdn, fqdn  # allow for (fqdn, uri) to be distinct, but the same by default
+
+    def host_provenance(self, document: ProvDocument) -> None:
+        """Record host provenance."""
+        document.add_namespace(CWLPROV)
+        document.add_namespace(UUID)
+        document.add_namespace(FOAF)
+
+        hostname, uri = self.resolve_host()
+        # won't have a foaf:accountServiceHomepage for unix hosts, but
+        # we can at least provide hostname
+        document.agent(
+            ACCOUNT_UUID,
+            {
+                provM.PROV_TYPE: FOAF["OnlineAccount"],
+                provM.PROV_LOCATION: uri,
+                CWLPROV["hostname"]: hostname,
+            },
+        )
 
     def add_tagfile(self, path: str, timestamp: Optional[datetime.datetime] = None) -> None:
         """Add tag files to our research object."""

@@ -80,8 +80,7 @@ class Workflow(Process):
             if is_main:
                 run_uuid = loadingContext.research_obj.ro_uuid
 
-            self.provenance_object = ProvenanceProfile(
-                loadingContext.research_obj,
+            self.provenance_object = loadingContext.research_obj.initialize_provenance(
                 full_name=loadingContext.cwl_full_name,
                 host_provenance=loadingContext.host_provenance,
                 user_provenance=loadingContext.user_provenance,
