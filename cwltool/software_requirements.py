@@ -10,17 +10,8 @@ ways to adapt new packages managers and such as well.
 import argparse
 import os
 import string
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Union,
-    cast,
-)
+from collections.abc import MutableMapping, MutableSequence
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from .utils import HasReqsHints
 
@@ -59,6 +50,8 @@ class DependenciesConfiguration:
 
     def __init__(self, args: argparse.Namespace) -> None:
         """Initialize."""
+        self.tool_dependency_dir: Optional[str] = None
+        self.dependency_resolvers_config_file: Optional[str] = None
         conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)
         tool_dependency_dir = getattr(args, "beta_dependencies_directory", None)
         conda_dependencies = getattr(args, "beta_conda_dependencies", None)
@@ -79,7 +72,8 @@ class DependenciesConfiguration:
         if self.tool_dependency_dir and not os.path.exists(self.tool_dependency_dir):
             os.makedirs(self.tool_dependency_dir)
 
-    def build_job_script(self, builder: "Builder", command: List[str]) -> str:
+    def build_job_script(self, builder: "Builder", command: list[str]) -> str:
+        """Use the galaxy-tool-util library to construct a build script."""
         ensure_galaxy_lib_available()
         resolution_config_dict = {
             "use": self.use_tool_dependencies,
@@ -103,14 +97,14 @@ class DependenciesConfiguration:
                 )
             )
 
-        template_kwds: Dict[str, str] = dict(handle_dependencies=handle_dependencies)
+        template_kwds: dict[str, str] = dict(handle_dependencies=handle_dependencies)
         job_script = COMMAND_WITH_DEPENDENCIES_TEMPLATE.substitute(template_kwds)
         return job_script
 
 
 def get_dependencies(builder: HasReqsHints) -> ToolRequirements:
     (software_requirement, _) = builder.get_requirement("SoftwareRequirement")
-    dependencies: List[Union["ToolRequirement", Dict[str, Any]]] = []
+    dependencies: list[Union["ToolRequirement", dict[str, Any]]] = []
     if software_requirement and software_requirement.get("packages"):
         packages = cast(
             MutableSequence[MutableMapping[str, Union[str, MutableSequence[str]]]],

@@ -1,7 +1,8 @@
 """Minimal in memory storage of secrets."""
 
 import uuid
-from typing import Dict, List, MutableMapping, MutableSequence, Optional, cast
+from collections.abc import MutableMapping, MutableSequence
+from typing import Optional, cast
 
 from .utils import CWLObjectType, CWLOutputType
 
@@ -11,7 +12,7 @@ class SecretStore:
 
     def __init__(self) -> None:
         """Initialize the secret store."""
-        self.secrets: Dict[str, str] = {}
+        self.secrets: dict[str, str] = {}
 
     def add(self, value: Optional[CWLOutputType]) -> Optional[CWLOutputType]:
         """
@@ -28,7 +29,7 @@ class SecretStore:
             return placeholder
         return value
 
-    def store(self, secrets: List[str], job: CWLObjectType) -> None:
+    def store(self, secrets: list[str], job: CWLObjectType) -> None:
         """Sanitize the job object of any of the given secrets."""
         for j in job:
             if j in secrets:

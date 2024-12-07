@@ -1,0 +1,5 @@
+files:
+  - class: File
+    path: load_contents-1.txt
+  - class: File
+    path: load_contents-2.txt

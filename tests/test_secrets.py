@@ -1,7 +1,7 @@
 import shutil
 import tempfile
 from io import StringIO
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Callable, Union
 
 import pytest
 
@@ -13,7 +13,7 @@ from .util import get_data, needs_docker, needs_singularity
 
 
 @pytest.fixture
-def secrets() -> Tuple[SecretStore, CWLObjectType]:
+def secrets() -> tuple[SecretStore, CWLObjectType]:
     """Fixture to return a secret store."""
     sec_store = SecretStore()
     job: CWLObjectType = {"foo": "bar", "baz": "quux"}
@@ -22,7 +22,7 @@ def secrets() -> Tuple[SecretStore, CWLObjectType]:
     return sec_store, job
 
 
-def test_obscuring(secrets: Tuple[SecretStore, CWLObjectType]) -> None:
+def test_obscuring(secrets: tuple[SecretStore, CWLObjectType]) -> None:
     """Basic test of secret store."""
     storage, obscured = secrets
     assert obscured["foo"] != "bar"
@@ -41,8 +41,8 @@ obscured_factories_expected = [
 @pytest.mark.parametrize("factory,expected", obscured_factories_expected)
 def test_secrets(
     factory: Callable[[str], CWLObjectType],
-    expected: Union[str, List[str], Dict[str, str]],
-    secrets: Tuple[SecretStore, CWLObjectType],
+    expected: Union[str, list[str], dict[str, str]],
+    secrets: tuple[SecretStore, CWLObjectType],
 ) -> None:
     storage, obscured = secrets
     obs = obscured["foo"]

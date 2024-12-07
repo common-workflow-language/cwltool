@@ -97,19 +97,7 @@ if [[ "$VERSION" = *dev* ]]
 then
     CWLTOOL_OPTIONS+=" --enable-dev"
 fi
-if [[ "$CONTAINER" = "singularity" ]]; then
-    CWLTOOL_OPTIONS+=" --singularity"
-    # This test fails because Singularity and Docker have
-    # different views on how to deal with this.
-    exclusions+=(docker_entrypoint)
-    if [[ "${VERSION}" = "v1.1" ]]; then
-        # This fails because of a difference (in Singularity vs Docker) in
-        # the way filehandles are passed to processes in the container and
-        # wc can tell somehow.
-        # See issue #1440
-        exclusions+=(stdin_shorcut)
-    fi
-elif [[ "$CONTAINER" = "podman" ]]; then
+if [[ "$CONTAINER" = "podman" ]]; then
     CWLTOOL_OPTIONS+=" --podman"
 fi
 

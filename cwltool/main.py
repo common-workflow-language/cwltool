@@ -15,21 +15,8 @@ import time
 import urllib
 import warnings
 from codecs import getwriter
-from typing import (
-    IO,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Mapping,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Sized,
-    Tuple,
-    Union,
-    cast,
-)
+from collections.abc import Mapping, MutableMapping, MutableSequence, Sized
+from typing import IO, Any, Callable, Optional, Union, cast
 
 import argcomplete
 import coloredlogs
@@ -185,11 +172,11 @@ def append_word_to_default_user_agent(word: str) -> None:
 def generate_example_input(
     inptype: Optional[CWLOutputType],
     default: Optional[CWLOutputType],
-) -> Tuple[Any, str]:
+) -> tuple[Any, str]:
     """Convert a single input schema into an example."""
     example = None
     comment = ""
-    defaults = {
+    defaults: CWLObjectType = {
         "null": "null",
         "Any": "null",
         "boolean": False,
@@ -202,7 +189,7 @@ def generate_example_input(
         "Directory": ruamel.yaml.comments.CommentedMap(
             [("class", "Directory"), ("path", "a/directory/path")]
         ),
-    }  # type: CWLObjectType
+    }
     if isinstance(inptype, MutableSequence):
         optional = False
         if "null" in inptype:
@@ -244,7 +231,7 @@ def generate_example_input(
             if default is not None:
                 example = default
         elif inptype["type"] == "enum":
-            symbols = cast(List[str], inptype["symbols"])
+            symbols = cast(list[str], inptype["symbols"])
             if default is not None:
                 example = default
             elif "default" in inptype:
@@ -260,7 +247,7 @@ def generate_example_input(
                 comment = '"{}" record type.'.format(inptype["name"])
             else:
                 comment = "Anonymous record type."
-            for field in cast(List[CWLObjectType], inptype["fields"]):
+            for field in cast(list[CWLObjectType], inptype["fields"]):
                 value, f_comment = generate_example_input(field["type"], None)
                 example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
         elif "default" in inptype:
@@ -343,10 +330,10 @@ def generate_input_template(tool: Process) -> CWLObjectType:
     """Generate an example input object for the given CWL process."""
     template = ruamel.yaml.comments.CommentedMap()
     for inp in cast(
-        List[MutableMapping[str, str]],
+        list[CWLObjectType],
         realize_input_schema(tool.tool["inputs"], tool.schemaDefs),
     ):
-        name = shortname(inp["id"])
+        name = shortname(cast(str, inp["id"]))
         value, comment = generate_example_input(inp["type"], inp.get("default", None))
         template.insert(0, name, value, comment)
     return template
@@ -356,9 +343,9 @@ def load_job_order(
     args: argparse.Namespace,
     stdin: IO[Any],
     fetcher_constructor: Optional[FetcherCallableType],
-    overrides_list: List[CWLObjectType],
+    overrides_list: list[CWLObjectType],
     tool_file_uri: str,
-) -> Tuple[Optional[CWLObjectType], str, Loader]:
+) -> tuple[Optional[CWLObjectType], str, Loader]:
     job_order_object = None
     job_order_file = None
 
@@ -423,8 +410,8 @@ def init_job_order(
 ) -> CWLObjectType:
     secrets_req, _ = process.get_requirement("http://commonwl.org/cwltool#Secrets")
     if job_order_object is None:
-        namemap = {}  # type: Dict[str, str]
-        records = []  # type: List[str]
+        namemap: dict[str, str] = {}
+        records: list[str] = []
         toolparser = generate_parser(
             argparse.ArgumentParser(prog=args.workflow),
             process,
@@ -463,7 +450,7 @@ def init_job_order(
 
         if secret_store and secrets_req:
             secret_store.store(
-                [shortname(sc) for sc in cast(List[str], secrets_req["secrets"])],
+                [shortname(sc) for sc in cast(list[str], secrets_req["secrets"])],
                 job_order_object,
             )
 
@@ -486,7 +473,7 @@ def init_job_order(
             p["location"] = p["path"]
             del p["path"]
 
-    ns = {}  # type: ContextType
+    ns: ContextType = {}
     ns.update(cast(ContextType, job_order_object.get("$namespaces", {})))
     ns.update(cast(ContextType, process.metadata.get("$namespaces", {})))
     ld = Loader(ns)
@@ -532,7 +519,7 @@ def init_job_order(
 
     if secret_store and secrets_req:
         secret_store.store(
-            [shortname(sc) for sc in cast(List[str], secrets_req["secrets"])],
+            [shortname(sc) for sc in cast(list[str], secrets_req["secrets"])],
             job_order_object,
         )
 
@@ -583,7 +570,7 @@ def prov_deps(
 
     def remove_non_cwl(deps: CWLObjectType) -> None:
         if "secondaryFiles" in deps:
-            sec_files = cast(List[CWLObjectType], deps["secondaryFiles"])
+            sec_files = cast(list[CWLObjectType], deps["secondaryFiles"])
             for index, entry in enumerate(sec_files):
                 if not ("format" in entry and entry["format"] == CWL_IANA):
                     del sec_files[index]
@@ -602,11 +589,11 @@ def find_deps(
     nestdirs: bool = True,
 ) -> CWLObjectType:
     """Find the dependencies of the CWL document."""
-    deps = {
+    deps: CWLObjectType = {
         "class": "File",
         "location": uri,
         "format": CWL_IANA,
-    }  # type: CWLObjectType
+    }
 
     def loadref(base: str, uri: str) -> Union[CommentedMap, CommentedSeq, str, None]:
         return document_loader.fetch(document_loader.fetcher.urljoin(base, uri))
@@ -638,7 +625,8 @@ def print_pack(
     return json_dumps(target, indent=4, default=str)
 
 
-def supported_cwl_versions(enable_dev: bool) -> List[str]:
+def supported_cwl_versions(enable_dev: bool) -> list[str]:
+    """Return a list of currently supported CWL versions."""
     # ALLUPDATES and UPDATES are dicts
     if enable_dev:
         versions = list(ALLUPDATES)
@@ -692,8 +680,8 @@ ProvOut = Union[io.TextIOWrapper, WritableBagFile]
 def setup_provenance(
     args: argparse.Namespace,
     runtimeContext: RuntimeContext,
-    argsl: Optional[List[str]] = None,
-) -> Tuple[ProvOut, "logging.StreamHandler[ProvOut]"]:
+    argsl: Optional[list[str]] = None,
+) -> tuple[ProvOut, "logging.StreamHandler[ProvOut]"]:
     if not args.compute_checksum:
         _logger.error("--provenance incompatible with --no-compute-checksum")
         raise ArgumentException()
@@ -940,7 +928,7 @@ def print_targets(
         _logger.info("%s steps targets:", prefix[:-1])
         for t in tool.tool["steps"]:
             print(f"  {prefix}{shortname(t['id'])}", file=stdout)
-            run: Union[str, Process, Dict[str, Any]] = t["run"]
+            run: Union[str, Process, dict[str, Any]] = t["run"]
             if isinstance(run, str):
                 process = make_tool(run, loading_context)
             elif isinstance(run, dict):
@@ -951,7 +939,7 @@ def print_targets(
 
 
 def main(
-    argsl: Optional[List[str]] = None,
+    argsl: Optional[list[str]] = None,
     args: Optional[argparse.Namespace] = None,
     job_order_object: Optional[CWLObjectType] = None,
     stdin: IO[Any] = sys.stdin,
@@ -998,7 +986,7 @@ def main(
         if args is None:
             if argsl is None:
                 argsl = sys.argv[1:]
-            addl = []  # type: List[str]
+            addl: list[str] = []
             if "CWLTOOL_OPTIONS" in os.environ:
                 c_opts = os.environ["CWLTOOL_OPTIONS"].split(" ")
                 addl = [x for x in c_opts if x != ""]
@@ -1250,7 +1238,7 @@ def main(
             if args.parallel:
                 temp_executor = MultithreadedJobExecutor()
                 runtimeContext.select_resources = temp_executor.select_resources
-                real_executor = temp_executor  # type: JobExecutor
+                real_executor: JobExecutor = temp_executor
             else:
                 real_executor = SingleJobExecutor()
         else:
@@ -1260,7 +1248,7 @@ def main(
             runtimeContext.basedir = input_basedir
 
             if isinstance(tool, ProcessGenerator):
-                tfjob_order = {}  # type: CWLObjectType
+                tfjob_order: CWLObjectType = {}
                 if loadingContext.jobdefaults:
                     tfjob_order.update(loadingContext.jobdefaults)
                 if job_order_object:

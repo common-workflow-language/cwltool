@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 from . import load_tool
 from .context import LoadingContext, RuntimeContext
@@ -62,7 +62,7 @@ class Factory:
         else:
             self.loading_context = loading_context
 
-    def make(self, cwl: Union[str, Dict[str, Any]]) -> Callable:
+    def make(self, cwl: Union[str, dict[str, Any]]) -> Callable:
         """Instantiate a CWL object from a CWl document."""
         load = load_tool.load_tool(cwl, self.loading_context)
         if isinstance(load, int):

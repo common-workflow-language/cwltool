@@ -1,12 +1,17 @@
-from typing import Any, Callable, List, cast
+"""
+Our version of the popular flatten() method.
 
-# http://rightfootin.blogspot.com/2006/09/more-on-python-flatten.html
+http://rightfootin.blogspot.com/2006/09/more-on-python-flatten.html
+"""
+
+from typing import Any, Callable, cast
 
 
-def flatten(thing, ltypes=(list, tuple)):
-    # type: (Any, Any) -> List[Any]
+def flatten(thing: Any) -> list[Any]:
+    """Flatten a list without recursion problems."""
     if thing is None:
         return []
+    ltypes = (list, tuple)
     if not isinstance(thing, ltypes):
         return [thing]
 
@@ -22,4 +27,4 @@ def flatten(thing, ltypes=(list, tuple)):
             else:
                 thing_list[i : i + 1] = thing_list[i]
         i += 1
-    return cast(Callable[[Any], List[Any]], ltype)(thing_list)
+    return cast(Callable[[Any], list[Any]], ltype)(thing_list)

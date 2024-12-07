@@ -1,7 +1,7 @@
 import argparse
 from io import StringIO
 from pathlib import Path
-from typing import Callable, List
+from typing import Callable
 
 import pytest
 
@@ -101,6 +101,62 @@ expression: '{"bar": $(inputs.foo.location)}'
 outputs: []
 """
 
+script_int = """
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+class: ExpressionTool
+
+inputs:
+  foo: int[]
+
+expression: '{"bar": $(inputs.foo)}'
+
+outputs: []
+"""
+
+script_long = """
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+class: ExpressionTool
+
+inputs:
+  foo: long[]
+
+expression: '{"bar": $(inputs.foo)}'
+
+outputs: []
+"""
+
+script_float = """
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+class: ExpressionTool
+
+inputs:
+  foo: float[]
+
+expression: '{"bar": $(inputs.foo)}'
+
+outputs: []
+"""
+
+script_double = """
+#!/usr/bin/env cwl-runner
+
+cwlVersion: v1.0
+class: ExpressionTool
+
+inputs:
+  foo: double[]
+
+expression: '{"bar": $(inputs.foo)}'
+
+outputs: []
+"""
+
 scripts_argparse_params = [
     ("help", script_a, lambda x: ["--debug", x, "--input", get_data("tests/echo.cwl")]),
     ("boolean", script_b, lambda x: [x, "--help"]),
@@ -119,6 +175,31 @@ scripts_argparse_params = [
         "foo with e",
         script_e,
         lambda x: [x, "--foo", "http://example.com"],
+    ),
+    (
+        "foo with int",
+        script_int,
+        lambda x: [x, "--foo", "1", "--foo", "2"],
+    ),
+    (
+        "foo with long for large value",
+        script_long,
+        lambda x: [x, "--foo", str(2**31 + 10)],
+    ),
+    (
+        "foo with long for small value",
+        script_long,
+        lambda x: [x, "--foo", str(-1 * (2**31) - 10)],
+    ),
+    (
+        "foo with float",
+        script_float,
+        lambda x: [x, "--foo", "1.2", "--foo", "3.4"],
+    ),
+    (
+        "foo with double",
+        script_double,
+        lambda x: [x, "--foo", "1.2", "--foo", "3.4"],
     ),
 ]
 
@@ -215,7 +296,7 @@ def test_argparser_without_doc() -> None:
         ),
     ],
 )
-def test_argparse_append_with_default(job_order: List[str], expected_values: List[str]) -> None:
+def test_argparse_append_with_default(job_order: list[str], expected_values: list[str]) -> None:
     """
     Confirm that the appended arguments must not include the default.
 

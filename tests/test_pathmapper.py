@@ -1,5 +1,3 @@
-from typing import List, Tuple
-
 import pytest
 
 from cwltool.pathmapper import PathMapper
@@ -10,7 +8,7 @@ def test_subclass() -> None:
     class SubPathMapper(PathMapper):
         def __init__(
             self,
-            referenced_files: List[CWLObjectType],
+            referenced_files: list[CWLObjectType],
             basedir: str,
             stagedir: str,
             new: str,
@@ -81,7 +79,7 @@ basename_generation_parameters = [
 
 
 @pytest.mark.parametrize("filename,expected", basename_generation_parameters)
-def test_basename_field_generation(filename: str, expected: Tuple[str, str]) -> None:
+def test_basename_field_generation(filename: str, expected: tuple[str, str]) -> None:
     nameroot, nameext = expected
     expected2 = {
         "class": "File",

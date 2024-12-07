@@ -5,6 +5,7 @@ import logging
 import math
 import os
 import re
+import shlex
 import shutil
 import signal
 import stat
@@ -15,27 +16,12 @@ import threading
 import time
 import uuid
 from abc import ABCMeta, abstractmethod
+from collections.abc import Iterable, Mapping, MutableMapping, MutableSequence
+from re import Match
 from threading import Timer
-from typing import (
-    IO,
-    TYPE_CHECKING,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Mapping,
-    Match,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    TextIO,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import IO, TYPE_CHECKING, Callable, Optional, TextIO, Union, cast
 
 import psutil
-import shellescape
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
@@ -122,9 +108,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[List[CWLObjectType], str, RuntimeContext, bool], PathMapper],
-        requirements: List[CWLObjectType],
-        hints: List[CWLObjectType],
+        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        requirements: list[CWLObjectType],
+        hints: list[CWLObjectType],
         name: str,
     ) -> None:
         """Initialize the job object."""
@@ -140,7 +126,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.requirements = requirements
         self.hints = hints
         self.name = name
-        self.command_line: List[str] = []
+        self.command_line: list[str] = []
         self.pathmapper = PathMapper([], "", "")
         self.make_path_mapper = make_path_mapper
         self.generatemapper: Optional[PathMapper] = None
@@ -228,7 +214,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
 
     def _execute(
         self,
-        runtime: List[str],
+        runtime: list[str],
         env: MutableMapping[str, str],
         runtimeContext: RuntimeContext,
         monitor_function: Optional[Callable[["subprocess.Popen[str]"], None]] = None,
@@ -271,7 +257,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             self.outdir,
             " \\\n    ".join(
                 [
-                    shellescape.quote(str(arg)) if shouldquote(str(arg)) else str(arg)
+                    shlex.quote(str(arg)) if shouldquote(str(arg)) else str(arg)
                     for arg in (runtime + self.command_line)
                 ]
             ),
@@ -321,7 +307,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             commands = [str(x) for x in runtime + self.command_line]
             if runtimeContext.secret_store is not None:
                 commands = cast(
-                    List[str],
+                    list[str],
                     runtimeContext.secret_store.retrieve(cast(CWLOutputType, commands)),
                 )
                 env = cast(
@@ -456,7 +442,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             shutil.rmtree(self.tmpdir, True)
 
     @abstractmethod
-    def _required_env(self) -> Dict[str, str]:
+    def _required_env(self) -> dict[str, str]:
         """Variables required by the CWL spec (HOME, TMPDIR, etc).
 
         Note that with containers, the paths will (likely) be those from
@@ -481,7 +467,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         applied (in that order).
         """
         # Start empty
-        env: Dict[str, str] = {}
+        env: dict[str, str] = {}
 
         # Preserve any env vars
         if runtimeContext.preserve_entire_environment:
@@ -589,7 +575,7 @@ class CommandLineJob(JobBase):
 
         self._execute([], self.environment, runtimeContext, monitor_function)
 
-    def _required_env(self) -> Dict[str, str]:
+    def _required_env(self) -> dict[str, str]:
         env = {}
         env["HOME"] = self.outdir
         env["TMPDIR"] = self.tmpdir
@@ -623,24 +609,24 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         self,
         env: MutableMapping[str, str],
         runtime_context: RuntimeContext,
-    ) -> Tuple[List[str], Optional[str]]:
+    ) -> tuple[list[str], Optional[str]]:
         """Return the list of commands to run the selected container engine."""
 
     @staticmethod
     @abstractmethod
-    def append_volume(runtime: List[str], source: str, target: str, writable: bool = False) -> None:
+    def append_volume(runtime: list[str], source: str, target: str, writable: bool = False) -> None:
         """Add binding arguments to the runtime list."""
 
     @abstractmethod
     def add_file_or_directory_volume(
-        self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
+        self, runtime: list[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
     ) -> None:
         """Append volume a file/dir mapping to the runtime option list."""
 
     @abstractmethod
     def add_writable_file_volume(
         self,
-        runtime: List[str],
+        runtime: list[str],
         volume: MapperEnt,
         host_outdir_tgt: Optional[str],
         tmpdir_prefix: str,
@@ -650,7 +636,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     @abstractmethod
     def add_writable_directory_volume(
         self,
-        runtime: List[str],
+        runtime: list[str],
         volume: MapperEnt,
         host_outdir_tgt: Optional[str],
         tmpdir_prefix: str,
@@ -674,7 +660,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
     def create_file_and_add_volume(
         self,
-        runtime: List[str],
+        runtime: list[str],
         volume: MapperEnt,
         host_outdir_tgt: Optional[str],
         secret_store: Optional[SecretStore],
@@ -706,7 +692,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     def add_volumes(
         self,
         pathmapper: PathMapper,
-        runtime: List[str],
+        runtime: list[str],
         tmpdir_prefix: str,
         secret_store: Optional[SecretStore] = None,
         any_path_okay: bool = False,
@@ -918,7 +904,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
 
 def _job_popen(
-    commands: List[str],
+    commands: list[str],
     stdin_path: Optional[str],
     stdout_path: Optional[str],
     stderr_path: Optional[str],

@@ -1,8 +1,8 @@
 """Test the prototype cwltool:Loop extension."""
 
 import json
+from collections.abc import MutableMapping, MutableSequence
 from io import StringIO
-from typing import MutableMapping, MutableSequence
 
 from cwltool.main import main
 

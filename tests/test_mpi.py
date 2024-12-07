@@ -3,9 +3,10 @@
 import json
 import os.path
 import sys
+from collections.abc import Generator, MutableMapping
 from io import StringIO
 from pathlib import Path
-from typing import Any, Generator, List, MutableMapping, Optional, Tuple
+from typing import Any, Optional
 
 import pytest
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -75,12 +76,12 @@ class Runner:
         else:
             self.indata = sys.stdin.read().encode(sys.stdin.encoding)
 
-    def run_once(self, args: List[str]):
+    def run_once(self, args: list[str]):
         subprocess.run(
             args, input=self.indata, stdout=sys.stdout, stderr=sys.stderr
         ).check_returncode()
 
-    def run_many(self, n: int, args: List[str]):
+    def run_many(self, n: int, args: list[str]):
         for i in range(n):
             self.run_once(args)
 
@@ -122,7 +123,7 @@ def make_processes_input(np: int, tmp_path: Path) -> Path:
     return input_file
 
 
-def cwltool_args(fake_mpi_conf: str) -> List[str]:
+def cwltool_args(fake_mpi_conf: str) -> list[str]:
     return ["--enable-ext", "--enable-dev", "--mpi-config-file", fake_mpi_conf]
 
 
@@ -296,10 +297,10 @@ basetool = CommentedMap({"cwlVersion": "v1.1", "inputs": CommentedSeq(), "output
 
 def mk_tool(
     schema: Names,
-    opts: List[str],
-    reqs: Optional[List[CommentedMap]] = None,
-    hints: Optional[List[CommentedMap]] = None,
-) -> Tuple[LoadingContext, RuntimeContext, CommentedMap]:
+    opts: list[str],
+    reqs: Optional[list[CommentedMap]] = None,
+    hints: Optional[list[CommentedMap]] = None,
+) -> tuple[LoadingContext, RuntimeContext, CommentedMap]:
     tool = basetool.copy()
 
     if reqs is not None:

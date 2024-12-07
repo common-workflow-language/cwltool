@@ -1,19 +1,8 @@
 """Static checking of CWL workflow connectivity."""
 
 from collections import namedtuple
-from typing import (
-    Any,
-    Dict,
-    Iterator,
-    List,
-    Literal,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Sized,
-    Union,
-    cast,
-)
+from collections.abc import Iterator, MutableMapping, MutableSequence, Sized
+from typing import Any, Literal, Optional, Union, cast
 
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
@@ -25,8 +14,7 @@ from .process import shortname
 from .utils import CWLObjectType, CWLOutputType, SinkType, aslist
 
 
-def _get_type(tp):
-    # type: (Any) -> Any
+def _get_type(tp: Any) -> Any:
     if isinstance(tp, MutableMapping):
         if tp.get("type") not in ("array", "record", "enum"):
             return tp["type"]
@@ -98,10 +86,10 @@ def can_assign_src_to_sink(src: SinkType, sink: Optional[SinkType], strict: bool
         if src["type"] == "record" and sink["type"] == "record":
             return _compare_records(src, sink, strict)
         if src["type"] == "File" and sink["type"] == "File":
-            for sinksf in cast(List[CWLObjectType], sink.get("secondaryFiles", [])):
+            for sinksf in cast(list[CWLObjectType], sink.get("secondaryFiles", [])):
                 if not [
                     1
-                    for srcsf in cast(List[CWLObjectType], src.get("secondaryFiles", []))
+                    for srcsf in cast(list[CWLObjectType], src.get("secondaryFiles", []))
                     if sinksf == srcsf
                 ]:
                     if strict:
@@ -167,7 +155,8 @@ def _compare_records(src: CWLObjectType, sink: CWLObjectType, strict: bool = Fal
     return True
 
 
-def missing_subset(fullset: List[Any], subset: List[Any]) -> List[Any]:
+def missing_subset(fullset: list[Any], subset: list[Any]) -> list[Any]:
+    """Calculate the items missing from the fullset given the subset."""
     missing = []
     for i in subset:
         if i not in fullset:
@@ -176,11 +165,11 @@ def missing_subset(fullset: List[Any], subset: List[Any]) -> List[Any]:
 
 
 def static_checker(
-    workflow_inputs: List[CWLObjectType],
+    workflow_inputs: list[CWLObjectType],
     workflow_outputs: MutableSequence[CWLObjectType],
     step_inputs: MutableSequence[CWLObjectType],
-    step_outputs: List[CWLObjectType],
-    param_to_step: Dict[str, CWLObjectType],
+    step_outputs: list[CWLObjectType],
+    param_to_step: dict[str, CWLObjectType],
 ) -> None:
     """
     Check if all source and sink types of a workflow are compatible before run time.
@@ -191,7 +180,7 @@ def static_checker(
     # sink parameters: step_inputs and workflow_outputs
 
     # make a dictionary of source parameters, indexed by the "id" field
-    src_dict: Dict[str, CWLObjectType] = {}
+    src_dict: dict[str, CWLObjectType] = {}
     for param in workflow_inputs + step_outputs:
         src_dict[cast(str, param["id"])] = param
 
@@ -245,7 +234,7 @@ def static_checker(
                         ", ".join(
                             shortname(cast(str, s["id"]))
                             for s in cast(
-                                List[Dict[str, Union[str, bool]]],
+                                list[dict[str, Union[str, bool]]],
                                 param_to_step[sink["id"]]["inputs"],
                             )
                             if not s.get("not_connected")
@@ -328,11 +317,11 @@ SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge", "message"])
 
 
 def check_all_types(
-    src_dict: Dict[str, CWLObjectType],
+    src_dict: dict[str, CWLObjectType],
     sinks: MutableSequence[CWLObjectType],
     sourceField: Union[Literal["source"], Literal["outputSource"]],
-    param_to_step: Dict[str, CWLObjectType],
-) -> Dict[str, List[SrcSink]]:
+    param_to_step: dict[str, CWLObjectType],
+) -> dict[str, list[SrcSink]]:
     """
     Given a list of sinks, check if their types match with the types of their sources.
 
@@ -340,7 +329,7 @@ def check_all_types(
                                (from :py:func:`check_types`)
     :raises ValidationException: if a sourceField is missing
     """
-    validation = {"warning": [], "exception": []}  # type: Dict[str, List[SrcSink]]
+    validation: dict[str, list[SrcSink]] = {"warning": [], "exception": []}
     for sink in sinks:
         if sourceField in sink:
             valueFrom = cast(Optional[str], sink.get("valueFrom"))
@@ -351,18 +340,18 @@ def check_all_types(
                 extra_message = "pickValue is: %s" % pickValue
 
             if isinstance(sink[sourceField], MutableSequence):
-                linkMerge = cast(
+                linkMerge: Optional[str] = cast(
                     Optional[str],
                     sink.get(
                         "linkMerge",
                         ("merge_nested" if len(cast(Sized, sink[sourceField])) > 1 else None),
                     ),
-                )  # type: Optional[str]
+                )
 
                 if pickValue in ["first_non_null", "the_only_non_null"]:
                     linkMerge = None
 
-                srcs_of_sink = []  # type: List[CWLObjectType]
+                srcs_of_sink: list[CWLObjectType] = []
                 for parm_id in cast(MutableSequence[str], sink[sourceField]):
                     srcs_of_sink += [src_dict[parm_id]]
                     if is_conditional_step(param_to_step, parm_id) and pickValue is None:
@@ -404,10 +393,10 @@ def check_all_types(
                     snk_typ = sink["type"]
 
                     if "null" not in src_typ:
-                        src_typ = ["null"] + cast(List[Any], src_typ)
+                        src_typ = ["null"] + cast(list[Any], src_typ)
 
                     if "null" not in cast(
-                        Union[List[str], CWLObjectType], snk_typ
+                        Union[list[str], CWLObjectType], snk_typ
                     ):  # Given our type names this works even if not a list
                         validation["warning"].append(
                             SrcSink(
@@ -440,7 +429,7 @@ def check_all_types(
     return validation
 
 
-def circular_dependency_checker(step_inputs: List[CWLObjectType]) -> None:
+def circular_dependency_checker(step_inputs: list[CWLObjectType]) -> None:
     """
     Check if a workflow has circular dependency.
 
@@ -448,8 +437,8 @@ def circular_dependency_checker(step_inputs: List[CWLObjectType]) -> None:
     """
     adjacency = get_dependency_tree(step_inputs)
     vertices = adjacency.keys()
-    processed: List[str] = []
-    cycles: List[List[str]] = []
+    processed: list[str] = []
+    cycles: list[list[str]] = []
     for vertex in vertices:
         if vertex not in processed:
             traversal_path = [vertex]
@@ -461,7 +450,7 @@ def circular_dependency_checker(step_inputs: List[CWLObjectType]) -> None:
         raise ValidationException(exception_msg)
 
 
-def get_dependency_tree(step_inputs: List[CWLObjectType]) -> Dict[str, List[str]]:
+def get_dependency_tree(step_inputs: list[CWLObjectType]) -> dict[str, list[str]]:
     """Get the dependency tree in the form of adjacency list."""
     adjacency = {}  # adjacency list of the dependency tree
     for step_input in step_inputs:
@@ -482,10 +471,10 @@ def get_dependency_tree(step_inputs: List[CWLObjectType]) -> Dict[str, List[str]
 
 
 def processDFS(
-    adjacency: Dict[str, List[str]],
-    traversal_path: List[str],
-    processed: List[str],
-    cycles: List[List[str]],
+    adjacency: dict[str, list[str]],
+    traversal_path: list[str],
+    processed: list[str],
+    cycles: list[list[str]],
 ) -> None:
     """Perform depth first search."""
     tip = traversal_path[-1]
@@ -509,18 +498,22 @@ def get_step_id(field_id: str) -> str:
     return step_id
 
 
-def is_conditional_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -> bool:
+def is_conditional_step(param_to_step: dict[str, CWLObjectType], parm_id: str) -> bool:
+    """Return True if the step given by the parm_id is a conditional step."""
     if (source_step := param_to_step.get(parm_id)) is not None:
         if source_step.get("when") is not None:
             return True
     return False
 
 
-def is_all_output_method_loop_step(param_to_step: Dict[str, CWLObjectType], parm_id: str) -> bool:
-    """Check if a step contains a `loop` directive with `all` outputMethod."""
+def is_all_output_method_loop_step(param_to_step: dict[str, CWLObjectType], parm_id: str) -> bool:
+    """Check if a step contains a `loop` directive with `all_iterations` outputMethod."""
     source_step: Optional[MutableMapping[str, Any]] = param_to_step.get(parm_id)
     if source_step is not None:
-        if source_step.get("loop") is not None and source_step.get("outputMethod") == "all":
+        if (
+            source_step.get("loop") is not None
+            and source_step.get("outputMethod") == "all_iterations"
+        ):
             return True
     return False
 

@@ -1,0 +1,101 @@
+version: 2.1
+
+parameters:
+  REF:
+    type: string
+    default: ''
+    description: Optional tag to build
+
+jobs:
+  arm-wheels:
+    parameters:
+      build:
+        type: string
+      image:
+        type: string
+
+    machine:
+      image: ubuntu-2404:current
+    resource_class: arm.medium  # 2 vCPUs
+
+    environment:
+      CIBW_ARCHS: "aarch64"
+      CIBW_MANYLINUX_AARCH64_IMAGE: "<< parameters.image >>"
+      CIBW_MUSLLINUX_AARCH64_IMAGE: "<< parameters.image >>"
+      CIBW_BUILD: "<< parameters.build >>"
+
+    steps:
+      - checkout
+      - when:
+          condition: << pipeline.parameters.REF >>
+          steps:
+          - run:
+              name: Checkout branch/tag << pipeline.parameters.REF >>
+              command: |
+                echo "Switching to branch/tag << pipeline.parameters.REF >> if it exists"
+                git checkout << pipeline.parameters.REF >> || true
+                git pull origin << pipeline.parameters.REF >> || true
+      - run:
+          name: install cibuildwheel and other build reqs
+          command: |
+            python3 -m pip install --upgrade pip setuptools setuptools_scm[toml]
+            python3 -m pip install -rcibw-requirements.txt
+
+      - run:
+          name: pip freeze
+          command: |
+            python3 -m pip freeze
+
+      - run:
+          name: list wheels
+          command: |
+            python3 -m cibuildwheel . --print-build-identifiers
+
+      - run:
+          name: cibuildwheel
+          command: |
+            python3 -m cibuildwheel .
+
+      - store_test_results:
+          path: test-results/
+
+      - store_artifacts:
+          path: wheelhouse/
+
+      # - when:
+      #     condition:
+      #       or:
+      #         - matches:
+      #             pattern: ".+"
+      #             value: "<< pipeline.git.tag >>"
+      #         - << pipeline.parameters.REF >>
+      #     steps:
+      #       - run:
+      #           environment:
+      #             TWINE_NONINTERACTIVE: "1"
+      #           command: |
+      #             python3 -m pip install twine
+      #             python3 -m twine upload --verbose --skip-existing wheelhouse/*
+
+workflows:
+  wheels: # This is the name of the workflow, feel free to change it to better match your workflow.
+    # Inside the workflow, you define the jobs you want to run.
+    jobs:
+      - arm-wheels:
+          name: arm-wheels-manylinux_2_28
+          filters:
+            branches:
+              only: main
+            tags:
+              only: /.*/
+          build: "*manylinux*"
+          image: quay.io/pypa/manylinux_2_28_aarch64
+      - arm-wheels:
+          name: arm-wheels-musllinux_1_2
+          filters:
+            branches:
+              only: main
+            tags:
+              only: /.*/
+          build: "*musllinux*"
+          image: quay.io/pypa/musllinux_1_2_aarch64

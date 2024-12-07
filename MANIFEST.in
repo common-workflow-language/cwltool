@@ -19,6 +19,7 @@ include tests/reloc/dir2/*
 include tests/checker_wf/*
 include tests/subgraph/*
 include tests/input_deps/*
+recursive-include tests/test_deps_env
 include tests/trs/*
 include tests/wf/generator/*
 include cwltool/py.typed

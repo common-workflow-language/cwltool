@@ -8,10 +8,8 @@ to avoid breaking the interface for other code.
 
 # flake8: noqa: F401
 
-from cwl_utils.errors import WorkflowException as WorkflowException
-
-
 from cwl_utils.errors import GraphTargetMissingException as GraphTargetMissingException
+from cwl_utils.errors import WorkflowException as WorkflowException
 
 
 class UnsupportedRequirement(WorkflowException):

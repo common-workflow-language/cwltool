@@ -1,18 +1,7 @@
 import urllib
 from collections import namedtuple
-from typing import (
-    Any,
-    Dict,
-    List,
-    Mapping,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-    cast,
-)
+from collections.abc import Mapping, MutableMapping, MutableSequence
+from typing import Any, Optional, Union, cast
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
@@ -33,7 +22,7 @@ STEP = "step"
 def subgraph_visit(
     current: str,
     nodes: MutableMapping[str, Node],
-    visited: Set[str],
+    visited: set[str],
     direction: str,
 ) -> None:
     if current in visited:
@@ -48,7 +37,13 @@ def subgraph_visit(
         subgraph_visit(c, nodes, visited, direction)
 
 
-def declare_node(nodes: Dict[str, Node], nodeid: str, tp: Optional[str]) -> Node:
+def declare_node(nodes: dict[str, Node], nodeid: str, tp: Optional[str]) -> Node:
+    """
+    Record the given nodeid in the graph.
+
+    If the nodeid is already present, but its type is unset, set it.
+    :returns: The Node tuple (even if already present in the graph).
+    """
     if nodeid in nodes:
         n = nodes[nodeid]
         if n.type is None:
@@ -59,8 +54,8 @@ def declare_node(nodes: Dict[str, Node], nodeid: str, tp: Optional[str]) -> Node
 
 
 def find_step(
-    steps: List[WorkflowStep], stepid: str, loading_context: LoadingContext
-) -> Tuple[Optional[CWLObjectType], Optional[WorkflowStep]]:
+    steps: list[WorkflowStep], stepid: str, loading_context: LoadingContext
+) -> tuple[Optional[CWLObjectType], Optional[WorkflowStep]]:
     """Find the step (raw dictionary and WorkflowStep) for a given step id."""
     for st in steps:
         st_tool_id = st.tool["id"]
@@ -114,7 +109,7 @@ def get_subgraph(
     if tool.tool["class"] != "Workflow":
         raise Exception("Can only extract subgraph from workflow")
 
-    nodes: Dict[str, Node] = {}
+    nodes: dict[str, Node] = {}
 
     for inp in tool.tool["inputs"]:
         declare_node(nodes, inp["id"], INPUT)
@@ -149,7 +144,7 @@ def get_subgraph(
             nodes[out].up.append(st["id"])
 
     # Find all the downstream nodes from the starting points
-    visited_down: Set[str] = set()
+    visited_down: set[str] = set()
     for r in roots:
         if nodes[r].type == OUTPUT:
             subgraph_visit(r, nodes, visited_down, UP)
@@ -157,8 +152,8 @@ def get_subgraph(
             subgraph_visit(r, nodes, visited_down, DOWN)
 
     # Now make sure all the nodes are connected to upstream inputs
-    visited: Set[str] = set()
-    rewire: Dict[str, Tuple[str, CWLObjectType]] = {}
+    visited: set[str] = set()
+    rewire: dict[str, tuple[str, CWLObjectType]] = {}
     for v in visited_down:
         visited.add(v)
         if nodes[v].type in (STEP, OUTPUT):
@@ -221,7 +216,7 @@ def get_step(tool: Workflow, step_id: str, loading_context: LoadingContext) -> C
     extracted["inputs"] = CommentedSeq()
     extracted["outputs"] = CommentedSeq()
 
-    for in_port in cast(List[CWLObjectType], step["in"]):
+    for in_port in cast(list[CWLObjectType], step["in"]):
         name = "#" + cast(str, in_port["id"]).split("#")[-1].split("/")[-1]
         inp: CWLObjectType = {"id": name, "type": "Any"}
         if "default" in in_port:
@@ -231,7 +226,7 @@ def get_step(tool: Workflow, step_id: str, loading_context: LoadingContext) -> C
         if "linkMerge" in in_port:
             del in_port["linkMerge"]
 
-    for outport in cast(List[Union[str, Mapping[str, Any]]], step["out"]):
+    for outport in cast(list[Union[str, Mapping[str, Any]]], step["out"]):
         if isinstance(outport, Mapping):
             outport_id = cast(str, outport["id"])
         else:
@@ -256,7 +251,7 @@ def get_step(tool: Workflow, step_id: str, loading_context: LoadingContext) -> C
 
 def get_process(
     tool: Workflow, step_id: str, loading_context: LoadingContext
-) -> Tuple[Any, WorkflowStep]:
+) -> tuple[Any, WorkflowStep]:
     """Find the underlying Process for a given Workflow step id."""
     if loading_context.loader is None:
         raise Exception("loading_context.loader cannot be None")

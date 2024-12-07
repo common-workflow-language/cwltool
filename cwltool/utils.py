@@ -19,9 +19,11 @@ import sys
 import tempfile
 import urllib
 import uuid
+from collections.abc import Generator, Iterable, MutableMapping, MutableSequence
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from functools import partial
+from importlib.resources import as_file, files
 from itertools import zip_longest
 from pathlib import Path, PurePosixPath
 from tempfile import NamedTemporaryFile
@@ -31,17 +33,9 @@ from typing import (
     Any,
     Callable,
     Deque,
-    Dict,
-    Generator,
-    Iterable,
-    List,
     Literal,
-    MutableMapping,
-    MutableSequence,
     NamedTuple,
     Optional,
-    Set,
-    Tuple,
     TypedDict,
     Union,
     cast,
@@ -53,11 +47,6 @@ from cachecontrol.caches import FileCache
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
-
-if sys.version_info >= (3, 9):
-    from importlib.resources import as_file, files
-else:
-    from importlib_resources import as_file, files
 
 if TYPE_CHECKING:
     from .command_line_tool import CallbackJob, ExpressionJob
@@ -92,13 +81,13 @@ JobsGeneratorType = Generator[Optional[JobsType], None, None]
 OutputCallbackType = Callable[[Optional[CWLObjectType], str], None]
 ResolverType = Callable[["Loader", str], Optional[str]]
 DestinationsType = MutableMapping[str, Optional[CWLOutputType]]
-ScatterDestinationsType = MutableMapping[str, List[Optional[CWLOutputType]]]
+ScatterDestinationsType = MutableMapping[str, list[Optional[CWLOutputType]]]
 ScatterOutputCallbackType = Callable[[Optional[ScatterDestinationsType], str], None]
 SinkType = Union[CWLOutputType, CWLObjectType]
 DirectoryType = TypedDict(
-    "DirectoryType", {"class": str, "listing": List[CWLObjectType], "basename": str}
+    "DirectoryType", {"class": str, "listing": list[CWLObjectType], "basename": str}
 )
-JSONType = Union[Dict[str, "JSONType"], List["JSONType"], str, int, float, bool, None]
+JSONType = Union[dict[str, "JSONType"], list["JSONType"], str, int, float, bool, None]
 
 
 class WorkflowStateItem(NamedTuple):
@@ -109,7 +98,7 @@ class WorkflowStateItem(NamedTuple):
     success: str
 
 
-ParametersType = List[CWLObjectType]
+ParametersType = list[CWLObjectType]
 StepType = CWLObjectType  # WorkflowStep
 
 LoadListingType = Union[Literal["no_listing"], Literal["shallow_listing"], Literal["deep_listing"]]
@@ -143,7 +132,7 @@ def copytree_with_merge(src: str, dst: str) -> None:
             shutil.copy2(spath, dpath)
 
 
-def cmp_like_py2(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> int:
+def cmp_like_py2(dict1: dict[str, Any], dict2: dict[str, Any]) -> int:
     """
     Compare in the same manner as Python2.
 
@@ -259,20 +248,20 @@ def adjustDirObjs(rec: Any, op: Union[Callable[..., Any], "partial[Any]"]) -> No
     visit_class(rec, ("Directory",), op)
 
 
-def dedup(listing: List[CWLObjectType]) -> List[CWLObjectType]:
+def dedup(listing: list[CWLObjectType]) -> list[CWLObjectType]:
     marksub = set()
 
-    def mark(d: Dict[str, str]) -> None:
+    def mark(d: dict[str, str]) -> None:
         marksub.add(d["location"])
 
     for entry in listing:
         if entry["class"] == "Directory":
-            for e in cast(List[CWLObjectType], entry.get("listing", [])):
+            for e in cast(list[CWLObjectType], entry.get("listing", [])):
                 adjustFileObjs(e, mark)
                 adjustDirObjs(e, mark)
 
     dd = []
-    markdup: Set[str] = set()
+    markdup: set[str] = set()
     for r in listing:
         if r["location"] not in marksub and r["location"] not in markdup:
             dd.append(r)
@@ -284,14 +273,14 @@ def dedup(listing: List[CWLObjectType]) -> List[CWLObjectType]:
 def get_listing(fs_access: "StdFsAccess", rec: CWLObjectType, recursive: bool = True) -> None:
     """Expand, recursively, any 'listing' fields in a Directory."""
     if rec.get("class") != "Directory":
-        finddirs: List[CWLObjectType] = []
+        finddirs: list[CWLObjectType] = []
         visit_class(rec, ("Directory",), finddirs.append)
         for f in finddirs:
             get_listing(fs_access, f, recursive=recursive)
         return
     if "listing" in rec:
         return
-    listing: List[CWLOutputType] = []
+    listing: list[CWLOutputType] = []
     loc = cast(str, rec["location"])
     for ld in fs_access.listdir(loc):
         parse = urllib.parse.urlparse(ld)
@@ -310,7 +299,7 @@ def get_listing(fs_access: "StdFsAccess", rec: CWLObjectType, recursive: bool = 
     rec["listing"] = listing
 
 
-def trim_listing(obj: Dict[str, Any]) -> None:
+def trim_listing(obj: dict[str, Any]) -> None:
     """
     Remove 'listing' field from Directory objects that are file references.
 
@@ -322,7 +311,7 @@ def trim_listing(obj: Dict[str, Any]) -> None:
         del obj["listing"]
 
 
-def downloadHttpFile(httpurl: str) -> Tuple[str, Optional[datetime]]:
+def downloadHttpFile(httpurl: str) -> tuple[str, Optional[datetime]]:
     """
     Download a remote file, possibly using a locally cached copy.
 
@@ -414,7 +403,7 @@ def normalizeFilesDirs(
         ]
     ]
 ) -> None:
-    def addLocation(d: Dict[str, Any]) -> None:
+    def addLocation(d: dict[str, Any]) -> None:
         if "location" not in d:
             if d["class"] == "File" and ("contents" not in d):
                 raise ValidationException(
@@ -484,10 +473,10 @@ class HasReqsHints:
 
     def __init__(self) -> None:
         """Initialize this reqs decorator."""
-        self.requirements: List[CWLObjectType] = []
-        self.hints: List[CWLObjectType] = []
+        self.requirements: list[CWLObjectType] = []
+        self.hints: list[CWLObjectType] = []
 
-    def get_requirement(self, feature: str) -> Tuple[Optional[CWLObjectType], Optional[bool]]:
+    def get_requirement(self, feature: str) -> tuple[Optional[CWLObjectType], Optional[bool]]:
         """Retrieve the named feature from the requirements field, or the hints field."""
         for item in reversed(self.requirements):
             if item["class"] == feature:

@@ -4,10 +4,10 @@ import json
 import os
 import subprocess  # nosec
 import sys
-from typing import BinaryIO, Dict, List, Optional, TextIO, Union
+from typing import BinaryIO, Optional, TextIO, Union
 
 
-def handle_software_environment(cwl_env: Dict[str, str], script: str) -> Dict[str, str]:
+def handle_software_environment(cwl_env: dict[str, str], script: str) -> dict[str, str]:
     """Update the provided environment dict by running the script."""
     exec_env = cwl_env.copy()
     exec_env["_CWLTOOL"] = "1"
@@ -29,7 +29,7 @@ def handle_software_environment(cwl_env: Dict[str, str], script: str) -> Dict[st
     return env
 
 
-def main(argv: List[str]) -> int:
+def main(argv: list[str]) -> int:
     """
     Read in the configuration JSON and execute the commands.
 
