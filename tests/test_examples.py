@@ -1820,9 +1820,9 @@ def test_validate_optional_src_with_mandatory_sink() -> None:
         ["--validate", get_data("tests/wf/optional_src_mandatory_sink.cwl")]
     )
     assert exit_code == 0
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert 'Source \'opt_file\' of type ["null", "File"] may be incompatible' in stderr
-    assert "with sink 'r' of type \"File\"" in stderr
+    stdout = re.sub(r"\s\s+", " ", stdout)
+    assert 'Source \'opt_file\' of type ["null", "File"] may be incompatible' in stdout
+    assert "with sink 'r' of type \"File\"" in stdout
 
 
 def test_res_req_expr_float_1_0() -> None:
@@ -1875,12 +1875,11 @@ def test_invalid_nested_array() -> None:
         ]
     )
     assert exit_code == 1, stderr
-    stderr = re.sub(r"\n\s+", " ", stderr)
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "Tool definition failed validation:" in stderr
+    stdout = re.sub(r"\s\s+", " ", stdout)
+    assert "Tool definition failed validation:" in stdout
     assert (
         "tests/nested-array.cwl:6:5: Field 'type' references unknown identifier 'string[][]'"
-    ) in stderr
+    ) in stdout
 
 
 def test_input_named_id() -> None:
