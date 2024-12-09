@@ -967,12 +967,6 @@ def main(
         stdout = cast(IO[str], stdout)
 
     _logger.removeHandler(defaultStreamHandler)
-    stderr_handler = logger_handler
-    if stderr_handler is not None:
-        _logger.addHandler(stderr_handler)
-    else:
-        coloredlogs.install(logger=_logger, stream=stderr)
-        stderr_handler = _logger.handlers[-1]
     workflowobj = None
     prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
     global docker_exe
@@ -997,6 +991,13 @@ def main(
                 if not args.cidfile_dir:
                     args.cidfile_dir = os.getcwd()
                 del args.record_container_id
+        if logger_handler is not None:
+            err_handler = logger_handler
+            _logger.addHandler(err_handler)
+        else:
+            coloredlogs.install(logger=_logger, stream=stdout if args.validate else stderr)
+            err_handler = _logger.handlers[-1]
+        logging.getLogger("salad").handlers = _logger.handlers
 
         if runtimeContext is None:
             runtimeContext = RuntimeContext(vars(args))
@@ -1015,7 +1016,7 @@ def main(
                 setattr(args, key, val)
 
         configure_logging(
-            stderr_handler,
+            err_handler,
             args.no_warnings,
             args.quiet,
             runtimeContext.debug,
@@ -1413,8 +1414,7 @@ def main(
                 # public API for logging.StreamHandler
                 prov_log_handler.close()
             close_ro(research_obj, args.provenance)
-
-        _logger.removeHandler(stderr_handler)
+        _logger.removeHandler(err_handler)
         _logger.addHandler(defaultStreamHandler)
 
 
