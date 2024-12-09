@@ -6,7 +6,6 @@ import uuid
 from collections.abc import MutableMapping, MutableSequence, Sequence
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
-from socket import getfqdn
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from prov.identifier import Identifier, QualifiedName
@@ -24,7 +23,6 @@ from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV,
     ENCODING,
-    FOAF,
     METADATA,
     ORE,
     PROVENANCE,
@@ -108,25 +106,6 @@ class ProvenanceProfile:
 
     def generate_prov_doc(self) -> tuple[str, ProvDocument]:
         """Add basic namespaces."""
-
-        def host_provenance(document: ProvDocument) -> None:
-            """Record host provenance."""
-            document.add_namespace(CWLPROV)
-            document.add_namespace(UUID)
-            document.add_namespace(FOAF)
-
-            hostname = getfqdn()
-            # won't have a foaf:accountServiceHomepage for unix hosts, but
-            # we can at least provide hostname
-            document.agent(
-                ACCOUNT_UUID,
-                {
-                    PROV_TYPE: FOAF["OnlineAccount"],
-                    "prov:location": hostname,
-                    CWLPROV["hostname"]: hostname,
-                },
-            )
-
         self.cwltool_version = f"cwltool {versionstring().split()[-1]}"
         self.document.add_namespace("wfprov", "http://purl.org/wf4ever/wfprov#")
         # document.add_namespace('prov', 'http://www.w3.org/ns/prov#')
@@ -181,7 +160,7 @@ class ProvenanceProfile:
             self.document.actedOnBehalfOf(account, agent)
         else:
             if self.host_provenance:
-                host_provenance(self.document)
+                self.research_object.host_provenance(self.document)
             if self.user_provenance:
                 self.research_object.user_provenance(self.document)
         # The execution of cwltool
