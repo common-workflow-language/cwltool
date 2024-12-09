@@ -135,13 +135,13 @@ def is_version_3_10_or_newer() -> bool:
 
 def _normalize_image_id(string: str) -> str:
     if ":" not in string:
-        string+="_latest"
+        string += "_latest"
     return string.replace("/", "_") + ".img"
 
 
 def _normalize_sif_id(string: str) -> str:
     if ":" not in string:
-        string+="_latest"
+        string += "_latest"
     return string.replace("/", "_") + ".sif"
 
 
