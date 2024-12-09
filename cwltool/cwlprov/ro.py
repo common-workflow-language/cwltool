@@ -95,7 +95,7 @@ class ResearchObject:
         fsaccess: StdFsAccess,
         run_uuid: Optional[uuid.UUID] = None,
     ) -> "ProvenanceProfile":
-        """Hook function allowing calling code to extend the provenance details if needed."""
+        """Provide a provenance profile initialization hook function to extend details as needed."""
         from .provenance_profile import ProvenanceProfile
 
         return ProvenanceProfile(
@@ -144,7 +144,7 @@ class ResearchObject:
             bag_it_file.write(f"Tag-File-Character-Encoding: {ENCODING}\n")
 
     def resolve_user(self) -> tuple[str, str]:
-        """Hook function in case the calling code can provide a better resolution."""
+        """Provide a user provenance hook function in case the calling code can provide a better resolution."""
         return _whoami()
 
     def user_provenance(self, document: ProvDocument) -> None:
@@ -187,7 +187,7 @@ class ResearchObject:
         document.actedOnBehalfOf(account, user)
 
     def resolve_host(self) -> tuple[str, str]:
-        """Hook function in case the calling code can provide a better resolution."""
+        """Provide a host provenance hook function in case the calling code can provide a better resolution."""
         fqdn = getfqdn()
         return fqdn, fqdn  # allow for (fqdn, uri) to be distinct, but the same by default
 
