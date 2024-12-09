@@ -10,7 +10,7 @@ import uuid
 from collections.abc import MutableMapping, MutableSequence
 from pathlib import Path, PurePosixPath
 from socket import getfqdn
-from typing import IO, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, IO, Any, Optional, Union, cast
 
 import prov.model as provM
 from prov.model import ProvDocument
@@ -47,6 +47,8 @@ from .provenance_constants import (
     WORKFLOW,
     Hasher,
 )
+if TYPE_CHECKING:
+    from .provenance_profile import ProvenanceProfile
 
 
 class ResearchObject:
@@ -92,7 +94,7 @@ class ResearchObject:
         orcid: str,
         fsaccess: StdFsAccess,
         run_uuid: Optional[uuid.UUID] = None,
-    ):
+    ) -> "ProvenanceProfile":
         """Hook function allowing calling code to extend the provenance details if needed."""
         from .provenance_profile import ProvenanceProfile
 
