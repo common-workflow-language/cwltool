@@ -43,13 +43,29 @@ def test_validate_with_invalid_input_object() -> None:
         ]
     )
     assert exit_code == 1
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "Invalid job input record" in stderr
+    stdout = re.sub(r"\s\s+", " ", stdout)
+    assert "Invalid job input record" in stdout
     assert (
         "tests/wf/1st-workflow_bad_inputs.yml:2:1: * the 'ex' field is not "
-        "valid because the value is not string" in stderr
+        "valid because the value is not string" in stdout
     )
     assert (
         "tests/wf/1st-workflow_bad_inputs.yml:1:1: * the 'inp' field is not "
-        "valid because is not a dict. Expected a File object." in stderr
+        "valid because is not a dict. Expected a File object." in stdout
     )
+
+
+def test_validate_quiet() -> None:
+    """Ensure that --validate --quiet prints the correct amount of information."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--validate",
+            "--quiet",
+            get_data("tests/CometAdapter.cwl"),
+        ]
+    )
+    assert exit_code == 0
+    stdout = re.sub(r"\s\s+", " ", stdout)
+    assert "INFO" not in stdout
+    assert "tests/CometAdapter.cwl:9:3: object id" in stdout
+    assert "tests/CometAdapter.cwl#out' previously defined" in stdout
