@@ -16,6 +16,7 @@ eggs/
 *.egg
 .tox/
 .pytest_cache
+*.so
 
 # Editor Temps
 .*.sw?

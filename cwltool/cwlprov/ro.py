@@ -47,8 +47,9 @@ from .provenance_constants import (
     WORKFLOW,
     Hasher,
 )
+
 if TYPE_CHECKING:
-    from .provenance_profile import ProvenanceProfile
+    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
 
 class ResearchObject:
@@ -95,7 +96,13 @@ class ResearchObject:
         fsaccess: StdFsAccess,
         run_uuid: Optional[uuid.UUID] = None,
     ) -> "ProvenanceProfile":
-        """Provide a provenance profile initialization hook function to extend details as needed."""
+        """
+        Provide a provenance profile initialization hook function.
+
+        Allows overriding the default strategy to define the
+        provenance profile concepts and associations to extend
+        details as needed.
+        """
         from .provenance_profile import ProvenanceProfile
 
         return ProvenanceProfile(
@@ -144,7 +151,15 @@ class ResearchObject:
             bag_it_file.write(f"Tag-File-Character-Encoding: {ENCODING}\n")
 
     def resolve_user(self) -> tuple[str, str]:
-        """Provide a user provenance hook function in case the calling code can provide a better resolution."""
+        """
+        Provide a user provenance hook function.
+
+        Allows overriding the default strategy to retrieve user provenance
+        in case the calling code can provide a better resolution.
+        The function must return a tuple of the (username, fullname)
+        that identifies the user. This user will be applied on top
+        to any provided ORCID or fullname by agent association.
+        """
         return _whoami()
 
     def user_provenance(self, document: ProvDocument) -> None:
@@ -187,7 +202,13 @@ class ResearchObject:
         document.actedOnBehalfOf(account, user)
 
     def resolve_host(self) -> tuple[str, str]:
-        """Provide a host provenance hook function in case the calling code can provide a better resolution."""
+        """
+        Provide a host provenance hook function.
+
+        Allows overriding the default strategy to retrieve host provenance
+        in case the calling code can provide a better resolution.
+        The function must return a tuple of the (fqdn, uri) that identifies the host.
+        """
         fqdn = getfqdn()
         return fqdn, fqdn  # allow for (fqdn, uri) to be distinct, but the same by default
 

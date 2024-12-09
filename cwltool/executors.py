@@ -19,7 +19,6 @@ from schema_salad.sourceline import SourceLine
 from .command_line_tool import CallbackJob, ExpressionJob
 from .context import RuntimeContext, getdefault
 from .cuda import cuda_version_and_device_count
-from .cwlprov.provenance_profile import ProvenanceProfile
 from .errors import WorkflowException
 from .job import JobBase
 from .loghandler import _logger
