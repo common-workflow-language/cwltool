@@ -47,7 +47,6 @@ from .provenance_constants import (
     WORKFLOW,
     Hasher,
 )
-from .provenance_profile import ProvenanceProfile
 
 
 class ResearchObject:
@@ -95,6 +94,8 @@ class ResearchObject:
         run_uuid: Optional[uuid.UUID] = None,
     ):
         """Hook function allowing calling code to extend the provenance details if needed."""
+        from .provenance_profile import ProvenanceProfile
+
         return ProvenanceProfile(
             research_object=self,
             full_name=full_name,
