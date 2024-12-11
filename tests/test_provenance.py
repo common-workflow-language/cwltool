@@ -43,8 +43,10 @@ def cwltool(tmp_path: Path, *args: Any) -> Path:
     new_args = [
         "--enable-user-provenance",
         "--enable-host-provenance",
-        "--orcid", TEST_ORCID,
-        "--provenance", str(prov_folder)
+        "--orcid",
+        TEST_ORCID,
+        "--provenance",
+        str(prov_folder),
     ]
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
@@ -519,9 +521,9 @@ def check_prov(
     tool_agents = set(g.subjects(RDF.type, PROV.SoftwareAgent))
     n_all_agents = 2 + len(tool_agents)
     agents = set(g.subjects(RDF.type, PROV.Agent))
-    assert len(agents) == n_all_agents, (
-        "There should be 1 agent per tool (engine), 1 user agent, and 1 cwltool agent"
-    )
+    assert (
+        len(agents) == n_all_agents
+    ), "There should be 1 agent per tool (engine), 1 user agent, and 1 cwltool agent"
     agents.remove(person)
     agents.remove(engine)  # the main tool
     remain_agents = agents - tool_agents
@@ -530,7 +532,7 @@ def check_prov(
     assert (
         cwltool_agent,
         PROV.actedOnBehalfOf,
-        person
+        person,
     ) in g, "Association of cwltool agent acting for user is missing"
 
     if single_tool:

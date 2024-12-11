@@ -10,7 +10,7 @@ import uuid
 from collections.abc import MutableMapping, MutableSequence
 from pathlib import Path, PurePosixPath
 from socket import getfqdn
-from typing import TYPE_CHECKING, IO, Any, Optional, Union, cast
+from typing import IO, TYPE_CHECKING, Any, Optional, Union, cast
 
 import prov.model as provM
 from prov.model import ProvDocument
