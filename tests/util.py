@@ -11,7 +11,7 @@ import sys
 from collections.abc import Generator, Mapping
 from contextlib import ExitStack
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 import pytest
 
@@ -88,6 +88,7 @@ def get_main_output(
     replacement_env: Optional[Mapping[str, str]] = None,
     extra_env: Optional[Mapping[str, str]] = None,
     monkeypatch: Optional[pytest.MonkeyPatch] = None,
+    **extra_kwargs: Any,
 ) -> tuple[Optional[int], str, str]:
     """Run cwltool main.
 
@@ -113,7 +114,7 @@ def get_main_output(
             monkeypatch.setenv(k, v)
 
     try:
-        rc = main(argsl=args, stdout=stdout, stderr=stderr)
+        rc = main(argsl=args, stdout=stdout, stderr=stderr, **extra_kwargs)
     except SystemExit as e:
         if isinstance(e.code, int):
             rc = e.code
