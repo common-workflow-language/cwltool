@@ -135,6 +135,7 @@ setup(
         "pyparsing != 3.0.2",  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
         "cwl-utils >= 0.32",
         "spython >= 0.3.0",
+        "rich-argparse",
     ],
     extras_require={
         "deps": [

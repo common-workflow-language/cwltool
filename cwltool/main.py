@@ -22,6 +22,7 @@ import argcomplete
 import coloredlogs
 import requests
 import ruamel.yaml
+from rich_argparse import RichHelpFormatter
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
 from schema_salad.exceptions import ValidationException
@@ -413,7 +414,10 @@ def init_job_order(
         namemap: dict[str, str] = {}
         records: list[str] = []
         toolparser = generate_parser(
-            argparse.ArgumentParser(prog=args.workflow),
+            argparse.ArgumentParser(
+                prog=args.workflow,
+                formatter_class=RichHelpFormatter,
+            ),
             process,
             namemap,
             records,
@@ -976,6 +980,7 @@ def main(
         user_agent += f" {progname}"  # append the real program name as well
     append_word_to_default_user_agent(user_agent)
 
+    err_handler: logging.Handler = defaultStreamHandler
     try:
         if args is None:
             if argsl is None:
