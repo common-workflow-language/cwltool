@@ -34,10 +34,18 @@ CWLPROV = Namespace("https://w3id.org/cwl/prov#")
 OA = Namespace("http://www.w3.org/ns/oa#")
 
 
+TEST_ORCID = "https://orcid.org/0000-0003-4862-3349"
+
+
 def cwltool(tmp_path: Path, *args: Any) -> Path:
     prov_folder = tmp_path / "provenance"
     prov_folder.mkdir()
-    new_args = ["--provenance", str(prov_folder)]
+    new_args = [
+        "--enable-user-provenance",
+        "--enable-host-provenance",
+        "--orcid", TEST_ORCID,
+        "--provenance", str(prov_folder)
+    ]
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
     tmp_dir = tmp_path / "cwltool-run"
@@ -485,7 +493,6 @@ def check_prov(
     # the has_provenance annotations in manifest.json instead
 
     # run should have been started by a wf engine
-
     engines = set(g.subjects(RDF.type, WFPROV.WorkflowEngine))
     assert engines, "Could not find WorkflowEngine"
     assert len(engines) == 1, "Found too many WorkflowEngines: %s" % engines
@@ -501,6 +508,30 @@ def check_prov(
         RDF.type,
         PROV.SoftwareAgent,
     ) in g, "Engine not declared as SoftwareAgent"
+
+    # run should be associated to the user
+    people = set(g.subjects(RDF.type, SCHEMA.Person))
+    assert len(people) == 1, "Can't find associated person in workflow run"
+    person = people.pop()
+    assert person == URIRef(TEST_ORCID)
+
+    # find the random UUID assigned to cwltool
+    tool_agents = set(g.subjects(RDF.type, PROV.SoftwareAgent))
+    n_all_agents = 2 + len(tool_agents)
+    agents = set(g.subjects(RDF.type, PROV.Agent))
+    assert len(agents) == n_all_agents, (
+        "There should be 1 agent per tool (engine), 1 user agent, and 1 cwltool agent"
+    )
+    agents.remove(person)
+    agents.remove(engine)  # the main tool
+    remain_agents = agents - tool_agents
+    assert len(remain_agents) == 1
+    cwltool_agent = remain_agents.pop()
+    assert (
+        cwltool_agent,
+        PROV.actedOnBehalfOf,
+        person
+    ) in g, "Association of cwltool agent acting for user is missing"
 
     if single_tool:
         activities = set(g.subjects(RDF.type, PROV.Activity))
