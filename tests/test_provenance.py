@@ -573,7 +573,7 @@ def check_prov(
     else:
         account_names = set(g.objects(account, FOAF.accountName))
         assert len(account_names) == 1
-        account_name = account_names.pop()
+        account_name = cast(Literal, account_names.pop())
         machine_user = provenance._whoami()[0]
         assert account_name.value == machine_user
 
