@@ -37,6 +37,7 @@ from .provenance_constants import (
     METADATA,
     ORCID,
     PROVENANCE,
+    SCHEMA,
     SHA1,
     SHA256,
     SHA512,
@@ -184,12 +185,14 @@ class ResearchObject:
 
         user = document.agent(
             self.orcid or USER_UUID,
-            {
-                provM.PROV_TYPE: provM.PROV["Person"],
-                provM.PROV_LABEL: self.full_name,
-                FOAF["name"]: self.full_name,
-                FOAF["account"]: account,
-            },
+            [
+                (provM.PROV_TYPE, SCHEMA["Person"]),
+                (provM.PROV_TYPE, provM.PROV["Person"]),
+                (provM.PROV_LABEL, self.full_name),
+                (FOAF["name"], self.full_name),
+                (FOAF["account"], account),
+                (SCHEMA["name"], self.full_name),
+            ],
         )
         # cwltool may be started on the shell (directly by user),
         # by shell script (indirectly by user)

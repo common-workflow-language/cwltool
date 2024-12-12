@@ -32,22 +32,23 @@ WFPROV = Namespace("http://purl.org/wf4ever/wfprov#")
 SCHEMA = Namespace("http://schema.org/")
 CWLPROV = Namespace("https://w3id.org/cwl/prov#")
 OA = Namespace("http://www.w3.org/ns/oa#")
+FOAF = Namespace("http://xmlns.com/foaf/0.1/")
 
 
 TEST_ORCID = "https://orcid.org/0000-0003-4862-3349"
 
 
-def cwltool(tmp_path: Path, *args: Any) -> Path:
+def cwltool(tmp_path: Path, *args: Any, with_orcid: bool = False) -> Path:
     prov_folder = tmp_path / "provenance"
     prov_folder.mkdir()
     new_args = [
         "--enable-user-provenance",
         "--enable-host-provenance",
-        "--orcid",
-        TEST_ORCID,
         "--provenance",
         str(prov_folder),
     ]
+    if with_orcid:
+        new_args.extend(["--orcid", TEST_ORCID])
     new_args.extend(args)
     # Run within a temporary directory to not pollute git checkout
     tmp_dir = tmp_path / "cwltool-run"
@@ -59,61 +60,81 @@ def cwltool(tmp_path: Path, *args: Any) -> Path:
 
 
 @needs_docker
-def test_hello_workflow(tmp_path: Path) -> None:
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_hello_workflow(tmp_path: Path, with_orcid: bool) -> None:
     check_provenance(
         cwltool(
             tmp_path,
             get_data("tests/wf/hello-workflow.cwl"),
             "--usermessage",
             "Hello workflow",
-        )
+            with_orcid=with_orcid,
+        ),
+        with_orcid=with_orcid,
     )
 
 
 @needs_docker
-def test_hello_single_tool(tmp_path: Path) -> None:
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_hello_single_tool(tmp_path: Path, with_orcid: bool) -> None:
     check_provenance(
         cwltool(
             tmp_path,
             get_data("tests/wf/hello_single_tool.cwl"),
             "--message",
             "Hello tool",
+            with_orcid=with_orcid,
         ),
         single_tool=True,
+        with_orcid=with_orcid,
     )
 
 
 @needs_docker
-def test_revsort_workflow(tmp_path: Path) -> None:
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_revsort_workflow(tmp_path: Path, with_orcid: bool) -> None:
     folder = cwltool(
         tmp_path,
         get_data("tests/wf/revsort.cwl"),
         get_data("tests/wf/revsort-job.json"),
+        with_orcid=with_orcid,
     )
     check_output_object(folder)
-    check_provenance(folder)
+    check_provenance(folder, with_orcid=with_orcid)
 
 
 @needs_docker
-def test_revsort_workflow_shortcut(tmp_path: Path) -> None:
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_revsort_workflow_shortcut(tmp_path: Path, with_orcid: bool) -> None:
     """Confirm that using 'cwl:tool' shortcut still snapshots the CWL files."""
     folder = cwltool(
         tmp_path,
         get_data("tests/wf/revsort-job-shortcut.json"),
+        with_orcid=with_orcid,
     )
     check_output_object(folder)
-    check_provenance(folder)
+    check_provenance(folder, with_orcid=with_orcid)
     assert not (folder / "snapshot" / "revsort-job-shortcut.json").exists()
     assert len(list((folder / "snapshot").iterdir())) == 4
 
 
 @needs_docker
-def test_nested_workflow(tmp_path: Path) -> None:
-    check_provenance(cwltool(tmp_path, get_data("tests/wf/nested.cwl")), nested=True)
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_nested_workflow(tmp_path: Path, with_orcid: bool) -> None:
+    check_provenance(
+        cwltool(
+            tmp_path,
+            get_data("tests/wf/nested.cwl"),
+            with_orcid=with_orcid,
+        ),
+        nested=True,
+        with_orcid=with_orcid,
+    )
 
 
 @needs_docker
-def test_secondary_files_implicit(tmp_path: Path) -> None:
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_secondary_files_implicit(tmp_path: Path, with_orcid: bool) -> None:
     file1 = tmp_path / "foo1.txt"
     file1idx = tmp_path / "foo1.txt.idx"
 
@@ -123,13 +144,20 @@ def test_secondary_files_implicit(tmp_path: Path) -> None:
         f.write("bar")
 
     # secondary will be picked up by .idx
-    folder = cwltool(tmp_path, get_data("tests/wf/sec-wf.cwl"), "--file1", str(file1))
-    check_provenance(folder, secondary_files=True)
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/sec-wf.cwl"),
+        "--file1",
+        str(file1),
+        with_orcid=with_orcid,
+    )
+    check_provenance(folder, secondary_files=True, with_orcid=with_orcid)
     check_secondary_files(folder)
 
 
 @needs_docker
-def test_secondary_files_explicit(tmp_path: Path) -> None:
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_secondary_files_explicit(tmp_path: Path, with_orcid: bool) -> None:
     # Deliberately do NOT have common basename or extension
     file1dir = tmp_path / "foo"
     file1dir.mkdir()
@@ -164,22 +192,33 @@ def test_secondary_files_explicit(tmp_path: Path) -> None:
         j = json.dumps(job, ensure_ascii=True)
         fp.write(j.encode("ascii"))
 
-    folder = cwltool(tmp_path, get_data("tests/wf/sec-wf.cwl"), str(jobJson))
-    check_provenance(folder, secondary_files=True)
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/sec-wf.cwl"),
+        str(jobJson),
+        with_orcid=with_orcid,
+    )
+    check_provenance(folder, secondary_files=True, with_orcid=with_orcid)
     check_secondary_files(folder)
 
 
 @needs_docker
-def test_secondary_files_output(tmp_path: Path) -> None:
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_secondary_files_output(tmp_path: Path, with_orcid: bool) -> None:
     # secondary will be picked up by .idx
-    folder = cwltool(tmp_path, get_data("tests/wf/sec-wf-out.cwl"))
-    check_provenance(folder, secondary_files=True)
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/sec-wf-out.cwl"),
+        with_orcid=with_orcid,
+    )
+    check_provenance(folder, secondary_files=True, with_orcid=with_orcid)
     # Skipped, not the same secondary files as above
     # self.check_secondary_files()
 
 
 @needs_docker
-def test_directory_workflow(tmp_path: Path) -> None:
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_directory_workflow(tmp_path: Path, with_orcid: bool) -> None:
     dir2 = tmp_path / "dir2"
     dir2.mkdir()
     sha1 = {
@@ -195,8 +234,14 @@ def test_directory_workflow(tmp_path: Path) -> None:
         with open(dir2 / x, "w", encoding="ascii") as f:
             f.write(x)
 
-    folder = cwltool(tmp_path, get_data("tests/wf/directory.cwl"), "--dir", str(dir2))
-    check_provenance(folder, directory=True)
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/directory.cwl"),
+        "--dir",
+        str(dir2),
+        with_orcid=with_orcid,
+    )
+    check_provenance(folder, directory=True, with_orcid=with_orcid)
 
     # Output should include ls stdout of filenames a b c on each line
     file_list = (
@@ -219,10 +264,12 @@ def test_directory_workflow(tmp_path: Path) -> None:
 
 
 @needs_docker
-def test_no_data_files(tmp_path: Path) -> None:
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_no_data_files(tmp_path: Path, with_orcid: bool) -> None:
     folder = cwltool(
         tmp_path,
         get_data("tests/wf/conditional_step_no_inputs.cwl"),
+        with_orcid=with_orcid,
     )
     check_bagit(folder)
 
@@ -273,6 +320,7 @@ def check_provenance(
     single_tool: bool = False,
     directory: bool = False,
     secondary_files: bool = False,
+    with_orcid: bool = False,
 ) -> None:
     check_folders(base_path)
     check_bagit(base_path)
@@ -283,6 +331,7 @@ def check_provenance(
         single_tool=single_tool,
         directory=directory,
         secondary_files=secondary_files,
+        with_orcid=with_orcid,
     )
 
 
@@ -473,6 +522,7 @@ def check_prov(
     single_tool: bool = False,
     directory: bool = False,
     secondary_files: bool = False,
+    with_orcid: bool = False,
 ) -> None:
     prov_file = base_path / "metadata" / "provenance" / "primary.cwlprov.nt"
     assert prov_file.is_file(), f"Can't find {prov_file}"
@@ -512,10 +562,20 @@ def check_prov(
     ) in g, "Engine not declared as SoftwareAgent"
 
     # run should be associated to the user
+    accounts = set(g.subjects(RDF.type, FOAF.OnlineAccount))
+    assert len(accounts) == 1
+    account = accounts.pop()
     people = set(g.subjects(RDF.type, SCHEMA.Person))
     assert len(people) == 1, "Can't find associated person in workflow run"
     person = people.pop()
-    assert person == URIRef(TEST_ORCID)
+    if with_orcid:
+        assert person == URIRef(TEST_ORCID)
+    else:
+        account_names = set(g.objects(account, FOAF.accountName))
+        assert len(account_names) == 1
+        account_name = account_names.pop()
+        machine_user = provenance._whoami()[0]
+        assert account_name.value == machine_user
 
     # find the random UUID assigned to cwltool
     tool_agents = set(g.subjects(RDF.type, PROV.SoftwareAgent))
@@ -528,9 +588,8 @@ def check_prov(
     agents.remove(engine)  # the main tool
     remain_agents = agents - tool_agents
     assert len(remain_agents) == 1
-    cwltool_agent = remain_agents.pop()
     assert (
-        cwltool_agent,
+        account,
         PROV.actedOnBehalfOf,
         person,
     ) in g, "Association of cwltool agent acting for user is missing"

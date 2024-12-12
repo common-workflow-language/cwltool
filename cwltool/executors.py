@@ -195,8 +195,11 @@ class SingleJobExecutor(JobExecutor):
         if not isinstance(process, Workflow) and runtime_context.research_obj is not None:
             process.provenance_object = runtime_context.research_obj.initialize_provenance(
                 full_name=runtime_context.cwl_full_name,
-                host_provenance=False,
-                user_provenance=False,
+                # following are only set from main when directly command line tool
+                # when nested in a workflow, they should be disabled since they would
+                # already have been provided/initialized by the parent workflow prov-obj
+                host_provenance=runtime_context.prov_host,
+                user_provenance=runtime_context.prov_user,
                 orcid=runtime_context.orcid,
                 # single tool execution, so RO UUID = wf UUID = tool UUID
                 run_uuid=runtime_context.research_obj.ro_uuid,

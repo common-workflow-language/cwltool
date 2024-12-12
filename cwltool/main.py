@@ -1060,6 +1060,11 @@ def main(
 
         loadingContext = setup_loadingContext(loadingContext, runtimeContext, args)
 
+        if loadingContext.research_obj:
+            # early forward parameters required for a single command line tool
+            runtimeContext.prov_host = loadingContext.host_provenance
+            runtimeContext.prov_user = loadingContext.user_provenance
+
         uri, tool_file_uri = resolve_tool_uri(
             args.workflow,
             resolver=loadingContext.resolver,

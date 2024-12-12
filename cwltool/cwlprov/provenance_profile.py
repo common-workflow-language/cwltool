@@ -27,7 +27,6 @@ from .provenance_constants import (
     ORE,
     PROVENANCE,
     RO,
-    SCHEMA,
     SHA1,
     SHA256,
     TEXT_PLAIN,
@@ -144,25 +143,10 @@ class ProvenanceProfile:
         # .. but we always know cwltool was launched (directly or indirectly)
         # by a user account, as cwltool is a command line tool
         account = self.document.agent(ACCOUNT_UUID)
-        if self.orcid or self.full_name:
-            person: dict[Union[str, Identifier], Any] = {
-                PROV_TYPE: PROV["Person"],
-                "prov:type": SCHEMA["Person"],
-            }
-            if self.full_name:
-                person["prov:label"] = self.full_name
-                person["foaf:name"] = self.full_name
-                person["schema:name"] = self.full_name
-            else:
-                # TODO: Look up name from ORCID API?
-                pass
-            agent = self.document.agent(self.orcid or uuid.uuid4().urn, person)
-            self.document.actedOnBehalfOf(account, agent)
-        else:
-            if self.host_provenance:
-                self.research_object.host_provenance(self.document)
-            if self.user_provenance:
-                self.research_object.user_provenance(self.document)
+        if self.host_provenance:
+            self.research_object.host_provenance(self.document)
+        if self.user_provenance or self.orcid or self.full_name:
+            self.research_object.user_provenance(self.document)
         # The execution of cwltool
         wfengine = self.document.agent(
             self.engine_uuid,
