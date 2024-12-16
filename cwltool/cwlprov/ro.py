@@ -9,10 +9,11 @@ import urllib
 import uuid
 from collections.abc import MutableMapping, MutableSequence
 from pathlib import Path, PurePosixPath
-from typing import IO, Any, Optional, Union, cast
+from socket import getfqdn
+from typing import IO, TYPE_CHECKING, Any, Optional, Union, cast
 
 import prov.model as provM
-from prov.model import PROV, ProvDocument
+from prov.model import ProvDocument
 
 from ..loghandler import _logger
 from ..stdfsaccess import StdFsAccess
@@ -27,6 +28,7 @@ from ..utils import (
 from . import Aggregate, Annotation, AuthoredBy, _valid_orcid, _whoami, checksum_copy
 from .provenance_constants import (
     ACCOUNT_UUID,
+    CWLPROV,
     CWLPROV_VERSION,
     DATA,
     ENCODING,
@@ -35,6 +37,7 @@ from .provenance_constants import (
     METADATA,
     ORCID,
     PROVENANCE,
+    SCHEMA,
     SHA1,
     SHA256,
     SHA512,
@@ -45,6 +48,9 @@ from .provenance_constants import (
     WORKFLOW,
     Hasher,
 )
+
+if TYPE_CHECKING:
+    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
 
 class ResearchObject:
@@ -82,6 +88,34 @@ class ResearchObject:
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
 
+    def initialize_provenance(
+        self,
+        full_name: str,
+        host_provenance: bool,
+        user_provenance: bool,
+        orcid: str,
+        fsaccess: StdFsAccess,
+        run_uuid: Optional[uuid.UUID] = None,
+    ) -> "ProvenanceProfile":
+        """
+        Provide a provenance profile initialization hook function.
+
+        Allows overriding the default strategy to define the
+        provenance profile concepts and associations to extend
+        details as needed.
+        """
+        from .provenance_profile import ProvenanceProfile
+
+        return ProvenanceProfile(
+            research_object=self,
+            full_name=full_name,
+            host_provenance=host_provenance,
+            user_provenance=user_provenance,
+            orcid=orcid,
+            fsaccess=fsaccess,
+            run_uuid=run_uuid,
+        )
+
     def self_check(self) -> None:
         """Raise ValueError if this RO is closed."""
         if self.closed:
@@ -117,10 +151,22 @@ class ResearchObject:
             bag_it_file.write("BagIt-Version: 0.97\n")
             bag_it_file.write(f"Tag-File-Character-Encoding: {ENCODING}\n")
 
+    def resolve_user(self) -> tuple[str, str]:
+        """
+        Provide a user provenance hook function.
+
+        Allows overriding the default strategy to retrieve user provenance
+        in case the calling code can provide a better resolution.
+        The function must return a tuple of the (username, fullname)
+        that identifies the user. This user will be applied on top
+        to any provided ORCID or fullname by agent association.
+        """
+        return _whoami()
+
     def user_provenance(self, document: ProvDocument) -> None:
         """Add the user provenance."""
         self.self_check()
-        (username, fullname) = _whoami()
+        (username, fullname) = self.resolve_user()
 
         if not self.full_name:
             self.full_name = fullname
@@ -132,19 +178,21 @@ class ResearchObject:
             ACCOUNT_UUID,
             {
                 provM.PROV_TYPE: FOAF["OnlineAccount"],
-                "prov:label": username,
+                provM.PROV_LABEL: username,
                 FOAF["accountName"]: username,
             },
         )
 
         user = document.agent(
             self.orcid or USER_UUID,
-            {
-                provM.PROV_TYPE: PROV["Person"],
-                "prov:label": self.full_name,
-                FOAF["name"]: self.full_name,
-                FOAF["account"]: account,
-            },
+            [
+                (provM.PROV_TYPE, SCHEMA["Person"]),
+                (provM.PROV_TYPE, provM.PROV["Person"]),
+                (provM.PROV_LABEL, self.full_name),
+                (FOAF["name"], self.full_name),
+                (FOAF["account"], account),
+                (SCHEMA["name"], self.full_name),
+            ],
         )
         # cwltool may be started on the shell (directly by user),
         # by shell script (indirectly by user)
@@ -155,6 +203,35 @@ class ResearchObject:
         # acting in behalf of that user (even if we might
         # get their name wrong!)
         document.actedOnBehalfOf(account, user)
+
+    def resolve_host(self) -> tuple[str, str]:
+        """
+        Provide a host provenance hook function.
+
+        Allows overriding the default strategy to retrieve host provenance
+        in case the calling code can provide a better resolution.
+        The function must return a tuple of the (fqdn, uri) that identifies the host.
+        """
+        fqdn = getfqdn()
+        return fqdn, fqdn  # allow for (fqdn, uri) to be distinct, but the same by default
+
+    def host_provenance(self, document: ProvDocument) -> None:
+        """Record host provenance."""
+        document.add_namespace(CWLPROV)
+        document.add_namespace(UUID)
+        document.add_namespace(FOAF)
+
+        hostname, uri = self.resolve_host()
+        # won't have a foaf:accountServiceHomepage for unix hosts, but
+        # we can at least provide hostname
+        document.agent(
+            ACCOUNT_UUID,
+            {
+                provM.PROV_TYPE: FOAF["OnlineAccount"],
+                provM.PROV_LOCATION: uri,
+                CWLPROV["hostname"]: hostname,
+            },
+        )
 
     def add_tagfile(self, path: str, timestamp: Optional[datetime.datetime] = None) -> None:
         """Add tag files to our research object."""

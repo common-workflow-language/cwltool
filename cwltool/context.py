@@ -183,6 +183,8 @@ class RuntimeContext(ContextBase):
         self.orcid: str = ""
         self.cwl_full_name: str = ""
         self.process_run_id: Optional[str] = None
+        self.prov_host: bool = False
+        self.prov_user: bool = False
         self.prov_obj: Optional[ProvenanceProfile] = None
         self.mpi_config: MpiConfig = MpiConfig()
         self.default_stdout: Optional[Union[IO[bytes], TextIO]] = None
