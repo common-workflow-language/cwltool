@@ -1,5 +1,7 @@
 """Tests for various command line options."""
 
+import pytest
+
 from cwltool.utils import versionstring
 
 from .util import get_data, get_main_output, needs_docker
@@ -26,9 +28,13 @@ def test_empty_cmdling() -> None:
     assert "CWL document required, no input file was provided" in stderr
 
 
-def test_tool_help() -> None:
+def test_tool_help(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test --tool-help."""
-    return_code, stdout, stderr = get_main_output(["--tool-help", get_data("tests/echo.cwl")])
+    return_code, stdout, stderr = get_main_output(
+        ["--tool-help", get_data("tests/echo.cwl")],
+        extra_env={"NO_COLOR": "1"},
+        monkeypatch=monkeypatch,
+    )
     assert return_code == 0
     assert "job_order   Job input json file" in stdout
 
