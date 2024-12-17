@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable, Union
 
 import pytest
+from packaging.version import Version
 
 from cwltool.singularity import get_version
 
@@ -133,33 +134,31 @@ class Singularity(CheckHolder):
         }
 
         # Singularity variables appear to be in flux somewhat.
-        version = get_version()[0]
-        vmajor = version[0]
-        assert vmajor == 3, "Tests only work for Singularity 3"
-        vminor = version[1]
+        version = Version(".".join(map(str, get_version()[0])))
+        assert version >= Version("3"), "Tests only work for Singularity 3+"
         sing_vars: EnvChecks = {
             "SINGULARITY_CONTAINER": None,
             "SINGULARITY_NAME": None,
         }
-        if vminor < 5:
+        if version < Version("3.5"):
             sing_vars["SINGULARITY_APPNAME"] = None
-        if vminor >= 5:
+        if (version >= Version("3.5")) and (version < Version("3.6")):
+            sing_vars["SINGULARITY_INIT"] = "1"
+        if version >= Version("3.5"):
             sing_vars["PROMPT_COMMAND"] = None
             sing_vars["SINGULARITY_ENVIRONMENT"] = None
-        if vminor == 5:
-            sing_vars["SINGULARITY_INIT"] = "1"
-        elif vminor > 5:
+        if version >= Version("3.6"):
             sing_vars["SINGULARITY_COMMAND"] = "exec"
-            if vminor >= 7:
-                if vminor > 9:
-                    sing_vars["SINGULARITY_BIND"] = ""
-                else:
+        if version >= Version("3.7"):
+            if version > Version("3.9"):
+                sing_vars["SINGULARITY_BIND"] = ""
+            else:
 
-                    def BIND(v: str, env: Env) -> bool:
-                        return v.startswith(tmp_prefix) and v.endswith(":/tmp")
+                def BIND(v: str, env: Env) -> bool:
+                    return v.startswith(tmp_prefix) and v.endswith(":/tmp")
 
-                    sing_vars["SINGULARITY_BIND"] = BIND
-        if vminor >= 10:
+                sing_vars["SINGULARITY_BIND"] = BIND
+        if version >= Version("3.10"):
             sing_vars["SINGULARITY_COMMAND"] = "run"
             sing_vars["SINGULARITY_NO_EVAL"] = None
 
