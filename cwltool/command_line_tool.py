@@ -807,10 +807,10 @@ class CommandLineTool(Process):
             cachecontext.tmpdir = "/tmp"  # nosec
             cachecontext.stagedir = "/stage"
             cachebuilder = self._init_job(job_order, cachecontext)
-            cachebuilder.pathmapper = PathMapper(
+            cachebuilder.pathmapper = self.make_path_mapper(
                 cachebuilder.files,
-                runtimeContext.basedir,
                 cachebuilder.stagedir,
+                runtimeContext,
                 separateDirs=False,
             )
             _check_adjust = partial(check_adjust, self.path_check_mode.value, cachebuilder)
