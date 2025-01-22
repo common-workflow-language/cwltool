@@ -51,7 +51,8 @@ autosectionlabel_prefix_document = True
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "schema_salad": ("https://schema-salad.readthedocs.io/en/stable/", None),
-    "rdflib": ("https://rdflib.readthedocs.io/en/6.2.0/", None),
+    "rdflib": ("https://rdflib.readthedocs.io/en/stable/", None),
+    "cwl_utils": ("https://cwl-utils.readthedocs.io/en/stable/", None),
     # "ruamel.yaml": ("https://yaml.readthedocs.io/en/stable/", None),
 }
 

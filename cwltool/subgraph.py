@@ -1,7 +1,6 @@
 import urllib
-from collections import namedtuple
 from collections.abc import Mapping, MutableMapping, MutableSequence
-from typing import Any, Optional, Union, cast
+from typing import Any, NamedTuple, Optional, Union, cast
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
@@ -11,7 +10,13 @@ from .process import Process
 from .utils import CWLObjectType, aslist
 from .workflow import Workflow, WorkflowStep
 
-Node = namedtuple("Node", ("up", "down", "type"))
+
+class _Node(NamedTuple):
+    up: list[str]
+    down: list[str]
+    type: Optional[str]
+
+
 UP = "up"
 DOWN = "down"
 INPUT = "input"
@@ -19,9 +24,9 @@ OUTPUT = "output"
 STEP = "step"
 
 
-def subgraph_visit(
+def _subgraph_visit(
     current: str,
-    nodes: MutableMapping[str, Node],
+    nodes: MutableMapping[str, _Node],
     visited: set[str],
     direction: str,
 ) -> None:
@@ -34,10 +39,10 @@ def subgraph_visit(
     if direction == UP:
         d = nodes[current].up
     for c in d:
-        subgraph_visit(c, nodes, visited, direction)
+        _subgraph_visit(c, nodes, visited, direction)
 
 
-def declare_node(nodes: dict[str, Node], nodeid: str, tp: Optional[str]) -> Node:
+def _declare_node(nodes: dict[str, _Node], nodeid: str, tp: Optional[str]) -> _Node:
     """
     Record the given nodeid in the graph.
 
@@ -47,9 +52,9 @@ def declare_node(nodes: dict[str, Node], nodeid: str, tp: Optional[str]) -> Node
     if nodeid in nodes:
         n = nodes[nodeid]
         if n.type is None:
-            nodes[nodeid] = Node(n.up, n.down, tp)
+            nodes[nodeid] = _Node(n.up, n.down, tp)
     else:
-        nodes[nodeid] = Node([], [], tp)
+        nodes[nodeid] = _Node([], [], tp)
     return nodes[nodeid]
 
 
@@ -109,22 +114,22 @@ def get_subgraph(
     if tool.tool["class"] != "Workflow":
         raise Exception("Can only extract subgraph from workflow")
 
-    nodes: dict[str, Node] = {}
+    nodes: dict[str, _Node] = {}
 
     for inp in tool.tool["inputs"]:
-        declare_node(nodes, inp["id"], INPUT)
+        _declare_node(nodes, inp["id"], INPUT)
 
     for out in tool.tool["outputs"]:
-        declare_node(nodes, out["id"], OUTPUT)
+        _declare_node(nodes, out["id"], OUTPUT)
         for i in aslist(out.get("outputSource", CommentedSeq)):
             # source is upstream from output (dependency)
             nodes[out["id"]].up.append(i)
             # output is downstream from source
-            declare_node(nodes, i, None)
+            _declare_node(nodes, i, None)
             nodes[i].down.append(out["id"])
 
     for st in tool.tool["steps"]:
-        step = declare_node(nodes, st["id"], STEP)
+        step = _declare_node(nodes, st["id"], STEP)
         for i in st["in"]:
             if "source" not in i:
                 continue
@@ -132,7 +137,7 @@ def get_subgraph(
                 # source is upstream from step (dependency)
                 step.up.append(src)
                 # step is downstream from source
-                declare_node(nodes, src, None)
+                _declare_node(nodes, src, None)
                 nodes[src].down.append(st["id"])
         for out in st["out"]:
             if isinstance(out, Mapping) and "id" in out:
@@ -140,16 +145,16 @@ def get_subgraph(
             # output is downstream from step
             step.down.append(out)
             # step is upstream from output
-            declare_node(nodes, out, None)
+            _declare_node(nodes, out, None)
             nodes[out].up.append(st["id"])
 
     # Find all the downstream nodes from the starting points
     visited_down: set[str] = set()
     for r in roots:
         if nodes[r].type == OUTPUT:
-            subgraph_visit(r, nodes, visited_down, UP)
+            _subgraph_visit(r, nodes, visited_down, UP)
         else:
-            subgraph_visit(r, nodes, visited_down, DOWN)
+            _subgraph_visit(r, nodes, visited_down, DOWN)
 
     # Now make sure all the nodes are connected to upstream inputs
     visited: set[str] = set()

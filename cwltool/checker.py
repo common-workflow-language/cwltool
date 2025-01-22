@@ -1,8 +1,7 @@
 """Static checking of CWL workflow connectivity."""
 
-from collections import namedtuple
 from collections.abc import Iterator, MutableMapping, MutableSequence, Sized
-from typing import Any, Literal, Optional, Union, cast
+from typing import Any, Literal, NamedTuple, Optional, Union, cast
 
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
@@ -184,8 +183,8 @@ def static_checker(
     for param in workflow_inputs + step_outputs:
         src_dict[cast(str, param["id"])] = param
 
-    step_inputs_val = check_all_types(src_dict, step_inputs, "source", param_to_step)
-    workflow_outputs_val = check_all_types(
+    step_inputs_val = _check_all_types(src_dict, step_inputs, "source", param_to_step)
+    workflow_outputs_val = _check_all_types(
         src_dict, workflow_outputs, "outputSource", param_to_step
     )
 
@@ -199,27 +198,34 @@ def static_checker(
         sink = warning.sink
         linkMerge = warning.linkMerge
         sinksf = sorted(
-            p["pattern"] for p in sink.get("secondaryFiles", []) if p.get("required", True)
+            cast(str, p["pattern"])
+            for p in cast(MutableSequence[CWLObjectType], sink.get("secondaryFiles", []))
+            if p.get("required", True)
         )
-        srcsf = sorted(p["pattern"] for p in src.get("secondaryFiles", []))
+        srcsf = sorted(
+            cast(str, p["pattern"])
+            for p in cast(MutableSequence[CWLObjectType], src.get("secondaryFiles", []))
+        )
         # Every secondaryFile required by the sink, should be declared
         # by the source
         missing = missing_subset(srcsf, sinksf)
+        src_name = shortname(cast(str, src["id"]))
+        sink_id = cast(str, sink["id"])
+        sink_name = shortname(sink_id)
         if missing:
             msg1 = "Parameter '{}' requires secondaryFiles {} but".format(
-                shortname(sink["id"]),
+                sink_name,
                 missing,
             )
             msg3 = SourceLine(src, "id").makeError(
-                "source '%s' does not provide those secondaryFiles." % (shortname(src["id"]))
+                "source '%s' does not provide those secondaryFiles." % (src_name)
             )
             msg4 = SourceLine(src.get("_tool_entry", src), "secondaryFiles").makeError(
                 "To resolve, add missing secondaryFiles patterns to definition of '%s' or"
-                % (shortname(src["id"]))
+                % (src_name)
             )
             msg5 = SourceLine(sink.get("_tool_entry", sink), "secondaryFiles").makeError(
-                "mark missing secondaryFiles in definition of '%s' as optional."
-                % shortname(sink["id"])
+                "mark missing secondaryFiles in definition of '%s' as optional." % (sink_name)
             )
             msg = SourceLine(sink).makeError(
                 "{}\n{}".format(msg1, bullets([msg3, msg4, msg5], "  "))
@@ -229,13 +235,13 @@ def static_checker(
                 msg = SourceLine(sink, "type").makeError(
                     "'%s' is not an input parameter of %s, expected %s"
                     % (
-                        shortname(sink["id"]),
-                        param_to_step[sink["id"]]["run"],
+                        sink_name,
+                        param_to_step[sink_id]["run"],
                         ", ".join(
                             shortname(cast(str, s["id"]))
                             for s in cast(
                                 list[dict[str, Union[str, bool]]],
-                                param_to_step[sink["id"]]["inputs"],
+                                param_to_step[sink_id]["inputs"],
                             )
                             if not s.get("not_connected")
                         ),
@@ -247,12 +253,11 @@ def static_checker(
             msg = (
                 SourceLine(src, "type").makeError(
                     "Source '%s' of type %s may be incompatible"
-                    % (shortname(src["id"]), json_dumps(src["type"]))
+                    % (src_name, json_dumps(src["type"]))
                 )
                 + "\n"
                 + SourceLine(sink, "type").makeError(
-                    "  with sink '%s' of type %s"
-                    % (shortname(sink["id"]), json_dumps(sink["type"]))
+                    "  with sink '%s' of type %s" % (sink_name, json_dumps(sink["type"]))
                 )
             )
             if linkMerge is not None:
@@ -274,12 +279,12 @@ def static_checker(
         msg = (
             SourceLine(src, "type").makeError(
                 "Source '%s' of type %s is incompatible"
-                % (shortname(src["id"]), json_dumps(src["type"]))
+                % (shortname(cast(str, src["id"])), json_dumps(src["type"]))
             )
             + "\n"
             + SourceLine(sink, "type").makeError(
                 "  with sink '{}' of type {}".format(
-                    shortname(sink["id"]), json_dumps(sink["type"])
+                    shortname(cast(str, sink["id"])), json_dumps(sink["type"])
                 )
             )
         )
@@ -291,16 +296,17 @@ def static_checker(
         exception_msgs.append(msg)
 
     for sink in step_inputs:
+        sink_type = cast(Union[str, list[str], list[CWLObjectType], CWLObjectType], sink["type"])
         if (
-            "null" != sink["type"]
-            and "null" not in sink["type"]
+            "null" != sink_type
+            and "null" not in sink_type
             and "source" not in sink
             and "default" not in sink
             and "valueFrom" not in sink
         ):
             msg = SourceLine(sink).makeError(
                 "Required parameter '%s' does not have source, default, or valueFrom expression"
-                % shortname(sink["id"])
+                % shortname(cast(str, sink["id"]))
             )
             exception_msgs.append(msg)
 
@@ -313,15 +319,21 @@ def static_checker(
         raise ValidationException(all_exception_msg)
 
 
-SrcSink = namedtuple("SrcSink", ["src", "sink", "linkMerge", "message"])
+class _SrcSink(NamedTuple):
+    """An error or warning message about a connection between two points of the workflow graph."""
+
+    src: CWLObjectType
+    sink: CWLObjectType
+    linkMerge: Optional[str]
+    message: Optional[str]
 
 
-def check_all_types(
+def _check_all_types(
     src_dict: dict[str, CWLObjectType],
     sinks: MutableSequence[CWLObjectType],
     sourceField: Union[Literal["source"], Literal["outputSource"]],
     param_to_step: dict[str, CWLObjectType],
-) -> dict[str, list[SrcSink]]:
+) -> dict[str, list[_SrcSink]]:
     """
     Given a list of sinks, check if their types match with the types of their sources.
 
@@ -329,7 +341,7 @@ def check_all_types(
                                (from :py:func:`check_types`)
     :raises ValidationException: if a sourceField is missing
     """
-    validation: dict[str, list[SrcSink]] = {"warning": [], "exception": []}
+    validation: dict[str, list[_SrcSink]] = {"warning": [], "exception": []}
     for sink in sinks:
         if sourceField in sink:
             valueFrom = cast(Optional[str], sink.get("valueFrom"))
@@ -356,7 +368,7 @@ def check_all_types(
                     srcs_of_sink += [src_dict[parm_id]]
                     if is_conditional_step(param_to_step, parm_id) and pickValue is None:
                         validation["warning"].append(
-                            SrcSink(
+                            _SrcSink(
                                 src_dict[parm_id],
                                 sink,
                                 linkMerge,
@@ -380,7 +392,7 @@ def check_all_types(
 
                 if pickValue is not None:
                     validation["warning"].append(
-                        SrcSink(
+                        _SrcSink(
                             src_dict[parm_id],
                             sink,
                             linkMerge,
@@ -399,7 +411,7 @@ def check_all_types(
                         Union[list[str], CWLObjectType], snk_typ
                     ):  # Given our type names this works even if not a list
                         validation["warning"].append(
-                            SrcSink(
+                            _SrcSink(
                                 src_dict[parm_id],
                                 sink,
                                 linkMerge,
@@ -419,11 +431,11 @@ def check_all_types(
                 check_result = check_types(src, sink, linkMerge, valueFrom)
                 if check_result == "warning":
                     validation["warning"].append(
-                        SrcSink(src, sink, linkMerge, message=extra_message)
+                        _SrcSink(src, sink, linkMerge, message=extra_message)
                     )
                 elif check_result == "exception":
                     validation["exception"].append(
-                        SrcSink(src, sink, linkMerge, message=extra_message)
+                        _SrcSink(src, sink, linkMerge, message=extra_message)
                     )
 
     return validation

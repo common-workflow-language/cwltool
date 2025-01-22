@@ -10,6 +10,7 @@ import subprocess
 import sys
 from collections.abc import Generator, Mapping
 from contextlib import ExitStack
+from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -18,7 +19,6 @@ import pytest
 from cwltool.env_to_stdout import deserialize_env
 from cwltool.main import main
 from cwltool.singularity import is_version_2_6, is_version_3_or_newer
-from cwltool.utils import as_file, files
 
 
 def force_default_container(default_container_id: str, _: str) -> str:

@@ -11,6 +11,13 @@ to avoid breaking the interface for other code.
 from cwl_utils.errors import GraphTargetMissingException as GraphTargetMissingException
 from cwl_utils.errors import WorkflowException as WorkflowException
 
+__all__ = (
+    "GraphTargetMissingException",
+    "WorkflowException",
+    "UnsupportedRequirement",
+    "ArgumentException",
+)
+
 
 class UnsupportedRequirement(WorkflowException):
     pass

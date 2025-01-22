@@ -4,6 +4,7 @@ import json
 import os.path
 import sys
 from collections.abc import Generator, MutableMapping
+from importlib.resources import files
 from io import StringIO
 from pathlib import Path
 from typing import Any, Optional
@@ -20,7 +21,6 @@ from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.main import main
 from cwltool.mpi import MpiConfig, MPIRequirementName
-from cwltool.utils import files
 
 from .util import get_data, working_directory
 

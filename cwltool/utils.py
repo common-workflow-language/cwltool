@@ -23,7 +23,6 @@ from collections.abc import Generator, Iterable, MutableMapping, MutableSequence
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from functools import partial
-from importlib.resources import as_file, files
 from itertools import zip_longest
 from pathlib import Path, PurePosixPath
 from tempfile import NamedTemporaryFile
@@ -53,8 +52,6 @@ if TYPE_CHECKING:
     from .job import CommandLineJob, JobBase
     from .stdfsaccess import StdFsAccess
     from .workflow_job import WorkflowJob
-
-__all__ = ["files", "as_file"]
 
 __random_outdir: Optional[str] = None
 
