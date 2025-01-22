@@ -1,10 +1,16 @@
-from collections import namedtuple
-from typing import cast
+"""Support for InplaceUpdateRequirement."""
+
+from typing import NamedTuple, cast
 
 from .errors import WorkflowException
 from .utils import CWLObjectType
 
-MutationState = namedtuple("MutationState", ["generation", "readers", "stepname"])
+
+class _MutationState(NamedTuple):
+    generation: int
+    readers: list[str]
+    stepname: str
+
 
 _generation = "http://commonwl.org/cwltool#generation"
 
@@ -20,11 +26,11 @@ class MutationManager:
 
     def __init__(self) -> None:
         """Initialize."""
-        self.generations: dict[str, MutationState] = {}
+        self.generations: dict[str, _MutationState] = {}
 
     def register_reader(self, stepname: str, obj: CWLObjectType) -> None:
         loc = cast(str, obj["location"])
-        current = self.generations.get(loc, MutationState(0, [], ""))
+        current = self.generations.get(loc, _MutationState(0, [], ""))
         obj_generation = obj.get(_generation, 0)
 
         if obj_generation != current.generation:
@@ -40,7 +46,7 @@ class MutationManager:
 
     def release_reader(self, stepname: str, obj: CWLObjectType) -> None:
         loc = cast(str, obj["location"])
-        current = self.generations.get(loc, MutationState(0, [], ""))
+        current = self.generations.get(loc, _MutationState(0, [], ""))
         obj_generation = obj.get(_generation, 0)
 
         if obj_generation != current.generation:
@@ -55,7 +61,7 @@ class MutationManager:
 
     def register_mutation(self, stepname: str, obj: CWLObjectType) -> None:
         loc = cast(str, obj["location"])
-        current = self.generations.get(loc, MutationState(0, [], ""))
+        current = self.generations.get(loc, _MutationState(0, [], ""))
         obj_generation = obj.get(_generation, 0)
 
         if len(current.readers) > 0:
@@ -73,11 +79,11 @@ class MutationManager:
                 )
             )
 
-        self.generations[loc] = MutationState(current.generation + 1, current.readers, stepname)
+        self.generations[loc] = _MutationState(current.generation + 1, current.readers, stepname)
 
     def set_generation(self, obj: CWLObjectType) -> None:
         loc = cast(str, obj["location"])
-        current = self.generations.get(loc, MutationState(0, [], ""))
+        current = self.generations.get(loc, _MutationState(0, [], ""))
         obj[_generation] = current.generation
 
     def unset_generation(self, obj: CWLObjectType) -> None:

@@ -14,6 +14,7 @@ import textwrap
 import urllib.parse
 import uuid
 from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence, Sized
+from importlib.resources import files
 from os import scandir
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
 
@@ -54,7 +55,6 @@ from .utils import (
     aslist,
     cmp_like_py2,
     ensure_writable,
-    files,
     get_listing,
     normalizeFilesDirs,
     random_outdir,
@@ -230,7 +230,7 @@ def stage_files(
     items = pathmapper.items() if not symlink else pathmapper.items_exclude_children()
     targets: dict[str, MapperEnt] = {}
     for key, entry in list(items):
-        if "File" not in entry.type:
+        if entry.type is None or "File" not in entry.type:
             continue
         if entry.target not in targets:
             targets[entry.target] = entry

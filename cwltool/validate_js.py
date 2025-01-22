@@ -2,9 +2,9 @@ import copy
 import itertools
 import json
 import logging
-from collections import namedtuple
 from collections.abc import MutableMapping, MutableSequence
-from typing import Any, Optional, Union, cast
+from importlib.resources import files
+from typing import Any, NamedTuple, Optional, Union, cast
 
 from cwl_utils.errors import SubstitutionError
 from cwl_utils.expression import scanner as scan_expression
@@ -23,7 +23,6 @@ from schema_salad.validate import validate_ex
 
 from .errors import WorkflowException
 from .loghandler import _logger
-from .utils import files
 
 
 def is_expression(tool: Any, schema: Optional[Schema]) -> bool:
@@ -110,7 +109,11 @@ def get_expressions(
         return []
 
 
-JSHintJSReturn = namedtuple("JSHintJSReturn", ["errors", "globals"])
+class JSHintJSReturn(NamedTuple):
+    """List of errors and the final values of the globals from running javascript."""
+
+    errors: list[str]
+    globals: list[str]
 
 
 def jshint_js(

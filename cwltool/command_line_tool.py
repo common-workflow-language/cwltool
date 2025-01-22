@@ -276,7 +276,7 @@ def revmap_file(builder: Builder, outdir: str, f: CWLObjectType) -> Optional[CWL
             )
         revmap_f = builder.pathmapper.reversemap(path)
 
-        if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):
+        if revmap_f and not builder.pathmapper.mapper(revmap_f[0]).type.startswith("Writable"):  # type: ignore[union-attr]
             f["location"] = revmap_f[1]
         elif (
             uripath == outdir

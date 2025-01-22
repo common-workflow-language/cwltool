@@ -16,6 +16,7 @@ import urllib
 import warnings
 from codecs import getwriter
 from collections.abc import Mapping, MutableMapping, MutableSequence, Sized
+from importlib.resources import files
 from typing import IO, Any, Callable, Optional, Union, cast
 
 import argcomplete
@@ -96,7 +97,6 @@ from .utils import (
     CWLOutputType,
     HasReqsHints,
     adjustDirObjs,
-    files,
     normalizeFilesDirs,
     processes_to_kill,
     trim_listing,
