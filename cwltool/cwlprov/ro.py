@@ -668,7 +668,7 @@ class ResearchObject:
                     del structure["path"]
 
             if structure.get("class") == "Directory":
-                # TODO: Generate anonymoys Directory with a "listing"
+                # TODO: Generate anonymous Directory with a "listing"
                 # pointing to the hashed files
                 del structure["location"]
 
