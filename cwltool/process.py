@@ -305,7 +305,7 @@ def relocateOutputs(
         return outputObj
 
     def _collectDirEntries(
-        obj: Union[CWLObjectType, MutableSequence[CWLObjectType], None]
+        obj: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
     ) -> Iterator[CWLObjectType]:
         if isinstance(obj, dict):
             if obj.get("class") in ("File", "Directory"):

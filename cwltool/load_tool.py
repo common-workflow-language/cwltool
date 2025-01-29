@@ -142,7 +142,7 @@ def fetch_document(
 
 
 def _convert_stdstreams_to_files(
-    workflowobj: Union[CWLObjectType, MutableSequence[Union[CWLObjectType, str, int]], str]
+    workflowobj: Union[CWLObjectType, MutableSequence[Union[CWLObjectType, str, int]], str],
 ) -> None:
     if isinstance(workflowobj, MutableMapping):
         if workflowobj.get("class") == "CommandLineTool":
@@ -219,7 +219,7 @@ def _convert_stdstreams_to_files(
 
 
 def _add_blank_ids(
-    workflowobj: Union[CWLObjectType, MutableSequence[Union[CWLObjectType, str]]]
+    workflowobj: Union[CWLObjectType, MutableSequence[Union[CWLObjectType, str]]],
 ) -> None:
     if isinstance(workflowobj, MutableMapping):
         if (
@@ -247,7 +247,7 @@ def _add_blank_ids(
 
 
 def _fast_parser_convert_stdstreams_to_files(
-    processobj: Union[cwl_v1_2.Process, MutableSequence[cwl_v1_2.Process]]
+    processobj: Union[cwl_v1_2.Process, MutableSequence[cwl_v1_2.Process]],
 ) -> None:
     if isinstance(processobj, cwl_v1_2.CommandLineTool):
         cwl_v1_2_utils.convert_stdstreams_to_files(processobj)

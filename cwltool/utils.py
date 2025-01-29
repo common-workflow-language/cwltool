@@ -398,7 +398,7 @@ def normalizeFilesDirs(
             MutableMapping[str, Any],
             DirectoryType,
         ]
-    ]
+    ],
 ) -> None:
     def addLocation(d: dict[str, Any]) -> None:
         if "location" not in d:
