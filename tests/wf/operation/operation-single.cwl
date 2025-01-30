@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 class: Workflow
 cwlVersion: v1.2
 id: abstract_cosifer_workflow

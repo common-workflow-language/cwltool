@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 label: FeatureFinderIdentification
 doc: ""
 inputs:

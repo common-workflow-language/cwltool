@@ -70,7 +70,7 @@ def test_validate_quiet() -> None:
     stdout = re.sub(r"\s\s+", " ", stdout)
     assert "INFO" not in stdout
     assert "INFO" not in stderr
-    assert "tests/CometAdapter.cwl:9:3: object id" in stdout
+    assert "tests/CometAdapter.cwl:10:3: object id" in stdout
     assert "tests/CometAdapter.cwl#out' previously defined" in stdout
 
 
@@ -119,9 +119,9 @@ def test_validate_custom_logger() -> None:
     assert "WARNING" not in stdout
     assert "WARNING" not in stderr
     assert "WARNING" in custom_log_text
-    assert "tests/CometAdapter.cwl:9:3: object id" not in stdout
-    assert "tests/CometAdapter.cwl:9:3: object id" not in stderr
-    assert "tests/CometAdapter.cwl:9:3: object id" in custom_log_text
+    assert "tests/CometAdapter.cwl:10:3: object id" not in stdout
+    assert "tests/CometAdapter.cwl:10:3: object id" not in stderr
+    assert "tests/CometAdapter.cwl:10:3: object id" in custom_log_text
     assert "tests/CometAdapter.cwl#out' previously defined" not in stdout
     assert "tests/CometAdapter.cwl#out' previously defined" not in stderr
     assert "tests/CometAdapter.cwl#out' previously defined" in custom_log_text
