@@ -1878,7 +1878,7 @@ def test_invalid_nested_array() -> None:
     stdout = re.sub(r"\s\s+", " ", stdout)
     assert "Tool definition failed validation:" in stdout
     assert (
-        "tests/nested-array.cwl:6:5: Field 'type' references unknown identifier 'string[][]'"
+        "tests/nested-array.cwl:7:5: Field 'type' references unknown identifier 'string[][]'"
     ) in stdout
 
 

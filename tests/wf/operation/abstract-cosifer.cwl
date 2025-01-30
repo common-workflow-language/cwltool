@@ -1,3 +1,4 @@
+#!/usr/bin/env cwl-runner
 class: Operation
 cwlVersion: v1.2
 
