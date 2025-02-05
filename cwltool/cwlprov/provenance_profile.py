@@ -546,7 +546,7 @@ class ProvenanceProfile:
             # FIXME: list value does not support adding "@id"
             return coll
         except TypeError:
-            _logger.warning("Unrecognized type %s of %r", type(value), value)
+            _logger.warning("Unrecognized type %s of %r", type(value), value, exc_info=True)
             # Let's just fall back to Python repr()
             entity = self.document.entity(uuid.uuid4().urn, {PROV_LABEL: repr(value)})
             self.research_object.add_uri(entity.identifier.uri)

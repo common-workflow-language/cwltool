@@ -376,17 +376,30 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         except OSError as e:
             if e.errno == 2:
                 if runtime:
-                    _logger.error("'%s' not found: %s", runtime[0], str(e))
+                    _logger.error(
+                        "'%s' not found: %s", runtime[0], str(e), exc_info=runtimeContext.debug
+                    )
                 else:
-                    _logger.error("'%s' not found: %s", self.command_line[0], str(e))
+                    _logger.error(
+                        "'%s' not found: %s",
+                        self.command_line[0],
+                        str(e),
+                        exc_info=runtimeContext.debug,
+                    )
             else:
-                _logger.exception("Exception while running job")
+                _logger.exception(
+                    "Exception while running job: %s", str(e), exc_info=runtimeContext.debug
+                )
             processStatus = "permanentFail"
         except WorkflowException as err:
-            _logger.error("[job %s] Job error:\n%s", self.name, str(err))
+            _logger.error(
+                "[job %s] Job error:\n%s", self.name, str(err), exc_info=runtimeContext.debug
+            )
             processStatus = "permanentFail"
-        except Exception:
-            _logger.exception("Exception while running job")
+        except Exception as err:
+            _logger.exception(
+                "Exception while running job: %s.", str(err), exc_info=runtimeContext.debug
+            )
             processStatus = "permanentFail"
         if (
             runtimeContext.research_obj is not None
@@ -795,7 +808,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     )
             except Exception as err:
                 container = "Singularity" if runtimeContext.singularity else "Docker"
-                _logger.debug("%s error", container, exc_info=True)
+                _logger.debug("%s error", container, exc_info=runtimeContext.debug)
                 if docker_is_req:
                     raise UnsupportedRequirement(
                         f"{container} is required to run this tool: {str(err)}"

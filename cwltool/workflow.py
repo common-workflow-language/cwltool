@@ -442,7 +442,9 @@ class WorkflowStep(Process):
                 runtimeContext,
             )
         except WorkflowException:
-            _logger.error("Exception on step '%s'", runtimeContext.name)
+            _logger.error(
+                "Exception on step '%s'", runtimeContext.name, exc_info=runtimeContext.debug
+            )
             raise
         except Exception as exc:
             _logger.exception("Unexpected exception")

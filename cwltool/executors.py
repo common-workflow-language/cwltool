@@ -326,7 +326,10 @@ class MultithreadedJobExecutor(JobExecutor):
             self.exceptions.append(err)
         except Exception as err:  # pylint: disable=broad-except
             _logger.exception(f"Got workflow error: {err}")
-            self.exceptions.append(WorkflowException(str(err)))
+            wf_exc = WorkflowException(str(err))
+            wf_exc.__cause__ = err
+            wf_exc.__suppress_context__ = True
+            self.exceptions.append(wf_exc)
         finally:
             if runtime_context.workflow_eval_lock:
                 with runtime_context.workflow_eval_lock:
