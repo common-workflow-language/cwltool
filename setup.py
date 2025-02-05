@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Setup for the reference implementation of the CWL standards."""
+import glob
 import os
 import sys
 import warnings
+from typing import TYPE_CHECKING, Any
 
-from setuptools import setup
+from setuptools import Extension, setup
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeGuard
 
 if os.name == "nt":
     warnings.warn(
@@ -20,6 +25,31 @@ if os.name == "nt":
         stacklevel=1,
     )
 
+
+def _is_list_of_setuptools_extension(items: list[Any]) -> "TypeGuard[list[Extension]]":
+    return all(isinstance(item, Extension) for item in items)
+
+
+def _find_package_data(base: str, globs: list[str], root: str = "cwltool") -> list[str]:
+    """
+    Find all interesting data files, for setup(package_data=).
+
+    Arguments:
+      root:  The directory to search in.
+      globs: A list of glob patterns to accept files.
+    """
+    rv_dirs = [root for root, dirs, files in os.walk(base)]
+    rv = []
+    for rv_dir in rv_dirs:
+        files = []
+        for pat in globs:
+            files += glob.glob(os.path.join(rv_dir, pat))
+        if not files:
+            continue
+        rv.extend([os.path.relpath(f, root) for f in files])
+    return rv
+
+
 SETUP_DIR = os.path.dirname(__file__)
 README = os.path.join(SETUP_DIR, "README.rst")
 
@@ -34,54 +64,49 @@ if os.getenv("CWLTOOL_USE_MYPYC", None) == "1":
     USE_MYPYC = True
 
 if USE_MYPYC:
-    mypyc_targets = [
-        "cwltool/argparser.py",
-        "cwltool/builder.py",
-        "cwltool/checker.py",
-        "cwltool/command_line_tool.py",
-        # "cwltool/context.py",  # monkeypatching
-        "cwltool/cwlrdf.py",
-        "cwltool/docker_id.py",
-        "cwltool/docker.py",
-        "cwltool/udocker.py",
-        "cwltool/errors.py",
-        "cwltool/executors.py",
-        "cwltool/factory.py",
-        "cwltool/flatten.py",
-        # "cwltool/__init__.py",
-        "cwltool/job.py",
-        "cwltool/load_tool.py",
-        # "cwltool/loghandler.py",  # so we can monkeypatch the logger from tests
-        # "cwltool/__main__.py",
-        "cwltool/main.py",
-        "cwltool/mutation.py",
-        "cwltool/pack.py",
-        "cwltool/pathmapper.py",
-        "cwltool/process.py",
-        "cwltool/procgenerator.py",
-        # "cwltool/cwlprov/__init__.py",
-        "cwltool/cwlprov/provenance_constants.py",
-        "cwltool/cwlprov/provenance_profile.py",
-        "cwltool/cwlprov/ro.py",
-        # "cwltool/cwlprov/writablebagfile.py",  # WritableBag is having issues
-        "cwltool/resolver.py",
-        "cwltool/secrets.py",
-        "cwltool/singularity.py",
-        "cwltool/software_requirements.py",
-        # "cwltool/stdfsaccess.py",  # StdFsAccess needs to be subclassable
-        "cwltool/subgraph.py",
-        "cwltool/update.py",
-        "cwltool/utils.py",
-        "cwltool/validate_js.py",
-        "cwltool/workflow.py",
-    ]
+    mypyc_skiplist = tuple(
+        os.path.join("cwltool", x)
+        for x in (
+            "context.py",  # monkeypatching
+            "__init__.py",
+            "loghandler.py",  # so we can monkeypatch the logger from tests
+            "__main__.py",
+            "cwlprov/__init__.py",
+            "cuda.py",  # for monkeypatch
+            "run_job.py",
+            "cwlprov/writablebagfile.py",  # WritableBag is having issues
+            "stdfsaccess.py",  # StdFsAccess needs to be subclassable
+        )
+    )
 
-    from mypyc.build import mypycify  # type: ignore[import-untyped]
+    everything = [os.path.join("cwltool", x) for x in _find_package_data("cwltool", ["*.py"])]
+    # Start with all the .py files
+    all_real_pys = [
+        x for x in everything if not x.startswith(os.path.join("mypy", "typeshed") + os.sep)
+    ]
+    # Strip out anything in our skiplist
+    mypyc_targets = [x for x in all_real_pys if x not in mypyc_skiplist]
+
+    # Strip out any test code
+    mypyc_targets = [x for x in mypyc_targets if not x.startswith(("tests" + os.sep))]
+
+    mypyc_targets.sort()
+
+    from mypyc.build import mypycify
 
     opt_level = os.getenv("MYPYC_OPT_LEVEL", "3")
-    ext_modules = mypycify(mypyc_targets, opt_level=opt_level)
+    debug_level = os.getenv("MYPYC_DEBUG_LEVEL", "1")
+    force_multifile = os.getenv("MYPYC_MULTI_FILE", "") == "1"
+    ext_modules = mypycify(
+        mypyc_targets,
+        opt_level=opt_level,
+        debug_level=debug_level,
+        multi_file=force_multifile,
+    )
 else:
     ext_modules = []
+
+assert _is_list_of_setuptools_extension(ext_modules), "Expected mypycify to use setuptools"
 
 setup(
     name="cwltool",
