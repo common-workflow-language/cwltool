@@ -57,7 +57,7 @@ class ProcessGeneratorJob:
         except WorkflowException:
             raise
         except Exception as exc:
-            _logger.exception("Unexpected exception")
+            _logger.exception("Unexpected exception", exc_info=runtimeContext.debug)
             raise WorkflowException(str(exc)) from exc
 
 
@@ -80,7 +80,7 @@ class ProcessGenerator(Process):
                 self.embedded_tool = load_tool(toolpath_object["run"], loadingContext)
         except ValidationException as vexc:
             if loadingContext.debug:
-                _logger.exception("Validation exception")
+                _logger.exception("Validation exception", exc_info=loadingContext.debug)
             raise WorkflowException(
                 "Tool definition %s failed validation:\n%s"
                 % (toolpath_object["run"], indent(str(vexc)))
@@ -108,7 +108,7 @@ class ProcessGenerator(Process):
             )
         except ValidationException as vexc:
             if runtimeContext.debug:
-                _logger.exception("Validation exception")
+                _logger.exception("Validation exception", exc_info=runtimeContext.debug)
             raise WorkflowException(
                 "Tool definition %s failed validation:\n%s"
                 % (jobout["runProcess"], indent(str(vexc)))

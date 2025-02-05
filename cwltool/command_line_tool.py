@@ -1342,7 +1342,7 @@ class CommandLineTool(Process):
                                 ]
                             )
                         except OSError as e:
-                            _logger.warning(str(e))
+                            _logger.warning(str(e), exc_info=builder.debug)
                         except Exception:
                             _logger.error("Unexpected error from fs_access", exc_info=True)
                             raise

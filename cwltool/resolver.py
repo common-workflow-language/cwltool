@@ -15,8 +15,8 @@ def resolve_local(document_loader: Optional[Loader], uri: str) -> Optional[str]:
 
     try:
         pathobj = Path(pathpart).resolve()
-    except OSError:
-        _logger.debug("local resolver could not resolve %s", uri)
+    except OSError as exc:
+        _logger.debug("local resolver could not resolve %s due to %s", uri, str(exc))
         return None
 
     if pathobj.is_file():

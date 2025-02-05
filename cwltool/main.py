@@ -1289,7 +1289,7 @@ def main(
                 if isinstance(err.code, int):
                     return err.code
                 else:
-                    _logger.debug("Non-integer SystemExit: %s", err.code)
+                    _logger.debug("Non-integer SystemExit: %s", err.code, exc_info=args.debug)
                     return 1
 
             del args.workflow
