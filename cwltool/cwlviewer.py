@@ -1,18 +1,28 @@
 """Visualize a CWL workflow."""
 
 from collections.abc import Iterator
-from pathlib import Path
+from importlib.resources import files
 from typing import cast
 from urllib.parse import urlparse
 
 import pydot
 import rdflib
 
-_queries_dir = (Path(__file__).parent / "rdfqueries").resolve()
-_get_inner_edges_query_path = _queries_dir / "get_inner_edges.sparql"
-_get_input_edges_query_path = _queries_dir / "get_input_edges.sparql"
-_get_output_edges_query_path = _queries_dir / "get_output_edges.sparql"
-_get_root_query_path = _queries_dir / "get_root.sparql"
+
+def _get_inner_edges_query() -> str:
+    return files("cwltool").joinpath("rdfqueries/get_inner_edges.sparql").read_text()
+
+
+def _get_input_edges_query() -> str:
+    return files("cwltool").joinpath("rdfqueries/get_input_edges.sparql").read_text()
+
+
+def _get_output_edges_query() -> str:
+    return files("cwltool").joinpath("rdfqueries/get_output_edges.sparql").read_text()
+
+
+def _get_root_query() -> str:
+    return files("cwltool").joinpath("rdfqueries/get_root.sparql").read_text()
 
 
 class CWLViewer:
@@ -33,8 +43,7 @@ class CWLViewer:
         return rdf_graph
 
     def _set_inner_edges(self) -> None:
-        with open(_get_inner_edges_query_path) as f:
-            get_inner_edges_query = f.read()
+        get_inner_edges_query = _get_inner_edges_query()
         inner_edges = cast(
             Iterator[rdflib.query.ResultRow],
             self._rdf_graph.query(
@@ -96,8 +105,7 @@ class CWLViewer:
             )
 
     def _set_input_edges(self) -> None:
-        with open(_get_input_edges_query_path) as f:
-            get_input_edges_query = f.read()
+        get_input_edges_query = _get_input_edges_query()
         inputs_subgraph = pydot.Subgraph(graph_name="cluster_inputs")
         self._dot_graph.add_subgraph(inputs_subgraph)
         inputs_subgraph.set("rank", "same")
@@ -124,8 +132,7 @@ class CWLViewer:
             self._dot_graph.add_edge(pydot.Edge(str(input_row["input"]), str(input_row["step"])))
 
     def _set_output_edges(self) -> None:
-        with open(_get_output_edges_query_path) as f:
-            get_output_edges = f.read()
+        get_output_edges = _get_output_edges_query()
         outputs_graph = pydot.Subgraph(graph_name="cluster_outputs")
         self._dot_graph.add_subgraph(outputs_graph)
         outputs_graph.set("rank", "same")
@@ -152,8 +159,7 @@ class CWLViewer:
             self._dot_graph.add_edge(pydot.Edge(output_edge_row["step"], output_edge_row["output"]))
 
     def _get_root_graph_uri(self) -> rdflib.term.Identifier:
-        with open(_get_root_query_path) as f:
-            get_root_query = f.read()
+        get_root_query = _get_root_query()
         root = cast(
             list[rdflib.query.ResultRow],
             list(
