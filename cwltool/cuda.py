@@ -2,6 +2,7 @@
 
 import subprocess  # nosec
 import xml.dom.minidom  # nosec
+from typing import Union
 
 from .loghandler import _logger
 from .utils import CWLObjectType
@@ -10,9 +11,9 @@ from .utils import CWLObjectType
 def cuda_version_and_device_count() -> tuple[str, int]:
     """Determine the CUDA version and number of attached CUDA GPUs."""
     try:
-        out = subprocess.check_output(["nvidia-smi", "-q", "-x"])  # nosec
+        out: Union[str, bytes] = subprocess.check_output(["nvidia-smi", "-q", "-x"])  # nosec
     except Exception as e:
-        _logger.warning("Error checking CUDA version with nvidia-smi: %s", e)
+        _logger.warning("Error checking CUDA version with nvidia-smi: %s", e, exc_info=e)
         return ("", 0)
     dm = xml.dom.minidom.parseString(out)  # nosec
 
@@ -62,5 +63,5 @@ def cuda_check(cuda_req: CWLObjectType, requestCount: int) -> int:
             return 0
         return requestCount
     except Exception as e:
-        _logger.warning("Error checking CUDA requirements: %s", e)
+        _logger.warning("Error checking CUDA requirements: %s", e, exc_info=e)
         return 0

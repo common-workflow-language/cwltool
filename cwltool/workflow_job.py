@@ -406,7 +406,7 @@ def object_from_state(
                                 ("merge_nested" if len(connections) > 1 else None),
                             ),
                         ),
-                        valueFrom=cast(str, inp.get("valueFrom")),
+                        valueFrom=cast(Optional[str], inp.get("valueFrom")),
                     ):
                         raise WorkflowException(
                             "Type mismatch between source '%s' (%s) and "
