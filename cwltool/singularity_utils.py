@@ -2,7 +2,7 @@
 
 import os
 import os.path
-from subprocess import DEVNULL, PIPE, Popen, TimeoutExpired  # nosec
+import subprocess  # nosec
 from typing import Optional
 
 _USERNS: Optional[bool] = None
@@ -14,17 +14,17 @@ def singularity_supports_userns() -> bool:
     if _USERNS is None:
         try:
             hello_image = os.path.join(os.path.dirname(__file__), "hello.simg")
-            result = Popen(  # nosec
+            result = subprocess.run(  # nosec
                 ["singularity", "exec", "--userns", hello_image, "true"],
-                stderr=PIPE,
-                stdout=DEVNULL,
-                universal_newlines=True,
-            ).communicate(timeout=60)[1]
+                capture_output=True,
+                timeout=60,
+                text=True,
+            ).stderr
             _USERNS = (
                 "No valid /bin/sh" in result
                 or "/bin/sh doesn't exist in container" in result
                 or "executable file not found in" in result
             )
-        except TimeoutExpired:
+        except subprocess.TimeoutExpired:
             _USERNS = False
     return _USERNS
