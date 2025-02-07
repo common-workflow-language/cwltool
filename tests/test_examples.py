@@ -1233,6 +1233,53 @@ def test_secondary_files_v1_0(tmp_path: Path, factor: str) -> None:
     assert error_code == 0
 
 
+@pytest.mark.parametrize("factor", test_factors)
+def test_cache_environment_variable(tmp_path: Path, factor: str) -> None:
+    """Ensure that changing the environment variables will result in different cache keys"""
+    test_file = "cache_environment_tool.cwl"
+    test_job_file = "cache_environment.yml"
+    cache_dir = str(tmp_path / "cwltool_cache")
+    commands = factor.split()
+    commands.extend(
+        [
+            "--cachedir",
+            cache_dir,
+            "--outdir",
+            str(tmp_path / "outdir"),
+            get_data("tests/" + test_file),
+            get_data(f"tests/{test_job_file}"),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
+
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Output of job will be cached in" in stderr
+    assert error_code == 0, stderr
+
+    error_code, _, stderr = get_main_output(commands)
+    assert "Output of job will be cached in" not in stderr
+    assert error_code == 0, stderr
+
+    commands = factor.split()
+    test_job_file = "cache_environment2.yml"
+    commands.extend(
+        [
+            "--cachedir",
+            cache_dir,
+            "--outdir",
+            str(tmp_path / "outdir"),
+            get_data("tests/" + test_file),
+            get_data(f"tests/{test_job_file}"),
+        ]
+    )
+
+    error_code, _, stderr = get_main_output(commands)
+
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Output of job will be cached in" in stderr
+    assert error_code == 0, stderr
+
+
 def test_write_summary(tmp_path: Path) -> None:
     """Test --write-summary."""
     commands = [
