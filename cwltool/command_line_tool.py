@@ -889,6 +889,14 @@ class CommandLineTool(Process):
                     if cls in interesting and cls not in keydict:
                         keydict[cls] = r
 
+            # If there are environmental variables to preserve, add it to the key
+            env_var_requirement = cast(dict[str, str], keydict.get("EnvVarRequirement", {}))
+            env_def = self.get_requirement("EnvVarRequirement")[0] or {}
+            if runtimeContext.preserve_environment is not None:
+                env_def.update(JobBase.extract_environment(runtimeContext, env_var_requirement))
+
+            if env_def:
+                keydict["EnvVarRequirement"] = env_def
             keydictstr = json_dumps(keydict, separators=(",", ":"), sort_keys=True)
             cachekey = hashlib.md5(keydictstr.encode("utf-8")).hexdigest()  # nosec
 
