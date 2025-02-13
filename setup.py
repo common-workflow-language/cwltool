@@ -165,7 +165,7 @@ setup(
     extras_require={
         "deps": [
             "galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<24.2",
-            "galaxy-util <24.2",
+            "galaxy-util <24.3",
         ],
     },
     python_requires=">=3.9, <3.14",
