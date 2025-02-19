@@ -881,11 +881,15 @@ class CommandLineTool(Process):
                 "ShellCommandRequirement",
                 "NetworkAccess",
             }
-            for rh in (self.original_requirements, self.original_hints):
-                for r in reversed(rh):
-                    cls = cast(str, r["class"])
-                    if cls in interesting and cls not in keydict:
-                        keydict[cls] = r
+
+            for r in self.original_requirements:
+                cls = cast(str, r["class"])
+                if cls in interesting and cls not in keydict:
+                    keydict.setdefault("requirements", {})[cls] = r
+            for h in self.original_hints:
+                cls = cast(str, h["class"])
+                if cls in interesting and cls not in keydict:
+                    keydict.setdefault("hints",{})[cls] = h
 
             keydictstr = json_dumps(keydict, separators=(",", ":"), sort_keys=True)
             cachekey = hashlib.md5(keydictstr.encode("utf-8")).hexdigest()  # nosec
