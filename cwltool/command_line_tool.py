@@ -492,7 +492,14 @@ class CommandLineTool(Process):
         for ls in cast(list[CWLObjectType], fn.get("listing", [])):
             self.updatePathmap(os.path.join(outdir, cast(str, fn["basename"])), pathmap, ls)
 
-    def _initialworkdir(self, j: JobBase, builder: Builder) -> None:
+    def _initialworkdir(self, j: Optional[JobBase], builder: Builder) -> None:
+        """
+        Test and initialize the working directory.
+
+        :param j: A :py:class:`~cwltool.job.CommandLineJob` or a
+                  specialized container-based job.
+                  If 'None', then only tests will be performed, no setup.
+        """
         initialWorkdir, _ = self.get_requirement("InitialWorkDirRequirement")
         if initialWorkdir is None:
             return
@@ -760,6 +767,9 @@ class CommandLineTool(Process):
                         "is in 'requirements'."
                     )
 
+        if j is None:
+            return  # Only testing
+
         with SourceLine(initialWorkdir, "listing", WorkflowException, debug):
             j.generatefiles["listing"] = ls
             for entry in ls:
@@ -824,6 +834,7 @@ class CommandLineTool(Process):
                 _check_adjust,
             )
             visit_class([cachebuilder.files, cachebuilder.bindings], ("File"), _checksum)
+            self._initialworkdir(None, cachebuilder)  # test the initial working directory
 
             cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
             docker_req, _ = self.get_requirement("DockerRequirement")
