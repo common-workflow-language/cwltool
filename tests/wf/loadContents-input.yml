@@ -1,0 +1,3 @@
+filelist:
+  class: File
+  location: inp-filelist.txt
