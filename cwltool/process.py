@@ -810,11 +810,46 @@ hints:
         tmpdir = ""
         stagedir = ""
 
-        docker_req, _ = self.get_requirement("DockerRequirement")
+        docker_req, docker_required = self.get_requirement("DockerRequirement")
         default_docker = None
+        mpi_req, mpi_required = self.get_requirement(MPIRequirementName)
 
         if docker_req is None and runtime_context.default_container:
             default_docker = runtime_context.default_container
+
+        if (
+            docker_req is not None
+            and runtime_context.use_container
+            and not runtime_context.singularity
+            and not runtime_context.user_space_docker_cmd
+            and mpi_req is not None
+        ):
+            if mpi_required:
+                if docker_required:
+                    raise UnsupportedRequirement(
+                        "No support for DockerRequirement and MPIRequirement "
+                        "both being required, unless Singularity or uDocker is being used."
+                    )
+                else:
+                    _logger.warning(
+                        "MPI has been required while DockerRequirement is hinted "
+                        "and neither Singularity nor uDocker is being used, discarding Docker hint(s)."
+                    )
+                    self.hints = [h for h in self.hints if h["class"] != "DockerRequirement"]
+                    docker_req = None
+                    docker_required = False
+            else:
+                if docker_required:
+                    _logger.warning(
+                        "Docker has been required (and neither Singularity nor "
+                        "uDocker is being used) while MPI is hinted, discarding MPI hint(s)/"
+                    )
+                    self.hints = [h for h in self.hints if h["class"] != MPIRequirementName]
+                else:
+                    raise UnsupportedRequirement(
+                        "Both Docker and MPI have been hinted and neither "
+                        "Singularity nor uDocker are being used - don't know what to do."
+                    )
 
         if (docker_req or default_docker) and runtime_context.use_container:
             if docker_req is not None:

@@ -204,7 +204,7 @@ def test_basic(crt_params: CheckHolder, tmp_path: Path, monkeypatch: pytest.Monk
         "USEDVAR": "VARVAL",
         "UNUSEDVAR": "VARVAL",
     }
-    args = crt_params.flags + [f"--tmpdir-prefix={tmp_prefix}"]
+    args = crt_params.flags + [f"--tmpdir-prefix={tmp_prefix}", "--debug"]
     env = get_tool_env(
         tmp_path,
         args,
