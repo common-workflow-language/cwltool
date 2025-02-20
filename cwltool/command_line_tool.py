@@ -431,28 +431,6 @@ class CommandLineTool(Process):
                 return SingularityCommandLineJob
             elif runtimeContext.user_space_docker_cmd:
                 return UDockerCommandLineJob
-            if mpiReq is not None:
-                if mpiRequired:
-                    if dockerRequired:
-                        raise UnsupportedRequirement(
-                            "No support for Docker and MPIRequirement both being required"
-                        )
-                    else:
-                        _logger.warning(
-                            "MPI has been required while Docker is hinted, discarding Docker hint(s)"
-                        )
-                        self.hints = [h for h in self.hints if h["class"] != "DockerRequirement"]
-                        return CommandLineJob
-                else:
-                    if dockerRequired:
-                        _logger.warning(
-                            "Docker has been required while MPI is hinted, discarding MPI hint(s)"
-                        )
-                        self.hints = [h for h in self.hints if h["class"] != MPIRequirementName]
-                    else:
-                        raise UnsupportedRequirement(
-                            "Both Docker and MPI have been hinted - don't know what to do"
-                        )
             if runtimeContext.podman:
                 return PodmanCommandLineJob
             return DockerCommandLineJob

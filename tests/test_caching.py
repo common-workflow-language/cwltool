@@ -10,27 +10,6 @@ test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
-def test_cid_file_non_existing_dir(tmp_path: Path, factor: str) -> None:
-    """Test that --cachedir with a bad path should produce a specific error."""
-    test_file = "cache_test_workflow.cwl"
-    bad_cidfile_dir = tmp_path / "cidfile-dir-badpath"
-    commands = factor.split()
-    commands.extend(
-        [
-            "--record-container-id",
-            "--cidfile-dir",
-            str(bad_cidfile_dir),
-            get_data("tests/wf/" + test_file),
-        ]
-    )
-    error_code, _, stderr = get_main_output(commands)
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "directory doesn't exist, please create it first" in stderr, stderr
-    assert error_code == 2 or error_code == 1, stderr
-
-
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
 def test_wf_without_container(tmp_path: Path, factor: str) -> None:
     """Confirm that we can run a workflow without a container."""
     test_file = "hello-workflow.cwl"

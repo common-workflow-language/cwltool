@@ -7,18 +7,19 @@ from collections.abc import Generator, MutableMapping
 from importlib.resources import files
 from io import StringIO
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import pytest
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import Names
+from schema_salad.ref_resolver import file_uri
 from schema_salad.utils import yaml_no_ts
 
 import cwltool.load_tool
 import cwltool.singularity
 import cwltool.udocker
 from cwltool.command_line_tool import CommandLineTool
-from cwltool.context import LoadingContext, RuntimeContext
+from cwltool.context import RuntimeContext
 from cwltool.main import main
 from cwltool.mpi import MpiConfig, MPIRequirementName
 
@@ -292,7 +293,14 @@ def schema_ext11() -> Generator[Names, None, None]:
 
 mpiReq = CommentedMap({"class": MPIRequirementName, "processes": 1})
 containerReq = CommentedMap({"class": "DockerRequirement"})
-basetool = CommentedMap({"cwlVersion": "v1.1", "inputs": CommentedSeq(), "outputs": CommentedSeq()})
+basetool = CommentedMap(
+    {
+        "cwlVersion": "v1.1",
+        "class": "CommandLineTool",
+        "inputs": CommentedSeq(),
+        "outputs": CommentedSeq(),
+    }
+)
 
 
 def mk_tool(
@@ -300,7 +308,7 @@ def mk_tool(
     opts: list[str],
     reqs: Optional[list[CommentedMap]] = None,
     hints: Optional[list[CommentedMap]] = None,
-) -> tuple[LoadingContext, RuntimeContext, CommentedMap]:
+) -> tuple[RuntimeContext, CommandLineTool]:
     tool = basetool.copy()
 
     if reqs is not None:
@@ -310,53 +318,57 @@ def mk_tool(
 
     args = cwltool.argparser.arg_parser().parse_args(opts)
     args.enable_ext = True
+    args.basedir = os.path.dirname(os.path.abspath("."))
     rc = RuntimeContext(vars(args))
     lc = cwltool.main.setup_loadingContext(None, rc, args)
     lc.avsc_names = schema
-    return lc, rc, tool
+    tool["id"] = file_uri(os.path.abspath("./mktool.cwl"))
+    assert lc.loader is not None
+    lc.loader.idx[tool["id"]] = tool
+    return rc, cast(CommandLineTool, cwltool.load_tool.load_tool(tool, lc))
 
 
 def test_singularity(schema_ext11: Names) -> None:
-    lc, rc, tool = mk_tool(schema_ext11, ["--singularity"], reqs=[mpiReq, containerReq])
-    clt = CommandLineTool(tool, lc)
+    rc, clt = mk_tool(schema_ext11, ["--singularity"], reqs=[mpiReq, containerReq])
+    clt._init_job({}, rc)
     jr = clt.make_job_runner(rc)
     assert jr is cwltool.singularity.SingularityCommandLineJob
 
 
 def test_udocker(schema_ext11: Names) -> None:
-    lc, rc, tool = mk_tool(schema_ext11, ["--udocker"], reqs=[mpiReq, containerReq])
-    clt = CommandLineTool(tool, lc)
+    rc, clt = mk_tool(schema_ext11, ["--udocker"], reqs=[mpiReq, containerReq])
+    clt._init_job({}, rc)
     jr = clt.make_job_runner(rc)
     assert jr is cwltool.udocker.UDockerCommandLineJob
 
 
 def test_docker_hint(schema_ext11: Names) -> None:
     # Docker hint, MPI required
-    lc, rc, tool = mk_tool(schema_ext11, [], hints=[containerReq], reqs=[mpiReq])
-    clt = CommandLineTool(tool, lc)
+    rc, clt = mk_tool(schema_ext11, [], hints=[containerReq], reqs=[mpiReq])
+    clt._init_job({}, rc)
     jr = clt.make_job_runner(rc)
     assert jr is cwltool.job.CommandLineJob
 
 
 def test_docker_required(schema_ext11: Names) -> None:
     # Docker required, MPI hinted
-    lc, rc, tool = mk_tool(schema_ext11, [], reqs=[containerReq], hints=[mpiReq])
-    clt = CommandLineTool(tool, lc)
+    rc, clt = mk_tool(schema_ext11, [], reqs=[containerReq], hints=[mpiReq])
+    clt._init_job({}, rc)
     jr = clt.make_job_runner(rc)
     assert jr is cwltool.docker.DockerCommandLineJob
 
 
 def test_docker_mpi_both_required(schema_ext11: Names) -> None:
     # Both required - error
-    lc, rc, tool = mk_tool(schema_ext11, [], reqs=[mpiReq, containerReq])
-    clt = CommandLineTool(tool, lc)
+    rc, clt = mk_tool(schema_ext11, [], reqs=[mpiReq, containerReq])
     with pytest.raises(cwltool.errors.UnsupportedRequirement):
-        clt.make_job_runner(rc)
+        clt._init_job({}, rc)
+    clt.make_job_runner(rc)
 
 
 def test_docker_mpi_both_hinted(schema_ext11: Names) -> None:
     # Both hinted - error
-    lc, rc, tool = mk_tool(schema_ext11, [], hints=[mpiReq, containerReq])
-    clt = CommandLineTool(tool, lc)
+    rc, clt = mk_tool(schema_ext11, [], hints=[mpiReq, containerReq])
     with pytest.raises(cwltool.errors.UnsupportedRequirement):
-        clt.make_job_runner(rc)
+        clt._init_job({}, rc)
+    clt.make_job_runner(rc)

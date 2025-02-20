@@ -1117,6 +1117,27 @@ def test_cid_file_dir_arg_is_file_instead_of_dir(tmp_path: Path, factor: str) ->
 
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
+def test_cid_file_non_existing_dir(tmp_path: Path, factor: str) -> None:
+    """Test that --cidefile-dir with a bad path should produce a specific error."""
+    test_file = "cache_test_workflow.cwl"
+    bad_cidfile_dir = tmp_path / "cidfile-dir-badpath"
+    commands = factor.split()
+    commands.extend(
+        [
+            "--record-container-id",
+            "--cidfile-dir",
+            str(bad_cidfile_dir),
+            get_data("tests/wf/" + test_file),
+        ]
+    )
+    error_code, _, stderr = get_main_output(commands)
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "directory doesn't exist, please create it first" in stderr, stderr
+    assert error_code == 2 or error_code == 1, stderr
+
+
+@needs_docker
+@pytest.mark.parametrize("factor", test_factors)
 def test_cid_file_w_prefix(tmp_path: Path, factor: str) -> None:
     """Test that --cidfile-prefix works."""
     test_file = "cache_test_workflow.cwl"
