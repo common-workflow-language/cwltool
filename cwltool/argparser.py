@@ -415,9 +415,7 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="rm_container",
     )
 
-    cidgroup = container_group.add_argument_group(
-        "Recording the Docker container identifier into a file"
-    )
+    cidgroup = parser.add_argument_group("Recording the software container identifier into a file")
     cidgroup.add_argument(
         # Disabled as containerid is now saved by default
         "--record-container-id",
@@ -430,7 +428,7 @@ def arg_parser() -> argparse.ArgumentParser:
     cidgroup.add_argument(
         "--cidfile-dir",
         type=str,
-        help="Store the Docker container ID into a file in the specified directory.",
+        help="Store the software container ID into a file in the specified directory.",
         default=None,
         dest="cidfile_dir",
     )
@@ -438,7 +436,7 @@ def arg_parser() -> argparse.ArgumentParser:
     cidgroup.add_argument(
         "--cidfile-prefix",
         type=str,
-        help="Specify a prefix to the container ID filename. "
+        help="Specify a prefix to the software container ID filename. "
         "Final file name will be followed by a timestamp. "
         "The default is no prefix.",
         default=None,
