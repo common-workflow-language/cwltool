@@ -469,6 +469,29 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         # By default, don't do anything; ContainerCommandLineJob below
         # will issue a warning.
 
+    @staticmethod
+    def extract_environment(
+        runtimeContext: RuntimeContext, envVarReq: Mapping[str, str]
+    ) -> Mapping[str, str]:
+        """Extract environment variables that should be preserved."""
+        # Start empty
+        env: dict[str, str] = {}
+        # Preserve any env vars
+        if runtimeContext.preserve_entire_environment:
+            env.update(os.environ)
+        elif runtimeContext.preserve_environment:
+            for key in runtimeContext.preserve_environment:
+                try:
+                    env[key] = os.environ[key]
+                except KeyError:
+                    _logger.warning(
+                        f"Attempting to preserve environment variable {key!r} which is not present"
+                    )
+        # Apply EnvVarRequirement
+        env.update(envVarReq)
+
+        return env
+
     def prepare_environment(
         self, runtimeContext: RuntimeContext, envVarReq: Mapping[str, str]
     ) -> None:
@@ -481,26 +504,15 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         """
         # Start empty
         env: dict[str, str] = {}
-
-        # Preserve any env vars
         if runtimeContext.preserve_entire_environment:
             self._preserve_environment_on_containers_warning()
-            env.update(os.environ)
         elif runtimeContext.preserve_environment:
             self._preserve_environment_on_containers_warning(runtimeContext.preserve_environment)
-            for key in runtimeContext.preserve_environment:
-                try:
-                    env[key] = os.environ[key]
-                except KeyError:
-                    _logger.warning(
-                        f"Attempting to preserve environment variable {key!r} which is not present"
-                    )
+
+        env.update(self.extract_environment(runtimeContext, envVarReq))
 
         # Set required env vars
         env.update(self._required_env())
-
-        # Apply EnvVarRequirement
-        env.update(envVarReq)
 
         # Set on ourselves
         self.environment = env
