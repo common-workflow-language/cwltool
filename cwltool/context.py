@@ -192,7 +192,9 @@ class RuntimeContext(ContextBase):
         self.default_stderr: Optional[Union[IO[bytes], TextIO]] = None
         self.validate_only: bool = False
         self.validate_stdout: Optional["SupportsWrite[str]"] = None
-        self.workflow_job_step_name_callback: Optional[Callable[[WorkflowJobStep, CWLObjectType], str]] = None
+        self.workflow_job_step_name_callback: Optional[
+            Callable[[WorkflowJobStep, CWLObjectType], str]
+        ] = None
 
         super().__init__(kwargs)
         if self.tmp_outdir_prefix == "":
