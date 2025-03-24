@@ -8,6 +8,7 @@ from cwltool.context import RuntimeContext
 from cwltool.factory import Factory
 from cwltool.utils import CWLObjectType
 from cwltool.workflow_job import WorkflowJobStep
+from pathlib import Path
 
 from .util import get_data, needs_docker
 
@@ -60,7 +61,7 @@ def test_workflow_job_step_name_callback() -> None:
         result = revsort(
             workflow_input={
                 "class": "File",
-                "location": get_data("tests/wf/whale.txt"),
+                "location": Path(get_data("tests/wf/whale.txt")).as_uri(),
                 "format": "https://www.iana.org/assignments/media-types/text/plain",
             }
         )
