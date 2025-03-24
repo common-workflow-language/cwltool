@@ -60,7 +60,7 @@ def test_workflow_job_step_name_callback() -> None:
         result = revsort(
             workflow_input={
                 "class": "File",
-                "location": "tests/wf/whale.txt",
+                "location": get_data("tests/wf/whale.txt"),
                 "format": "https://www.iana.org/assignments/media-types/text/plain",
             }
         )
