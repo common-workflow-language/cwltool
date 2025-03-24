@@ -33,6 +33,7 @@ def test_replace_default_stdout_stderr() -> None:
     sys.stdout = original_stdout
     sys.stderr = original_stderr
 
+
 @needs_docker
 def test_workflow_job_step_name_callback() -> None:
     """Test ability to hook custom workflow step naming"""
