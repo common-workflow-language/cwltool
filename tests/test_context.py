@@ -60,7 +60,7 @@ def test_workflow_job_step_name_callback() -> None:
         result = revsort(
             workflow_input={
                 "class": "File",
-                "location": "whale.txt",
+                "location": "tests/wf/whale.txt",
                 "format": "https://www.iana.org/assignments/media-types/text/plain",
             }
         )
@@ -72,7 +72,7 @@ def test_workflow_job_step_name_callback() -> None:
 
         assert result == {
             "sorted_output": {
-                "basename": "output.txt ",
+                "basename": "output.txt",
                 "checksum": "sha1$b9214658cc453331b62c2282b772a5c063dbd284",
                 "class": "File",
                 "http://commonwl.org/cwltool#generation": 0,
@@ -83,8 +83,6 @@ def test_workflow_job_step_name_callback() -> None:
             },
         }
 
-        print(stream.getvalue())
-
-        assert "foostep" in stream.getvalue()
+        assert "rev on whale.txt" in stream.getvalue()
     finally:
         _logger.removeHandler(streamhandler)
