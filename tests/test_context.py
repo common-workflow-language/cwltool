@@ -9,7 +9,7 @@ from cwltool.factory import Factory
 from cwltool.utils import CWLObjectType
 from cwltool.workflow_job import WorkflowJobStep
 
-from .util import get_data
+from .util import get_data, needs_docker
 
 
 def test_replace_default_stdout_stderr() -> None:
