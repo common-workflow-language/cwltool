@@ -74,6 +74,7 @@ if USE_MYPYC:
             "cwlprov/__init__.py",
             "cuda.py",  # for monkeypatch
             "run_job.py",
+            "procgenerator.py",  # for ProcessGenerator
             "cwlprov/writablebagfile.py",  # WritableBag is having issues
             "stdfsaccess.py",  # StdFsAccess needs to be subclassable
         )
@@ -150,7 +151,7 @@ setup(
         # https://github.com/ionrock/cachecontrol/issues/137
         "ruamel.yaml >= 0.16, < 0.19",
         "rdflib >= 4.2.2, < 7.2.0",
-        "schema-salad >= 8.7, < 9",
+        "schema-salad >= 8.9, < 9",
         "prov == 1.5.1",
         "mypy-extensions",
         "psutil >= 5.6.6",

@@ -7,7 +7,7 @@ requires = [
     "types-psutil",
     "importlib_resources>=1.4;python_version<'3.9'",
     "ruamel.yaml>=0.16.0,<0.19",
-    "schema-salad>=8.7,<9",
+    "schema-salad>=8.9,<9",
     "cwl-utils>=0.32",
     "toml",
     "argcomplete>=1.12.0",
