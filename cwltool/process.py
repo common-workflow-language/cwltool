@@ -1109,7 +1109,6 @@ _names: set[str] = set()
 
 def uniquename(stem: str, names: Optional[set[str]] = None) -> str:
     """Construct a thread-unique name using the given stem as a prefix."""
-    global _names
     if names is None:
         names = _names
     c = 1
