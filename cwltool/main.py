@@ -119,7 +119,6 @@ def _terminate_processes() -> None:
     continuing to execute while it kills the processes that they've
     spawned. This may occasionally lead to unexpected behaviour.
     """
-    global docker_exe
     # It's possible that another thread will spawn a new task while
     # we're executing, so it's not safe to use a for loop here.
     while processes_to_kill:
