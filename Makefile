@@ -160,11 +160,11 @@ diff-cover.html: coverage.xml
 
 ## test                   : run the cwltool test suite
 test: $(PYSOURCES)
-	python3 -m pytest -rsfE ${PYTEST_EXTRA}
+	python3 -m pytest ${PYTEST_EXTRA}
 
 ## testcov                : run the cwltool test suite and collect coverage
 testcov: $(PYSOURCES)
-	python3 -m pytest -rsfE --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
+	python3 -m pytest --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
 
 sloccount.sc: $(PYSOURCES) Makefile
 	sloccount --duplicates --wide --details $^ > $@
@@ -183,7 +183,7 @@ mypy: $(PYSOURCES)
 
 mypyc: $(PYSOURCES)
 	MYPYPATH=mypy-stubs CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
-		 && pytest -rsfE -vv ${PYTEST_EXTRA}
+		 && pytest -vv ${PYTEST_EXTRA}
 
 shellcheck: FORCE
 	shellcheck build-cwltool-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
