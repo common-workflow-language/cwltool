@@ -860,8 +860,7 @@ class CommandLineTool(Process):
                 return None
 
             def remove_prefix(s: str, prefix: str) -> str:
-                # replace with str.removeprefix when Python 3.9+
-                return s[len(prefix) :] if s.startswith(prefix) else s
+                return s.removeprefix(prefix)
 
             for location, fobj in cachebuilder.pathmapper.items():
                 if fobj.type == "File":
