@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from .process import Process
     from .secrets import SecretStore
     from .software_requirements import DependenciesConfiguration
+    from .workflow_job import WorkflowJobStep
 
 
 class ContextBase:
@@ -191,6 +192,10 @@ class RuntimeContext(ContextBase):
         self.default_stderr: Optional[Union[IO[bytes], TextIO]] = None
         self.validate_only: bool = False
         self.validate_stdout: Optional["SupportsWrite[str]"] = None
+        self.workflow_job_step_name_callback: Optional[
+            Callable[[WorkflowJobStep, CWLObjectType], str]
+        ] = None
+
         super().__init__(kwargs)
         if self.tmp_outdir_prefix == "":
             self.tmp_outdir_prefix = self.tmpdir_prefix
