@@ -1,0 +1,5 @@
+cwl:requirements:
+ - class: EnvVarRequirement
+   envDef:
+     - envName: TEST_ENV
+       envValue: value2
