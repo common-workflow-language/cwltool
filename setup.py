@@ -89,7 +89,7 @@ if USE_MYPYC:
     mypyc_targets = [x for x in all_real_pys if x not in mypyc_skiplist]
 
     # Strip out any test code
-    mypyc_targets = [x for x in mypyc_targets if not x.startswith(("tests" + os.sep))]
+    mypyc_targets = [x for x in mypyc_targets if not x.startswith("tests" + os.sep)]
 
     mypyc_targets.sort()
 

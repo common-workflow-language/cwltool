@@ -32,7 +32,7 @@ def find_run(
                 runs.add(d["run"])
                 find_run(loadref(None, d["run"]), loadref, runs)
         for s in d.values():
-            find_run(s, loadref, runs)
+            find_run(cast(Union[CWLObjectType, ResolveType], s), loadref, runs)
 
 
 def find_ids(
@@ -47,7 +47,7 @@ def find_ids(
             if i in d and isinstance(d[i], str):
                 ids.add(cast(str, d[i]))
         for s2 in d.values():
-            find_ids(cast(CWLOutputType, s2), ids)
+            find_ids(s2, ids)
 
 
 def replace_refs(d: Any, rewrite: dict[str, str], stem: str, newstem: str) -> None:
@@ -84,7 +84,7 @@ def import_embed(
 ) -> None:
     if isinstance(d, MutableSequence):
         for v in d:
-            import_embed(cast(CWLOutputType, v), seen)
+            import_embed(v, seen)
     elif isinstance(d, MutableMapping):
         for n in ("id", "name"):
             if n in d:
@@ -100,7 +100,7 @@ def import_embed(
                         break
 
         for k in sorted(d.keys()):
-            import_embed(cast(CWLOutputType, d[k]), seen)
+            import_embed(d[k], seen)
 
 
 def pack(

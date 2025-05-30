@@ -444,7 +444,7 @@ def avroize_type(
                 cast(MutableSequence[CWLOutputType], field_type["items"]), name_prefix
             )
         else:
-            field_type["type"] = avroize_type(cast(CWLOutputType, field_type["type"]), name_prefix)
+            field_type["type"] = avroize_type(field_type["type"], name_prefix)
     elif field_type == "File":
         return "org.w3id.cwl.cwl.File"
     elif field_type == "Directory":
@@ -490,10 +490,10 @@ def var_spool_cwl_detector(
             r = True
     elif isinstance(obj, MutableMapping):
         for mkey, mvalue in obj.items():
-            r = var_spool_cwl_detector(cast(CWLOutputType, mvalue), obj, mkey) or r
+            r = var_spool_cwl_detector(mvalue, obj, mkey) or r
     elif isinstance(obj, MutableSequence):
         for lkey, lvalue in enumerate(obj):
-            r = var_spool_cwl_detector(cast(CWLOutputType, lvalue), obj, lkey) or r
+            r = var_spool_cwl_detector(lvalue, obj, lkey) or r
     return r
 
 

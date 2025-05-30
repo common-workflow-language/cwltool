@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import MutableMapping, MutableSequence
-from typing import Optional, cast
+from typing import Optional
 
 from .utils import CWLObjectType, CWLOutputType
 
@@ -43,11 +43,11 @@ class SecretStore:
                     return True
         elif isinstance(value, MutableMapping):
             for this_value in value.values():
-                if self.has_secret(cast(CWLOutputType, this_value)):
+                if self.has_secret(this_value):
                     return True
         elif isinstance(value, MutableSequence):
             for this_value in value:
-                if self.has_secret(cast(CWLOutputType, this_value)):
+                if self.has_secret(this_value):
                     return True
         return False
 
@@ -58,7 +58,7 @@ class SecretStore:
                 value = value.replace(key, this_value)
             return value
         elif isinstance(value, MutableMapping):
-            return {k: self.retrieve(cast(CWLOutputType, v)) for k, v in value.items()}
+            return {k: self.retrieve(v) for k, v in value.items()}
         elif isinstance(value, MutableSequence):
-            return [self.retrieve(cast(CWLOutputType, v)) for v in value]
+            return [self.retrieve(v) for v in value]
         return value

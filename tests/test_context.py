@@ -1,14 +1,15 @@
+import logging
 import subprocess
 import sys
-import logging
 from io import StringIO
-from typing import MutableMapping, cast
+from pathlib import Path
+from typing import cast
+from collections.abc import MutableMapping
 
 from cwltool.context import RuntimeContext
 from cwltool.factory import Factory
 from cwltool.utils import CWLObjectType
 from cwltool.workflow_job import WorkflowJobStep
-from pathlib import Path
 
 from .util import get_data, needs_docker
 
@@ -49,7 +50,7 @@ def test_workflow_job_step_name_callback() -> None:
         def step_name_hook(step: WorkflowJobStep, job: CWLObjectType) -> str:
             j1 = cast(MutableMapping[str, CWLObjectType], job)
             inp = cast(MutableMapping[str, str], j1.get("revtool_input", j1.get("sorted_input")))
-            return "%s on %s" % (
+            return "{} on {}".format(
                 step.name,
                 inp.get("basename"),
             )

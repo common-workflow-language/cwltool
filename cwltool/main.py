@@ -304,7 +304,7 @@ def realize_input_schema(
             if isinstance(entry["type"], Mapping):
                 entry["type"] = cast(
                     CWLOutputType,
-                    realize_input_schema([cast(CWLObjectType, entry["type"])], schema_defs),
+                    realize_input_schema([entry["type"]], schema_defs),
                 )
             if entry["type"] == "array":
                 items = entry["items"] if not isinstance(entry["items"], str) else [entry["items"]]
@@ -373,7 +373,10 @@ def load_job_order(
             content_types=CWL_CONTENT_TYPES,
         )
 
-    if job_order_object is not None and "http://commonwl.org/cwltool#overrides" in job_order_object:
+    if (
+        isinstance(job_order_object, CommentedMap)
+        and "http://commonwl.org/cwltool#overrides" in job_order_object
+    ):
         ov_uri = file_uri(job_order_file or input_basedir)
         overrides_list.extend(resolve_overrides(job_order_object, ov_uri, tool_file_uri))
         del job_order_object["http://commonwl.org/cwltool#overrides"]

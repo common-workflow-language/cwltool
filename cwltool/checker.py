@@ -54,7 +54,7 @@ def check_types(
 def merge_flatten_type(src: SinkType) -> CWLOutputType:
     """Return the merge flattened type of the source type."""
     if isinstance(src, MutableSequence):
-        return [merge_flatten_type(cast(SinkType, t)) for t in src]
+        return [merge_flatten_type(t) for t in src]
     if isinstance(src, MutableMapping) and src.get("type") == "array":
         return src
     return {"items": src, "type": "array"}
@@ -94,22 +94,20 @@ def can_assign_src_to_sink(src: SinkType, sink: Optional[SinkType], strict: bool
                     if strict:
                         return False
             return True
-        return can_assign_src_to_sink(
-            cast(SinkType, src["type"]), cast(Optional[SinkType], sink["type"]), strict
-        )
+        return can_assign_src_to_sink(src["type"], sink["type"], strict)
     if isinstance(src, MutableSequence):
         if strict:
             for this_src in src:
-                if not can_assign_src_to_sink(cast(SinkType, this_src), sink):
+                if not can_assign_src_to_sink(this_src, sink):
                     return False
             return True
         for this_src in src:
-            if this_src != "null" and can_assign_src_to_sink(cast(SinkType, this_src), sink):
+            if this_src != "null" and can_assign_src_to_sink(this_src, sink):
                 return True
         return False
     if isinstance(sink, MutableSequence):
         for this_sink in sink:
-            if can_assign_src_to_sink(src, cast(SinkType, this_sink)):
+            if can_assign_src_to_sink(src, this_sink):
                 return True
         return False
     return bool(src == sink)
@@ -257,7 +255,7 @@ def static_checker(
                 )
                 + "\n"
                 + SourceLine(sink, "type").makeError(
-                    "  with sink '%s' of type %s" % (sink_name, json_dumps(sink["type"]))
+                    "  with sink '{}' of type {}".format(sink_name, json_dumps(sink["type"]))
                 )
             )
             if linkMerge is not None:

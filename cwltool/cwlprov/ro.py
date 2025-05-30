@@ -674,7 +674,7 @@ class ResearchObject:
 
             for val in structure.values():
                 try:
-                    self._relativise_files(cast(CWLOutputType, val))
+                    self._relativise_files(val)
                 except OSError:
                     pass
             return
@@ -682,4 +682,4 @@ class ResearchObject:
         if isinstance(structure, MutableSequence):
             for obj in structure:
                 # Recurse and rewrite any nested File objects
-                self._relativise_files(cast(CWLOutputType, obj))
+                self._relativise_files(obj)

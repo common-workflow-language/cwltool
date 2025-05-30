@@ -501,7 +501,7 @@ class CommandLineTool(Process):
             if not isinstance(ls_evaluated, MutableSequence):
                 fail = ls_evaluated
             else:
-                ls_evaluated2 = cast(MutableSequence[Union[None, CWLOutputType]], ls_evaluated)
+                ls_evaluated2 = ls_evaluated
                 for entry in ls_evaluated2:
                     if entry == None:  # noqa
                         if classic_dirent:
@@ -1389,7 +1389,7 @@ class CommandLineTool(Process):
                                 "Multiple matches for output item that is a single file."
                             )
                         else:
-                            result = cast(CWLOutputType, result[0])
+                            result = result[0]
 
             if "secondaryFiles" in schema:
                 with SourceLine(schema, "secondaryFiles", WorkflowException, debug):
