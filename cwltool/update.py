@@ -132,7 +132,7 @@ def v1_0to1_1(
                 new_seq[index] = update_secondaryFiles(entry)
             return new_seq
         elif isinstance(t, MutableSequence):
-            return CommentedSeq([update_secondaryFiles(cast(CWLOutputType, p)) for p in t])
+            return CommentedSeq([update_secondaryFiles(p) for p in t])
         elif isinstance(t, MutableMapping):
             return cast(MutableMapping[str, str], t)
         elif top:
