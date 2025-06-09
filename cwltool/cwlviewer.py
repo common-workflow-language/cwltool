@@ -89,8 +89,8 @@ class CWLViewer:
             self._dot_graph.add_node(n)
             self._dot_graph.add_edge(
                 pydot.Edge(
-                    str(inner_edge_row["source_step"]),
-                    str(inner_edge_row["target_step"]),
+                    pydot.quote_id_if_necessary(str(inner_edge_row["source_step"])),
+                    pydot.quote_id_if_necessary(str(inner_edge_row["target_step"])),
                 )
             )
 
@@ -100,7 +100,6 @@ class CWLViewer:
         inputs_subgraph = pydot.Subgraph(graph_name="cluster_inputs")
         self._dot_graph.add_subgraph(inputs_subgraph)
         inputs_subgraph.set("rank", "same")
-        inputs_subgraph.create_attribute_methods(["style"])
         inputs_subgraph.set("style", "dashed")
         inputs_subgraph.set("label", "Workflow Inputs")
 
@@ -120,7 +119,12 @@ class CWLViewer:
             )
             n.set_name(str(input_row["input"]))
             inputs_subgraph.add_node(n)
-            self._dot_graph.add_edge(pydot.Edge(str(input_row["input"]), str(input_row["step"])))
+            self._dot_graph.add_edge(
+                pydot.Edge(
+                    pydot.quote_id_if_necessary(str(input_row["input"])),
+                    pydot.quote_id_if_necessary(str(input_row["step"])),
+                )
+            )
 
     def _set_output_edges(self) -> None:
         with open(_get_output_edges_query_path) as f:
@@ -128,7 +132,6 @@ class CWLViewer:
         outputs_graph = pydot.Subgraph(graph_name="cluster_outputs")
         self._dot_graph.add_subgraph(outputs_graph)
         outputs_graph.set("rank", "same")
-        outputs_graph.create_attribute_methods(["style"])
         outputs_graph.set("style", "dashed")
         outputs_graph.set("label", "Workflow Outputs")
         outputs_graph.set("labelloc", "b")
@@ -148,7 +151,12 @@ class CWLViewer:
             )
             n.set_name(str(output_edge_row["output"]))
             outputs_graph.add_node(n)
-            self._dot_graph.add_edge(pydot.Edge(output_edge_row["step"], output_edge_row["output"]))
+            self._dot_graph.add_edge(
+                pydot.Edge(
+                    pydot.quote_id_if_necessary(output_edge_row["step"]),
+                    pydot.quote_id_if_necessary(output_edge_row["output"]),
+                )
+            )
 
     def _get_root_graph_uri(self) -> rdflib.term.Identifier:
         with open(_get_root_query_path) as f:
