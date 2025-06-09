@@ -2,10 +2,12 @@
 
 import os
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Union
+from typing import Callable, Union
 
 import pytest
+from packaging.version import Version
 
 from cwltool.singularity import get_version
 
@@ -17,7 +19,7 @@ from .util import env_accepts_null, get_tool_env, needs_docker, needs_singularit
 # TODO: maybe add regex?
 Env = Mapping[str, str]
 CheckerTypes = Union[None, str, Callable[[str, Env], bool]]
-EnvChecks = Dict[str, CheckerTypes]
+EnvChecks = dict[str, CheckerTypes]
 
 
 def assert_envvar_matches(check: CheckerTypes, k: str, env: Mapping[str, str]) -> None:
@@ -66,7 +68,7 @@ class CheckHolder(ABC):
         """Return a mapping from environment variable names to how to check for correctness."""
 
     # Any flags to pass to cwltool to force use of the correct container
-    flags: List[str]
+    flags: list[str]
 
     # Does the env tool (maybe in our container) accept a `-0` flag?
     env_accepts_null: bool
@@ -132,32 +134,33 @@ class Singularity(CheckHolder):
         }
 
         # Singularity variables appear to be in flux somewhat.
-        version = get_version()[0]
-        vmajor = version[0]
-        assert vmajor == 3, "Tests only work for Singularity 3"
-        vminor = version[1]
+        version = Version(".".join(map(str, get_version()[0])))
+        assert version >= Version("3"), "Tests only work for Singularity 3+"
         sing_vars: EnvChecks = {
             "SINGULARITY_CONTAINER": None,
             "SINGULARITY_NAME": None,
         }
-        if vminor < 5:
+        if version < Version("3.5"):
             sing_vars["SINGULARITY_APPNAME"] = None
-        if vminor >= 5:
+        if (version >= Version("3.5")) and (version < Version("3.6")):
+            sing_vars["SINGULARITY_INIT"] = "1"
+        if version >= Version("3.5"):
             sing_vars["PROMPT_COMMAND"] = None
             sing_vars["SINGULARITY_ENVIRONMENT"] = None
-        if vminor == 5:
-            sing_vars["SINGULARITY_INIT"] = "1"
-        elif vminor > 5:
+        if version >= Version("3.6"):
             sing_vars["SINGULARITY_COMMAND"] = "exec"
-            if vminor >= 7:
-                if vminor > 9:
-                    sing_vars["SINGULARITY_BIND"] = ""
-                else:
+        if version >= Version("3.7"):
+            if version > Version("3.9"):
+                sing_vars["SINGULARITY_BIND"] = ""
+            else:
 
-                    def BIND(v: str, env: Env) -> bool:
-                        return v.startswith(tmp_prefix) and v.endswith(":/tmp")
+                def BIND(v: str, env: Env) -> bool:
+                    return v.startswith(tmp_prefix) and v.endswith(":/tmp")
 
-                    sing_vars["SINGULARITY_BIND"] = BIND
+                sing_vars["SINGULARITY_BIND"] = BIND
+        if version >= Version("3.10"):
+            sing_vars["SINGULARITY_COMMAND"] = "run"
+            sing_vars["SINGULARITY_NO_EVAL"] = None
 
         result.update(sing_vars)
 
@@ -194,14 +197,14 @@ CRT_PARAMS = pytest.mark.parametrize(
 
 
 @CRT_PARAMS
-def test_basic(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> None:
+def test_basic(crt_params: CheckHolder, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that basic env vars (only) show up."""
     tmp_prefix = str(tmp_path / "canary")
     extra_env = {
         "USEDVAR": "VARVAL",
         "UNUSEDVAR": "VARVAL",
     }
-    args = crt_params.flags + [f"--tmpdir-prefix={tmp_prefix}"]
+    args = crt_params.flags + [f"--tmpdir-prefix={tmp_prefix}", "--debug"]
     env = get_tool_env(
         tmp_path,
         args,
@@ -214,7 +217,9 @@ def test_basic(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> Non
 
 
 @CRT_PARAMS
-def test_preserve_single(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> None:
+def test_preserve_single(
+    crt_params: CheckHolder, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Test that preserving a single env var works."""
     tmp_prefix = str(tmp_path / "canary")
     extra_env = {
@@ -238,7 +243,9 @@ def test_preserve_single(crt_params: CheckHolder, tmp_path: Path, monkeypatch: A
 
 
 @CRT_PARAMS
-def test_preserve_all(crt_params: CheckHolder, tmp_path: Path, monkeypatch: Any) -> None:
+def test_preserve_all(
+    crt_params: CheckHolder, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Test that preserving all works."""
     tmp_prefix = str(tmp_path / "canary")
     extra_env = {

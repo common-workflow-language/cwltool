@@ -29,4 +29,4 @@ steps:
     loop:
       i1:
         valueFrom: $(inputs.i1 + 1)
-    outputMethod: last
+    outputMethod: last_iteration

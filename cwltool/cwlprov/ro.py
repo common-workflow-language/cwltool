@@ -7,23 +7,13 @@ import shutil
 import tempfile
 import urllib
 import uuid
+from collections.abc import MutableMapping, MutableSequence
 from pathlib import Path, PurePosixPath
-from typing import (
-    IO,
-    Any,
-    Dict,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-    cast,
-)
+from socket import getfqdn
+from typing import IO, TYPE_CHECKING, Any, Optional, Union, cast
 
 import prov.model as provM
-from prov.model import PROV, ProvDocument
+from prov.model import ProvDocument
 
 from ..loghandler import _logger
 from ..stdfsaccess import StdFsAccess
@@ -38,6 +28,7 @@ from ..utils import (
 from . import Aggregate, Annotation, AuthoredBy, _valid_orcid, _whoami, checksum_copy
 from .provenance_constants import (
     ACCOUNT_UUID,
+    CWLPROV,
     CWLPROV_VERSION,
     DATA,
     ENCODING,
@@ -46,6 +37,7 @@ from .provenance_constants import (
     METADATA,
     ORCID,
     PROVENANCE,
+    SCHEMA,
     SHA1,
     SHA256,
     SHA512,
@@ -56,6 +48,9 @@ from .provenance_constants import (
     WORKFLOW,
     Hasher,
 )
+
+if TYPE_CHECKING:
+    from .provenance_profile import ProvenanceProfile  # pylint: disable=unused-import
 
 
 class ResearchObject:
@@ -75,12 +70,12 @@ class ResearchObject:
         self.folder = create_tmp_dir(temp_prefix_ro)
         self.closed = False
         # map of filename "data/de/alsdklkas": 12398123 bytes
-        self.bagged_size: Dict[str, int] = {}
-        self.tagfiles: Set[str] = set()
-        self._file_provenance: Dict[str, Aggregate] = {}
-        self._external_aggregates: List[Aggregate] = []
-        self.annotations: List[Annotation] = []
-        self._content_types: Dict[str, str] = {}
+        self.bagged_size: dict[str, int] = {}
+        self.tagfiles: set[str] = set()
+        self._file_provenance: dict[str, Aggregate] = {}
+        self._external_aggregates: list[Aggregate] = []
+        self.annotations: list[Annotation] = []
+        self._content_types: dict[str, str] = {}
         self.fsaccess = fsaccess
         # These should be replaced by generate_prov_doc when workflow/run IDs are known:
         self.engine_uuid = f"urn:uuid:{uuid.uuid4()}"
@@ -92,6 +87,34 @@ class ResearchObject:
 
         self._initialize()
         _logger.debug("[provenance] Temporary research object: %s", self.folder)
+
+    def initialize_provenance(
+        self,
+        full_name: str,
+        host_provenance: bool,
+        user_provenance: bool,
+        orcid: str,
+        fsaccess: StdFsAccess,
+        run_uuid: Optional[uuid.UUID] = None,
+    ) -> "ProvenanceProfile":
+        """
+        Provide a provenance profile initialization hook function.
+
+        Allows overriding the default strategy to define the
+        provenance profile concepts and associations to extend
+        details as needed.
+        """
+        from .provenance_profile import ProvenanceProfile
+
+        return ProvenanceProfile(
+            research_object=self,
+            full_name=full_name,
+            host_provenance=host_provenance,
+            user_provenance=user_provenance,
+            orcid=orcid,
+            fsaccess=fsaccess,
+            run_uuid=run_uuid,
+        )
 
     def self_check(self) -> None:
         """Raise ValueError if this RO is closed."""
@@ -128,10 +151,22 @@ class ResearchObject:
             bag_it_file.write("BagIt-Version: 0.97\n")
             bag_it_file.write(f"Tag-File-Character-Encoding: {ENCODING}\n")
 
+    def resolve_user(self) -> tuple[str, str]:
+        """
+        Provide a user provenance hook function.
+
+        Allows overriding the default strategy to retrieve user provenance
+        in case the calling code can provide a better resolution.
+        The function must return a tuple of the (username, fullname)
+        that identifies the user. This user will be applied on top
+        to any provided ORCID or fullname by agent association.
+        """
+        return _whoami()
+
     def user_provenance(self, document: ProvDocument) -> None:
         """Add the user provenance."""
         self.self_check()
-        (username, fullname) = _whoami()
+        (username, fullname) = self.resolve_user()
 
         if not self.full_name:
             self.full_name = fullname
@@ -143,19 +178,21 @@ class ResearchObject:
             ACCOUNT_UUID,
             {
                 provM.PROV_TYPE: FOAF["OnlineAccount"],
-                "prov:label": username,
+                provM.PROV_LABEL: username,
                 FOAF["accountName"]: username,
             },
         )
 
         user = document.agent(
             self.orcid or USER_UUID,
-            {
-                provM.PROV_TYPE: PROV["Person"],
-                "prov:label": self.full_name,
-                FOAF["name"]: self.full_name,
-                FOAF["account"]: account,
-            },
+            [
+                (provM.PROV_TYPE, SCHEMA["Person"]),
+                (provM.PROV_TYPE, provM.PROV["Person"]),
+                (provM.PROV_LABEL, self.full_name),
+                (FOAF["name"], self.full_name),
+                (FOAF["account"], account),
+                (SCHEMA["name"], self.full_name),
+            ],
         )
         # cwltool may be started on the shell (directly by user),
         # by shell script (indirectly by user)
@@ -166,6 +203,35 @@ class ResearchObject:
         # acting in behalf of that user (even if we might
         # get their name wrong!)
         document.actedOnBehalfOf(account, user)
+
+    def resolve_host(self) -> tuple[str, str]:
+        """
+        Provide a host provenance hook function.
+
+        Allows overriding the default strategy to retrieve host provenance
+        in case the calling code can provide a better resolution.
+        The function must return a tuple of the (fqdn, uri) that identifies the host.
+        """
+        fqdn = getfqdn()
+        return fqdn, fqdn  # allow for (fqdn, uri) to be distinct, but the same by default
+
+    def host_provenance(self, document: ProvDocument) -> None:
+        """Record host provenance."""
+        document.add_namespace(CWLPROV)
+        document.add_namespace(UUID)
+        document.add_namespace(FOAF)
+
+        hostname, uri = self.resolve_host()
+        # won't have a foaf:accountServiceHomepage for unix hosts, but
+        # we can at least provide hostname
+        document.agent(
+            ACCOUNT_UUID,
+            {
+                provM.PROV_TYPE: FOAF["OnlineAccount"],
+                provM.PROV_LOCATION: uri,
+                CWLPROV["hostname"]: hostname,
+            },
+        )
 
     def add_tagfile(self, path: str, timestamp: Optional[datetime.datetime] = None) -> None:
         """Add tag files to our research object."""
@@ -202,14 +268,14 @@ class ResearchObject:
                 "conformsTo": None,
             }
 
-    def _ro_aggregates(self) -> List[Aggregate]:
+    def _ro_aggregates(self) -> list[Aggregate]:
         """Gather dictionary of files to be added to the manifest."""
 
         def guess_mediatype(
             rel_path: str,
-        ) -> Tuple[Optional[str], Optional[Union[str, List[str]]]]:
+        ) -> tuple[Optional[str], Optional[Union[str, list[str]]]]:
             """Return the mediatypes."""
-            media_types: Dict[Union[str, None], str] = {
+            media_types: dict[Union[str, None], str] = {
                 # Adapted from
                 # https://w3id.org/bundle/2014-11-05/#media-types
                 "txt": TEXT_PLAIN,
@@ -223,12 +289,12 @@ class ResearchObject:
                 "provn": 'text/provenance-notation; charset="UTF-8"',
                 "nt": "application/n-triples",
             }
-            conforms_to: Dict[Union[str, None], str] = {
+            conforms_to: dict[Union[str, None], str] = {
                 "provn": "http://www.w3.org/TR/2013/REC-prov-n-20130430/",
                 "cwl": "https://w3id.org/cwl/",
             }
 
-            prov_conforms_to: Dict[str, str] = {
+            prov_conforms_to: dict[str, str] = {
                 "provn": "http://www.w3.org/TR/2013/REC-prov-n-20130430/",
                 "rdf": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
                 "ttl": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
@@ -244,7 +310,7 @@ class ResearchObject:
                 extension = None
 
             mediatype: Optional[str] = media_types.get(extension, None)
-            conformsTo: Optional[Union[str, List[str]]] = conforms_to.get(extension, None)
+            conformsTo: Optional[Union[str, list[str]]] = conforms_to.get(extension, None)
             # TODO: Open CWL file to read its declared "cwlVersion", e.g.
             # cwlVersion = "v1.0"
 
@@ -261,7 +327,7 @@ class ResearchObject:
                     conformsTo = prov_conforms_to[extension]
             return (mediatype, conformsTo)
 
-        aggregates: List[Aggregate] = []
+        aggregates: list[Aggregate] = []
         for path in self.bagged_size.keys():
             temp_path = PurePosixPath(path)
             folder = temp_path.parent
@@ -291,7 +357,7 @@ class ResearchObject:
                     bundledAs.update(self._file_provenance[path])
                 else:
                     aggregate_dict["bundledAs"] = cast(
-                        Optional[Dict[str, Any]], self._file_provenance[path]
+                        Optional[dict[str, Any]], self._file_provenance[path]
                     )
             else:
                 # Probably made outside wf run, part of job object?
@@ -343,7 +409,7 @@ class ResearchObject:
         return aggr
 
     def add_annotation(
-        self, about: str, content: List[str], motivated_by: str = "oa:describing"
+        self, about: str, content: list[str], motivated_by: str = "oa:describing"
     ) -> str:
         """Cheap URI relativize for current directory and /."""
         self.self_check()
@@ -359,9 +425,9 @@ class ResearchObject:
         self.annotations.append(ann)
         return uri
 
-    def _ro_annotations(self) -> List[Annotation]:
+    def _ro_annotations(self) -> list[Annotation]:
         """Append base RO and provenance annotations to the list of annotations."""
-        annotations: List[Annotation] = []
+        annotations: list[Annotation] = []
         annotations.append(
             {
                 "uri": uuid.uuid4().urn,
@@ -511,7 +577,7 @@ class ResearchObject:
 
     def _self_made(
         self, timestamp: Optional[datetime.datetime] = None
-    ) -> Tuple[str, Dict[str, str]]:  # createdOn, createdBy
+    ) -> tuple[str, dict[str, str]]:  # createdOn, createdBy
         if timestamp is None:
             timestamp = datetime.datetime.now()
         return (
@@ -519,7 +585,7 @@ class ResearchObject:
             {"uri": self.engine_uuid, "name": self.cwltool_version},
         )
 
-    def add_to_manifest(self, rel_path: str, checksums: Dict[str, str]) -> None:
+    def add_to_manifest(self, rel_path: str, checksums: dict[str, str]) -> None:
         """Add files to the research object manifest."""
         self.self_check()
         if PurePosixPath(rel_path).is_absolute():
@@ -602,13 +668,13 @@ class ResearchObject:
                     del structure["path"]
 
             if structure.get("class") == "Directory":
-                # TODO: Generate anonymoys Directory with a "listing"
+                # TODO: Generate anonymous Directory with a "listing"
                 # pointing to the hashed files
                 del structure["location"]
 
             for val in structure.values():
                 try:
-                    self._relativise_files(cast(CWLOutputType, val))
+                    self._relativise_files(val)
                 except OSError:
                     pass
             return
@@ -616,4 +682,4 @@ class ResearchObject:
         if isinstance(structure, MutableSequence):
             for obj in structure:
                 # Recurse and rewrite any nested File objects
-                self._relativise_files(cast(CWLOutputType, obj))
+                self._relativise_files(obj)

@@ -5,7 +5,6 @@ from collections.abc import Sized
 from functools import partial
 from io import StringIO
 from pathlib import Path
-from typing import Dict
 
 import pytest
 from schema_salad.utils import yaml_no_ts
@@ -95,7 +94,7 @@ def test_pack_fragment() -> None:
 
 
 def test_pack_rewrites() -> None:
-    rewrites: Dict[str, str] = {}
+    rewrites: dict[str, str] = {}
 
     loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/default-wf5.cwl"))
     loadingContext.do_update = False

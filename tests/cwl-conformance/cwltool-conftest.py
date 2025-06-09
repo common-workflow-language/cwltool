@@ -6,20 +6,20 @@ Calls cwltool via Python, instead of a subprocess via `--cwl-runner cwltool`.
 
 import json
 from io import StringIO
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from cwltest import utils
 
 
 def pytest_cwl_execute_test(
     config: utils.CWLTestConfig, processfile: str, jobfile: Optional[str]
-) -> Tuple[int, Optional[Dict[str, Any]]]:
+) -> tuple[int, Optional[dict[str, Any]]]:
     """Use the CWL reference runner (cwltool) to execute tests."""
     from cwltool import main
     from cwltool.errors import WorkflowException
 
     stdout = StringIO()
-    argsl: List[str] = [f"--outdir={config.outdir}"]
+    argsl: list[str] = [f"--outdir={config.outdir}"]
     if config.runner_quiet:
         argsl.append("--quiet")
     elif config.verbose:

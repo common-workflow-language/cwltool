@@ -1,27 +1,18 @@
 import copy
+from collections.abc import MutableMapping, MutableSequence
 from functools import partial
-from typing import (
-    Callable,
-    Dict,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Callable, Optional, Union, cast
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from schema_salad.sourceline import SourceLine
-
-from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .loghandler import _logger
 from .utils import CWLObjectType, CWLOutputType, aslist, visit_class, visit_field
 
 
-def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> Tuple[CommentedMap, str]:
+def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> tuple[CommentedMap, str]:
     """Public updater for v1.2 to v1.3.0-dev1."""
     doc = copy.deepcopy(doc)
 
@@ -51,7 +42,16 @@ def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> Tuple[Comm
                                     el["outputSource"] = source
                             s["loop"] = r["loop"]
                         if "outputMethod" in r:
-                            s["outputMethod"] = r["outputMethod"]
+                            if r["outputMethod"] == "all":
+                                s["outputMethod"] = "all_iterations"
+                            elif r["outputMethod"] == "last":
+                                s["outputMethod"] = "last_iteration"
+                            else:
+                                raise SourceLine(
+                                    r, raise_type=ValidationException
+                                ).makeError(  # pragma: no cover
+                                    f"Invalid value {r['outputMethod']} for `outputMethod`."
+                                )
                         cast(
                             MutableSequence[CWLObjectType],
                             s["requirements"],
@@ -70,7 +70,7 @@ def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> Tuple[Comm
 
 def v1_1to1_2(
     doc: CommentedMap, loader: Loader, baseuri: str
-) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+) -> tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     """Public updater for v1.1 to v1.2."""
     doc = copy.deepcopy(doc)
 
@@ -86,7 +86,7 @@ def v1_1to1_2(
 
 def v1_0to1_1(
     doc: CommentedMap, loader: Loader, baseuri: str
-) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+) -> tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     """Public updater for v1.0 to v1.1."""
     doc = copy.deepcopy(doc)
 
@@ -132,7 +132,7 @@ def v1_0to1_1(
                 new_seq[index] = update_secondaryFiles(entry)
             return new_seq
         elif isinstance(t, MutableSequence):
-            return CommentedSeq([update_secondaryFiles(cast(CWLOutputType, p)) for p in t])
+            return CommentedSeq([update_secondaryFiles(p) for p in t])
         elif isinstance(t, MutableMapping):
             return cast(MutableMapping[str, str], t)
         elif top:
@@ -187,21 +187,21 @@ def v1_0to1_1(
 
 def v1_1_0dev1to1_1(
     doc: CommentedMap, loader: Loader, baseuri: str
-) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+) -> tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     """Public updater for v1.1.0-dev1 to v1.1."""
     return (doc, "v1.1")
 
 
 def v1_2_0dev1todev2(
     doc: CommentedMap, loader: Loader, baseuri: str
-) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+) -> tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     """Public updater for v1.2.0-dev1 to v1.2.0-dev2."""
     return (doc, "v1.2.0-dev2")
 
 
 def v1_2_0dev2todev3(
     doc: CommentedMap, loader: Loader, baseuri: str
-) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+) -> tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     """Public updater for v1.2.0-dev2 to v1.2.0-dev3."""
     doc = copy.deepcopy(doc)
 
@@ -224,21 +224,21 @@ def v1_2_0dev2todev3(
 
 def v1_2_0dev3todev4(
     doc: CommentedMap, loader: Loader, baseuri: str
-) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+) -> tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     """Public updater for v1.2.0-dev3 to v1.2.0-dev4."""
     return (doc, "v1.2.0-dev4")
 
 
 def v1_2_0dev4todev5(
     doc: CommentedMap, loader: Loader, baseuri: str
-) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+) -> tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     """Public updater for v1.2.0-dev4 to v1.2.0-dev5."""
     return (doc, "v1.2.0-dev5")
 
 
 def v1_2_0dev5to1_2(
     doc: CommentedMap, loader: Loader, baseuri: str
-) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+) -> tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     """Public updater for v1.2.0-dev5 to v1.2."""
     return (doc, "v1.2")
 
@@ -256,13 +256,13 @@ ORDERED_VERSIONS = [
     "v1.3.0-dev1",
 ]
 
-UPDATES: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]] = {
+UPDATES: dict[str, Optional[Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]]]] = {
     "v1.0": v1_0to1_1,
     "v1.1": v1_1to1_2,
     "v1.2": v1_2to1_3dev1,
 }
 
-DEVUPDATES: Dict[str, Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]]] = {
+DEVUPDATES: dict[str, Optional[Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]]]] = {
     "v1.1.0-dev1": v1_1_0dev1to1_1,
     "v1.2.0-dev1": v1_2_0dev1todev2,
     "v1.2.0-dev2": v1_2_0dev2todev3,
@@ -283,7 +283,7 @@ ORIGINAL_CWLVERSION = "http://commonwl.org/cwltool#original_cwlVersion"
 
 def identity(
     doc: CommentedMap, loader: Loader, baseuri: str
-) -> Tuple[CommentedMap, str]:  # pylint: disable=unused-argument
+) -> tuple[CommentedMap, str]:  # pylint: disable=unused-argument
     """Do-nothing, CWL document upgrade function."""
     return (doc, cast(str, doc["cwlVersion"]))
 
@@ -292,7 +292,7 @@ def checkversion(
     doc: Union[CommentedSeq, CommentedMap],
     metadata: CommentedMap,
     enable_dev: bool,
-) -> Tuple[CommentedMap, str]:
+) -> tuple[CommentedMap, str]:
     """Check the validity of the version of the give CWL document.
 
     Returns the document and the validated version string.
@@ -357,7 +357,7 @@ def update(
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
     originalversion = copy.copy(version)
 
-    nextupdate: Optional[Callable[[CommentedMap, Loader, str], Tuple[CommentedMap, str]]] = identity
+    nextupdate: Optional[Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]]] = identity
 
     while version != update_to and nextupdate:
         (cdoc, version) = nextupdate(cdoc, loader, baseuri)

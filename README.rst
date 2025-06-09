@@ -52,7 +52,7 @@ and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
 ``cwltool`` is written and tested for
-`Python <https://www.python.org/>`_ ``3.x {x = 6, 8, 9, 10, 11}``
+`Python <https://www.python.org/>`_ ``3.x {x = 9, 10, 11, 12, 13}``
 
 The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
@@ -188,6 +188,22 @@ To run CWL successfully with boot2docker you need to set the ``--tmpdir-prefix``
 and ``--tmp-outdir-prefix`` to somewhere under ``/Users``::
 
     $ cwl-runner --tmp-outdir-prefix=/Users/username/project --tmpdir-prefix=/Users/username/project wc-tool.cwl wc-job.json
+
+
+Docker default platform on macOS with Apple Silicon
+===================================================
+
+If macOS users want to run CWL tools/workflows using ``cwltool`` with Docker and their software containers only have support for amd64 (64-bit x86) CPUs, but they have an Apple Silicon (aarch64/arm64) CPU,
+they run into the error:
+
+  WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested.
+
+To fix this, export the following environment variable before executing `cwltool`:
+
+``export DOCKER_DEFAULT_PLATFORM=linux/amd64``
+
+To automatically have this variable set in the future, add the same command to ones respective shell profile (e.g. ``~/.zshrc``, ``~/.bash_profile``).
+
 
 Using uDocker
 =============

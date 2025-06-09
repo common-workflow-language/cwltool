@@ -1,20 +1,20 @@
 import urllib.parse
 from io import BytesIO
 from pathlib import Path
-from typing import IO, Any, List, cast
+from typing import IO, Any, cast
 
 import pytest
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
+from cwltool.builder import content_limit_respected_read
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
+from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
-from cwltool.utils import CWLObjectType, CONTENT_LIMIT, bytes2str_in_dicts
-from cwltool.builder import content_limit_respected_read
-from cwltool.errors import WorkflowException
+from cwltool.utils import CONTENT_LIMIT, CWLObjectType, bytes2str_in_dicts
 
 from .util import needs_docker
 
@@ -112,7 +112,7 @@ def test_unicode_in_output_files(tmp_path: Path, filename: str) -> None:
 class StubFsAccess(StdFsAccess):
     """Stub fs access object that doesn't rely on the filesystem."""
 
-    def glob(self, pattern: str) -> List[str]:
+    def glob(self, pattern: str) -> list[str]:
         """glob."""
         return [pattern]
 

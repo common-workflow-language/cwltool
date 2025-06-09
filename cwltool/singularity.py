@@ -6,8 +6,9 @@ import os.path
 import re
 import shutil
 import sys
+from collections.abc import MutableMapping
 from subprocess import check_call, check_output  # nosec
-from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, cast
+from typing import Callable, Optional, cast
 
 from schema_salad.sourceline import SourceLine
 from spython.main import Client
@@ -28,13 +29,13 @@ from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_wr
 # This is a list containing major and minor versions as integer.
 # (The number of minor version digits can vary among different distributions,
 #  therefore we need a list here.)
-_SINGULARITY_VERSION: Optional[List[int]] = None
+_SINGULARITY_VERSION: Optional[list[int]] = None
 # Cached flavor / distribution of singularity
 # Can be singularity, singularity-ce or apptainer
 _SINGULARITY_FLAVOR: str = ""
 
 
-def get_version() -> Tuple[List[int], str]:
+def get_version() -> tuple[list[int], str]:
     """
     Parse the output of 'singularity --version' to determine the flavor and version.
 
@@ -72,6 +73,14 @@ def is_apptainer_1_or_newer() -> bool:
     if v[1] != "apptainer":
         return False
     return v[0][0] >= 1
+
+
+def is_apptainer_1_1_or_newer() -> bool:
+    """Check if apptainer singularity distribution is version 1.1 or higher."""
+    v = get_version()
+    if v[1] != "apptainer":
+        return False
+    return v[0][0] >= 2 or (v[0][0] >= 1 and v[0][1] >= 1)
 
 
 def is_version_2_6() -> bool:
@@ -118,11 +127,21 @@ def is_version_3_9_or_newer() -> bool:
     return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 9)
 
 
+def is_version_3_10_or_newer() -> bool:
+    """Detect if Singularity v3.10+ is available."""
+    v = get_version()
+    return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 10)
+
+
 def _normalize_image_id(string: str) -> str:
+    if ":" not in string:
+        string += "_latest"
     return string.replace("/", "_") + ".img"
 
 
 def _normalize_sif_id(string: str) -> str:
+    if ":" not in string:
+        string += "_latest"
     return string.replace("/", "_") + ".sif"
 
 
@@ -131,9 +150,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[List[CWLObjectType], str, RuntimeContext, bool], PathMapper],
-        requirements: List[CWLObjectType],
-        hints: List[CWLObjectType],
+        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        requirements: list[CWLObjectType],
+        hints: list[CWLObjectType],
         name: str,
     ) -> None:
         """Builder for invoking the Singularty software container engine."""
@@ -141,7 +160,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     @staticmethod
     def get_image(
-        dockerRequirement: Dict[str, str],
+        dockerRequirement: dict[str, str],
         pull_image: bool,
         tmp_outdir_prefix: str,
         force_pull: bool = False,
@@ -247,7 +266,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                             dockerRequirement["dockerImageId"] = path
                             found = True
         if (force_pull or not found) and pull_image:
-            cmd = []  # type: List[str]
+            cmd: list[str] = []
             if "dockerPull" in dockerRequirement:
                 if cache_folder:
                     env = os.environ.copy()
@@ -338,7 +357,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if not bool(shutil.which("singularity")):
             raise WorkflowException("singularity executable is not available")
 
-        if not self.get_image(cast(Dict[str, str], r), pull_image, tmp_outdir_prefix, force_pull):
+        if not self.get_image(cast(dict[str, str], r), pull_image, tmp_outdir_prefix, force_pull):
             raise WorkflowException("Container image {} not found".format(r["dockerImageId"]))
 
         if "CWL_SINGULARITY_CACHE" in os.environ:
@@ -350,7 +369,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         return os.path.abspath(img_path)
 
     @staticmethod
-    def append_volume(runtime: List[str], source: str, target: str, writable: bool = False) -> None:
+    def append_volume(runtime: list[str], source: str, target: str, writable: bool = False) -> None:
         """Add binding arguments to the runtime list."""
         if is_version_3_9_or_newer():
             DockerCommandLineJob.append_volume(runtime, source, target, writable, skip_mkdirs=True)
@@ -364,7 +383,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             runtime.append(vol)
 
     def add_file_or_directory_volume(
-        self, runtime: List[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
+        self, runtime: list[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
     ) -> None:
         if not volume.resolved.startswith("_:"):
             if host_outdir_tgt is not None and not is_version_3_4_or_newer():
@@ -380,7 +399,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_file_volume(
         self,
-        runtime: List[str],
+        runtime: list[str],
         volume: MapperEnt,
         host_outdir_tgt: Optional[str],
         tmpdir_prefix: str,
@@ -417,7 +436,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     def add_writable_directory_volume(
         self,
-        runtime: List[str],
+        runtime: list[str],
         volume: MapperEnt,
         host_outdir_tgt: Optional[str],
         tmpdir_prefix: str,
@@ -452,7 +471,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                         shutil.copytree(volume.resolved, host_outdir_tgt)
                     ensure_writable(host_outdir_tgt or new_dir)
 
-    def _required_env(self) -> Dict[str, str]:
+    def _required_env(self) -> dict[str, str]:
         return {
             "TMPDIR": self.CONTAINER_TMPDIR,
             "HOME": self.builder.outdir,
@@ -460,17 +479,21 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     def create_runtime(
         self, env: MutableMapping[str, str], runtime_context: RuntimeContext
-    ) -> Tuple[List[str], Optional[str]]:
+    ) -> tuple[list[str], Optional[str]]:
         """Return the Singularity runtime list of commands and options."""
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] or False
+
         runtime = [
             "singularity",
             "--quiet",
-            "exec",
+            "run" if is_apptainer_1_1_or_newer() or is_version_3_10_or_newer() else "exec",
             "--contain",
             "--ipc",
             "--cleanenv",
         ]
+        if is_apptainer_1_1_or_newer() or is_version_3_10_or_newer():
+            runtime.append("--no-eval")
+
         if singularity_supports_userns():
             runtime.append("--userns")
         else:

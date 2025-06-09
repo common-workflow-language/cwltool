@@ -3,19 +3,11 @@
 import argparse
 import os
 import urllib
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    Sequence,
-    Type,
-    Union,
-    cast,
-)
+from collections.abc import MutableMapping, MutableSequence, Sequence
+from typing import Any, Callable, Optional, Union, cast
+
+import rich.markup
+from rich_argparse import HelpPreviewAction, RichHelpFormatter
 
 from .loghandler import _logger
 from .process import Process, shortname
@@ -25,9 +17,11 @@ from .utils import DEFAULT_TMP_PREFIX
 
 
 def arg_parser() -> argparse.ArgumentParser:
+    RichHelpFormatter.group_name_formatter = str
     parser = argparse.ArgumentParser(
+        formatter_class=RichHelpFormatter,
         description="Reference executor for Common Workflow Language standards. "
-        "Not for production use."
+        "Not for production use.",
     )
     parser.add_argument("--basedir", type=str)
     parser.add_argument(
@@ -38,22 +32,14 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--log-dir",
-        type=str,
-        default="",
-        help="Log your tools stdout/stderr to this location outside of container "
-        "This will only log stdout/stderr if you specify stdout/stderr in their "
-        "respective fields or capture it as an output",
-    )
-
-    parser.add_argument(
         "--parallel",
         action="store_true",
         default=False,
         help="Run jobs in parallel. ",
     )
-    envgroup = parser.add_mutually_exclusive_group()
-    envgroup.add_argument(
+    envgroup = parser.add_argument_group(title="Control environment variables")
+    env_exclusive = envgroup.add_mutually_exclusive_group()
+    env_exclusive.add_argument(
         "--preserve-environment",
         type=str,
         action="append",
@@ -64,7 +50,7 @@ def arg_parser() -> argparse.ArgumentParser:
         default=[],
         dest="preserve_environment",
     )
-    envgroup.add_argument(
+    env_exclusive.add_argument(
         "--preserve-entire-environment",
         action="store_true",
         help="Preserve all environment variables when running CommandLineTools "
@@ -73,54 +59,10 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="preserve_entire_environment",
     )
 
-    containergroup = parser.add_mutually_exclusive_group()
-    containergroup.add_argument(
-        "--rm-container",
-        action="store_true",
-        default=True,
-        help="Delete Docker container used by jobs after they exit (default)",
-        dest="rm_container",
+    files_group = parser.add_argument_group(
+        title="Manage intermediate, temporary, or final output files"
     )
-
-    containergroup.add_argument(
-        "--leave-container",
-        action="store_false",
-        default=True,
-        help="Do not delete Docker container used by jobs after they exit",
-        dest="rm_container",
-    )
-
-    cidgroup = parser.add_argument_group(
-        "Options for recording the Docker container identifier into a file."
-    )
-    cidgroup.add_argument(
-        # Disabled as containerid is now saved by default
-        "--record-container-id",
-        action="store_true",
-        default=False,
-        help=argparse.SUPPRESS,
-        dest="record_container_id",
-    )
-
-    cidgroup.add_argument(
-        "--cidfile-dir",
-        type=str,
-        help="Store the Docker container ID into a file in the specified directory.",
-        default=None,
-        dest="cidfile_dir",
-    )
-
-    cidgroup.add_argument(
-        "--cidfile-prefix",
-        type=str,
-        help="Specify a prefix to the container ID filename. "
-        "Final file name will be followed by a timestamp. "
-        "The default is no prefix.",
-        default=None,
-        dest="cidfile_prefix",
-    )
-
-    parser.add_argument(
+    files_group.add_argument(
         "--tmpdir-prefix",
         type=str,
         help="Path prefix for temporary directories. If --tmpdir-prefix is not "
@@ -130,7 +72,7 @@ def arg_parser() -> argparse.ArgumentParser:
         default=DEFAULT_TMP_PREFIX,
     )
 
-    intgroup = parser.add_mutually_exclusive_group()
+    intgroup = files_group.add_mutually_exclusive_group()
     intgroup.add_argument(
         "--tmp-outdir-prefix",
         type=str,
@@ -148,7 +90,7 @@ def arg_parser() -> argparse.ArgumentParser:
         "troubleshooting of CWL documents.",
     )
 
-    tmpgroup = parser.add_mutually_exclusive_group()
+    tmpgroup = files_group.add_mutually_exclusive_group()
     tmpgroup.add_argument(
         "--rm-tmpdir",
         action="store_true",
@@ -165,7 +107,7 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="rm_tmpdir",
     )
 
-    outgroup = parser.add_mutually_exclusive_group()
+    outgroup = files_group.add_mutually_exclusive_group()
     outgroup.add_argument(
         "--move-outputs",
         action="store_const",
@@ -195,30 +137,6 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="move_outputs",
     )
 
-    pullgroup = parser.add_mutually_exclusive_group()
-    pullgroup.add_argument(
-        "--enable-pull",
-        default=True,
-        action="store_true",
-        help="Try to pull Docker images",
-        dest="pull_image",
-    )
-
-    pullgroup.add_argument(
-        "--disable-pull",
-        default=True,
-        action="store_false",
-        help="Do not try to pull Docker images",
-        dest="pull_image",
-    )
-
-    parser.add_argument(
-        "--rdf-serializer",
-        help="Output RDF serialization format used by --print-rdf (one of "
-        "turtle (default), n3, nt, xml)",
-        default="turtle",
-    )
-
     parser.add_argument(
         "--eval-timeout",
         help="Time to wait for a Javascript expression to evaluate before giving "
@@ -227,9 +145,7 @@ def arg_parser() -> argparse.ArgumentParser:
         default=60,
     )
 
-    provgroup = parser.add_argument_group(
-        "Options for recording provenance information of the execution"
-    )
+    provgroup = parser.add_argument_group("Recording provenance information of the execution")
     provgroup.add_argument(
         "--provenance",
         help="Save provenance to specified folder as a "
@@ -287,7 +203,8 @@ def arg_parser() -> argparse.ArgumentParser:
         type=str,
     )
 
-    printgroup = parser.add_mutually_exclusive_group()
+    non_exec_group = parser.add_argument_group(title="Non-execution options")
+    printgroup = non_exec_group.add_mutually_exclusive_group()
     printgroup.add_argument(
         "--print-rdf",
         action="store_true",
@@ -335,6 +252,15 @@ def arg_parser() -> argparse.ArgumentParser:
     printgroup.add_argument(
         "--make-template", action="store_true", help="Generate a template input object"
     )
+    non_exec_group.add_argument(
+        "--rdf-serializer",
+        help="Output RDF serialization format used by --print-rdf (one of "
+        "turtle (default), n3, nt, xml)",
+        default="turtle",
+    )
+    non_exec_group.add_argument(
+        "--tool-help", action="store_true", help="Print command line help for tool"
+    )
 
     strictgroup = parser.add_mutually_exclusive_group()
     strictgroup.add_argument(
@@ -376,11 +302,27 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="doc_cache",
     )
 
-    volumegroup = parser.add_mutually_exclusive_group()
-    volumegroup.add_argument("--verbose", action="store_true", help="Default logging")
-    volumegroup.add_argument("--no-warnings", action="store_true", help="Only print errors.")
-    volumegroup.add_argument("--quiet", action="store_true", help="Only print warnings and errors.")
-    volumegroup.add_argument("--debug", action="store_true", help="Print even more logging")
+    volumegroup = parser.add_argument_group(title="Configure logging")
+    volume_exclusive = volumegroup.add_mutually_exclusive_group()
+    volume_exclusive.add_argument("--verbose", action="store_true", help="Default logging")
+    volume_exclusive.add_argument("--no-warnings", action="store_true", help="Only print errors.")
+    volume_exclusive.add_argument(
+        "--quiet", action="store_true", help="Only print warnings and errors."
+    )
+    volume_exclusive.add_argument("--debug", action="store_true", help="Print even more logging")
+    volumegroup.add_argument(
+        "--log-dir",
+        type=str,
+        default="",
+        help="Log your tools stdout/stderr to this location outside of container "
+        "This will only log stdout/stderr if you specify stdout/stderr in their "
+        "respective fields or capture it as an output",
+    )
+    volumegroup.add_argument(
+        "--timestamps",
+        action="store_true",
+        help="Add timestamps to the errors, warnings, and notifications.",
+    )
 
     parser.add_argument(
         "--write-summary",
@@ -391,30 +333,6 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="write_summary",
     )
 
-    parser.add_argument(
-        "--strict-memory-limit",
-        action="store_true",
-        help="When running with "
-        "software containers and the Docker engine, pass either the "
-        "calculated memory allocation from ResourceRequirements or the "
-        "default of 1 gigabyte to Docker's --memory option.",
-    )
-
-    parser.add_argument(
-        "--strict-cpu-limit",
-        action="store_true",
-        help="When running with "
-        "software containers and the Docker engine, pass either the "
-        "calculated cpu allocation from ResourceRequirements or the "
-        "default of 1 core to Docker's --cpu option. "
-        "Requires docker version >= v1.13.",
-    )
-
-    parser.add_argument(
-        "--timestamps",
-        action="store_true",
-        help="Add timestamps to the errors, warnings, and notifications.",
-    )
     parser.add_argument(
         "--js-console", action="store_true", help="Enable javascript console output"
     )
@@ -429,7 +347,103 @@ def arg_parser() -> argparse.ArgumentParser:
         help="File of options to pass to jshint. "
         'This includes the added option "includewarnings". ',
     )
-    dockergroup = parser.add_mutually_exclusive_group()
+    container_group = parser.add_argument_group(
+        title="Software container engine selection and configuration"
+    )
+    pullgroup = container_group.add_mutually_exclusive_group()
+    pullgroup.add_argument(
+        "--enable-pull",
+        default=True,
+        action="store_true",
+        help="Try to pull Docker images",
+        dest="pull_image",
+    )
+
+    pullgroup.add_argument(
+        "--disable-pull",
+        default=True,
+        action="store_false",
+        help="Do not try to pull Docker images",
+        dest="pull_image",
+    )
+    container_group.add_argument(
+        "--force-docker-pull",
+        action="store_true",
+        default=False,
+        help="Pull latest software container image even if it is locally present",
+        dest="force_docker_pull",
+    )
+    container_group.add_argument(
+        "--no-read-only",
+        action="store_true",
+        default=False,
+        help="Do not set root directory in the container as read-only",
+        dest="no_read_only",
+    )
+
+    container_group.add_argument(
+        "--default-container",
+        help="Specify a default software container to use for any "
+        "CommandLineTool without a DockerRequirement.",
+    )
+    container_group.add_argument(
+        "--no-match-user",
+        action="store_true",
+        help="Disable passing the current uid to `docker run --user`",
+    )
+    container_group.add_argument(
+        "--custom-net",
+        type=str,
+        help="Passed to `docker run` as the `--net` parameter when "
+        "NetworkAccess is true, which is its default setting.",
+    )
+
+    container_cleanup = container_group.add_mutually_exclusive_group()
+    container_cleanup.add_argument(
+        "--rm-container",
+        action="store_true",
+        default=True,
+        help="Delete Docker container used by jobs after they exit (default)",
+        dest="rm_container",
+    )
+
+    container_cleanup.add_argument(
+        "--leave-container",
+        action="store_false",
+        default=True,
+        help="Do not delete Docker container used by jobs after they exit",
+        dest="rm_container",
+    )
+
+    cidgroup = parser.add_argument_group("Recording the software container identifier into a file")
+    cidgroup.add_argument(
+        # Disabled as containerid is now saved by default
+        "--record-container-id",
+        action="store_true",
+        default=False,
+        help=argparse.SUPPRESS,
+        dest="record_container_id",
+    )
+
+    cidgroup.add_argument(
+        "--cidfile-dir",
+        type=str,
+        help="Store the software container ID into a file in the specified directory.",
+        default=None,
+        dest="cidfile_dir",
+    )
+
+    cidgroup.add_argument(
+        "--cidfile-prefix",
+        type=str,
+        help="Specify a prefix to the software container ID filename. "
+        "Final file name will be followed by a timestamp. "
+        "The default is no prefix.",
+        default=None,
+        dest="cidfile_prefix",
+    )
+
+    dockergroup = container_group.add_mutually_exclusive_group()
     dockergroup.add_argument(
         "--user-space-docker-cmd",
         metavar="CMD",
@@ -469,6 +483,24 @@ def arg_parser() -> argparse.ArgumentParser:
         "is specified under `hints`.",
         dest="use_container",
     )
+    container_group.add_argument(
+        "--strict-memory-limit",
+        action="store_true",
+        help="When running with "
+        "software containers and the Docker engine, pass either the "
+        "calculated memory allocation from ResourceRequirements or the "
+        "default of 1 gigabyte to Docker's --memory option.",
+    )
+
+    container_group.add_argument(
+        "--strict-cpu-limit",
+        action="store_true",
+        help="When running with "
+        "software containers and the Docker engine, pass either the "
+        "calculated cpu allocation from ResourceRequirements or the "
+        "default of 1 core to Docker's --cpu option. "
+        "Requires docker version >= v1.13.",
+    )
 
     dependency_resolvers_configuration_help = argparse.SUPPRESS
     dependencies_directory_help = argparse.SUPPRESS
@@ -478,7 +510,7 @@ def arg_parser() -> argparse.ArgumentParser:
     if SOFTWARE_REQUIREMENTS_ENABLED:
         dependency_resolvers_configuration_help = (
             "Dependency resolver "
-            "configuration file describing how to adapt 'SoftwareRequirement' "
+            "configuration file describing how to adapt `SoftwareRequirement` "
             "packages to current system."
         )
         dependencies_directory_help = (
@@ -487,7 +519,7 @@ def arg_parser() -> argparse.ArgumentParser:
         use_biocontainers_help = (
             "Use biocontainers for tools without an " "explicitly annotated Docker container."
         )
-        conda_dependencies = "Short cut to use Conda to resolve 'SoftwareRequirement' packages."
+        conda_dependencies = "Short cut to use Conda to resolve `SoftwareRequirement` packages."
 
     parser.add_argument(
         "--beta-dependency-resolvers-configuration",
@@ -510,8 +542,6 @@ def arg_parser() -> argparse.ArgumentParser:
         action="store_true",
     )
 
-    parser.add_argument("--tool-help", action="store_true", help="Print command line help for tool")
-
     parser.add_argument(
         "--relative-deps",
         choices=["primary", "cwd"],
@@ -530,7 +560,7 @@ def arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--enable-ext",
         action="store_true",
-        help="Enable loading and running 'cwltool:' extensions to the CWL standards.",
+        help="Enable loading and running `cwltool:` extensions to the CWL standards.",
         default=False,
     )
 
@@ -548,22 +578,6 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Disable colored logging (default false)",
     )
 
-    parser.add_argument(
-        "--default-container",
-        help="Specify a default software container to use for any "
-        "CommandLineTool without a DockerRequirement.",
-    )
-    parser.add_argument(
-        "--no-match-user",
-        action="store_true",
-        help="Disable passing the current uid to `docker run --user`",
-    )
-    parser.add_argument(
-        "--custom-net",
-        type=str,
-        help="Passed to `docker run` as the '--net' parameter when "
-        "NetworkAccess is true, which is its default setting.",
-    )
     parser.add_argument(
         "--disable-validate",
         dest="do_validate",
@@ -606,9 +620,9 @@ def arg_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--on-error",
-        help="Desired workflow behavior when a step fails.  One of 'stop' (do "
-        "not submit any more steps) or 'continue' (may submit other steps that "
-        "are not downstream from the error). Default is 'stop'.",
+        help="Desired workflow behavior when a step fails.  One of `stop` (do "
+        "not submit any more steps) or `continue` (may submit other steps that "
+        "are not downstream from the error). Default is `stop`.",
         default="stop",
         choices=("stop", "continue"),
     )
@@ -637,28 +651,14 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--force-docker-pull",
-        action="store_true",
-        default=False,
-        help="Pull latest software container image even if it is locally present",
-        dest="force_docker_pull",
-    )
-    parser.add_argument(
-        "--no-read-only",
-        action="store_true",
-        default=False,
-        help="Do not set root directory in the container as read-only",
-        dest="no_read_only",
-    )
-
-    parser.add_argument(
         "--overrides",
         type=str,
         default=None,
         help="Read process requirement overrides from file.",
     )
 
-    subgroup = parser.add_mutually_exclusive_group()
+    target_group = parser.add_argument_group(title="Target selection (optional)")
+    subgroup = target_group.add_mutually_exclusive_group()
     subgroup.add_argument(
         "--target",
         "-t",
@@ -679,8 +679,8 @@ def arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Only executes the underlying Process (CommandLineTool, "
         "ExpressionTool, or sub-Workflow) for the given step in a workflow. "
-        "This will not include any step-level processing: 'scatter', 'when'; "
-        "and there will be no processing of step-level 'default', or 'valueFrom' "
+        "This will not include any step-level processing: `scatter`, `when`; "
+        "and there will be no processing of step-level `default`, or `valueFrom` "
         "input modifiers. However, requirements/hints from the step or parent "
         "workflow(s) will be inherited as usual."
         "The input object must match that Process's inputs.",
@@ -714,11 +714,15 @@ def arg_parser() -> argparse.ArgumentParser:
         "formatted description of the required input values for the given "
         "`cwl_document`.",
     )
-
+    parser.add_argument(
+        "--generate-help-preview",
+        action=HelpPreviewAction,
+        path="help-preview.svg",  # (optional) or "help-preview.html" or "help-preview.txt"
+    )
     return parser
 
 
-def get_default_args() -> Dict[str, Any]:
+def get_default_args() -> dict[str, Any]:
     """Get default values of cwltool's command line options."""
     ap = arg_parser()
     args = ap.parse_args([])
@@ -732,7 +736,7 @@ class FSAction(argparse.Action):
 
     def __init__(
         self,
-        option_strings: List[str],
+        option_strings: list[str],
         dest: str,
         nargs: Any = None,
         urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
@@ -770,7 +774,7 @@ class FSAppendAction(argparse.Action):
 
     def __init__(
         self,
-        option_strings: List[str],
+        option_strings: list[str],
         dest: str,
         nargs: Any = None,
         urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
@@ -827,7 +831,7 @@ class AppendAction(argparse.Action):
 
     def __init__(
         self,
-        option_strings: List[str],
+        option_strings: list[str],
         dest: str,
         nargs: Any = None,
         **kwargs: Any,
@@ -859,13 +863,14 @@ def add_argument(
     toolparser: argparse.ArgumentParser,
     name: str,
     inptype: Any,
-    records: List[str],
+    records: list[str],
     description: str = "",
     default: Any = None,
     input_required: bool = True,
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     base_uri: str = "",
 ) -> None:
+    description = rich.markup.escape(description)
     if len(name) == 1:
         flag = "-"
     else:
@@ -888,9 +893,9 @@ def add_argument(
             return None
 
     ahelp = description.replace("%", "%%")
-    action: Optional[Union[Type[argparse.Action], str]] = None
+    action: Optional[Union[type[argparse.Action], str]] = None
     atype: Optional[Any] = None
-    typekw: Dict[str, Any] = {}
+    typekw: dict[str, Any] = {}
 
     if inptype == "File":
         action = FileAction
@@ -903,6 +908,11 @@ def add_argument(
             action = DirectoryAppendAction
         else:
             action = AppendAction
+            items = inptype["items"]
+            if items == "int" or items == "long":
+                atype = int
+            elif items == "double" or items == "float":
+                atype = float
     elif isinstance(inptype, MutableMapping) and inptype["type"] == "enum":
         atype = str
     elif isinstance(inptype, MutableMapping) and inptype["type"] == "record":
@@ -957,8 +967,8 @@ def add_argument(
 def generate_parser(
     toolparser: argparse.ArgumentParser,
     tool: Process,
-    namemap: Dict[str, str],
-    records: List[str],
+    namemap: dict[str, str],
+    records: list[str],
     input_required: bool = True,
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     base_uri: str = "",
@@ -985,5 +995,11 @@ def generate_parser(
             urljoin,
             base_uri,
         )
+
+    toolparser.add_argument(
+        "--generate-help-preview",
+        action=HelpPreviewAction,
+        path="help-preview.svg",  # (optional) or "help-preview.html" or "help-preview.txt"
+    )
 
     return toolparser

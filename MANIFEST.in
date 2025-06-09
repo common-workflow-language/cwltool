@@ -11,6 +11,7 @@ include tests/loop-ext/*
 include tests/tmp1/tmp2/tmp3/.gitkeep
 include tests/tmp4/alpha/*
 include tests/wf/*
+include tests/wf/inp-filelist.txt
 include tests/wf/operation/*
 include tests/override/*
 include tests/reloc/*.cwl
@@ -19,6 +20,7 @@ include tests/reloc/dir2/*
 include tests/checker_wf/*
 include tests/subgraph/*
 include tests/input_deps/*
+recursive-include tests/test_deps_env
 include tests/trs/*
 include tests/wf/generator/*
 include cwltool/py.typed

@@ -5,20 +5,8 @@ import os
 import shutil
 import tempfile
 import threading
-from typing import (
-    IO,
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Literal,
-    Optional,
-    TextIO,
-    Tuple,
-    Union,
-)
+from collections.abc import Iterable
+from typing import IO, TYPE_CHECKING, Any, Callable, Literal, Optional, TextIO, Union
 
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names
@@ -31,6 +19,7 @@ from .stdfsaccess import StdFsAccess
 from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, HasReqsHints, ResolverType
 
 if TYPE_CHECKING:
+    from _typeshed import SupportsWrite
     from cwl_utils.parser.cwl_v1_2 import LoadingOptions
 
     from .builder import Builder
@@ -40,12 +29,13 @@ if TYPE_CHECKING:
     from .process import Process
     from .secrets import SecretStore
     from .software_requirements import DependenciesConfiguration
+    from .workflow_job import WorkflowJobStep
 
 
 class ContextBase:
     """Shared kwargs based initializer for :py:class:`RuntimeContext` and :py:class:`LoadingContext`."""
 
-    def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, kwargs: Optional[dict[str, Any]] = None) -> None:
         """Initialize."""
         if kwargs:
             for k, v in kwargs.items():
@@ -86,13 +76,13 @@ def set_log_dir(outdir: str, log_dir: str, subdir_name: str) -> str:
 
 
 class LoadingContext(ContextBase):
-    def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, kwargs: Optional[dict[str, Any]] = None) -> None:
         """Initialize the LoadingContext from the kwargs."""
         self.debug: bool = False
         self.metadata: CWLObjectType = {}
-        self.requirements: Optional[List[CWLObjectType]] = None
-        self.hints: Optional[List[CWLObjectType]] = None
-        self.overrides_list: List[CWLObjectType] = []
+        self.requirements: Optional[list[CWLObjectType]] = None
+        self.hints: Optional[list[CWLObjectType]] = None
+        self.overrides_list: list[CWLObjectType] = []
         self.loader: Optional[Loader] = None
         self.avsc_names: Optional[Names] = None
         self.disable_js_validation: bool = False
@@ -116,7 +106,7 @@ class LoadingContext(ContextBase):
         self.singularity: bool = False
         self.podman: bool = False
         self.eval_timeout: float = 60
-        self.codegen_idx: Dict[str, Tuple[Any, "LoadingOptions"]] = {}
+        self.codegen_idx: dict[str, tuple[Any, "LoadingOptions"]] = {}
         self.fast_parser = False
         self.skip_resolve_all = False
         self.skip_schemas = False
@@ -135,11 +125,11 @@ class RuntimeContext(ContextBase):
     tmp_outdir_prefix: str = ""
     stagedir: str = ""
 
-    def __init__(self, kwargs: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, kwargs: Optional[dict[str, Any]] = None) -> None:
         """Initialize the RuntimeContext from the kwargs."""
         select_resources_callable = Callable[
-            [Dict[str, Union[int, float]], RuntimeContext],
-            Dict[str, Union[int, float]],
+            [dict[str, Union[int, float]], RuntimeContext],
+            dict[str, Union[int, float]],
         ]
         self.user_space_docker_cmd: Optional[str] = None
         self.secret_store: Optional["SecretStore"] = None
@@ -194,12 +184,18 @@ class RuntimeContext(ContextBase):
         self.orcid: str = ""
         self.cwl_full_name: str = ""
         self.process_run_id: Optional[str] = None
+        self.prov_host: bool = False
+        self.prov_user: bool = False
         self.prov_obj: Optional[ProvenanceProfile] = None
         self.mpi_config: MpiConfig = MpiConfig()
         self.default_stdout: Optional[Union[IO[bytes], TextIO]] = None
         self.default_stderr: Optional[Union[IO[bytes], TextIO]] = None
         self.validate_only: bool = False
-        self.validate_stdout: Optional[Union[IO[bytes], TextIO, IO[str]]] = None
+        self.validate_stdout: Optional["SupportsWrite[str]"] = None
+        self.workflow_job_step_name_callback: Optional[
+            Callable[[WorkflowJobStep, CWLObjectType], str]
+        ] = None
+
         super().__init__(kwargs)
         if self.tmp_outdir_prefix == "":
             self.tmp_outdir_prefix = self.tmpdir_prefix

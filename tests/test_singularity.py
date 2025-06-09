@@ -2,7 +2,6 @@
 
 import shutil
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -19,7 +18,7 @@ from .util import (
 
 
 @needs_singularity_2_6
-def test_singularity_pullfolder(tmp_path: Path, monkeypatch: Any) -> None:
+def test_singularity_pullfolder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test singularity respects SINGULARITY_PULLFOLDER."""
     workdir = tmp_path / "working_dir_new"
     workdir.mkdir()

@@ -1,10 +1,10 @@
 """Helper functions for docker."""
 
 import subprocess  # nosec
-from typing import List, Optional, Tuple
+from typing import Optional
 
 
-def docker_vm_id() -> Tuple[Optional[int], Optional[int]]:
+def docker_vm_id() -> tuple[Optional[int], Optional[int]]:
     """
     Return the User ID and Group ID of the default docker user inside the VM.
 
@@ -21,7 +21,7 @@ def docker_vm_id() -> Tuple[Optional[int], Optional[int]]:
     return (None, None)
 
 
-def check_output_and_strip(cmd: List[str]) -> Optional[str]:
+def check_output_and_strip(cmd: list[str]) -> Optional[str]:
     """
     Pass a command list to :py:func:`subprocess.check_output`.
 
@@ -48,7 +48,7 @@ def docker_machine_name() -> Optional[str]:
     return check_output_and_strip(["docker-machine", "active"])
 
 
-def cmd_output_matches(check_cmd: List[str], expected_status: str) -> bool:
+def cmd_output_matches(check_cmd: list[str], expected_status: str) -> bool:
     """
     Run a command and compares output to expected.
 
@@ -80,7 +80,7 @@ def docker_machine_running() -> bool:
     return cmd_output_matches(["docker-machine", "status", machine_name], "Running")
 
 
-def cmd_output_to_int(cmd: List[str]) -> Optional[int]:
+def cmd_output_to_int(cmd: list[str]) -> Optional[int]:
     """
     Run the provided command and returns the integer value of the result.
 
@@ -97,7 +97,7 @@ def cmd_output_to_int(cmd: List[str]) -> Optional[int]:
     return None
 
 
-def boot2docker_id() -> Tuple[Optional[int], Optional[int]]:
+def boot2docker_id() -> tuple[Optional[int], Optional[int]]:
     """
     Get the UID and GID of the docker user inside a running boot2docker vm.
 
@@ -108,7 +108,7 @@ def boot2docker_id() -> Tuple[Optional[int], Optional[int]]:
     return (uid, gid)
 
 
-def docker_machine_id() -> Tuple[Optional[int], Optional[int]]:
+def docker_machine_id() -> tuple[Optional[int], Optional[int]]:
     """
     Ask docker-machine for active machine and gets the UID of the docker user.
 

@@ -1,7 +1,8 @@
 """Minimal in memory storage of secrets."""
 
 import uuid
-from typing import Dict, List, MutableMapping, MutableSequence, Optional, cast
+from collections.abc import MutableMapping, MutableSequence
+from typing import Optional
 
 from .utils import CWLObjectType, CWLOutputType
 
@@ -11,7 +12,7 @@ class SecretStore:
 
     def __init__(self) -> None:
         """Initialize the secret store."""
-        self.secrets: Dict[str, str] = {}
+        self.secrets: dict[str, str] = {}
 
     def add(self, value: Optional[CWLOutputType]) -> Optional[CWLOutputType]:
         """
@@ -28,7 +29,7 @@ class SecretStore:
             return placeholder
         return value
 
-    def store(self, secrets: List[str], job: CWLObjectType) -> None:
+    def store(self, secrets: list[str], job: CWLObjectType) -> None:
         """Sanitize the job object of any of the given secrets."""
         for j in job:
             if j in secrets:
@@ -42,11 +43,11 @@ class SecretStore:
                     return True
         elif isinstance(value, MutableMapping):
             for this_value in value.values():
-                if self.has_secret(cast(CWLOutputType, this_value)):
+                if self.has_secret(this_value):
                     return True
         elif isinstance(value, MutableSequence):
             for this_value in value:
-                if self.has_secret(cast(CWLOutputType, this_value)):
+                if self.has_secret(this_value):
                     return True
         return False
 
@@ -57,7 +58,7 @@ class SecretStore:
                 value = value.replace(key, this_value)
             return value
         elif isinstance(value, MutableMapping):
-            return {k: self.retrieve(cast(CWLOutputType, v)) for k, v in value.items()}
+            return {k: self.retrieve(v) for k, v in value.items()}
         elif isinstance(value, MutableSequence):
-            return [self.retrieve(cast(CWLOutputType, v)) for v in value]
+            return [self.retrieve(v) for v in value]
         return value

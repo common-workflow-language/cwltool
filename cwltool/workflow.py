@@ -3,16 +3,8 @@ import datetime
 import functools
 import logging
 import random
-from typing import (
-    Callable,
-    Dict,
-    List,
-    Mapping,
-    MutableMapping,
-    MutableSequence,
-    Optional,
-    cast,
-)
+from collections.abc import Mapping, MutableMapping, MutableSequence
+from typing import Callable, Optional, cast
 from uuid import UUID
 
 from mypy_extensions import mypyc_attr
@@ -80,8 +72,7 @@ class Workflow(Process):
             if is_main:
                 run_uuid = loadingContext.research_obj.ro_uuid
 
-            self.provenance_object = ProvenanceProfile(
-                loadingContext.research_obj,
+            self.provenance_object = loadingContext.research_obj.initialize_provenance(
                 full_name=loadingContext.cwl_full_name,
                 host_provenance=loadingContext.host_provenance,
                 user_provenance=loadingContext.user_provenance,
@@ -98,7 +89,7 @@ class Workflow(Process):
         loadingContext.requirements = self.requirements
         loadingContext.hints = self.hints
 
-        self.steps: List[WorkflowStep] = []
+        self.steps: list[WorkflowStep] = []
         validation_errors = []
         for index, step in enumerate(self.tool.get("steps", [])):
             try:
@@ -119,9 +110,9 @@ class Workflow(Process):
         workflow_inputs = self.tool["inputs"]
         workflow_outputs = self.tool["outputs"]
 
-        step_inputs: List[CWLObjectType] = []
-        step_outputs: List[CWLObjectType] = []
-        param_to_step: Dict[str, CWLObjectType] = {}
+        step_inputs: list[CWLObjectType] = []
+        step_outputs: list[CWLObjectType] = []
+        param_to_step: dict[str, CWLObjectType] = {}
         for step in self.steps:
             step_inputs.extend(step.tool["inputs"])
             step_outputs.extend(step.tool["outputs"])
@@ -220,7 +211,7 @@ class WorkflowStep(Process):
                 loadingContext.requirements.append(parent_req)
         loadingContext.requirements.extend(
             cast(
-                List[CWLObjectType],
+                list[CWLObjectType],
                 get_overrides(getdefault(loadingContext.overrides_list, []), self.id).get(
                     "requirements", []
                 ),
@@ -451,7 +442,9 @@ class WorkflowStep(Process):
                 runtimeContext,
             )
         except WorkflowException:
-            _logger.error("Exception on step '%s'", runtimeContext.name)
+            _logger.error(
+                "Exception on step '%s'", runtimeContext.name, exc_info=runtimeContext.debug
+            )
             raise
         except Exception as exc:
             _logger.exception("Unexpected exception")

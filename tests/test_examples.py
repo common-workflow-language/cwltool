@@ -9,7 +9,7 @@ import sys
 import urllib.parse
 from io import StringIO
 from pathlib import Path
-from typing import Any, Dict, List, Union, cast
+from typing import Any, Union, cast
 
 import cwl_utils.expression as expr
 import pydot
@@ -69,7 +69,7 @@ def test_expression_match(expression: str, expected: bool) -> None:
     assert (match is not None) == expected
 
 
-interpolate_input = {
+interpolate_input: dict[str, Any] = {
     "foo": {
         "bar": {"baz": "zab1"},
         "b ar": {"baz": 2},
@@ -77,7 +77,7 @@ interpolate_input = {
         'b"ar': {"baz": None},
     },
     "lst": ["A", "B"],
-}  # type: Dict[str, Any]
+}
 
 interpolate_parameters = [
     ("$(foo)", interpolate_input["foo"]),
@@ -410,7 +410,7 @@ def test_scandeps() -> None:
         raise Exception("test case can't load things")
 
     scanned_deps = cast(
-        List[Dict[str, Any]],
+        list[dict[str, Any]],
         cwltool.process.scandeps(
             cast(str, obj["id"]),
             obj,
@@ -473,7 +473,7 @@ def test_scandeps() -> None:
     assert scanned_deps == expected_deps
 
     scanned_deps2 = cast(
-        List[Dict[str, Any]],
+        list[dict[str, Any]],
         cwltool.process.scandeps(
             cast(str, obj["id"]),
             obj,
@@ -515,7 +515,7 @@ def test_scandeps_samedirname() -> None:
         raise Exception("test case can't load things")
 
     scanned_deps = cast(
-        List[Dict[str, Any]],
+        list[dict[str, Any]],
         cwltool.process.scandeps(
             "",
             obj,
@@ -576,7 +576,7 @@ def test_scandeps_defaults_with_secondaryfiles() -> None:
 
 
 def test_dedupe() -> None:
-    not_deduped = [
+    not_deduped: list[CWLObjectType] = [
         {"class": "File", "location": "file:///example/a"},
         {"class": "File", "location": "file:///example/a"},
         {"class": "File", "location": "file:///example/d"},
@@ -585,7 +585,7 @@ def test_dedupe() -> None:
             "location": "file:///example/c",
             "listing": [{"class": "File", "location": "file:///example/d"}],
         },
-    ]  # type: List[CWLObjectType]
+    ]
 
     expected = [
         {"class": "File", "location": "file:///example/a"},
@@ -649,7 +649,7 @@ source_to_sink = [
 
 @pytest.mark.parametrize("name, source, sink, expected", source_to_sink)
 def test_compare_types(
-    name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
+    name: str, source: dict[str, Any], sink: dict[str, Any], expected: bool
 ) -> None:
     assert can_assign_src_to_sink(source, sink) == expected, name
 
@@ -675,7 +675,7 @@ source_to_sink_strict = [
 
 @pytest.mark.parametrize("name, source, sink, expected", source_to_sink_strict)
 def test_compare_types_strict(
-    name: str, source: Dict[str, Any], sink: Dict[str, Any], expected: bool
+    name: str, source: dict[str, Any], sink: dict[str, Any], expected: bool
 ) -> None:
     assert can_assign_src_to_sink(source, sink, strict=True) == expected, name
 
@@ -1118,7 +1118,7 @@ def test_cid_file_dir_arg_is_file_instead_of_dir(tmp_path: Path, factor: str) ->
 @needs_docker
 @pytest.mark.parametrize("factor", test_factors)
 def test_cid_file_non_existing_dir(tmp_path: Path, factor: str) -> None:
-    """Test that --cachedir with a bad path should produce a specific error."""
+    """Test that --cidefile-dir with a bad path should produce a specific error."""
     test_file = "cache_test_workflow.cwl"
     bad_cidfile_dir = tmp_path / "cidfile-dir-badpath"
     commands = factor.split()
@@ -1228,120 +1228,6 @@ def test_secondary_files_v1_0(tmp_path: Path, factor: str) -> None:
         ]
     )
     error_code, _, stderr = get_main_output(commands)
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "completed success" in stderr
-    assert error_code == 0
-
-
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_wf_without_container(tmp_path: Path, factor: str) -> None:
-    """Confirm that we can run a workflow without a container."""
-    test_file = "hello-workflow.cwl"
-    cache_dir = str(tmp_path / "cwltool_cache")
-    commands = factor.split()
-    commands.extend(
-        [
-            "--cachedir",
-            cache_dir,
-            "--outdir",
-            str(tmp_path / "outdir"),
-            get_data("tests/wf/" + test_file),
-            "--usermessage",
-            "hello",
-        ]
-    )
-    error_code, _, stderr = get_main_output(commands)
-
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "completed success" in stderr
-    assert error_code == 0
-
-
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_issue_740_fixed(tmp_path: Path, factor: str) -> None:
-    """Confirm that re-running a particular workflow with caching succeeds."""
-    test_file = "cache_test_workflow.cwl"
-    cache_dir = str(tmp_path / "cwltool_cache")
-    commands = factor.split()
-    commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
-    error_code, _, stderr = get_main_output(commands)
-
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "completed success" in stderr
-    assert error_code == 0
-
-    commands = factor.split()
-    commands.extend(["--cachedir", cache_dir, get_data("tests/wf/" + test_file)])
-    error_code, _, stderr = get_main_output(commands)
-
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "Output of job will be cached in" not in stderr
-    assert error_code == 0, stderr
-
-
-@needs_docker
-@pytest.mark.parametrize("factor", test_factors)
-def test_cache_relative_paths(tmp_path: Path, factor: str) -> None:
-    """Confirm that re-running a particular workflow with caching succeeds."""
-    test_file = "secondary-files.cwl"
-    test_job_file = "secondary-files-job.yml"
-    cache_dir = str(tmp_path / "cwltool_cache")
-    commands = factor.split()
-    commands.extend(
-        [
-            "--out",
-            str(tmp_path / "out"),
-            "--cachedir",
-            cache_dir,
-            get_data(f"tests/{test_file}"),
-            get_data(f"tests/{test_job_file}"),
-        ]
-    )
-    error_code, _, stderr = get_main_output(commands)
-
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "completed success" in stderr
-    assert error_code == 0
-
-    commands = factor.split()
-    commands.extend(
-        [
-            "--out",
-            str(tmp_path / "out2"),
-            "--cachedir",
-            cache_dir,
-            get_data(f"tests/{test_file}"),
-            get_data(f"tests/{test_job_file}"),
-        ]
-    )
-    error_code, _, stderr = get_main_output(commands)
-
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "Output of job will be cached in" not in stderr
-    assert error_code == 0, stderr
-
-    assert (tmp_path / "cwltool_cache" / "27903451fc1ee10c148a0bdeb845b2cf").exists()
-
-
-@pytest.mark.parametrize("factor", test_factors)
-def test_cache_default_literal_file(tmp_path: Path, factor: str) -> None:
-    """Confirm that running a CLT with a default literal file with caching succeeds."""
-    test_file = "tests/wf/extract_region_specs.cwl"
-    cache_dir = str(tmp_path / "cwltool_cache")
-    commands = factor.split()
-    commands.extend(
-        [
-            "--out",
-            str(tmp_path / "out"),
-            "--cachedir",
-            cache_dir,
-            get_data(test_file),
-        ]
-    )
-    error_code, _, stderr = get_main_output(commands)
-
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
@@ -1682,7 +1568,7 @@ def test_arguments_self() -> None:
         else:
             factory.runtime_context.use_container = False
     check = factory.make(get_data("tests/wf/paramref_arguments_self.cwl"))
-    outputs = cast(Dict[str, Any], check())
+    outputs = cast(dict[str, Any], check())
     assert "self_review" in outputs
     assert len(outputs) == 1
     assert outputs["self_review"]["checksum"] == "sha1$724ba28f4a9a1b472057ff99511ed393a45552e1"
@@ -1820,9 +1706,9 @@ def test_validate_optional_src_with_mandatory_sink() -> None:
         ["--validate", get_data("tests/wf/optional_src_mandatory_sink.cwl")]
     )
     assert exit_code == 0
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert 'Source \'opt_file\' of type ["null", "File"] may be incompatible' in stderr
-    assert "with sink 'r' of type \"File\"" in stderr
+    stdout = re.sub(r"\s\s+", " ", stdout)
+    assert 'Source \'opt_file\' of type ["null", "File"] may be incompatible' in stdout
+    assert "with sink 'r' of type \"File\"" in stdout
 
 
 def test_res_req_expr_float_1_0() -> None:
@@ -1875,12 +1761,11 @@ def test_invalid_nested_array() -> None:
         ]
     )
     assert exit_code == 1, stderr
-    stderr = re.sub(r"\n\s+", " ", stderr)
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "Tool definition failed validation:" in stderr
+    stdout = re.sub(r"\s\s+", " ", stdout)
+    assert "Tool definition failed validation:" in stdout
     assert (
-        "tests/nested-array.cwl:6:5: Field 'type' references unknown identifier 'string[][]'"
-    ) in stderr
+        "tests/nested-array.cwl:7:5: Field 'type' references unknown identifier 'string[][]'"
+    ) in stdout
 
 
 def test_input_named_id() -> None:
@@ -1891,6 +1776,18 @@ def test_input_named_id() -> None:
             "--debug",
             get_data("tests/wf/input_named_id.cwl"),
             get_data("tests/wf/input_named_id.yaml"),
+        ]
+    )
+    assert exit_code == 0, stderr
+
+
+def test_make_template() -> None:
+    """End-to-end test of --make-template, especially for mypyc mode."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--make-template",
+            "--debug",
+            get_data("tests/CometAdapter.cwl"),
         ]
     )
     assert exit_code == 0, stderr

@@ -30,4 +30,4 @@ steps:
     loop:
       i1: o1
       i2: o2
-    outputMethod: last
+    outputMethod: last_iteration

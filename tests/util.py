@@ -8,16 +8,17 @@ import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Generator, Mapping
 from contextlib import ExitStack
+from importlib.resources import as_file, files
 from pathlib import Path
-from typing import Dict, Generator, List, Mapping, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import pytest
 
 from cwltool.env_to_stdout import deserialize_env
 from cwltool.main import main
 from cwltool.singularity import is_version_2_6, is_version_3_or_newer
-from cwltool.utils import as_file, files
 
 
 def force_default_container(default_container_id: str, _: str) -> str:
@@ -83,11 +84,12 @@ def env_accepts_null() -> bool:
 
 
 def get_main_output(
-    args: List[str],
+    args: list[str],
     replacement_env: Optional[Mapping[str, str]] = None,
     extra_env: Optional[Mapping[str, str]] = None,
     monkeypatch: Optional[pytest.MonkeyPatch] = None,
-) -> Tuple[Optional[int], str, str]:
+    **extra_kwargs: Any,
+) -> tuple[Optional[int], str, str]:
     """Run cwltool main.
 
     args: the command line args to call it with
@@ -112,7 +114,7 @@ def get_main_output(
             monkeypatch.setenv(k, v)
 
     try:
-        rc = main(argsl=args, stdout=stdout, stderr=stderr)
+        rc = main(argsl=args, stdout=stdout, stderr=stderr, **extra_kwargs)
     except SystemExit as e:
         if isinstance(e.code, int):
             rc = e.code
@@ -127,13 +129,13 @@ def get_main_output(
 
 def get_tool_env(
     tmp_path: Path,
-    flag_args: List[str],
+    flag_args: list[str],
     inputs_file: Optional[str] = None,
     replacement_env: Optional[Mapping[str, str]] = None,
     extra_env: Optional[Mapping[str, str]] = None,
     monkeypatch: Optional[pytest.MonkeyPatch] = None,
     runtime_env_accepts_null: Optional[bool] = None,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Get the env vars for a tool's invocation."""
     # GNU env accepts the -0 option to end each variable's
     # printing with "\0". No such luck on BSD-ish.

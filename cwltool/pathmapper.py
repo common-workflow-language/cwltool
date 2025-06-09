@@ -1,20 +1,10 @@
-import collections
 import logging
 import os
 import stat
 import urllib
 import uuid
-from typing import (
-    Dict,
-    ItemsView,
-    Iterable,
-    Iterator,
-    KeysView,
-    List,
-    Optional,
-    Tuple,
-    cast,
-)
+from collections.abc import ItemsView, Iterable, Iterator, KeysView
+from typing import NamedTuple, Optional, cast
 
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
@@ -25,31 +15,24 @@ from .loghandler import _logger
 from .stdfsaccess import abspath
 from .utils import CWLObjectType, dedup, downloadHttpFile
 
-MapperEnt = collections.namedtuple("MapperEnt", ["resolved", "target", "type", "staged"])
-""" Mapper entries.
 
-.. py:attribute:: resolved
-   :type: str
+class MapperEnt(NamedTuple):
+    """Mapper entries."""
 
-   The "real" path on the local file system (after resolving relative paths
-   and traversing symlinks
-
-.. py:attribute:: target
-   :type: str
-
-   The path on the target file system (under stagedir)
-
-.. py:attribute:: type
-   :type: str
-
-   The object type. One of "File", "Directory", "CreateFile", "WritableFile",
-   or "CreateWritableFile".
-
-.. py:attribute:: staged
-   :type: bool
-
-   If the File has been staged yet
-"""
+    resolved: str
+    """
+    The "real" path on the local file system (after resolving relative paths
+    and traversing symlinks
+    """
+    target: str
+    """The path on the target file system (under stagedir)"""
+    type: Optional[str]
+    """
+    The object type. One of "File", "Directory", "CreateFile", "WritableFile",
+    or "CreateWritableFile".
+    """
+    staged: Optional[bool]
+    """If the File has been staged yet."""
 
 
 @mypyc_attr(allow_interpreted_subclasses=True)
@@ -92,20 +75,20 @@ class PathMapper:
 
     def __init__(
         self,
-        referenced_files: List[CWLObjectType],
+        referenced_files: list[CWLObjectType],
         basedir: str,
         stagedir: str,
         separateDirs: bool = True,
     ) -> None:
         """Initialize the PathMapper."""
-        self._pathmap: Dict[str, MapperEnt] = {}
+        self._pathmap: dict[str, MapperEnt] = {}
         self.stagedir = stagedir
         self.separateDirs = separateDirs
         self.setup(dedup(referenced_files), basedir)
 
     def visitlisting(
         self,
-        listing: List[CWLObjectType],
+        listing: list[CWLObjectType],
         stagedir: str,
         basedir: str,
         copy: bool = False,
@@ -147,7 +130,7 @@ class PathMapper:
             if location.startswith("file://"):
                 staged = False
             self.visitlisting(
-                cast(List[CWLObjectType], obj.get("listing", [])),
+                cast(list[CWLObjectType], obj.get("listing", [])),
                 tgt,
                 basedir,
                 copy=copy,
@@ -158,7 +141,7 @@ class PathMapper:
             ab = abspath(path, basedir)
             if "contents" in obj and path.startswith("_:"):
                 self._pathmap[path] = MapperEnt(
-                    obj["contents"],
+                    cast(str, obj["contents"]),
                     tgt,
                     "CreateWritableFile" if copy else "CreateFile",
                     staged,
@@ -189,16 +172,19 @@ class PathMapper:
                         deref, tgt, "WritableFile" if copy else "File", staged
                     )
             self.visitlisting(
-                cast(List[CWLObjectType], obj.get("secondaryFiles", [])),
+                cast(list[CWLObjectType], obj.get("secondaryFiles", [])),
                 stagedir,
                 basedir,
                 copy=copy,
                 staged=staged,
             )
 
-    def setup(self, referenced_files: List[CWLObjectType], basedir: str) -> None:
-        # Go through each file and set the target to its own directory along
-        # with any secondary files.
+    def setup(self, referenced_files: list[CWLObjectType], basedir: str) -> None:
+        """
+        For each file, set the target to its own directory.
+
+        Also processes secondary files into that same directory.
+        """
         stagedir = self.stagedir
         for fob in referenced_files:
             if self.separateDirs:
@@ -246,15 +232,17 @@ class PathMapper:
     def reversemap(
         self,
         target: str,
-    ) -> Optional[Tuple[str, str]]:
+    ) -> Optional[tuple[str, str]]:
         """Find the (source, resolved_path) for the given target, if any."""
         for k, v in self._pathmap.items():
             if v[1] == target:
                 return (k, v[0])
         return None
 
-    def update(self, key: str, resolved: str, target: str, ctype: str, stage: bool) -> MapperEnt:
-        """Update an existine entry."""
+    def update(
+        self, key: str, resolved: str, target: str, ctype: Optional[str], stage: Optional[bool]
+    ) -> MapperEnt:
+        """Update an existing entry."""
         m = MapperEnt(resolved, target, ctype, stage)
         self._pathmap[key] = m
         return m

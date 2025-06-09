@@ -1,6 +1,8 @@
 # Generated during tests
 pytestdebug.log
 tmp/
+*.sif
+involucro
 
 # Python temps
 __pycache__/
@@ -14,6 +16,7 @@ eggs/
 *.egg
 .tox/
 .pytest_cache
+*.so
 
 # Editor Temps
 .*.sw?
@@ -59,4 +62,3 @@ cwltool/_version.py
 cwltool_deps
 docs/_build/
 docs/autoapi/
-
