@@ -1,10 +1,10 @@
 import logging
 import subprocess
 import sys
+from collections.abc import MutableMapping
 from io import StringIO
 from pathlib import Path
 from typing import cast
-from collections.abc import MutableMapping
 
 from cwltool.context import RuntimeContext
 from cwltool.factory import Factory
