@@ -174,7 +174,7 @@ setup(
     setup_requires=PYTEST_RUNNER + ["setuptools_scm>=8.0.4,<9"],
     test_suite="tests",
     tests_require=[
-        "bagit >= 1.6.4, < 1.9",
+        "bagit >= 1.6.4, < 1.10",
         "pytest >= 6.2, < 8.5",
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
