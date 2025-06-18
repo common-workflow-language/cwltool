@@ -98,4 +98,4 @@ workflows:
             tags:
               only: /.*/
           build: "*musllinux*"
-          image: quay.io/pypa/musllinux_1_2_aarch64
+          image: quay.io/pypa/musllinux_1_2_aarch64:2025.02.02-1
