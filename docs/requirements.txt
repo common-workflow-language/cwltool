@@ -3,4 +3,3 @@ sphinx-rtd-theme==3.0.2
 sphinx-autoapi
 sphinx-autodoc-typehints
 sphinxcontrib-autoprogram
-importlib_resources;python_version<'3.9'
