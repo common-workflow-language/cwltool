@@ -22,8 +22,6 @@ write_to = "cwltool/_version.py"
 test-command = "python -m pytest --ignore cwltool/schemas -n logical --dist worksteal --junitxml={project}/test-results/junit_$(python -V | awk '{print $2}')_${AUDITWHEEL_PLAT}.xml -k 'not (test_bioconda or test_env_filtering or test_udocker)' --pyargs cwltool"
 test-requires = "-r test-requirements.txt"
 test-extras = "deps"
-skip = "pp*"
-#      ^ skip building wheels on PyPy (any version)
 build-verbosity = 1
 environment = { CWLTOOL_USE_MYPYC="1", MYPYPATH="$(pwd)/mypy-stubs" }
 
