@@ -1,0 +1,12 @@
+{
+    "example_file_with_secondary": {
+        "class": "File",
+        "location": "2.fasta",
+        "secondaryFiles": [
+            {
+                "class": "File",
+                "location": "2.fastq"
+            }
+        ]
+    }
+}
