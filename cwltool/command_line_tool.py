@@ -611,10 +611,16 @@ class CommandLineTool(Process):
                             continue
 
                     et: CWLObjectType = {}
+                    writable = t.get("writable", False)
+                    et["writable"] = writable
                     if isinstance(entry, Mapping) and entry.get("class") in (
                         "File",
                         "Directory",
                     ):
+                        if writable and "secondaryFiles" in entry:
+                            secFiles = cast(MutableSequence[CWLObjectType], entry["secondaryFiles"])
+                            for sf in secFiles:
+                                sf["writable"] = writable
                         et["entry"] = cast(CWLOutputType, entry)
                     else:
                         if isinstance(entry, str):
@@ -650,7 +656,6 @@ class CommandLineTool(Process):
                             et["entryname"] = entryname_field
                     else:
                         et["entryname"] = None
-                    et["writable"] = t.get("writable", False)
                     ls.append(et)
                 else:
                     # Expression, must return a Dirent, File, Directory
@@ -700,13 +705,14 @@ class CommandLineTool(Process):
                 )
 
             if t2.get("entryname") or t2.get("writable"):
-                t2 = copy.deepcopy(t2)
-                t2entry = cast(CWLObjectType, t2["entry"])
+                t2copy = copy.deepcopy(t2)
+                t2entry = cast(CWLObjectType, t2copy["entry"])
                 if t2.get("entryname"):
-                    t2entry["basename"] = t2["entryname"]
-                t2entry["writable"] = t2.get("writable")
+                    t2entry["basename"] = t2copy["entryname"]
+                t2entry["writable"] = t2copy.get("writable")
+                t2["entry"] = t2entry
 
-            ls[i] = cast(CWLObjectType, t2["entry"])
+            ls[i] = t2["entry"]
 
         for i, t3 in enumerate(ls):
             if t3.get("class") not in ("File", "Directory"):
@@ -753,14 +759,21 @@ class CommandLineTool(Process):
             for entry in ls:
                 if "basename" in entry:
                     basename = cast(str, entry["basename"])
-                    entry["dirname"] = os.path.join(builder.outdir, os.path.dirname(basename))
+                    dirname = os.path.join(builder.outdir, os.path.dirname(basename))
+                    entry["dirname"] = dirname
                     entry["basename"] = os.path.basename(basename)
+                    if "secondaryFiles" in entry:
+                        for sec_file in cast(
+                            MutableSequence[CWLObjectType], entry["secondaryFiles"]
+                        ):
+                            sec_file["dirname"] = dirname
                 normalizeFilesDirs(entry)
                 self.updatePathmap(
                     cast(Optional[str], entry.get("dirname")) or builder.outdir,
                     cast(PathMapper, builder.pathmapper),
                     entry,
                 )
+
                 if "listing" in entry:
 
                     def remove_dirname(d: CWLObjectType) -> None:

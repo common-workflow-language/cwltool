@@ -376,3 +376,16 @@ def test_iwdr_permutations_singularity_inplace(
         )
         == 0
     )
+
+
+def test_iwdr_writable_secondaryfiles(tmp_path: Path) -> None:
+    """Confirm that a writable primary file and its secondary files are still co-located."""
+    err_code, _, _ = get_main_output(
+        [
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/iwdr_writable_secfile.cwl"),
+            get_data("tests/iwdr_writable_secfile-inputs.json"),
+        ]
+    )
+    assert err_code == 0

@@ -111,13 +111,13 @@ class PathMapper:
         copy: bool = False,
         staged: bool = False,
     ) -> None:
+        if obj["location"] in self._pathmap:
+            return
         stagedir = cast(Optional[str], obj.get("dirname")) or stagedir
         tgt = os.path.join(
             stagedir,
             cast(str, obj["basename"]),
         )
-        if obj["location"] in self._pathmap:
-            return
         if obj["class"] == "Directory":
             location = cast(str, obj["location"])
             if location.startswith("file://"):
