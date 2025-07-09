@@ -23,6 +23,8 @@ test-requires = "-r test-requirements.txt"
 test-extras = "deps"
 build-verbosity = 1
 environment = { CWLTOOL_USE_MYPYC="1", MYPYPATH="$(pwd)/mypy-stubs" }
+# Disable building PyPy wheels on all platforms
+skip = "pp*"
 
 # Install system library
 [tool.cibuildwheel.linux]
