@@ -16,7 +16,7 @@ from collections.abc import Generator, Mapping, MutableMapping, MutableSequence
 from enum import Enum
 from functools import cmp_to_key, partial
 from re import Pattern
-from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Optional, TextIO, Union, cast
 
 from mypy_extensions import mypyc_attr
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -1322,26 +1322,29 @@ class CommandLineTool(Process):
                                 key=cmp_to_key(locale.strcoll),
                             )
                             r.extend(
-                                [
-                                    {
-                                        "location": g,
-                                        "path": fs_access.join(
-                                            builder.outdir,
-                                            urllib.parse.unquote(g[len(prefix[0]) + 1 :]),
-                                        ),
-                                        "basename": decoded_basename,
-                                        "nameroot": os.path.splitext(decoded_basename)[0],
-                                        "nameext": os.path.splitext(decoded_basename)[1],
-                                        "class": "File" if fs_access.isfile(g) else "Directory",
-                                    }
-                                    for g, decoded_basename in zip(
-                                        sorted_glob_result,
-                                        map(
-                                            lambda x: os.path.basename(urllib.parse.unquote(x)),
+                                cast(
+                                    Iterable[CWLOutputType],
+                                    [
+                                        {
+                                            "location": g,
+                                            "path": fs_access.join(
+                                                builder.outdir,
+                                                urllib.parse.unquote(g[len(prefix[0]) + 1 :]),
+                                            ),
+                                            "basename": decoded_basename,
+                                            "nameroot": os.path.splitext(decoded_basename)[0],
+                                            "nameext": os.path.splitext(decoded_basename)[1],
+                                            "class": "File" if fs_access.isfile(g) else "Directory",
+                                        }
+                                        for g, decoded_basename in zip(
                                             sorted_glob_result,
-                                        ),
-                                    )
-                                ]
+                                            map(
+                                                lambda x: os.path.basename(urllib.parse.unquote(x)),
+                                                sorted_glob_result,
+                                            ),
+                                        )
+                                    ],
+                                )
                             )
                         except OSError as e:
                             _logger.warning(str(e), exc_info=builder.debug)
