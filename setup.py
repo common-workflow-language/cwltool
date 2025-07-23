@@ -170,7 +170,7 @@ setup(
             "pillow",  # workaround for https://github.com/galaxyproject/galaxy/pull/20525
         ],
     },
-    python_requires=">=3.9, <3.14",
+    python_requires=">=3.9, <3.15",
     use_scm_version=True,
     setup_requires=PYTEST_RUNNER + ["setuptools_scm>=8.0.4,<9"],
     test_suite="tests",
@@ -201,6 +201,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Topic :: Scientific/Engineering :: Astronomy",
