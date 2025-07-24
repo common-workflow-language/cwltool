@@ -24,7 +24,9 @@ test-extras = "deps"
 build-verbosity = 1
 environment = { CWLTOOL_USE_MYPYC="1", MYPYPATH="$(pwd)/mypy-stubs" }
 # Disable building PyPy wheels on all platforms
-skip = "pp*"
+# Skip free-threaded builds, as mypyc does not support them yet
+# https://mypy.readthedocs.io/en/stable/changelog.html#mypyc-partial-unsafe-support-for-free-threading
+skip = ["pp*", "cp31?t-*"]
 
 # Install system library
 [tool.cibuildwheel.linux]
