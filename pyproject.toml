@@ -20,7 +20,6 @@ write_to = "cwltool/_version.py"
 [tool.cibuildwheel]
 test-command = "python -m pytest --ignore cwltool/schemas -n logical --dist worksteal --junitxml={project}/test-results/junit_$(python -V | awk '{print $2}')_${AUDITWHEEL_PLAT}.xml -k 'not (test_bioconda or test_env_filtering or test_udocker)' --pyargs cwltool"
 test-requires = "-r test-requirements.txt"
-test-extras = "deps"
 build-verbosity = 1
 environment = { CWLTOOL_USE_MYPYC="1", MYPYPATH="$(pwd)/mypy-stubs" }
 # Disable building PyPy wheels on all platforms
