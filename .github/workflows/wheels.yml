@@ -18,6 +18,7 @@ jobs:
     name: ${{ matrix.image }} wheels
     runs-on: ubuntu-24.04
     strategy:
+      fail-fast: false
       matrix:
         include:
           - image: manylinux_2_28_x86_64
