@@ -22,7 +22,7 @@ jobs:
         include:
           - image: manylinux_2_28_x86_64
             build: "*manylinux*"
-          - image: musllinux_1_2_x86_64:2025.02.02-1
+          - image: musllinux_1_2_x86_64
             build: "*musllinux*"
 
     steps:
@@ -53,13 +53,9 @@ jobs:
           # Linux arm64 wheels are built on circleci
           CIBW_ARCHS_LINUX: auto64 # ppc64le s390x
 
-
-      - id: image_name_fix
-        run: |
-          image=${{ matrix.image }}; echo "fixed_image_name=${image/:/_}" >>${GITHUB_OUTPUT}
       - uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{steps.image_name_fix.outputs.fixed_image_name}}
+          name: artifact-${{ matrix.image }}
           path: ./wheelhouse/*.whl
 
   build_sdist:
