@@ -16,7 +16,7 @@ jobs:
 
     machine:
       image: ubuntu-2404:current
-    resource_class: arm.medium  # 2 vCPUs
+    resource_class: arm.large  # 4 vCPUs
 
     environment:
       CIBW_ARCHS: "aarch64"
