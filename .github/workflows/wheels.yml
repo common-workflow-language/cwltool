@@ -44,7 +44,7 @@ jobs:
       #     platforms: all
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.1
+        uses: pypa/cibuildwheel@v3.2
         env:
           CIBW_BUILD: ${{ matrix.build }}
           CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/${{ matrix.image }}
@@ -100,7 +100,7 @@ jobs:
           ref: ${{ github.event.client_payload.ref }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.1
+        uses: pypa/cibuildwheel@v3.2
 
       - uses: actions/upload-artifact@v4
         with:
