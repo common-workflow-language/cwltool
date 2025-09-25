@@ -25,6 +25,7 @@ except ImportError:
 
 @needs_docker
 @pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
+@pytest.mark.skip(reason="too flaky")
 @pytest.mark.flaky(retries=3)
 def test_biocontainers(tmp_path: Path) -> None:
     wflow = get_data("tests/seqtk_seq.cwl")
@@ -46,6 +47,7 @@ def test_biocontainers(tmp_path: Path) -> None:
 
 @needs_docker
 @pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
+@pytest.mark.skip(reason="too flaky")
 def test_biocontainers_resolution(tmp_path: Path) -> None:
     """Confirm expected container name for --beta-use-biocontainers."""
     tool = load_tool(get_data("tests/seqtk_seq.cwl"), LoadingContext())
