@@ -8,6 +8,7 @@ ways to adapt new packages managers and such as well.
 """
 
 import argparse
+import importlib.metadata
 import os
 import string
 from collections.abc import MutableMapping, MutableSequence
@@ -16,18 +17,15 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from .utils import HasReqsHints
 
 if TYPE_CHECKING:
+    from galaxy.tool_util.deps.requirements import ToolRequirements
+
     from .builder import Builder
 
 try:
-    from galaxy.tool_util import deps
-    from galaxy.tool_util.deps.requirements import ToolRequirement, ToolRequirements
-except ImportError:
-    ToolRequirement = None  # type: ignore
-    ToolRequirements = None  # type: ignore
-    deps = None  # type: ignore
-
-
-SOFTWARE_REQUIREMENTS_ENABLED = deps is not None
+    importlib.metadata.Distribution.from_name("galaxy-tool-util")
+    SOFTWARE_REQUIREMENTS_ENABLED = True
+except ModuleNotFoundError:
+    SOFTWARE_REQUIREMENTS_ENABLED = False
 
 COMMAND_WITH_DEPENDENCIES_TEMPLATE = string.Template(
     """#!/bin/bash
@@ -74,6 +72,8 @@ class DependenciesConfiguration:
 
     def build_job_script(self, builder: "Builder", command: list[str]) -> str:
         """Use the galaxy-tool-util library to construct a build script."""
+        from galaxy.tool_util import deps
+
         ensure_galaxy_lib_available()
         resolution_config_dict = {
             "use": self.use_tool_dependencies,
@@ -102,8 +102,12 @@ class DependenciesConfiguration:
         return job_script
 
 
-def get_dependencies(builder: HasReqsHints) -> ToolRequirements:
+def get_dependencies(
+    builder: HasReqsHints,
+) -> "ToolRequirements":
     (software_requirement, _) = builder.get_requirement("SoftwareRequirement")
+    from galaxy.tool_util.deps.requirements import ToolRequirement, ToolRequirements
+
     dependencies: list[Union["ToolRequirement", dict[str, Any]]] = []
     if software_requirement and software_requirement.get("packages"):
         packages = cast(

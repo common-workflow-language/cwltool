@@ -23,7 +23,6 @@ from schema_salad.validate import validate
 from .errors import WorkflowException
 from .loghandler import _logger
 from .mutation import MutationManager
-from .software_requirements import DependenciesConfiguration
 from .stdfsaccess import StdFsAccess
 from .utils import (
     CONTENT_LIMIT,
@@ -42,6 +41,7 @@ if TYPE_CHECKING:
         ProvenanceProfile,  # pylint: disable=unused-import
     )
     from .pathmapper import PathMapper
+    from .software_requirements import DependenciesConfiguration
 
 INPUT_OBJ_VOCAB: dict[str, str] = {
     "Any": "https://w3id.org/cwl/salad#Any",
@@ -106,7 +106,7 @@ class Builder(HasReqsHints):
         formatgraph: Optional[Graph],
         make_fs_access: type[StdFsAccess],
         fs_access: StdFsAccess,
-        job_script_provider: Optional[DependenciesConfiguration],
+        job_script_provider: Optional["DependenciesConfiguration"],
         timeout: float,
         debug: bool,
         js_console: bool,
