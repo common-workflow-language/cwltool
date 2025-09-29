@@ -84,10 +84,6 @@ from .process import (
 from .procgenerator import ProcessGenerator
 from .resolver import ga4gh_tool_registries, tool_resolver
 from .secrets import SecretStore
-from .software_requirements import (
-    DependenciesConfiguration,
-    get_container_from_software_requirements,
-)
 from .stdfsaccess import StdFsAccess
 from .subgraph import get_process, get_step, get_subgraph
 from .update import ALLUPDATES, UPDATES
@@ -1301,6 +1297,8 @@ def main(
             use_conda_dependencies = getattr(args, "beta_conda_dependencies", None)  # str
 
             if conf_file or use_conda_dependencies:
+                from .software_requirements import DependenciesConfiguration
+
                 runtimeContext.job_script_provider = DependenciesConfiguration(args)
             else:
                 runtimeContext.find_default_container = functools.partial(
@@ -1438,6 +1436,8 @@ def find_default_container(
 ) -> Optional[str]:
     """Find a container."""
     if not default_container and use_biocontainers:
+        from .software_requirements import get_container_from_software_requirements
+
         default_container = get_container_from_software_requirements(
             use_biocontainers, builder, container_image_cache_path
         )
