@@ -995,8 +995,10 @@ def test_var_spool_cwl_checker3() -> None:
 def test_print_dot() -> None:
     # print Workflow
     cwl_path = get_data("tests/wf/three_step_color.cwl")
-    expected_dot = pydot.graph_from_dot_data(
-        """
+    expected_dot = cast(
+        list[pydot.core.Dot],
+        pydot.graph_from_dot_data(
+            """
     digraph {{
         graph [bgcolor="#eeeeee",
                 clusterrank=local,
@@ -1041,10 +1043,11 @@ def test_print_dot() -> None:
         "command_line_tool" -> "file_output";
 }}
     """.format()
+        ),
     )[0]
     stdout = StringIO()
     assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 0
-    computed_dot = pydot.graph_from_dot_data(stdout.getvalue())[0]
+    computed_dot = cast(list[pydot.core.Dot], pydot.graph_from_dot_data(stdout.getvalue()))[0]
     computed_edges = sorted((source, target) for source, target in computed_dot.obj_dict["edges"])
     expected_edges = sorted((source, target) for source, target in expected_dot.obj_dict["edges"])
     assert computed_edges == expected_edges
