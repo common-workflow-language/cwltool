@@ -7,6 +7,12 @@ from urllib.parse import urlparse
 
 import pydot
 import rdflib
+from packaging.version import Version
+
+if Version(pydot.__version__) > Version("3.0"):
+    quote_id_if_necessary = pydot.quote_id_if_necessary
+else:
+    quote_id_if_necessary = pydot.quote_if_necessary  # type: ignore[attr-defined]
 
 
 def _get_inner_edges_query() -> str:
@@ -99,8 +105,8 @@ class CWLViewer:
             self._dot_graph.add_node(n)
             self._dot_graph.add_edge(
                 pydot.Edge(
-                    pydot.quote_id_if_necessary(str(inner_edge_row["source_step"])),
-                    pydot.quote_id_if_necessary(str(inner_edge_row["target_step"])),
+                    quote_id_if_necessary(str(inner_edge_row["source_step"])),
+                    quote_id_if_necessary(str(inner_edge_row["target_step"])),
                 )
             )
 
@@ -130,8 +136,8 @@ class CWLViewer:
             inputs_subgraph.add_node(n)
             self._dot_graph.add_edge(
                 pydot.Edge(
-                    pydot.quote_id_if_necessary(str(input_row["input"])),
-                    pydot.quote_id_if_necessary(str(input_row["step"])),
+                    quote_id_if_necessary(str(input_row["input"])),
+                    quote_id_if_necessary(str(input_row["step"])),
                 )
             )
 
@@ -161,8 +167,8 @@ class CWLViewer:
             outputs_graph.add_node(n)
             self._dot_graph.add_edge(
                 pydot.Edge(
-                    pydot.quote_id_if_necessary(output_edge_row["step"]),
-                    pydot.quote_id_if_necessary(output_edge_row["output"]),
+                    quote_id_if_necessary(output_edge_row["step"]),
+                    quote_id_if_necessary(output_edge_row["output"]),
                 )
             )
 

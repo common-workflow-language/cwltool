@@ -10,7 +10,8 @@ requires = [
     "cwl-utils>=0.32",
     "toml",
     "argcomplete>=1.12.0",
-    "rich-argparse"
+    "rich-argparse",
+    "pydot >= 1.4.1"
 ]
 build-backend = "setuptools.build_meta"
 
