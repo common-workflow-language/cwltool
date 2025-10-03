@@ -11,4 +11,4 @@ arcp>=0.2.0
 -r requirements.txt
 galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<25.1
 galaxy-util<25.1
-pydantic==2.12.0a1
+pydantic==2.12.0b1
