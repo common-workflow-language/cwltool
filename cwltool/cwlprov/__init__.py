@@ -5,8 +5,9 @@ import os
 import pwd
 import re
 import uuid
+from collections.abc import Callable
 from getpass import getuser
-from typing import IO, Any, Callable, Optional, TypedDict, Union
+from typing import IO, Any, Optional, TypedDict, Union
 
 
 def _whoami() -> tuple[str, str]:
@@ -48,7 +49,7 @@ def _check_mod_11_2(numeric_string: str) -> bool:
     return nums[-1].upper() == checkdigit
 
 
-def _valid_orcid(orcid: Optional[str]) -> str:
+def _valid_orcid(orcid: str | None) -> str:
     """
     Ensure orcid is a valid ORCID identifier.
 
@@ -115,27 +116,27 @@ Annotation = TypedDict(
 class Aggregate(TypedDict, total=False):
     """RO Aggregate class."""
 
-    uri: Optional[str]
-    bundledAs: Optional[dict[str, Any]]
-    mediatype: Optional[str]
-    conformsTo: Optional[Union[str, list[str]]]
-    createdOn: Optional[str]
-    createdBy: Optional[dict[str, str]]
+    uri: str | None
+    bundledAs: dict[str, Any] | None
+    mediatype: str | None
+    conformsTo: str | list[str] | None
+    createdOn: str | None
+    createdBy: dict[str, str] | None
 
 
 # Aggregate.bundledAs is actually type Aggregate, but cyclic definitions are not supported
 class AuthoredBy(TypedDict, total=False):
     """RO AuthoredBy class."""
 
-    orcid: Optional[str]
-    name: Optional[str]
-    uri: Optional[str]
+    orcid: str | None
+    name: str | None
+    uri: str | None
 
 
 def checksum_copy(
     src_file: IO[Any],
-    dst_file: Optional[IO[Any]] = None,
-    hasher: Optional[Callable[[], "hashlib._Hash"]] = None,
+    dst_file: IO[Any] | None = None,
+    hasher: Callable[[], "hashlib._Hash"] | None = None,
     buffersize: int = 1024 * 1024,
 ) -> str:
     """Compute checksums while copying a file."""

@@ -287,7 +287,7 @@ def test_cuda_eval_resource_range() -> None:
     with open(get_data("extensions-v1.1.yml")) as res:
         use_custom_schema("v1.2", "http://commonwl.org/cwltool", res.read())
 
-    joborder = {}  # type: CWLObjectType
+    joborder: CWLObjectType = {}
     loadingContext = LoadingContext({"do_update": True})
     runtime_context = RuntimeContext({})
 
@@ -304,7 +304,7 @@ def test_cuda_eval_resource_max() -> None:
     with open(get_data("extensions-v1.1.yml")) as res:
         use_custom_schema("v1.2", "http://commonwl.org/cwltool", res.read())
 
-    joborder = {}  # type: CWLObjectType
+    joborder: CWLObjectType = {}
     loadingContext = LoadingContext({"do_update": True})
     runtime_context = RuntimeContext({})
 

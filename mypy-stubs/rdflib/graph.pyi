@@ -1,22 +1,13 @@
 import pathlib
-from typing import (
-    IO,
-    Any,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-    overload,
-)
+from builtins import set as _set
+from collections.abc import Iterable, Iterator
+from typing import IO, Any, List, Optional, Tuple, Union, overload
 
 from rdflib import query
 from rdflib.collection import Collection
 from rdflib.paths import Path
 from rdflib.resource import Resource
-from rdflib.term import BNode, Identifier, Literal, Node
+from rdflib.term import BNode, Identifier, Node
 
 class Graph(Node):
     base: Any = ...
@@ -26,9 +17,9 @@ class Graph(Node):
     def __init__(
         self,
         store: str = ...,
-        identifier: Optional[Any] = ...,
-        namespace_manager: Optional[Any] = ...,
-        base: Optional[Any] = ...,
+        identifier: Any | None = ...,
+        namespace_manager: Any | None = ...,
+        base: Any | None = ...,
     ) -> None: ...
     store: Any = ...
     identifier: Any = ...
@@ -44,59 +35,53 @@ class Graph(Node):
     def remove(self, triple: Any) -> None: ...
     def triples(
         self,
-        triple: Tuple[
-            Optional[Union[str, Identifier]],
-            Optional[Union[str, Identifier]],
-            Optional[Identifier],
+        triple: tuple[
+            str | Identifier | None,
+            str | Identifier | None,
+            Identifier | None,
         ],
-    ) -> Iterator[Tuple[Identifier, Identifier, Identifier]]: ...
+    ) -> Iterator[tuple[Identifier, Identifier, Identifier]]: ...
     def __getitem__(
         self, item: slice | Path | Node
     ) -> Iterator[
-        Tuple[Identifier, Identifier, Identifier] | Tuple[Identifier, identifier] | Node
+        tuple[Identifier, Identifier, Identifier] | tuple[Identifier, identifier] | Node
     ]: ...
     def __contains__(self, triple: Any) -> bool: ...
     def __add__(self, other: Any) -> Graph: ...
     def set(self, triple: Any) -> None: ...
-    def subjects(
-        self, predicate: Optional[Any] = ..., object: Optional[Any] = ...
-    ) -> Iterable[Node]: ...
-    def predicates(
-        self, subject: Optional[Any] = ..., object: Optional[Any] = ...
-    ) -> Iterable[Node]: ...
+    def subjects(self, predicate: Any | None = ..., object: Any | None = ...) -> Iterable[Node]: ...
+    def predicates(self, subject: Any | None = ..., object: Any | None = ...) -> Iterable[Node]: ...
     def objects(
-        self, subject: Optional[Any] = ..., predicate: Optional[Any] = ...
-    ) -> Iterable[Union[Identifier, Literal]]: ...
-    def subject_predicates(self, object: Optional[Any] = ...) -> None: ...
-    def subject_objects(self, predicate: Optional[Any] = ...) -> None: ...
-    def predicate_objects(self, subject: Optional[Any] = ...) -> None: ...
-    def triples_choices(self, triple: Any, context: Optional[Any] = ...) -> None: ...
+        self, subject: Any | None = ..., predicate: Any | None = ...
+    ) -> Iterable[Identifier]: ...
+    def subject_predicates(self, object: Any | None = ...) -> None: ...
+    def subject_objects(self, predicate: Any | None = ...) -> None: ...
+    def predicate_objects(self, subject: Any | None = ...) -> None: ...
+    def triples_choices(self, triple: Any, context: Any | None = ...) -> None: ...
     def value(
         self,
-        subject: Optional[Any] = ...,
+        subject: Any | None = ...,
         predicate: Any = ...,
-        object: Optional[Any] = ...,
-        default: Optional[Any] = ...,
+        object: Any | None = ...,
+        default: Any | None = ...,
         any: bool = ...,
     ) -> Any: ...
     def label(self, subject: Any, default: str = ...) -> Any: ...
     def preferredLabel(
         self,
         subject: Any,
-        lang: Optional[Any] = ...,
-        default: Optional[Any] = ...,
+        lang: Any | None = ...,
+        default: Any | None = ...,
         labelProperties: Any = ...,
-    ) -> List[Tuple[Any, Any]]: ...
+    ) -> list[tuple[Any, Any]]: ...
     def comment(self, subject: Any, default: str = ...) -> Any: ...
     def items(self, list: Any) -> Iterator[Any]: ...
-    def transitiveClosure(
-        self, func: Any, arg: Any, seen: Optional[Any] = ...
-    ) -> Iterator[Any]: ...
+    def transitiveClosure(self, func: Any, arg: Any, seen: Any | None = ...) -> Iterator[Any]: ...
     def transitive_objects(
-        self, subject: Any, property: Any, remember: Optional[Any] = ...
+        self, subject: Any, property: Any, remember: Any | None = ...
     ) -> Iterator[Any]: ...
     def transitive_subjects(
-        self, predicate: Any, object: Any, remember: Optional[Any] = ...
+        self, predicate: Any, object: Any, remember: Any | None = ...
     ) -> Iterator[Any]: ...
     def seq(self, subject: Any) -> Seq | None: ...
     def qname(self, uri: Any) -> Any: ...
@@ -104,7 +89,7 @@ class Graph(Node):
     def bind(
         self, prefix: Any, namespace: Any, override: bool = ..., replace: bool = ...
     ) -> Any: ...
-    def namespaces(self) -> Iterator[Tuple[Any, Any]]: ...
+    def namespaces(self) -> Iterator[tuple[Any, Any]]: ...
     def absolutize(self, uri: Any, defrag: int = ...) -> Any: ...
 
     # no destination and non-None positional encoding
@@ -113,7 +98,7 @@ class Graph(Node):
         self,
         destination: None,
         format: str,
-        base: Optional[str],
+        base: str | None,
         encoding: str,
         **args: Any,
     ) -> bytes: ...
@@ -124,7 +109,7 @@ class Graph(Node):
         self,
         destination: None = ...,
         format: str = ...,
-        base: Optional[str] = ...,
+        base: str | None = ...,
         *,
         encoding: str,
         **args: Any,
@@ -136,7 +121,7 @@ class Graph(Node):
         self,
         destination: None = ...,
         format: str = ...,
-        base: Optional[str] = ...,
+        base: str | None = ...,
         encoding: None = ...,
         **args: Any,
     ) -> str: ...
@@ -145,10 +130,10 @@ class Graph(Node):
     @overload
     def serialize(
         self,
-        destination: Union[str, pathlib.PurePath, IO[bytes]],
+        destination: str | pathlib.PurePath | IO[bytes],
         format: str = ...,
-        base: Optional[str] = ...,
-        encoding: Optional[str] = ...,
+        base: str | None = ...,
+        encoding: str | None = ...,
         **args: Any,
     ) -> "Graph": ...
 
@@ -156,30 +141,30 @@ class Graph(Node):
     @overload
     def serialize(
         self,
-        destination: Optional[Union[str, pathlib.PurePath, IO[bytes]]] = ...,
+        destination: str | pathlib.PurePath | IO[bytes] | None = ...,
         format: str = ...,
-        base: Optional[str] = ...,
-        encoding: Optional[str] = ...,
+        base: str | None = ...,
+        encoding: str | None = ...,
         **args: Any,
     ) -> Union[bytes, str, "Graph"]: ...
     def parse(
         self,
-        source: Optional[Any] = ...,
-        publicID: Optional[Any] = ...,
-        format: Optional[str] = ...,
-        location: Optional[Any] = ...,
-        file: Optional[Any] = ...,
-        data: Optional[Any] = ...,
+        source: Any | None = ...,
+        publicID: Any | None = ...,
+        format: str | None = ...,
+        location: Any | None = ...,
+        file: Any | None = ...,
+        data: Any | None = ...,
         **args: Any,
     ) -> "Graph": ...
-    def load(self, source: Any, publicID: Optional[Any] = ..., format: str = ...) -> "Graph": ...
+    def load(self, source: Any, publicID: Any | None = ..., format: str = ...) -> "Graph": ...
     def query(
         self,
         query_object: Any,
         processor: str = ...,
         result: str = ...,
-        initNs: Optional[Any] = ...,
-        initBindings: Optional[Any] = ...,
+        initNs: Any | None = ...,
+        initBindings: Any | None = ...,
         use_store_provided: bool = ...,
         **kwargs: Any,
     ) -> query.Result: ...
@@ -187,27 +172,25 @@ class Graph(Node):
         self,
         update_object: Any,
         processor: str = ...,
-        initNs: Optional[Any] = ...,
-        initBindings: Optional[Any] = ...,
+        initNs: Any | None = ...,
+        initBindings: Any | None = ...,
         use_store_provided: bool = ...,
         **kwargs: Any,
     ) -> Any: ...
     def n3(self) -> str: ...
     def isomorphic(self, other: Any) -> bool: ...
     def connected(self) -> bool: ...
-    def all_nodes(self) -> Set[Any]: ...
+    def all_nodes(self) -> _set[Node]: ...
     def collection(self, identifier: Any) -> Collection: ...
     def resource(self, identifier: Any) -> Resource: ...
     def skolemize(
         self,
-        new_graph: Optional[Any] = ...,
-        bnode: Optional[Any] = ...,
-        authority: Optional[Any] = ...,
-        basepath: Optional[Any] = ...,
+        new_graph: Any | None = ...,
+        bnode: Any | None = ...,
+        authority: Any | None = ...,
+        basepath: Any | None = ...,
     ) -> Graph: ...
-    def de_skolemize(
-        self, new_graph: Optional[Any] = ..., uriref: Optional[Any] = ...
-    ) -> Graph: ...
+    def de_skolemize(self, new_graph: Any | None = ..., uriref: Any | None = ...) -> Graph: ...
 
 class ConjunctiveGraph(Graph):
     context_aware: bool = ...
@@ -216,32 +199,32 @@ class ConjunctiveGraph(Graph):
     def __init__(
         self,
         store: str = ...,
-        identifier: Optional[Any] = ...,
-        default_graph_base: Optional[Any] = ...,
+        identifier: Any | None = ...,
+        default_graph_base: Any | None = ...,
     ) -> None: ...
     def add(self, triple_or_quad: Any) -> None: ...
     def addN(self, quads: Any) -> None: ...
     def remove(self, triple_or_quad: Any) -> None: ...
     # def triples(self, triple_or_quad: Tuple[Optional[Union[str, BNode]], Optional[Union[str, BNode]], Optional[BNode]], context: Tuple[Optional[Union[str, BNode]], Optional[Union[str, BNode]], Optional[BNode]]) -> Iterator[Tuple[Identifier, Identifier, Identifier]]: ...
-    def quads(self, triple_or_quad: Optional[Any] = ...) -> None: ...
-    def triples_choices(self, triple: Any, context: Optional[Any] = ...) -> None: ...
-    def contexts(self, triple: Optional[Any] = ...) -> None: ...
+    def quads(self, triple_or_quad: Any | None = ...) -> None: ...
+    def triples_choices(self, triple: Any, context: Any | None = ...) -> None: ...
+    def contexts(self, triple: Any | None = ...) -> None: ...
     def get_context(
         self,
         identifier: Node | str | None,
         quoted: bool = ...,
-        base: Optional[str] = ...,
+        base: str | None = ...,
     ) -> Graph: ...
     def remove_context(self, context: Any) -> None: ...
-    def context_id(self, uri: Any, context_id: Optional[Any] = ...) -> Any: ...
+    def context_id(self, uri: Any, context_id: Any | None = ...) -> Any: ...
     def parse(
         self,
-        source: Optional[Any] = ...,
-        publicID: Optional[Any] = ...,
-        format: Optional[str] = ...,
-        location: Optional[Any] = ...,
-        file: Optional[Any] = ...,
-        data: Optional[Any] = ...,
+        source: Any | None = ...,
+        publicID: Any | None = ...,
+        format: str | None = ...,
+        location: Any | None = ...,
+        file: Any | None = ...,
+        data: Any | None = ...,
         **args: Any,
     ) -> Graph: ...
 

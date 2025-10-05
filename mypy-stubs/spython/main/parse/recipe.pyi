@@ -1,19 +1,19 @@
 from typing import Optional
 
 class Recipe:
-    cmd: Optional[str]
+    cmd: str | None
     comments: list[str]
-    entrypoint: Optional[str]
+    entrypoint: str | None
     environ: list[str]
     files: list[str]
     layer_files: dict[str, str]
     install: list[str]
     labels: list[str]
     ports: list[str]
-    test: Optional[str]
+    test: str | None
     volumes: list[str]
-    workdir: Optional[str]
+    workdir: str | None
     layer: int
-    fromHeader: Optional[str]
-    source: Optional[Recipe]
-    def __init__(self, recipe: Optional[Recipe] = ..., layer: int = ...) -> None: ...
+    fromHeader: str | None
+    source: Recipe | None
+    def __init__(self, recipe: Recipe | None = ..., layer: int = ...) -> None: ...

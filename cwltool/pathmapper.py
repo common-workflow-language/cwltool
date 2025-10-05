@@ -26,12 +26,12 @@ class MapperEnt(NamedTuple):
     """
     target: str
     """The path on the target file system (under stagedir)"""
-    type: Optional[str]
+    type: str | None
     """
     The object type. One of "File", "Directory", "CreateFile", "WritableFile",
     or "CreateWritableFile".
     """
-    staged: Optional[bool]
+    staged: bool | None
     """If the File has been staged yet."""
 
 
@@ -232,7 +232,7 @@ class PathMapper:
     def reversemap(
         self,
         target: str,
-    ) -> Optional[tuple[str, str]]:
+    ) -> tuple[str, str] | None:
         """Find the (source, resolved_path) for the given target, if any."""
         for k, v in self._pathmap.items():
             if v[1] == target:
@@ -240,7 +240,7 @@ class PathMapper:
         return None
 
     def update(
-        self, key: str, resolved: str, target: str, ctype: Optional[str], stage: Optional[bool]
+        self, key: str, resolved: str, target: str, ctype: str | None, stage: bool | None
     ) -> MapperEnt:
         """Update an existing entry."""
         m = MapperEnt(resolved, target, ctype, stage)

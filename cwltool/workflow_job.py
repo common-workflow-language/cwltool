@@ -46,7 +46,7 @@ class WorkflowJobStep:
         self.tool = step.tool
         self.id = step.id
         self.submitted = False
-        self.iterable: Optional[JobsGeneratorType] = None
+        self.iterable: JobsGeneratorType | None = None
         self.completed = False
         self.name = uniquename("step %s" % shortname(self.id))
         self.prov_obj = step.prov_obj
@@ -87,7 +87,7 @@ class ReceiveScatterOutput:
         self.processStatus = "success"
         self.total = total
         self.output_callback = output_callback
-        self.steps: list[Optional[JobsGeneratorType]] = []
+        self.steps: list[JobsGeneratorType | None] = []
 
     @property
     def completed(self) -> int:
@@ -117,7 +117,7 @@ class ReceiveScatterOutput:
     def setTotal(
         self,
         total: int,
-        steps: list[Optional[JobsGeneratorType]],
+        steps: list[JobsGeneratorType | None],
     ) -> None:
         """
         Set the total number of expected outputs along with the steps.
@@ -131,7 +131,7 @@ class ReceiveScatterOutput:
 
 
 def parallel_steps(
-    steps: list[Optional[JobsGeneratorType]],
+    steps: list[JobsGeneratorType | None],
     rc: ReceiveScatterOutput,
     runtimeContext: RuntimeContext,
 ) -> JobsGeneratorType:
@@ -181,9 +181,9 @@ def nested_crossproduct_scatter(
 
     rc = ReceiveScatterOutput(output_callback, output, jobl)
 
-    steps: list[Optional[JobsGeneratorType]] = []
+    steps: list[JobsGeneratorType | None] = []
     for index in range(0, jobl):
-        sjob: Optional[CWLObjectType] = copy.copy(joborder)
+        sjob: CWLObjectType | None = copy.copy(joborder)
         assert sjob is not None  # nosec
         sjob[scatter_key] = cast(MutableMapping[int, CWLObjectType], joborder[scatter_key])[index]
 
@@ -248,14 +248,14 @@ def _flat_crossproduct_scatter(
     callback: ReceiveScatterOutput,
     startindex: int,
     runtimeContext: RuntimeContext,
-) -> tuple[list[Optional[JobsGeneratorType]], int]:
+) -> tuple[list[JobsGeneratorType | None], int]:
     """Inner loop."""
     scatter_key = scatter_keys[0]
     jobl = len(cast(Sized, joborder[scatter_key]))
-    steps: list[Optional[JobsGeneratorType]] = []
+    steps: list[JobsGeneratorType | None] = []
     put = startindex
     for index in range(0, jobl):
-        sjob: Optional[CWLObjectType] = copy.copy(joborder)
+        sjob: CWLObjectType | None = copy.copy(joborder)
         assert sjob is not None  # nosec
         sjob[scatter_key] = cast(MutableMapping[int, CWLObjectType], joborder[scatter_key])[index]
 
@@ -286,7 +286,7 @@ def dotproduct_scatter(
     output_callback: ScatterOutputCallbackType,
     runtimeContext: RuntimeContext,
 ) -> JobsGeneratorType:
-    jobl: Optional[int] = None
+    jobl: int | None = None
     for key in scatter_keys:
         if jobl is None:
             jobl = len(cast(Sized, joborder[key]))
@@ -303,9 +303,9 @@ def dotproduct_scatter(
 
     rc = ReceiveScatterOutput(output_callback, output, jobl)
 
-    steps: list[Optional[JobsGeneratorType]] = []
+    steps: list[JobsGeneratorType | None] = []
     for index in range(0, jobl):
-        sjobo: Optional[CWLObjectType] = copy.copy(joborder)
+        sjobo: CWLObjectType | None = copy.copy(joborder)
         assert sjobo is not None  # nosec
         for key in scatter_keys:
             sjobo[key] = cast(MutableMapping[int, CWLObjectType], joborder[key])[index]
@@ -324,12 +324,12 @@ def dotproduct_scatter(
 
 
 def match_types(
-    sinktype: Optional[SinkType],
+    sinktype: SinkType | None,
     src: WorkflowStateItem,
     iid: str,
     inputobj: CWLObjectType,
-    linkMerge: Optional[str],
-    valueFrom: Optional[str],
+    linkMerge: str | None,
+    valueFrom: str | None,
 ) -> bool:
     if isinstance(sinktype, MutableSequence):
         # Sink is union type
@@ -374,13 +374,13 @@ def match_types(
 
 
 def object_from_state(
-    state: dict[str, Optional[WorkflowStateItem]],
+    state: dict[str, WorkflowStateItem | None],
     params: ParametersType,
     frag_only: bool,
     supportsMultipleInput: bool,
     sourceField: str,
     incomplete: bool = False,
-) -> Optional[CWLObjectType]:
+) -> CWLObjectType | None:
     inputobj: CWLObjectType = {}
     for inp in params:
         iid = original_id = cast(str, inp["id"])
@@ -474,17 +474,17 @@ class WorkflowJob:
     def __init__(self, workflow: "Workflow", runtimeContext: RuntimeContext) -> None:
         """Initialize this WorkflowJob."""
         self.workflow = workflow
-        self.prov_obj: Optional[ProvenanceProfile] = None
-        self.parent_wf: Optional[ProvenanceProfile] = None
+        self.prov_obj: ProvenanceProfile | None = None
+        self.parent_wf: ProvenanceProfile | None = None
         self.tool = workflow.tool
         if runtimeContext.research_obj is not None:
             self.prov_obj = workflow.provenance_object
             self.parent_wf = workflow.parent_wf
         self.steps = [WorkflowJobStep(s) for s in workflow.steps]
-        self.state: dict[str, Optional[WorkflowStateItem]] = {}
+        self.state: dict[str, WorkflowStateItem | None] = {}
         self.processStatus = ""
         self.did_callback = False
-        self.made_progress: Optional[bool] = None
+        self.made_progress: bool | None = None
         self.outdir = runtimeContext.get_outdir()
 
         self.name = uniquename(
@@ -507,7 +507,7 @@ class WorkflowJob:
             self.workflow.get_requirement("MultipleInputFeatureRequirement")[0]
         )
 
-        wo: Optional[CWLObjectType] = None
+        wo: CWLObjectType | None = None
         try:
             wo = object_from_state(
                 self.state,
@@ -525,7 +525,7 @@ class WorkflowJob:
             and self.parent_wf
             and self.prov_obj.workflow_run_uri != self.parent_wf.workflow_run_uri
         ):
-            process_run_id: Optional[str] = None
+            process_run_id: str | None = None
             self.prov_obj.generate_output_prov(wo or {}, process_run_id, self.name)
             self.prov_obj.document.wasEndedBy(
                 self.prov_obj.workflow_run_uri,
@@ -628,7 +628,7 @@ class WorkflowJob:
                     "Workflow step contains valueFrom but StepInputExpressionRequirement not in requirements"
                 )
 
-            def postScatterEval(io: CWLObjectType) -> Optional[CWLObjectType]:
+            def postScatterEval(io: CWLObjectType) -> CWLObjectType | None:
                 shortio = cast(CWLObjectType, {shortname(k): v for k, v in io.items()})
 
                 fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
@@ -639,7 +639,7 @@ class WorkflowJob:
                             with fs_access.open(cast(str, val["location"]), "rb") as f:
                                 val["contents"] = content_limit_respected_read(f)
 
-                def valueFromFunc(k: str, v: Optional[CWLOutputType]) -> Optional[CWLOutputType]:
+                def valueFromFunc(k: str, v: CWLOutputType | None) -> CWLOutputType | None:
                     if k in valueFrom:
                         adjustDirObjs(v, functools.partial(get_listing, fs_access, recursive=True))
 
@@ -766,7 +766,7 @@ class WorkflowJob:
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: Optional[threading.Lock] = None,
+        tmpdir_lock: Union[threading.Lock, None] = None,
     ) -> None:
         """Log the start of each workflow."""
         _logger.info("[%s] start", self.name)
@@ -863,12 +863,12 @@ class WorkflowJobLoopStep:
         """Initialize this WorkflowJobLoopStep."""
         self.step: WorkflowJobStep = step
         self.container_engine: str = container_engine
-        self.joborder: Optional[CWLObjectType] = None
+        self.joborder: CWLObjectType | None = None
         self.processStatus: str = "success"
         self.iteration: int = 0
         self.output_buffer: MutableMapping[
             str,
-            Union[MutableSequence[Optional[CWLOutputType]], Optional[CWLOutputType]],
+            MutableSequence[CWLOutputType | None] | CWLOutputType | None,
         ] = {}
 
     def _set_empty_output(self, outputMethod: str) -> None:
@@ -955,7 +955,7 @@ class WorkflowJobLoopStep:
         try:
             loop = cast(MutableSequence[CWLObjectType], self.step.tool.get("loop", []))
             outputMethod = self.step.tool.get("outputMethod", "last_iteration")
-            state: dict[str, Optional[WorkflowStateItem]] = {}
+            state: dict[str, WorkflowStateItem | None] = {}
             for i in self.step.tool["outputs"]:
                 if "id" in i:
                     iid = cast(str, i["id"])

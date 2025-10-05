@@ -2,8 +2,8 @@
 
 import copy
 import urllib
-from collections.abc import MutableMapping, MutableSequence
-from typing import Any, Callable, Optional, Union, cast
+from collections.abc import Callable, MutableMapping, MutableSequence
+from typing import Any, Optional, Union, cast
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, SubLoader
@@ -19,7 +19,7 @@ LoadRefType = Callable[[Optional[str], str], ResolveType]
 
 
 def find_run(
-    d: Union[CWLObjectType, ResolveType],
+    d: CWLObjectType | ResolveType,
     loadref: LoadRefType,
     runs: set[str],
 ) -> None:
@@ -36,7 +36,7 @@ def find_run(
 
 
 def find_ids(
-    d: Union[CWLObjectType, CWLOutputType, MutableSequence[CWLObjectType], None],
+    d: CWLObjectType | CWLOutputType | MutableSequence[CWLObjectType] | None,
     ids: set[str],
 ) -> None:
     if isinstance(d, MutableSequence):
@@ -79,7 +79,7 @@ def replace_refs(d: Any, rewrite: dict[str, str], stem: str, newstem: str) -> No
 
 
 def import_embed(
-    d: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType],
+    d: MutableSequence[CWLObjectType] | CWLObjectType | CWLOutputType,
     seen: set[str],
 ) -> None:
     if isinstance(d, MutableSequence):
@@ -106,8 +106,8 @@ def import_embed(
 def pack(
     loadingContext: LoadingContext,
     uri: str,
-    rewrite_out: Optional[dict[str, str]] = None,
-    loader: Optional[Loader] = None,
+    rewrite_out: dict[str, str] | None = None,
+    loader: Loader | None = None,
 ) -> CWLObjectType:
     # The workflow document we have in memory right now may have been
     # updated to the internal CWL version.  We need to reload the
@@ -147,7 +147,7 @@ def pack(
 
     found_versions: set[str] = {cast(str, loadingContext.metadata["cwlVersion"])}
 
-    def loadref(base: Optional[str], lr_uri: str) -> ResolveType:
+    def loadref(base: str | None, lr_uri: str) -> ResolveType:
         lr_loadingContext = loadingContext.copy()
         lr_loadingContext.metadata = {}
         lr_loadingContext, lr_workflowobj, lr_uri = fetch_document(lr_uri, lr_loadingContext)

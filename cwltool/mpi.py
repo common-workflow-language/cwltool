@@ -4,7 +4,7 @@ import inspect
 import os
 import re
 from collections.abc import Mapping, MutableMapping
-from typing import Optional, TypeVar, Union
+from typing import TypeVar
 
 from schema_salad.utils import yaml_no_ts
 
@@ -18,11 +18,11 @@ class MpiConfig:
         self,
         runner: str = "mpirun",
         nproc_flag: str = "-n",
-        default_nproc: Union[int, str] = 1,
-        extra_flags: Optional[list[str]] = None,
-        env_pass: Optional[list[str]] = None,
-        env_pass_regex: Optional[list[str]] = None,
-        env_set: Optional[Mapping[str, str]] = None,
+        default_nproc: int | str = 1,
+        extra_flags: list[str] | None = None,
+        env_pass: list[str] | None = None,
+        env_pass_regex: list[str] | None = None,
+        env_set: Mapping[str, str] | None = None,
     ) -> None:
         """
         Initialize from the argument mapping.

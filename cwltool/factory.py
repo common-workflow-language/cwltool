@@ -1,5 +1,5 @@
 import os
-from typing import Any, Optional, Union
+from typing import Any
 
 from . import load_tool
 from .context import LoadingContext, RuntimeContext
@@ -10,7 +10,7 @@ from .utils import CWLObjectType
 
 
 class WorkflowStatus(Exception):
-    def __init__(self, out: Optional[CWLObjectType], status: str) -> None:
+    def __init__(self, out: CWLObjectType | None, status: str) -> None:
         """Signaling exception for the status of a Workflow."""
         super().__init__("Completed %s" % status)
         self.out = out
@@ -25,8 +25,7 @@ class Callable:
         self.t = t
         self.factory = factory
 
-    def __call__(self, **kwargs):
-        # type: (**Any) -> Union[str, Optional[CWLObjectType]]
+    def __call__(self, **kwargs: Any) -> str | CWLObjectType | None:
         """Invoke the tool."""
         runtime_context = self.factory.runtime_context.copy()
         runtime_context.basedir = os.getcwd()
@@ -45,9 +44,9 @@ class Factory:
 
     def __init__(
         self,
-        executor: Optional[JobExecutor] = None,
-        loading_context: Optional[LoadingContext] = None,
-        runtime_context: Optional[RuntimeContext] = None,
+        executor: JobExecutor | None = None,
+        loading_context: LoadingContext | None = None,
+        runtime_context: RuntimeContext | None = None,
     ) -> None:
         if executor is None:
             executor = SingleJobExecutor()
@@ -63,7 +62,7 @@ class Factory:
         else:
             self.loading_context = loading_context
 
-    def make(self, cwl: Union[str, dict[str, Any]]) -> Callable:
+    def make(self, cwl: str | dict[str, Any]) -> Callable:
         """Instantiate a CWL object from a CWl document."""
         load = load_tool.load_tool(cwl, self.loading_context)
         if isinstance(load, int):

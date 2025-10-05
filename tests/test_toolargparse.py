@@ -1,7 +1,7 @@
 import argparse
+from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
-from typing import Callable
 
 import pytest
 

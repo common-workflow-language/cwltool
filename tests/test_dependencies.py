@@ -6,7 +6,6 @@ from getpass import getuser
 from pathlib import Path
 from shutil import which
 from types import ModuleType
-from typing import Optional
 
 import pytest
 
@@ -16,7 +15,7 @@ from cwltool.software_requirements import get_container_from_software_requiremen
 
 from .util import get_data, get_main_output, get_tool_env, needs_docker
 
-deps: Optional[ModuleType] = None
+deps: ModuleType | None = None
 try:
     from galaxy.tool_util import deps
 except ImportError:
@@ -58,7 +57,7 @@ def test_biocontainers_resolution(tmp_path: Path) -> None:
 
 
 @pytest.fixture(scope="session")
-def bioconda_setup(request: pytest.FixtureRequest) -> tuple[Optional[int], str]:
+def bioconda_setup(request: pytest.FixtureRequest) -> tuple[int | None, str]:
     """
     Caches the conda environment created for seqtk_seq.cwl.
 
@@ -110,7 +109,7 @@ def bioconda_setup(request: pytest.FixtureRequest) -> tuple[Optional[int], str]:
 
 
 @pytest.mark.skipif(not deps, reason="galaxy-tool-util is not installed")
-def test_bioconda(bioconda_setup: tuple[Optional[int], str]) -> None:
+def test_bioconda(bioconda_setup: tuple[int | None, str]) -> None:
     error_code, stderr = bioconda_setup
     assert error_code == 0, stderr
 

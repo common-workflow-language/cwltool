@@ -1,12 +1,12 @@
-from typing import IO, Any, Dict, Iterator, List, Mapping, Optional, Tuple, overload
+from collections.abc import Iterator, Mapping
+from typing import IO, Any, Dict, List, Optional, SupportsIndex, Tuple, overload
 
 from rdflib import URIRef, Variable
 from rdflib.term import Identifier
-from typing_extensions import SupportsIndex
 
-class ResultRow(Tuple["Identifier", ...]):
+class ResultRow(tuple["Identifier", ...]):
     def __new__(
-        cls, values: Mapping[Variable, Identifier], labels: List[Variable]
+        cls, values: Mapping[Variable, Identifier], labels: list[Variable]
     ) -> ResultRow: ...
     def __getattr__(self, name: str) -> Identifier: ...
     @overload
@@ -14,9 +14,9 @@ class ResultRow(Tuple["Identifier", ...]):
     @overload
     def __getitem__(self, __x: SupportsIndex) -> Identifier: ...
     @overload
-    def __getitem__(self, __x: slice) -> Tuple[Identifier, ...]: ...
+    def __getitem__(self, __x: slice) -> tuple[Identifier, ...]: ...
     def get(self, name: str, default: Any | None = ...) -> Identifier: ...
-    def asdict(self) -> Dict[str, Identifier]: ...
+    def asdict(self) -> dict[str, Identifier]: ...
 
 class Result:
     type: Any
@@ -39,4 +39,4 @@ class Result:
         encoding: str = ...,
         format: str = ...,
         **args: Any,
-    ) -> Optional[bytes]: ...
+    ) -> bytes | None: ...

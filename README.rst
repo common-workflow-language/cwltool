@@ -842,7 +842,7 @@ executor
   ::
 
     executor(tool, job_order_object, runtimeContext, logger)
-      (Process, Dict[Text, Any], RuntimeContext) -> Tuple[Dict[Text, Any], Text]
+      (Process, Dict[str, Any], RuntimeContext) -> Tuple[Dict[str, Any], str]
 
   An implementation of the top-level workflow execution loop should
   synchronously run a process object to completion and return the
@@ -852,7 +852,7 @@ versionfunc
   ::
 
     ()
-      () -> Text
+      () -> str
 
   Return version string.
 
@@ -879,7 +879,7 @@ resolver
   ::
 
     resolver(document_loader, document)
-      (Loader, Union[Text, dict[Text, Any]]) -> Text
+      (Loader, str | dict[str, Any]) -> str
 
   Resolve a relative document identifier to an absolute one that can be fetched.
 
@@ -890,7 +890,7 @@ construct_tool_object
   ::
 
     construct_tool_object(toolpath_object, loadingContext)
-      (MutableMapping[Text, Any], LoadingContext) -> Process
+      (MutableMapping[str, Any], LoadingContext) -> Process
 
   Hook to construct a Process object (eg CommandLineTool) object from a document.
 
@@ -898,7 +898,7 @@ select_resources
   ::
 
     selectResources(request)
-      (Dict[str, int], RuntimeContext) -> Dict[Text, int]
+      (Dict[str, int], RuntimeContext) -> Dict[str, int]
 
   Take a resource request and turn it into a concrete resource assignment.
 
@@ -906,7 +906,7 @@ make_fs_access
   ::
 
     make_fs_access(basedir)
-      (Text) -> StdFsAccess
+      (str) -> StdFsAccess
 
   Return a file system access object.
 
@@ -924,6 +924,6 @@ Workflow.make_workflow_step
   ::
 
     make_workflow_step(toolpath_object, pos, loadingContext, parentworkflowProv)
-      (Dict[Text, Any], int, LoadingContext, Optional[ProvenanceProfile]) -> WorkflowStep
+      (Dict[str, Any], int, LoadingContext, Optional[ProvenanceProfile]) -> WorkflowStep
 
   Create and return a workflow step object.

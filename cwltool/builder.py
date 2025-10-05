@@ -3,9 +3,9 @@
 import copy
 import logging
 import math
-from collections.abc import MutableMapping, MutableSequence
+from collections.abc import Callable, MutableMapping, MutableSequence
 from decimal import Decimal
-from typing import IO, TYPE_CHECKING, Any, Callable, Optional, Union, cast
+from typing import IO, TYPE_CHECKING, Any, Optional, cast
 
 from cwl_utils import expression
 from cwl_utils.file_formats import check_format
@@ -101,9 +101,9 @@ class Builder(HasReqsHints):
         names: Names,
         requirements: list[CWLObjectType],
         hints: list[CWLObjectType],
-        resources: dict[str, Union[int, float]],
-        mutation_manager: Optional[MutationManager],
-        formatgraph: Optional[Graph],
+        resources: dict[str, int | float],
+        mutation_manager: MutationManager | None,
+        formatgraph: Graph | None,
         make_fs_access: type[StdFsAccess],
         fs_access: StdFsAccess,
         job_script_provider: Optional["DependenciesConfiguration"],
@@ -157,10 +157,10 @@ class Builder(HasReqsHints):
 
         self.pathmapper: Optional["PathMapper"] = None
         self.prov_obj: Optional["ProvenanceProfile"] = None
-        self.find_default_container: Optional[Callable[[], str]] = None
+        self.find_default_container: Callable[[], str] | None = None
         self.container_engine = container_engine
 
-    def build_job_script(self, commands: list[str]) -> Optional[str]:
+    def build_job_script(self, commands: list[str]) -> str | None:
         """Use the job_script_provider to turn the commands into a job script."""
         if self.job_script_provider is not None:
             return self.job_script_provider.build_job_script(self, commands)
@@ -169,11 +169,11 @@ class Builder(HasReqsHints):
     def bind_input(
         self,
         schema: CWLObjectType,
-        datum: Union[CWLObjectType, list[CWLObjectType]],
+        datum: CWLObjectType | list[CWLObjectType],
         discover_secondaryFiles: bool,
-        lead_pos: Optional[Union[int, list[int]]] = None,
-        tail_pos: Optional[Union[str, list[int]]] = None,
-    ) -> list[MutableMapping[str, Union[str, list[int]]]]:
+        lead_pos: int | list[int] | None = None,
+        tail_pos: str | list[int] | None = None,
+    ) -> list[MutableMapping[str, str | list[int]]]:
         """
         Bind an input object to the command line.
 
@@ -189,8 +189,8 @@ class Builder(HasReqsHints):
         if lead_pos is None:
             lead_pos = []
 
-        bindings: list[MutableMapping[str, Union[str, list[int]]]] = []
-        binding: Union[MutableMapping[str, Union[str, list[int]]], CommentedMap] = {}
+        bindings: list[MutableMapping[str, str | list[int]]] = []
+        binding: MutableMapping[str, str | list[int]] | CommentedMap = {}
         value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
             binding = CommentedMap(schema["inputBinding"].items())
@@ -226,7 +226,7 @@ class Builder(HasReqsHints):
         if isinstance(schema["type"], MutableSequence):
             bound_input = False
             for t in schema["type"]:
-                avsc: Optional[Schema] = None
+                avsc: Schema | None = None
                 if isinstance(t, str) and self.names.has_name(t, None):
                     avsc = self.names.get_name(t, None)
                 elif (
@@ -360,9 +360,9 @@ class Builder(HasReqsHints):
                 datum = cast(CWLObjectType, datum)
                 self.files.append(datum)
 
-                loadContents_sourceline: Union[
-                    None, MutableMapping[str, Union[str, list[int]]], CWLObjectType
-                ] = None
+                loadContents_sourceline: (
+                    None | MutableMapping[str, str | list[int]] | CWLObjectType
+                ) = None
                 if binding and binding.get("loadContents"):
                     loadContents_sourceline = binding
                 elif schema.get("loadContents"):
@@ -502,7 +502,7 @@ class Builder(HasReqsHints):
                 if "format" in schema:
                     eval_format: Any = self.do_eval(schema["format"])
                     if isinstance(eval_format, str):
-                        evaluated_format: Union[str, list[str]] = eval_format
+                        evaluated_format: str | list[str] = eval_format
                     elif isinstance(eval_format, MutableSequence):
                         for index, entry in enumerate(eval_format):
                             message = None
@@ -582,7 +582,7 @@ class Builder(HasReqsHints):
 
         return bindings
 
-    def tostr(self, value: Union[MutableMapping[str, str], Any]) -> str:
+    def tostr(self, value: MutableMapping[str, str] | Any) -> str:
         """
         Represent an input parameter as a string.
 
@@ -668,11 +668,11 @@ class Builder(HasReqsHints):
 
     def do_eval(
         self,
-        ex: Optional[CWLOutputType],
-        context: Optional[Any] = None,
+        ex: CWLOutputType | None,
+        context: Any | None = None,
         recursive: bool = False,
         strip_whitespace: bool = True,
-    ) -> Optional[CWLOutputType]:
+    ) -> CWLOutputType | None:
         if recursive:
             if isinstance(ex, MutableMapping):
                 return {k: self.do_eval(v, context, recursive) for k, v in ex.items()}

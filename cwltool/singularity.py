@@ -6,9 +6,9 @@ import os.path
 import re
 import shutil
 import sys
-from collections.abc import MutableMapping
+from collections.abc import Callable, MutableMapping
 from subprocess import check_call, check_output  # nosec
-from typing import Callable, Optional, cast
+from typing import cast
 
 from schema_salad.sourceline import SourceLine
 from spython.main import Client
@@ -29,7 +29,7 @@ from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_wr
 # This is a list containing major and minor versions as integer.
 # (The number of minor version digits can vary among different distributions,
 #  therefore we need a list here.)
-_SINGULARITY_VERSION: Optional[list[int]] = None
+_SINGULARITY_VERSION: list[int] | None = None
 # Cached flavor / distribution of singularity
 # Can be singularity, singularity-ce or apptainer
 _SINGULARITY_FLAVOR: str = ""
@@ -348,7 +348,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         pull_image: bool,
         force_pull: bool,
         tmp_outdir_prefix: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Return the filename of the Singularity image.
 
@@ -383,7 +383,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             runtime.append(vol)
 
     def add_file_or_directory_volume(
-        self, runtime: list[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
+        self, runtime: list[str], volume: MapperEnt, host_outdir_tgt: str | None
     ) -> None:
         if not volume.resolved.startswith("_:"):
             if host_outdir_tgt is not None and not is_version_3_4_or_newer():
@@ -401,7 +401,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         self,
         runtime: list[str],
         volume: MapperEnt,
-        host_outdir_tgt: Optional[str],
+        host_outdir_tgt: str | None,
         tmpdir_prefix: str,
     ) -> None:
         if host_outdir_tgt is not None and not is_version_3_4_or_newer():
@@ -438,7 +438,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         self,
         runtime: list[str],
         volume: MapperEnt,
-        host_outdir_tgt: Optional[str],
+        host_outdir_tgt: str | None,
         tmpdir_prefix: str,
     ) -> None:
         if volume.resolved.startswith("_:"):
@@ -479,7 +479,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
     def create_runtime(
         self, env: MutableMapping[str, str], runtime_context: RuntimeContext
-    ) -> tuple[list[str], Optional[str]]:
+    ) -> tuple[list[str], str | None]:
         """Return the Singularity runtime list of commands and options."""
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] or False
 
@@ -499,7 +499,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         else:
             runtime.append("--pid")
 
-        container_HOME: Optional[str] = None
+        container_HOME: str | None = None
         if is_version_3_1_or_newer():
             # Remove HOME, as passed in a special way (restore it below)
             container_HOME = self.environment.pop("HOME")

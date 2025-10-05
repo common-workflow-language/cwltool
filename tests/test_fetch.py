@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urljoin, urlsplit
 
 import pytest
@@ -21,11 +21,11 @@ class CWLTestFetcher(Fetcher):
     def __init__(
         self,
         cache: CacheType,
-        session: Optional[requests.sessions.Session],
+        session: requests.sessions.Session | None,
     ) -> None:
         """Create a Fetcher that provides a fixed result for testing purposes."""
 
-    def fetch_text(self, url: str, content_types: Optional[list[str]] = None) -> str:
+    def fetch_text(self, url: str, content_types: list[str] | None = None) -> str:
         if url == "baz:bar/foo.cwl":
             return """
 cwlVersion: v1.0
@@ -36,7 +36,7 @@ outputs: []
 """
         raise RuntimeError("Not foo.cwl, was %s" % url)
 
-    def check_exists(self, url):  # type: (str) -> bool
+    def check_exists(self, url: str) -> bool:
         return url == "baz:bar/foo.cwl"
 
     def urljoin(self, base: str, url: str) -> str:
