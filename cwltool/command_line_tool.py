@@ -1388,13 +1388,14 @@ class CommandLineTool(Process):
 
             optional = False
             single = False
-            if isinstance(schema["type"], MutableSequence):
-                if "null" in schema["type"]:
-                    optional = True
-                if "File" in schema["type"] or "Directory" in schema["type"]:
+            match schema["type"]:
+                case MutableSequence():
+                    if "null" in schema["type"]:
+                        optional = True
+                    if "File" in schema["type"] or "Directory" in schema["type"]:
+                        single = True
+                case "File" | "Directory":
                     single = True
-            elif schema["type"] == "File" or schema["type"] == "Directory":
-                single = True
 
             if "outputEval" in binding:
                 with SourceLine(binding, "outputEval", WorkflowException, debug):

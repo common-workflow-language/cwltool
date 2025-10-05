@@ -436,121 +436,120 @@ class ProvenanceProfile:
 
     def declare_artefact(self, value: Any) -> ProvEntity:
         """Create data artefact entities for all file objects."""
-        if value is None:
-            # FIXME: If this can happen in CWL, we'll
-            # need a better way to represent this in PROV
-            return self.document.entity(CWLPROV["None"], {PROV_LABEL: "None"})
+        if isinstance(value, MutableMapping) and "@id" in value:
+            # Already processed this value, but it might not be in this PROV
+            entities = self.document.get_record(value["@id"])
+            if entities:
+                return cast(list[ProvEntity], entities)[0]
+            # else, unknown in PROV, re-add below as if it's fresh
 
-        if isinstance(value, (bool, int, float)):
-            # Typically used in job documents for flags
+        match value:
+            case None:
+                # FIXME: If this can happen in CWL, we'll
+                # need a better way to represent this in PROV
+                return self.document.entity(CWLPROV["None"], {PROV_LABEL: "None"})
 
-            # FIXME: Make consistent hash URIs for these
-            # that somehow include the type
-            # (so "1" != 1 != "1.0" != true)
-            entity = self.document.entity(uuid.uuid4().urn, {PROV_VALUE: value})
-            self.research_object.add_uri(entity.identifier.uri)
-            return entity
+            case bool() | int() | float():
+                # Typically used in job documents for flags
 
-        if isinstance(value, str):
-            (entity, _) = self.declare_string(value)
-            return entity
-
-        if isinstance(value, bytes):
-            # If we got here then we must be in Python 3
-            byte_s = BytesIO(value)
-            data_file = self.research_object.add_data_file(byte_s)
-            # FIXME: Don't naively assume add_data_file uses hash in filename!
-            data_id = f"data:{PurePosixPath(data_file).stem}"
-            return self.document.entity(
-                data_id,
-                {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)},
-            )
-
-        if isinstance(value, MutableMapping):
-            if "@id" in value:
-                # Already processed this value, but it might not be in this PROV
-                entities = self.document.get_record(value["@id"])
-                if entities:
-                    return cast(list[ProvEntity], entities)[0]
-                # else, unknown in PROV, re-add below as if it's fresh
-
-            # Base case - we found a File we need to update
-            if value.get("class") == "File":
-                (entity, _, _) = self.declare_file(value)
-                value["@id"] = entity.identifier.uri
+                # FIXME: Make consistent hash URIs for these
+                # that somehow include the type
+                # (so "1" != 1 != "1.0" != true)
+                entity = self.document.entity(uuid.uuid4().urn, {PROV_VALUE: value})
+                self.research_object.add_uri(entity.identifier.uri)
                 return entity
 
-            if value.get("class") == "Directory":
+            case str(val):
+                return self.declare_string(val)[0]
+
+            case bytes(val):
+                # If we got here then we must be in Python 3
+                byte_s = BytesIO(val)
+                data_file = self.research_object.add_data_file(byte_s)
+                # FIXME: Don't naively assume add_data_file uses hash in filename!
+                data_id = f"data:{PurePosixPath(data_file).stem}"
+                return self.document.entity(
+                    data_id,
+                    {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(val)},
+                )
+
+            # Base case - we found a File we need to update
+            case {"class": "File"}:
+                entity = self.declare_file(value)[0]
+                value["@id"] = entity.identifier.uri
+                return entity
+            case {"class": "Directory"}:
                 entity = self.declare_directory(value)
                 value["@id"] = entity.identifier.uri
                 return entity
-            coll_id = value.setdefault("@id", uuid.uuid4().urn)
-            # some other kind of dictionary?
-            # TODO: also Save as JSON
-            coll = self.document.entity(
-                coll_id,
-                [
-                    (PROV_TYPE, WFPROV["Artifact"]),
-                    (PROV_TYPE, PROV["Collection"]),
-                    (PROV_TYPE, PROV["Dictionary"]),
-                ],
-            )
+            case {**rest}:
+                coll_id = value.setdefault("@id", uuid.uuid4().urn)
+                # some other kind of dictionary?
+                # TODO: also Save as JSON
+                coll = self.document.entity(
+                    coll_id,
+                    [
+                        (PROV_TYPE, WFPROV["Artifact"]),
+                        (PROV_TYPE, PROV["Collection"]),
+                        (PROV_TYPE, PROV["Dictionary"]),
+                    ],
+                )
 
-            if value.get("class"):
-                _logger.warning("Unknown data class %s.", value["class"])
-                # FIXME: The class might be "http://example.com/somethingelse"
-                coll.add_asserted_type(CWLPROV[value["class"]])
+                if rest.get("class"):
+                    _logger.warning("Unknown data class %s.", rest["class"])
+                    # FIXME: The class might be "http://example.com/somethingelse"
+                    coll.add_asserted_type(CWLPROV[str(rest["class"])])
 
-            # Let's iterate and recurse
-            coll_attribs: list[tuple[str | Identifier, Any]] = []
-            for key, val in value.items():
-                v_ent = self.declare_artefact(val)
-                self.document.membership(coll, v_ent)
-                m_entity = self.document.entity(uuid.uuid4().urn)
-                # Note: only support PROV-O style dictionary
-                # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
-                # as prov.py do not easily allow PROV-N extensions
-                m_entity.add_asserted_type(PROV["KeyEntityPair"])
-                m_entity.add_attributes({PROV["pairKey"]: str(key), PROV["pairEntity"]: v_ent})
-                coll_attribs.append((PROV["hadDictionaryMember"], m_entity))
-            coll.add_attributes(coll_attribs)
-            self.research_object.add_uri(coll.identifier.uri)
-            return coll
+                # Let's iterate and recurse
+                coll_attribs: list[tuple[str | Identifier, Any]] = []
+                for key, kval in rest.items():
+                    v_ent = self.declare_artefact(kval)
+                    self.document.membership(coll, v_ent)
+                    m_entity = self.document.entity(uuid.uuid4().urn)
+                    # Note: only support PROV-O style dictionary
+                    # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
+                    # as prov.py do not easily allow PROV-N extensions
+                    m_entity.add_asserted_type(PROV["KeyEntityPair"])
+                    m_entity.add_attributes({PROV["pairKey"]: str(key), PROV["pairEntity"]: v_ent})
+                    coll_attribs.append((PROV["hadDictionaryMember"], m_entity))
+                coll.add_attributes(coll_attribs)
+                self.research_object.add_uri(coll.identifier.uri)
+                return coll
 
-        # some other kind of Collection?
-        # TODO: also save as JSON
-        try:
-            members = []
-            for each_input_obj in iter(value):
-                # Recurse and register any nested objects
-                e = self.declare_artefact(each_input_obj)
-                members.append(e)
+            case _:  # some other kind of Collection?
+                # TODO: also save as JSON
+                try:
+                    members = []
+                    for each_input_obj in iter(value):
+                        # Recurse and register any nested objects
+                        e = self.declare_artefact(each_input_obj)
+                        members.append(e)
 
-            # If we reached this, then we were allowed to iterate
-            coll = self.document.entity(
-                uuid.uuid4().urn,
-                [
-                    (PROV_TYPE, WFPROV["Artifact"]),
-                    (PROV_TYPE, PROV["Collection"]),
-                ],
-            )
-            if not members:
-                coll.add_asserted_type(PROV["EmptyCollection"])
-            else:
-                for member in members:
-                    # FIXME: This won't preserve order, for that
-                    # we would need to use PROV.Dictionary
-                    # with numeric keys
-                    self.document.membership(coll, member)
-            self.research_object.add_uri(coll.identifier.uri)
-            # FIXME: list value does not support adding "@id"
-            return coll
-        except TypeError:
-            _logger.warning("Unrecognized type %s of %r", type(value), value, exc_info=True)
-            # Let's just fall back to Python repr()
-            entity = self.document.entity(uuid.uuid4().urn, {PROV_LABEL: repr(value)})
-            self.research_object.add_uri(entity.identifier.uri)
-            return entity
+                    # If we reached this, then we were allowed to iterate
+                    coll = self.document.entity(
+                        uuid.uuid4().urn,
+                        [
+                            (PROV_TYPE, WFPROV["Artifact"]),
+                            (PROV_TYPE, PROV["Collection"]),
+                        ],
+                    )
+                    if not members:
+                        coll.add_asserted_type(PROV["EmptyCollection"])
+                    else:
+                        for member in members:
+                            # FIXME: This won't preserve order, for that
+                            # we would need to use PROV.Dictionary
+                            # with numeric keys
+                            self.document.membership(coll, member)
+                    self.research_object.add_uri(coll.identifier.uri)
+                    # FIXME: list value does not support adding "@id"
+                    return coll
+                except TypeError:
+                    _logger.warning("Unrecognized type %s of %r", type(value), value, exc_info=True)
+                    # Let's just fall back to Python repr()
+                    entity = self.document.entity(uuid.uuid4().urn, {PROV_LABEL: repr(value)})
+                    self.research_object.add_uri(entity.identifier.uri)
+                    return entity
 
     def used_artefacts(
         self,

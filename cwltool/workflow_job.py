@@ -712,17 +712,17 @@ class WorkflowJob:
                         step.name,
                         "', '".join(emptyscatter),
                     )
-
-                if method == "dotproduct" or method is None:
-                    jobs = dotproduct_scatter(step, inputobj, scatter, callback, runtimeContext)
-                elif method == "nested_crossproduct":
-                    jobs = nested_crossproduct_scatter(
-                        step, inputobj, scatter, callback, runtimeContext
-                    )
-                elif method == "flat_crossproduct":
-                    jobs = flat_crossproduct_scatter(
-                        step, inputobj, scatter, callback, runtimeContext
-                    )
+                match method:
+                    case "dotproduct" | None:
+                        jobs = dotproduct_scatter(step, inputobj, scatter, callback, runtimeContext)
+                    case "nested_crossproduct":
+                        jobs = nested_crossproduct_scatter(
+                            step, inputobj, scatter, callback, runtimeContext
+                        )
+                    case "flat_crossproduct":
+                        jobs = flat_crossproduct_scatter(
+                            step, inputobj, scatter, callback, runtimeContext
+                        )
             else:
                 if _logger.isEnabledFor(logging.DEBUG):
                     _logger.debug("[%s] job input %s", step.name, json_dumps(inputobj, indent=4))

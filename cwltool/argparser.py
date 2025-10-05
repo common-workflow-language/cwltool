@@ -3,7 +3,7 @@
 import argparse
 import os
 import urllib
-from collections.abc import Callable, MutableMapping, MutableSequence, Sequence
+from collections.abc import Callable, MutableSequence, Sequence
 from typing import Any, cast
 
 import rich.markup
@@ -897,55 +897,51 @@ def add_argument(
     atype: Any | None = None
     typekw: dict[str, Any] = {}
 
-    if inptype == "File":
-        action = FileAction
-    elif inptype == "Directory":
-        action = DirectoryAction
-    elif isinstance(inptype, MutableMapping) and inptype["type"] == "array":
-        if inptype["items"] == "File":
+    match inptype:
+        case "File":
+            action = FileAction
+        case "Directory":
+            action = DirectoryAction
+        case {"type": "array", "items": "File"}:
             action = FileAppendAction
-        elif inptype["items"] == "Directory":
+        case {"type": "array", "items": "Directory"}:
             action = DirectoryAppendAction
-        else:
+        case {"type": "array", "items": str(items)}:
             action = AppendAction
-            items = inptype["items"]
-            if items == "int" or items == "long":
-                atype = int
-            elif items == "double" or items == "float":
-                atype = float
-    elif isinstance(inptype, MutableMapping) and inptype["type"] == "enum":
-        atype = str
-    elif isinstance(inptype, MutableMapping) and inptype["type"] == "record":
-        records.append(name)
-        for field in inptype["fields"]:
-            fieldname = name + "." + shortname(field["name"])
-            fieldtype = field["type"]
-            fielddescription = field.get("doc", "")
-            add_argument(
-                toolparser,
-                fieldname,
-                fieldtype,
-                records,
-                fielddescription,
-                default=default.get(shortname(field["name"]), None) if default else None,
-                input_required=required,
-            )
-        return
-    elif inptype == "string":
-        atype = str
-    elif inptype == "int":
-        atype = int
-    elif inptype == "long":
-        atype = int
-    elif inptype == "double":
-        atype = float
-    elif inptype == "float":
-        atype = float
-    elif inptype == "boolean":
-        action = "store_true"
-    else:
-        _logger.debug("Can't make command line argument from %s", inptype)
-        return None
+            match items:
+                case "int" | "long":
+                    atype = int
+                case "double" | "float":
+                    atype = float
+        case {"type": "enum"}:
+            atype = str
+        case {"type": "record", "fields": list(fields)}:
+            records.append(name)
+            for field in fields:
+                fieldname = name + "." + shortname(field["name"])
+                fieldtype = field["type"]
+                fielddescription = field.get("doc", "")
+                add_argument(
+                    toolparser,
+                    fieldname,
+                    fieldtype,
+                    records,
+                    fielddescription,
+                    default=default.get(shortname(field["name"]), None) if default else None,
+                    input_required=required,
+                )
+            return
+        case "string":
+            atype = str
+        case "int" | "long":
+            atype = int
+        case "double" | "float":
+            atype = float
+        case "boolean":
+            action = "store_true"
+        case _:
+            _logger.debug("Can't make command line argument from %s", inptype)
+            return None
 
     if action in (FileAction, DirectoryAction, FileAppendAction, DirectoryAppendAction):
         typekw["urljoin"] = urljoin

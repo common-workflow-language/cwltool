@@ -166,6 +166,10 @@ class Builder(HasReqsHints):
             return self.job_script_provider.build_job_script(self, commands)
         return None
 
+    def _capture_files(self, f: CWLObjectType) -> CWLObjectType:
+        self.files.append(f)
+        return f
+
     def bind_input(
         self,
         schema: CWLObjectType,
@@ -555,7 +559,7 @@ class Builder(HasReqsHints):
                 visit_class(
                     datum.get("secondaryFiles", []),
                     ("File", "Directory"),
-                    _capture_files,
+                    self._capture_files,
                 )
 
             if schema["type"] == "org.w3id.cwl.cwl.Directory":
@@ -570,7 +574,7 @@ class Builder(HasReqsHints):
                 self.files.append(datum)
 
             if schema["type"] == "Any":
-                visit_class(datum, ("File", "Directory"), _capture_files)
+                visit_class(datum, ("File", "Directory"), self._capture_files)
 
         # Position to front of the sort key
         if binding:
@@ -589,23 +593,21 @@ class Builder(HasReqsHints):
         :raises WorkflowException: if the item is a File or Directory and the
           "path" is missing.
         """
-        if isinstance(value, MutableMapping) and value.get("class") in (
-            "File",
-            "Directory",
-        ):
-            if "path" not in value:
-                raise WorkflowException(
-                    '{} object missing "path": {}'.format(value["class"], value)
-                )
-            return value["path"]
-        elif isinstance(value, ScalarFloat):
-            rep = RoundTripRepresenter()
-            dec_value = Decimal(rep.represent_scalar_float(value).value)
-            if "E" in str(dec_value):
-                return str(dec_value.quantize(1))
-            return str(dec_value)
-        else:
-            return str(value)
+        match value:
+            case {"class": "File" | "Directory" as class_name, **rest}:
+                if "path" not in rest:
+                    raise WorkflowException(
+                        '{} object missing "path": {}'.format(class_name, value)
+                    )
+                return str(rest["path"])
+            case ScalarFloat():
+                rep = RoundTripRepresenter()
+                dec_value = Decimal(rep.represent_scalar_float(value).value)
+                if "E" in str(dec_value):
+                    return str(dec_value.quantize(1))
+                return str(dec_value)
+            case _:
+                return str(value)
 
     def generate_arg(self, binding: CWLObjectType) -> list[str]:
         """Convert an input binding to a list of command line arguments."""
@@ -632,30 +634,28 @@ class Builder(HasReqsHints):
                 raise WorkflowException("'separate' option can not be specified without prefix")
 
         argl: MutableSequence[CWLOutputType] = []
-        if isinstance(value, MutableSequence):
-            if binding.get("itemSeparator") and value:
-                itemSeparator = cast(str, binding["itemSeparator"])
-                argl = [itemSeparator.join([self.tostr(v) for v in value])]
-            elif binding.get("valueFrom"):
-                value = [self.tostr(v) for v in value]
-                return cast(list[str], ([prefix] if prefix else [])) + cast(list[str], value)
-            elif prefix and value:
+        match value:
+            case MutableSequence():
+                if binding.get("itemSeparator") and value:
+                    itemSeparator = cast(str, binding["itemSeparator"])
+                    argl = [itemSeparator.join([self.tostr(v) for v in value])]
+                elif binding.get("valueFrom"):
+                    value = [self.tostr(v) for v in value]
+                    return cast(list[str], ([prefix] if prefix else [])) + cast(list[str], value)
+                elif prefix and value:
+                    return [prefix]
+                else:
+                    return []
+            case {"class": "File" | "Directory"}:
+                argl = [cast(CWLOutputType, value)]
+            case MutableMapping():
+                return [prefix] if prefix else []
+            case True if prefix:
                 return [prefix]
-            else:
+            case bool() | None:
                 return []
-        elif isinstance(value, MutableMapping) and value.get("class") in (
-            "File",
-            "Directory",
-        ):
-            argl = cast(MutableSequence[CWLOutputType], [value])
-        elif isinstance(value, MutableMapping):
-            return [prefix] if prefix else []
-        elif value is True and prefix:
-            return [prefix]
-        elif value is False or value is None or (value is True and not prefix):
-            return []
-        else:
-            argl = [value]
+            case _:
+                argl = [value]
 
         args = []
         for j in argl:

@@ -57,56 +57,55 @@ def get_expressions(
     debug = _logger.isEnabledFor(logging.DEBUG)
     if is_expression(tool, schema):
         return [(cast(str, tool), source_line)]
-    elif isinstance(schema, UnionSchema):
-        valid_schema = None
+    match schema:
+        case UnionSchema(schemas=schemas):
+            valid_schema = None
 
-        for possible_schema in schema.schemas:
-            if is_expression(tool, possible_schema):
-                return [(cast(str, tool), source_line)]
-            elif validate_ex(
-                possible_schema,
-                tool,
-                raise_ex=False,
-                logger=_logger_validation_warnings,
-                vocab={},
-            ):
-                valid_schema = possible_schema
+            for possible_schema in schemas:
+                if is_expression(tool, possible_schema):
+                    return [(cast(str, tool), source_line)]
+                elif validate_ex(
+                    possible_schema,
+                    tool,
+                    raise_ex=False,
+                    logger=_logger_validation_warnings,
+                    vocab={},
+                ):
+                    valid_schema = possible_schema
 
-        return get_expressions(tool, valid_schema, source_line)
-    elif isinstance(schema, ArraySchema):
-        if not isinstance(tool, MutableSequence):
-            return []
+            return get_expressions(tool, valid_schema, source_line)
+        case ArraySchema(items=items):
+            if not isinstance(tool, MutableSequence):
+                return []
 
-        return list(
-            itertools.chain(
-                *map(
-                    lambda x: get_expressions(
-                        x[1], getattr(schema, "items"), SourceLine(tool, x[0])  # noqa: B009
-                    ),
-                    enumerate(tool),
-                )
-            )
-        )
-
-    elif isinstance(schema, RecordSchema):
-        if not isinstance(tool, MutableMapping):
-            return []
-
-        expression_nodes = []
-
-        for schema_field in schema.fields:
-            if schema_field.name in tool:
-                expression_nodes.extend(
-                    get_expressions(
-                        tool[schema_field.name],
-                        schema_field.type,
-                        SourceLine(tool, schema_field.name, include_traceback=debug),
+            return list(
+                itertools.chain(
+                    *map(
+                        lambda x: get_expressions(
+                            x[1], items, SourceLine(tool, x[0])  # noqa: B009
+                        ),
+                        enumerate(tool),
                     )
                 )
+            )
+        case RecordSchema(fields=fields):
+            if not isinstance(tool, MutableMapping):
+                return []
 
-        return expression_nodes
-    else:
-        return []
+            expression_nodes = []
+
+            for schema_field in fields:
+                if schema_field.name in tool:
+                    expression_nodes.extend(
+                        get_expressions(
+                            tool[schema_field.name],
+                            schema_field.type,
+                            SourceLine(tool, schema_field.name, include_traceback=debug),
+                        )
+                    )
+            return expression_nodes
+        case _:
+            return []
 
 
 class JSHintJSReturn(NamedTuple):
