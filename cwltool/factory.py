@@ -27,6 +27,7 @@ class Callable:
 
     def __call__(self, **kwargs):
         # type: (**Any) -> Union[str, Optional[CWLObjectType]]
+        """Invoke the tool."""
         runtime_context = self.factory.runtime_context.copy()
         runtime_context.basedir = os.getcwd()
         out, status = self.factory.executor(self.t, kwargs, runtime_context)
