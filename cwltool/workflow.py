@@ -3,8 +3,8 @@ import datetime
 import functools
 import logging
 import random
-from collections.abc import Mapping, MutableMapping, MutableSequence
-from typing import Callable, Optional, cast
+from collections.abc import Callable, Mapping, MutableMapping, MutableSequence
+from typing import cast
 from uuid import UUID
 
 from mypy_extensions import mypyc_attr
@@ -65,9 +65,9 @@ class Workflow(Process):
     ) -> None:
         """Initialize this Workflow."""
         super().__init__(toolpath_object, loadingContext)
-        self.provenance_object: Optional[ProvenanceProfile] = None
+        self.provenance_object: ProvenanceProfile | None = None
         if loadingContext.research_obj is not None:
-            run_uuid: Optional[UUID] = None
+            run_uuid: UUID | None = None
             is_main = not loadingContext.prov_obj  # Not yet set
             if is_main:
                 run_uuid = loadingContext.research_obj.ro_uuid
@@ -137,7 +137,7 @@ class Workflow(Process):
         toolpath_object: CommentedMap,
         pos: int,
         loadingContext: LoadingContext,
-        parentworkflowProv: Optional[ProvenanceProfile] = None,
+        parentworkflowProv: ProvenanceProfile | None = None,
     ) -> "WorkflowStep":
         return WorkflowStep(toolpath_object, pos, loadingContext, parentworkflowProv)
 
@@ -187,7 +187,7 @@ class WorkflowStep(Process):
         toolpath_object: CommentedMap,
         pos: int,
         loadingContext: LoadingContext,
-        parentworkflowProv: Optional[ProvenanceProfile] = None,
+        parentworkflowProv: ProvenanceProfile | None = None,
     ) -> None:
         """Initialize this WorkflowStep."""
         debug = loadingContext.debug
@@ -385,7 +385,7 @@ class WorkflowStep(Process):
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
-        self.prov_obj: Optional[ProvenanceProfile] = None
+        self.prov_obj: ProvenanceProfile | None = None
         if loadingContext.research_obj is not None:
             self.prov_obj = parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":

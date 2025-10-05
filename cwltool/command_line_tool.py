@@ -12,11 +12,17 @@ import shutil
 import threading
 import urllib
 import urllib.parse
-from collections.abc import Generator, Mapping, MutableMapping, MutableSequence
+from collections.abc import (
+    Generator,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    MutableSequence,
+)
 from enum import Enum
 from functools import cmp_to_key, partial
 from re import Pattern
-from typing import TYPE_CHECKING, Any, Iterable, Optional, TextIO, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
 
 from mypy_extensions import mypyc_attr
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -148,11 +154,11 @@ class ExpressionJob:
         self,
         builder: Builder,
         script: str,
-        output_callback: Optional[OutputCallbackType],
+        output_callback: OutputCallbackType | None,
         requirements: list[CWLObjectType],
         hints: list[CWLObjectType],
-        outdir: Optional[str] = None,
-        tmpdir: Optional[str] = None,
+        outdir: str | None = None,
+        tmpdir: str | None = None,
     ) -> None:
         """Initialize this ExpressionJob."""
         self.builder = builder
@@ -167,7 +173,7 @@ class ExpressionJob:
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: Optional[threading.Lock] = None,
+        tmpdir_lock: Union[threading.Lock, None] = None,
     ) -> None:
         try:
             normalizeFilesDirs(self.builder.job)
@@ -201,7 +207,7 @@ class ExpressionTool(Process):
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: Optional[OutputCallbackType],
+        output_callbacks: OutputCallbackType | None,
         runtimeContext: RuntimeContext,
     ) -> Generator[ExpressionJob, None, None]:
         builder = self._init_job(job_order, runtimeContext)
@@ -221,7 +227,7 @@ class AbstractOperation(Process):
     def job(
         self,
         job_order: CWLObjectType,
-        output_callbacks: Optional[OutputCallbackType],
+        output_callbacks: OutputCallbackType | None,
         runtimeContext: RuntimeContext,
     ) -> JobsGeneratorType:
         raise WorkflowException("Abstract operation cannot be executed.")
@@ -233,7 +239,7 @@ def remove_path(f: CWLObjectType) -> None:
         del f["path"]
 
 
-def revmap_file(builder: Builder, outdir: str, f: CWLObjectType) -> Optional[CWLObjectType]:
+def revmap_file(builder: Builder, outdir: str, f: CWLObjectType) -> CWLObjectType | None:
     """
     Remap a file from internal path to external path.
 
@@ -312,7 +318,7 @@ class CallbackJob:
     def __init__(
         self,
         job: "CommandLineTool",
-        output_callback: Optional[OutputCallbackType],
+        output_callback: OutputCallbackType | None,
         cachebuilder: Builder,
         jobcache: str,
     ) -> None:
@@ -321,12 +327,12 @@ class CallbackJob:
         self.output_callback = output_callback
         self.cachebuilder = cachebuilder
         self.outdir = jobcache
-        self.prov_obj: Optional[ProvenanceProfile] = None
+        self.prov_obj: ProvenanceProfile | None = None
 
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: Optional[threading.Lock] = None,
+        tmpdir_lock: Union[threading.Lock, None] = None,
     ) -> None:
         if self.output_callback:
             self.output_callback(
@@ -470,7 +476,7 @@ class CommandLineTool(Process):
         for ls in cast(list[CWLObjectType], fn.get("listing", [])):
             self.updatePathmap(os.path.join(outdir, cast(str, fn["basename"])), pathmap, ls)
 
-    def _initialworkdir(self, j: Optional[JobBase], builder: Builder) -> None:
+    def _initialworkdir(self, j: JobBase | None, builder: Builder) -> None:
         """
         Test and initialize the working directory.
 
@@ -797,7 +803,7 @@ class CommandLineTool(Process):
         job_order: CWLObjectType,
         output_callbacks: OutputCallbackType,
         runtimeContext: RuntimeContext,
-    ) -> Generator[Union[JobBase, CallbackJob], None, None]:
+    ) -> Generator[JobBase | CallbackJob, None, None]:
         workReuse, _ = self.get_requirement("WorkReuse")
         enableReuse = workReuse.get("enableReuse", True) if workReuse else True
 
@@ -840,15 +846,13 @@ class CommandLineTool(Process):
                 cmdline = ["docker", "run", dockerimg] + cmdline
                 # not really run using docker, just for hashing purposes
 
-            keydict: dict[str, Union[MutableSequence[Union[str, int]], CWLObjectType]] = {
-                "cmdline": cmdline
-            }
+            keydict: dict[str, MutableSequence[str | int] | CWLObjectType] = {"cmdline": cmdline}
 
             for shortcut in ["stdin", "stdout", "stderr"]:
                 if shortcut in self.tool:
                     keydict[shortcut] = self.tool[shortcut]
 
-            def calc_checksum(location: str) -> Optional[str]:
+            def calc_checksum(location: str) -> str | None:
                 for e in cachebuilder.files:
                     if (
                         "location" in e
@@ -943,7 +947,7 @@ class CommandLineTool(Process):
                 def update_status_output_callback(
                     output_callbacks: OutputCallbackType,
                     jobcachelock: TextIO,
-                    outputs: Optional[CWLObjectType],
+                    outputs: CWLObjectType | None,
                     processStatus: str,
                 ) -> None:
                     # save status to the lockfile then release the lock
@@ -1198,13 +1202,13 @@ class CommandLineTool(Process):
 
     def collect_output_ports(
         self,
-        ports: Union[CommentedSeq, set[CWLObjectType]],
+        ports: CommentedSeq | set[CWLObjectType],
         builder: Builder,
         outdir: str,
         rcode: int,
         compute_checksum: bool = True,
         jobname: str = "",
-        readers: Optional[MutableMapping[str, CWLObjectType]] = None,
+        readers: MutableMapping[str, CWLObjectType] | None = None,
     ) -> OutputPortsType:
         ret: OutputPortsType = {}
         debug = _logger.isEnabledFor(logging.DEBUG)
@@ -1280,11 +1284,11 @@ class CommandLineTool(Process):
         outdir: str,
         fs_access: StdFsAccess,
         compute_checksum: bool = True,
-    ) -> Optional[CWLOutputType]:
+    ) -> CWLOutputType | None:
         r: list[CWLOutputType] = []
         empty_and_optional = False
         debug = _logger.isEnabledFor(logging.DEBUG)
-        result: Optional[CWLOutputType] = None
+        result: CWLOutputType | None = None
         if "outputBinding" in schema:
             binding = cast(
                 MutableMapping[str, Union[bool, str, list[str]]],

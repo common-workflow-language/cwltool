@@ -1,7 +1,7 @@
 import shutil
 import tempfile
+from collections.abc import Callable
 from io import StringIO
-from typing import Callable, Union
 
 import pytest
 
@@ -41,7 +41,7 @@ obscured_factories_expected = [
 @pytest.mark.parametrize("factory,expected", obscured_factories_expected)
 def test_secrets(
     factory: Callable[[str], CWLObjectType],
-    expected: Union[str, list[str], dict[str, str]],
+    expected: str | list[str] | dict[str, str],
     secrets: tuple[SecretStore, CWLObjectType],
 ) -> None:
     storage, obscured = secrets

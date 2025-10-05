@@ -4,7 +4,7 @@ import json
 import logging
 from collections.abc import MutableMapping, MutableSequence
 from importlib.resources import files
-from typing import Any, NamedTuple, Optional, Union, cast
+from typing import Any, NamedTuple, cast
 
 from cwl_utils.errors import SubstitutionError
 from cwl_utils.expression import scanner as scan_expression
@@ -25,7 +25,7 @@ from .errors import WorkflowException
 from .loghandler import _logger
 
 
-def is_expression(tool: Any, schema: Optional[Schema]) -> bool:
+def is_expression(tool: Any, schema: Schema | None) -> bool:
     """Test a field/schema combo to see if it is a CWL Expression."""
     return (
         isinstance(schema, EnumSchema)
@@ -50,10 +50,10 @@ _logger_validation_warnings.addFilter(SuppressLog("cwltool.validation_warnings")
 
 
 def get_expressions(
-    tool: Union[CommentedMap, str, CommentedSeq],
-    schema: Optional[Union[Schema, ArraySchema]],
-    source_line: Optional[SourceLine] = None,
-) -> list[tuple[str, Optional[SourceLine]]]:
+    tool: CommentedMap | str | CommentedSeq,
+    schema: Schema | ArraySchema | None,
+    source_line: SourceLine | None = None,
+) -> list[tuple[str, SourceLine | None]]:
     debug = _logger.isEnabledFor(logging.DEBUG)
     if is_expression(tool, schema):
         return [(cast(str, tool), source_line)]
@@ -118,8 +118,8 @@ class JSHintJSReturn(NamedTuple):
 
 def jshint_js(
     js_text: str,
-    globals: Optional[list[str]] = None,
-    options: Optional[dict[str, Union[list[str], str, int]]] = None,
+    globals: list[str] | None = None,
+    options: dict[str, list[str] | str | int] | None = None,
     container_engine: str = "docker",
     eval_timeout: float = 60,
 ) -> JSHintJSReturn:
@@ -187,7 +187,7 @@ def jshint_js(
     return JSHintJSReturn(jshint_errors, jshint_json.get("globals", []))
 
 
-def print_js_hint_messages(js_hint_messages: list[str], source_line: Optional[SourceLine]) -> None:
+def print_js_hint_messages(js_hint_messages: list[str], source_line: SourceLine | None) -> None:
     """Log the message from JSHint, using the line number."""
     if source_line is not None:
         for js_hint_message in js_hint_messages:
@@ -197,7 +197,7 @@ def print_js_hint_messages(js_hint_messages: list[str], source_line: Optional[So
 def validate_js_expressions(
     tool: CommentedMap,
     schema: Schema,
-    jshint_options: Optional[dict[str, Union[list[str], str, int]]] = None,
+    jshint_options: dict[str, list[str] | str | int] | None = None,
     container_engine: str = "docker",
     eval_timeout: float = 60,
 ) -> None:

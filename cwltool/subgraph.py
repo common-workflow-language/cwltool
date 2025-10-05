@@ -1,6 +1,6 @@
 import urllib
 from collections.abc import Mapping, MutableMapping, MutableSequence
-from typing import Any, NamedTuple, Optional, Union, cast
+from typing import Any, NamedTuple, Union, cast
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
@@ -14,7 +14,7 @@ from .workflow import Workflow, WorkflowStep
 class _Node(NamedTuple):
     up: list[str]
     down: list[str]
-    type: Optional[str]
+    type: str | None
 
 
 UP = "up"
@@ -42,7 +42,7 @@ def _subgraph_visit(
         _subgraph_visit(c, nodes, visited, direction)
 
 
-def _declare_node(nodes: dict[str, _Node], nodeid: str, tp: Optional[str]) -> _Node:
+def _declare_node(nodes: dict[str, _Node], nodeid: str, tp: str | None) -> _Node:
     """
     Record the given nodeid in the graph.
 
@@ -60,14 +60,14 @@ def _declare_node(nodes: dict[str, _Node], nodeid: str, tp: Optional[str]) -> _N
 
 def find_step(
     steps: list[WorkflowStep], stepid: str, loading_context: LoadingContext
-) -> tuple[Optional[CWLObjectType], Optional[WorkflowStep]]:
+) -> tuple[CWLObjectType | None, WorkflowStep | None]:
     """Find the step (raw dictionary and WorkflowStep) for a given step id."""
     for st in steps:
         st_tool_id = st.tool["id"]
         if st_tool_id == stepid:
             return st.tool, st
         if stepid.startswith(st_tool_id):
-            run: Union[str, Process, CWLObjectType] = st.tool["run"]
+            run: str | Process | CWLObjectType = st.tool["run"]
             if isinstance(run, Workflow):
                 result, st2 = find_step(
                     run.steps, stepid[len(st.tool["id"]) + 1 :], loading_context
@@ -264,7 +264,7 @@ def get_process(
     if raw_step is None or step is None:
         raise Exception(f"Step {step_id} was not found")
 
-    run: Union[str, Any] = raw_step["run"]
+    run: str | Any = raw_step["run"]
 
     if isinstance(run, str):
         process = loading_context.loader.idx[run]

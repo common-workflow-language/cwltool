@@ -2,7 +2,6 @@
 
 import uuid
 from collections.abc import MutableMapping, MutableSequence
-from typing import Optional
 
 from .utils import CWLObjectType, CWLOutputType
 
@@ -14,7 +13,7 @@ class SecretStore:
         """Initialize the secret store."""
         self.secrets: dict[str, str] = {}
 
-    def add(self, value: Optional[CWLOutputType]) -> Optional[CWLOutputType]:
+    def add(self, value: CWLOutputType | None) -> CWLOutputType | None:
         """
         Add the given value to the store.
 

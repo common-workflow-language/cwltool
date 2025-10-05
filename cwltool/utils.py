@@ -19,7 +19,13 @@ import sys
 import tempfile
 import urllib
 import uuid
-from collections.abc import Generator, Iterable, MutableMapping, MutableSequence
+from collections.abc import (
+    Callable,
+    Generator,
+    Iterable,
+    MutableMapping,
+    MutableSequence,
+)
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from functools import partial
@@ -30,11 +36,11 @@ from typing import (
     IO,
     TYPE_CHECKING,
     Any,
-    Callable,
     Deque,
     Literal,
     NamedTuple,
     Optional,
+    TypeAlias,
     TypedDict,
     Union,
     cast,
@@ -45,15 +51,16 @@ from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
-from schema_salad.ref_resolver import Loader
 
 if TYPE_CHECKING:
+    from schema_salad.ref_resolver import Loader
+
     from .command_line_tool import CallbackJob, ExpressionJob
     from .job import CommandLineJob, JobBase
     from .stdfsaccess import StdFsAccess
     from .workflow_job import WorkflowJob
 
-__random_outdir: Optional[str] = None
+__random_outdir: str | None = None
 
 CONTENT_LIMIT = 64 * 1024
 
@@ -61,7 +68,7 @@ DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill: Deque["subprocess.Popen[str]"] = collections.deque()
 
-CWLOutputType = Union[
+CWLOutputType: TypeAlias = Union[
     None,
     bool,
     str,
@@ -70,33 +77,35 @@ CWLOutputType = Union[
     MutableSequence["CWLOutputType"],
     MutableMapping[str, "CWLOutputType"],
 ]
-CWLObjectType = MutableMapping[str, Optional[CWLOutputType]]
+CWLObjectType: TypeAlias = MutableMapping[str, Optional[CWLOutputType]]
 """Typical raw dictionary found in lightly parsed CWL."""
 
-JobsType = Union["CommandLineJob", "JobBase", "WorkflowJob", "ExpressionJob", "CallbackJob"]
-JobsGeneratorType = Generator[Optional[JobsType], None, None]
-OutputCallbackType = Callable[[Optional[CWLObjectType], str], None]
-ResolverType = Callable[["Loader", str], Optional[str]]
-DestinationsType = MutableMapping[str, Optional[CWLOutputType]]
-ScatterDestinationsType = MutableMapping[str, list[Optional[CWLOutputType]]]
-ScatterOutputCallbackType = Callable[[Optional[ScatterDestinationsType], str], None]
-SinkType = Union[CWLOutputType, CWLObjectType]
+JobsType: TypeAlias = Union[
+    "CommandLineJob", "JobBase", "WorkflowJob", "ExpressionJob", "CallbackJob"
+]
+JobsGeneratorType: TypeAlias = Generator[Optional[JobsType], None, None]
+OutputCallbackType: TypeAlias = Callable[[Optional[CWLObjectType], str], None]
+ResolverType: TypeAlias = Callable[["Loader", str], Optional[str]]
+DestinationsType: TypeAlias = MutableMapping[str, Optional[CWLOutputType]]
+ScatterDestinationsType: TypeAlias = MutableMapping[str, list[Optional[CWLOutputType]]]
+ScatterOutputCallbackType: TypeAlias = Callable[[Optional[ScatterDestinationsType], str], None]
+SinkType: TypeAlias = Union[CWLOutputType, CWLObjectType]
 DirectoryType = TypedDict(
     "DirectoryType", {"class": str, "listing": list[CWLObjectType], "basename": str}
 )
-JSONType = Union[dict[str, "JSONType"], list["JSONType"], str, int, float, bool, None]
+JSONType: TypeAlias = Union[dict[str, "JSONType"], list["JSONType"], str, int, float, bool, None]
 
 
 class WorkflowStateItem(NamedTuple):
     """Workflow state item."""
 
     parameter: CWLObjectType
-    value: Optional[CWLOutputType]
+    value: CWLOutputType | None
     success: str
 
 
-ParametersType = list[CWLObjectType]
-StepType = CWLObjectType  # WorkflowStep
+ParametersType: TypeAlias = list[CWLObjectType]
+StepType: TypeAlias = CWLObjectType  # WorkflowStep
 
 LoadListingType = Union[Literal["no_listing"], Literal["shallow_listing"], Literal["deep_listing"]]
 
@@ -164,8 +173,8 @@ def cmp_like_py2(dict1: dict[str, Any], dict2: dict[str, Any]) -> int:
 
 
 def bytes2str_in_dicts(
-    inp: Union[MutableMapping[str, Any], MutableSequence[Any], Any],
-) -> Union[str, MutableSequence[Any], MutableMapping[str, Any]]:
+    inp: MutableMapping[str, Any] | MutableSequence[Any] | Any,
+) -> str | MutableSequence[Any] | MutableMapping[str, Any]:
     """
     Convert any present byte string to unicode string, inplace.
 
@@ -308,7 +317,7 @@ def trim_listing(obj: dict[str, Any]) -> None:
         del obj["listing"]
 
 
-def downloadHttpFile(httpurl: str) -> tuple[str, Optional[datetime]]:
+def downloadHttpFile(httpurl: str) -> tuple[str, datetime | None]:
     """
     Download a remote file, possibly using a locally cached copy.
 
@@ -336,8 +345,8 @@ def downloadHttpFile(httpurl: str) -> tuple[str, Optional[datetime]]:
                 f.write(chunk)
     r.close()
 
-    date_raw: Optional[str] = r.headers.get("Last-Modified", None)
-    date: Optional[datetime] = parsedate_to_datetime(date_raw) if date_raw else None
+    date_raw: str | None = r.headers.get("Last-Modified", None)
+    date: datetime | None = parsedate_to_datetime(date_raw) if date_raw else None
     if date:
         date_epoch = date.timestamp()
         os.utime(f.name, (date_epoch, date_epoch))
@@ -392,13 +401,9 @@ def ensure_non_writable(path: str) -> None:
 
 
 def normalizeFilesDirs(
-    job: Optional[
-        Union[
-            MutableSequence[MutableMapping[str, Any]],
-            MutableMapping[str, Any],
-            DirectoryType,
-        ]
-    ],
+    job: None | (
+        MutableSequence[MutableMapping[str, Any]] | MutableMapping[str, Any] | DirectoryType
+    ),
 ) -> None:
     def addLocation(d: dict[str, Any]) -> None:
         if "location" not in d:
@@ -473,7 +478,7 @@ class HasReqsHints:
         self.requirements: list[CWLObjectType] = []
         self.hints: list[CWLObjectType] = []
 
-    def get_requirement(self, feature: str) -> tuple[Optional[CWLObjectType], Optional[bool]]:
+    def get_requirement(self, feature: str) -> tuple[CWLObjectType | None, bool | None]:
         """Retrieve the named feature from the requirements field, or the hints field."""
         for item in reversed(self.requirements):
             if item["class"] == feature:

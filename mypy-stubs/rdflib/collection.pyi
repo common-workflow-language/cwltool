@@ -1,4 +1,5 @@
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from rdflib.graph import Graph
 from rdflib.term import Node

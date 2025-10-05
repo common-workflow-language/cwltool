@@ -16,10 +16,10 @@ import threading
 import time
 import uuid
 from abc import ABCMeta, abstractmethod
-from collections.abc import Iterable, Mapping, MutableMapping, MutableSequence
+from collections.abc import Callable, Iterable, Mapping, MutableMapping, MutableSequence
 from re import Match
 from threading import Timer
-from typing import IO, TYPE_CHECKING, Callable, Optional, TextIO, Union, cast
+from typing import IO, TYPE_CHECKING, Optional, TextIO, Union, cast
 
 import psutil
 from prov.model import PROV
@@ -99,7 +99,7 @@ def relink_initialworkdir(
                     pass
 
 
-def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Optional[Match[str]]:
+def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Match[str] | None:
     """No-op."""
     return None
 
@@ -118,9 +118,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         super().__init__()
         self.builder = builder
         self.joborder = joborder
-        self.stdin: Optional[str] = None
-        self.stderr: Optional[str] = None
-        self.stdout: Optional[str] = None
+        self.stdin: str | None = None
+        self.stderr: str | None = None
+        self.stdout: str | None = None
         self.successCodes: Iterable[int] = []
         self.temporaryFailCodes: Iterable[int] = []
         self.permanentFailCodes: Iterable[int] = []
@@ -130,11 +130,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.command_line: list[str] = []
         self.pathmapper = PathMapper([], "", "")
         self.make_path_mapper = make_path_mapper
-        self.generatemapper: Optional[PathMapper] = None
+        self.generatemapper: PathMapper | None = None
 
         # set in CommandLineTool.job(i)
         self.collect_outputs = cast("CollectOutputsType", None)
-        self.output_callback: Optional[OutputCallbackType] = None
+        self.output_callback: OutputCallbackType | None = None
         self.outdir = ""
         self.tmpdir = ""
 
@@ -144,13 +144,13 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             "listing": [],
             "basename": "",
         }
-        self.stagedir: Optional[str] = None
+        self.stagedir: str | None = None
         self.inplace_update = False
-        self.prov_obj: Optional[ProvenanceProfile] = None
-        self.parent_wf: Optional[ProvenanceProfile] = None
-        self.timelimit: Optional[int] = None
+        self.prov_obj: ProvenanceProfile | None = None
+        self.parent_wf: ProvenanceProfile | None = None
+        self.timelimit: int | None = None
         self.networkaccess: bool = False
-        self.mpi_procs: Optional[int] = None
+        self.mpi_procs: int | None = None
 
     def __repr__(self) -> str:
         """Represent this Job object."""
@@ -160,7 +160,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: Optional[threading.Lock] = None,
+        tmpdir_lock: Union[threading.Lock, None] = None,
     ) -> None:
         pass
 
@@ -218,7 +218,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         runtime: list[str],
         env: MutableMapping[str, str],
         runtimeContext: RuntimeContext,
-        monitor_function: Optional[Callable[["subprocess.Popen[str]"], None]] = None,
+        monitor_function: Callable[["subprocess.Popen[str]"], None] | None = None,
     ) -> None:
         """Execute the tool, either directly or via script.
 
@@ -293,8 +293,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     stdin_path = rmap[1]
 
             def stderr_stdout_log_path(
-                base_path_logs: str, stderr_or_stdout: Optional[str]
-            ) -> Optional[str]:
+                base_path_logs: str, stderr_or_stdout: str | None
+            ) -> str | None:
                 if stderr_or_stdout is not None:
                     abserr = os.path.join(base_path_logs, stderr_or_stdout)
                     dnerr = os.path.dirname(abserr)
@@ -316,8 +316,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                     runtimeContext.secret_store.retrieve(cast(CWLOutputType, env)),
                 )
 
-            job_script_contents: Optional[str] = None
-            builder: Optional[Builder] = getattr(self, "builder", None)
+            job_script_contents: str | None = None
+            builder: Builder | None = getattr(self, "builder", None)
             if builder is not None:
                 job_script_contents = builder.build_job_script(commands)
             rcode = _job_popen(
@@ -464,7 +464,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         """
 
     def _preserve_environment_on_containers_warning(
-        self, varname: Optional[Iterable[str]] = None
+        self, varname: Iterable[str] | None = None
     ) -> None:
         """When running in a container, issue a warning."""
         # By default, don't do anything; ContainerCommandLineJob below
@@ -522,11 +522,11 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         """Watch a process, logging its max memory usage."""
         monitor = psutil.Process(sproc.pid)
         # Value must be list rather than integer to utilise pass-by-reference in python
-        memory_usage: MutableSequence[Optional[int]] = [None]
+        memory_usage: MutableSequence[int | None] = [None]
 
         mem_tm: "Optional[Timer]" = None
 
-        def get_tree_mem_usage(memory_usage: MutableSequence[Optional[int]]) -> None:
+        def get_tree_mem_usage(memory_usage: MutableSequence[int | None]) -> None:
             nonlocal mem_tm
             try:
                 with monitor.oneshot():
@@ -565,7 +565,7 @@ class CommandLineJob(JobBase):
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: Optional[threading.Lock] = None,
+        tmpdir_lock: Union[threading.Lock, None] = None,
     ) -> None:
         if tmpdir_lock:
             with tmpdir_lock:
@@ -627,7 +627,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         pull_image: bool,
         force_pull: bool,
         tmp_outdir_prefix: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         pass
 
     @abstractmethod
@@ -635,7 +635,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         self,
         env: MutableMapping[str, str],
         runtime_context: RuntimeContext,
-    ) -> tuple[list[str], Optional[str]]:
+    ) -> tuple[list[str], str | None]:
         """Return the list of commands to run the selected container engine."""
 
     @staticmethod
@@ -645,7 +645,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
     @abstractmethod
     def add_file_or_directory_volume(
-        self, runtime: list[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
+        self, runtime: list[str], volume: MapperEnt, host_outdir_tgt: str | None
     ) -> None:
         """Append volume a file/dir mapping to the runtime option list."""
 
@@ -654,7 +654,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         self,
         runtime: list[str],
         volume: MapperEnt,
-        host_outdir_tgt: Optional[str],
+        host_outdir_tgt: str | None,
         tmpdir_prefix: str,
     ) -> None:
         """Append a writable file mapping to the runtime option list."""
@@ -664,13 +664,13 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         self,
         runtime: list[str],
         volume: MapperEnt,
-        host_outdir_tgt: Optional[str],
+        host_outdir_tgt: str | None,
         tmpdir_prefix: str,
     ) -> None:
         """Append a writable directory mapping to the runtime option list."""
 
     def _preserve_environment_on_containers_warning(
-        self, varnames: Optional[Iterable[str]] = None
+        self, varnames: Iterable[str] | None = None
     ) -> None:
         """When running in a container, issue a warning."""
         if varnames is None:
@@ -688,8 +688,8 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         self,
         runtime: list[str],
         volume: MapperEnt,
-        host_outdir_tgt: Optional[str],
-        secret_store: Optional[SecretStore],
+        host_outdir_tgt: str | None,
+        secret_store: SecretStore | None,
         tmpdir_prefix: str,
     ) -> str:
         """Create the file and add a mapping."""
@@ -720,13 +720,13 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         pathmapper: PathMapper,
         runtime: list[str],
         tmpdir_prefix: str,
-        secret_store: Optional[SecretStore] = None,
+        secret_store: SecretStore | None = None,
         any_path_okay: bool = False,
     ) -> None:
         """Append volume mappings to the runtime option list."""
         container_outdir = self.builder.outdir
         for key, vol in (itm for itm in pathmapper.items() if itm[1].staged):
-            host_outdir_tgt: Optional[str] = None
+            host_outdir_tgt: str | None = None
             if vol.target.startswith(container_outdir + "/"):
                 host_outdir_tgt = os.path.join(self.outdir, vol.target[len(container_outdir) + 1 :])
             if not host_outdir_tgt and not any_path_okay:
@@ -750,7 +750,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: Optional[threading.Lock] = None,
+        tmpdir_lock: Union[threading.Lock, None] = None,
     ) -> None:
         debug = runtimeContext.debug
         if tmpdir_lock:
@@ -868,7 +868,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         # to stdout, but the container is frozen, thus allowing us to start the
         # monitoring process without dealing with the cidfile or too-fast
         # container execution
-        cid: Optional[str] = None
+        cid: str | None = None
         while cid is None:
             time.sleep(1)
             # This is needed to avoid a race condition where the job
@@ -931,33 +931,29 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
 def _job_popen(
     commands: list[str],
-    stdin_path: Optional[str],
-    stdout_path: Optional[str],
-    stderr_path: Optional[str],
+    stdin_path: str | None,
+    stdout_path: str | None,
+    stderr_path: str | None,
     env: Mapping[str, str],
     cwd: str,
     make_job_dir: Callable[[], str],
-    job_script_contents: Optional[str] = None,
-    timelimit: Optional[int] = None,
-    name: Optional[str] = None,
-    monitor_function: Optional[Callable[["subprocess.Popen[str]"], None]] = None,
-    default_stdout: Optional[Union[IO[bytes], TextIO]] = None,
-    default_stderr: Optional[Union[IO[bytes], TextIO]] = None,
+    job_script_contents: str | None = None,
+    timelimit: int | None = None,
+    name: str | None = None,
+    monitor_function: Callable[["subprocess.Popen[str]"], None] | None = None,
+    default_stdout: IO[bytes] | TextIO | None = None,
+    default_stderr: IO[bytes] | TextIO | None = None,
 ) -> int:
     if job_script_contents is None and not FORCE_SHELLED_POPEN:
-        stdin: Union[IO[bytes], int] = subprocess.PIPE
+        stdin: IO[bytes] | int = subprocess.PIPE
         if stdin_path is not None:
             stdin = open(stdin_path, "rb")
 
-        stdout = (
-            default_stdout if default_stdout is not None else sys.stderr
-        )  # type: Union[IO[bytes], TextIO]
+        stdout: IO[bytes] | TextIO = default_stdout if default_stdout is not None else sys.stderr
         if stdout_path is not None:
             stdout = open(stdout_path, "wb")
 
-        stderr = (
-            default_stderr if default_stderr is not None else sys.stderr
-        )  # type: Union[IO[bytes], TextIO]
+        stderr: IO[bytes] | TextIO = default_stderr if default_stderr is not None else sys.stderr
         if stderr_path is not None:
             stderr = open(stderr_path, "wb")
 
@@ -980,7 +976,7 @@ def _job_popen(
         tm = None
         if timelimit is not None and timelimit > 0:
 
-            def terminate():  # type: () -> None
+            def terminate() -> None:
                 try:
                     _logger.warning(
                         "[job %s] exceeded time limit of %d seconds and will be terminated",
@@ -1056,7 +1052,7 @@ def _job_popen(
             tm = None
             if timelimit is not None and timelimit > 0:
 
-                def terminate():  # type: () -> None
+                def terminate() -> None:
                     try:
                         _logger.warning(
                             "[job %s] exceeded time limit of %d seconds and will be terminated",
