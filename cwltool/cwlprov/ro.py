@@ -402,6 +402,7 @@ class ResearchObject:
         return aggregates
 
     def add_uri(self, uri: str, timestamp: Optional[datetime.datetime] = None) -> Aggregate:
+        """Add the given URI to this RO."""
         self.self_check()
         aggr: Aggregate = {"uri": uri}
         aggr["createdOn"], aggr["createdBy"] = self._self_made(timestamp=timestamp)

@@ -1,3 +1,5 @@
+"""RDF output."""
+
 from typing import IO, Any
 
 from rdflib import Graph

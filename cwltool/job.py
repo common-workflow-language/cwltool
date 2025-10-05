@@ -100,6 +100,7 @@ def relink_initialworkdir(
 
 
 def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Optional[Match[str]]:
+    """No-op."""
     return None
 
 
