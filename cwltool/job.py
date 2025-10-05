@@ -735,17 +735,18 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                     "the designated output directory, also know as "
                     "$(runtime.outdir): {}".format(vol)
                 )
-            if vol.type in ("File", "Directory"):
-                self.add_file_or_directory_volume(runtime, vol, host_outdir_tgt)
-            elif vol.type == "WritableFile":
-                self.add_writable_file_volume(runtime, vol, host_outdir_tgt, tmpdir_prefix)
-            elif vol.type == "WritableDirectory":
-                self.add_writable_directory_volume(runtime, vol, host_outdir_tgt, tmpdir_prefix)
-            elif vol.type in ["CreateFile", "CreateWritableFile"]:
-                new_path = self.create_file_and_add_volume(
-                    runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix
-                )
-                pathmapper.update(key, new_path, vol.target, vol.type, vol.staged)
+            match vol.type:
+                case "File" | "Directory":
+                    self.add_file_or_directory_volume(runtime, vol, host_outdir_tgt)
+                case "WritableFile":
+                    self.add_writable_file_volume(runtime, vol, host_outdir_tgt, tmpdir_prefix)
+                case "WritableDirectory":
+                    self.add_writable_directory_volume(runtime, vol, host_outdir_tgt, tmpdir_prefix)
+                case "CreateFile" | "CreateWritableFile":
+                    new_path = self.create_file_and_add_volume(
+                        runtime, vol, host_outdir_tgt, secret_store, tmpdir_prefix
+                    )
+                    pathmapper.update(key, new_path, vol.target, vol.type, vol.staged)
 
     def run(
         self,
@@ -763,7 +764,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
         (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
         self.prov_obj = runtimeContext.prov_obj
-        img_id = None
+        img_id: str | None = None
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if docker_req is not None and user_space_docker_cmd:
             # For user-space docker implementations, a local image name or ID

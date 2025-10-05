@@ -33,31 +33,37 @@ def check_types(
     """
     if valueFrom is not None:
         return "pass"
-    if linkMerge is None:
-        if can_assign_src_to_sink(srctype, sinktype, strict=True):
-            return "pass"
-        if can_assign_src_to_sink(srctype, sinktype, strict=False):
-            return "warning"
-        return "exception"
-    if linkMerge == "merge_nested":
-        return check_types(
-            {"items": _get_type(srctype), "type": "array"},
-            _get_type(sinktype),
-            None,
-            None,
-        )
-    if linkMerge == "merge_flattened":
-        return check_types(merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None)
-    raise WorkflowException(f"Unrecognized linkMerge enum {linkMerge!r}")
+    match linkMerge:
+        case None:
+            if can_assign_src_to_sink(srctype, sinktype, strict=True):
+                return "pass"
+            if can_assign_src_to_sink(srctype, sinktype, strict=False):
+                return "warning"
+            return "exception"
+        case "merge_nested":
+            return check_types(
+                {"items": _get_type(srctype), "type": "array"},
+                _get_type(sinktype),
+                None,
+                None,
+            )
+        case "merge_flattened":
+            return check_types(
+                merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None
+            )
+        case _:
+            raise WorkflowException(f"Unrecognized linkMerge enum {linkMerge!r}")
 
 
 def merge_flatten_type(src: SinkType) -> CWLOutputType:
     """Return the merge flattened type of the source type."""
-    if isinstance(src, MutableSequence):
-        return [merge_flatten_type(t) for t in src]
-    if isinstance(src, MutableMapping) and src.get("type") == "array":
-        return src
-    return {"items": src, "type": "array"}
+    match src:
+        case MutableSequence():
+            return [merge_flatten_type(t) for t in src]
+        case {"type": "array"}:
+            return src
+        case _:
+            return {"items": src, "type": "array"}
 
 
 def can_assign_src_to_sink(src: SinkType, sink: SinkType | None, strict: bool = False) -> bool:

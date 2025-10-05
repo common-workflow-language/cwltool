@@ -186,39 +186,39 @@ def generate_example_input(
             [("class", "Directory"), ("path", "a/directory/path")]
         ),
     }
-    if isinstance(inptype, MutableSequence):
-        optional = False
-        if "null" in inptype:
-            inptype.remove("null")
-            optional = True
-        if len(inptype) == 1:
-            example, comment = generate_example_input(inptype[0], default)
-            if optional:
-                if comment:
+    match inptype:
+        case MutableSequence():
+            optional = False
+            if "null" in inptype:
+                inptype.remove("null")
+                optional = True
+            if len(inptype) == 1:
+                example, comment = generate_example_input(inptype[0], default)
+                if optional:
+                    if comment:
+                        comment = f"{comment} (optional)"
+                    else:
+                        comment = "optional"
+            else:
+                example, comment = generate_example_input(inptype[0], default)
+                type_names = []
+                for entry in inptype:
+                    value, e_comment = generate_example_input(entry, default)
+                    if e_comment:
+                        type_names.append(e_comment)
+                comment = "one of " + ", ".join(type_names)
+                if optional:
                     comment = f"{comment} (optional)"
-                else:
-                    comment = "optional"
-        else:
-            example, comment = generate_example_input(inptype[0], default)
-            type_names = []
-            for entry in inptype:
-                value, e_comment = generate_example_input(entry, default)
-                if e_comment:
-                    type_names.append(e_comment)
-            comment = "one of " + ", ".join(type_names)
-            if optional:
-                comment = f"{comment} (optional)"
-    elif isinstance(inptype, Mapping) and "type" in inptype:
-        if inptype["type"] == "array":
-            first_item = cast(MutableSequence[CWLObjectType], inptype["items"])[0]
-            items_len = len(cast(Sized, inptype["items"]))
+        case {"type": "array", "items": list(items)}:
+            first_item = cast(CWLObjectType, items[0])
+            items_len = len(items)
             if items_len == 1 and "type" in first_item and first_item["type"] == "enum":
                 # array of just an enum then list all the options
                 example = first_item["symbols"]
                 if "name" in first_item:
                     comment = 'array of type "{}".'.format(first_item["name"])
             else:
-                value, comment = generate_example_input(inptype["items"], None)
+                value, comment = generate_example_input(items, None)
                 comment = "array of " + comment
                 if items_len == 1:
                     example = [value]
@@ -226,37 +226,35 @@ def generate_example_input(
                     example = value
             if default is not None:
                 example = default
-        elif inptype["type"] == "enum":
-            symbols = cast(list[str], inptype["symbols"])
+        case {"type": "enum", "symbols": list(symbols), **rest}:
             if default is not None:
                 example = default
-            elif "default" in inptype:
-                example = inptype["default"]
-            elif len(cast(Sized, inptype["symbols"])) == 1:
+            elif "default" in rest:
+                example = rest["default"]
+            elif len(symbols) == 1:
                 example = symbols[0]
             else:
-                example = "{}_enum_value".format(inptype.get("name", "valid"))
+                example = "{}_enum_value".format(rest.get("name", "valid"))
             comment = 'enum; valid values: "{}"'.format('", "'.join(symbols))
-        elif inptype["type"] == "record":
+        case {"type": "record", "fields": list(fields), **rest}:
             example = ruamel.yaml.comments.CommentedMap()
-            if "name" in inptype:
-                comment = '"{}" record type.'.format(inptype["name"])
+            if "name" in rest:
+                comment = '"{}" record type.'.format(rest["name"])
             else:
                 comment = "Anonymous record type."
-            for field in cast(list[CWLObjectType], inptype["fields"]):
+            for field in cast(list[CWLObjectType], fields):
                 value, f_comment = generate_example_input(field["type"], None)
                 example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
-        elif "default" in inptype:
-            example = inptype["default"]
-            comment = f"default value of type {inptype['type']!r}"
-        else:
-            example = defaults.get(cast(str, inptype["type"]), str(inptype))
-            comment = f"type {inptype['type']!r}"
-    else:
-        if not default:
+        case {"type": str(inp_type), "default": default}:
+            example = default
+            comment = f"default value of type {inp_type!r}"
+        case {"type": str(inp_type)}:
+            example = defaults.get(inp_type, str(inptype))
+            comment = f"type {inp_type!r}"
+        case object() if not default:
             example = defaults.get(str(inptype), str(inptype))
             comment = f"type {inptype!r}"
-        else:
+        case _:
             example = default
             comment = f"default value of type {inptype!r}."
     return example, comment

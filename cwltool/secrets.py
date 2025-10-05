@@ -36,28 +36,30 @@ class SecretStore:
 
     def has_secret(self, value: CWLOutputType) -> bool:
         """Test if the provided document has any of our secrets."""
-        if isinstance(value, str):
-            for k in self.secrets:
-                if k in value:
-                    return True
-        elif isinstance(value, MutableMapping):
-            for this_value in value.values():
-                if self.has_secret(this_value):
-                    return True
-        elif isinstance(value, MutableSequence):
-            for this_value in value:
-                if self.has_secret(this_value):
-                    return True
+        match value:
+            case str(val):
+                for k in self.secrets:
+                    if k in val:
+                        return True
+            case MutableMapping() as v_dict:
+                for this_value in v_dict.values():
+                    if self.has_secret(this_value):
+                        return True
+            case MutableSequence() as seq:
+                for this_value in seq:
+                    if self.has_secret(this_value):
+                        return True
         return False
 
     def retrieve(self, value: CWLOutputType) -> CWLOutputType:
         """Replace placeholders with their corresponding secrets."""
-        if isinstance(value, str):
-            for key, this_value in self.secrets.items():
-                value = value.replace(key, this_value)
-            return value
-        elif isinstance(value, MutableMapping):
-            return {k: self.retrieve(v) for k, v in value.items()}
-        elif isinstance(value, MutableSequence):
-            return [self.retrieve(v) for v in value]
+        match value:
+            case str(val):
+                for key, this_value in self.secrets.items():
+                    val = val.replace(key, this_value)
+                return val
+            case MutableMapping() as v_dict:
+                return {k: self.retrieve(v) for k, v in v_dict.items()}
+            case MutableSequence() as seq:
+                return [self.retrieve(v) for v in seq]
         return value
