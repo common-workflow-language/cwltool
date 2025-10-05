@@ -33,24 +33,25 @@ from .workflow_job import WorkflowJob
 
 def default_make_tool(toolpath_object: CommentedMap, loadingContext: LoadingContext) -> Process:
     """Instantiate the given CWL Process."""
-    if not isinstance(toolpath_object, MutableMapping):
-        raise WorkflowException("Not a dict: '%s'" % toolpath_object)
-    if "class" in toolpath_object:
-        if toolpath_object["class"] == "CommandLineTool":
+    match toolpath_object:
+        case {"class": "CommandLineTool"}:
             return command_line_tool.CommandLineTool(toolpath_object, loadingContext)
-        if toolpath_object["class"] == "ExpressionTool":
+        case {"class": "ExpressionTool"}:
             return command_line_tool.ExpressionTool(toolpath_object, loadingContext)
-        if toolpath_object["class"] == "Workflow":
+        case {"class": "Workflow"}:
             return Workflow(toolpath_object, loadingContext)
-        if toolpath_object["class"] == "ProcessGenerator":
+        case {"class": "ProcessGenerator"}:
             return procgenerator.ProcessGenerator(toolpath_object, loadingContext)
-        if toolpath_object["class"] == "Operation":
+        case {"class": "Operation"}:
             return command_line_tool.AbstractOperation(toolpath_object, loadingContext)
-
-    raise WorkflowException(
-        "Missing or invalid 'class' field in "
-        "%s, expecting one of: CommandLineTool, ExpressionTool, Workflow" % toolpath_object["id"]
-    )
+        case MutableMapping():
+            raise WorkflowException(
+                "Missing or invalid 'class' field in "
+                f"{toolpath_object['id']}, expecting one of: CommandLineTool, "
+                "ExpressionTool, Workflow"
+            )
+        case _:
+            raise WorkflowException("Not a dict: '%s'" % toolpath_object)
 
 
 context.default_make_tool = default_make_tool

@@ -144,18 +144,18 @@ def fetch_document(
 def _convert_stdstreams_to_files(
     workflowobj: CWLObjectType | MutableSequence[CWLObjectType | str | int] | str,
 ) -> None:
-    if isinstance(workflowobj, MutableMapping):
-        if workflowobj.get("class") == "CommandLineTool":
+    match workflowobj:
+        case {"class": "CommandLineTool", **rest} if isinstance(workflowobj, MutableMapping):
             with SourceLine(
                 workflowobj,
                 "outputs",
                 ValidationException,
                 _logger.isEnabledFor(logging.DEBUG),
             ):
-                outputs = workflowobj.get("outputs", [])
+                outputs = rest.get("outputs", [])
                 if not isinstance(outputs, CommentedSeq):
                     raise ValidationException('"outputs" section is not ' "valid.")
-                for out in cast(MutableSequence[CWLObjectType], workflowobj.get("outputs", [])):
+                for out in cast(MutableSequence[CWLObjectType], outputs):
                     if not isinstance(out, CommentedMap):
                         raise ValidationException(f"Output {out!r} is not a valid OutputParameter.")
                     for streamtype in ["stdout", "stderr"]:
@@ -165,8 +165,8 @@ def _convert_stdstreams_to_files(
                                     "Not allowed to specify outputBinding when"
                                     " using %s shortcut." % streamtype
                                 )
-                            if streamtype in workflowobj:
-                                filename = workflowobj[streamtype]
+                            if streamtype in rest:
+                                filename = rest[streamtype]
                             else:
                                 filename = str(
                                     hashlib.sha1(  # nosec
@@ -176,13 +176,13 @@ def _convert_stdstreams_to_files(
                                 workflowobj[streamtype] = filename
                             out["type"] = "File"
                             out["outputBinding"] = cmap({"glob": filename})
-            for inp in cast(MutableSequence[CWLObjectType], workflowobj.get("inputs", [])):
+            for inp in cast(MutableSequence[CWLObjectType], rest.get("inputs", [])):
                 if inp.get("type") == "stdin":
                     if "inputBinding" in inp:
                         raise ValidationException(
                             "Not allowed to specify inputBinding when" " using stdin shortcut."
                         )
-                    if "stdin" in workflowobj:
+                    if "stdin" in rest:
                         raise ValidationException(
                             "Not allowed to specify stdin path when" " using stdin type shortcut."
                         )
@@ -192,7 +192,7 @@ def _convert_stdstreams_to_files(
                             % cast(str, inp["id"]).rpartition("#")[2].split("/")[-1]
                         )
                         inp["type"] = "File"
-        else:
+        case MutableMapping():
             for entry in workflowobj.values():
                 _convert_stdstreams_to_files(
                     cast(
@@ -204,18 +204,18 @@ def _convert_stdstreams_to_files(
                         entry,
                     )
                 )
-    if isinstance(workflowobj, MutableSequence):
-        for entry in workflowobj:
-            _convert_stdstreams_to_files(
-                cast(
-                    Union[
-                        CWLObjectType,
-                        MutableSequence[Union[CWLObjectType, str, int]],
-                        str,
-                    ],
-                    entry,
+        case MutableSequence():
+            for entry in workflowobj:
+                _convert_stdstreams_to_files(
+                    cast(
+                        Union[
+                            CWLObjectType,
+                            MutableSequence[Union[CWLObjectType, str, int]],
+                            str,
+                        ],
+                        entry,
+                    )
                 )
-            )
 
 
 def _add_blank_ids(
@@ -249,14 +249,15 @@ def _add_blank_ids(
 def _fast_parser_convert_stdstreams_to_files(
     processobj: cwl_v1_2.Process | MutableSequence[cwl_v1_2.Process],
 ) -> None:
-    if isinstance(processobj, cwl_v1_2.CommandLineTool):
-        cwl_v1_2_utils.convert_stdstreams_to_files(processobj)
-    elif isinstance(processobj, cwl_v1_2.Workflow):
-        for st in processobj.steps:
-            _fast_parser_convert_stdstreams_to_files(st.run)
-    elif isinstance(processobj, MutableSequence):
-        for p in processobj:
-            _fast_parser_convert_stdstreams_to_files(p)
+    match processobj:
+        case cwl_v1_2.CommandLineTool():
+            cwl_v1_2_utils.convert_stdstreams_to_files(processobj)
+        case cwl_v1_2.Workflow(steps=steps):
+            for st in steps:
+                _fast_parser_convert_stdstreams_to_files(st.run)
+        case MutableSequence():
+            for p in processobj:
+                _fast_parser_convert_stdstreams_to_files(p)
 
 
 def _fast_parser_expand_hint_class(
@@ -276,14 +277,14 @@ def _fast_parser_handle_hints(
 ) -> None:
     if isinstance(processobj, (cwl_v1_2.CommandLineTool, cwl_v1_2.Workflow)):
         _fast_parser_expand_hint_class(processobj.hints, loadingOptions)
-
-    if isinstance(processobj, cwl_v1_2.Workflow):
-        for st in processobj.steps:
-            _fast_parser_expand_hint_class(st.hints, loadingOptions)
-            _fast_parser_handle_hints(st.run, loadingOptions)
-    elif isinstance(processobj, MutableSequence):
-        for p in processobj:
-            _fast_parser_handle_hints(p, loadingOptions)
+    match processobj:
+        case cwl_v1_2.Workflow(steps=steps):
+            for st in steps:
+                _fast_parser_expand_hint_class(st.hints, loadingOptions)
+                _fast_parser_handle_hints(st.run, loadingOptions)
+        case MutableSequence():
+            for p in processobj:
+                _fast_parser_handle_hints(p, loadingOptions)
 
 
 def update_index(document_loader: Loader, pr: CommentedMap) -> None:
@@ -431,24 +432,25 @@ def resolve_and_validate_document(
             "\n{}".format("\n".join(versions))
         )
 
-    if isinstance(jobobj, CommentedMap) and "http://commonwl.org/cwltool#overrides" in jobobj:
-        loadingContext.overrides_list.extend(resolve_overrides(jobobj, uri, uri))
-        del jobobj["http://commonwl.org/cwltool#overrides"]
+    if isinstance(jobobj, CommentedMap):
+        if "http://commonwl.org/cwltool#overrides" in jobobj:
+            loadingContext.overrides_list.extend(resolve_overrides(jobobj, uri, uri))
+            del jobobj["http://commonwl.org/cwltool#overrides"]
 
-    if isinstance(jobobj, CommentedMap) and "https://w3id.org/cwl/cwl#requirements" in jobobj:
-        if cwlVersion not in ("v1.1.0-dev1", "v1.1"):
-            raise ValidationException(
-                "`cwl:requirements` in the input object is not part of CWL "
-                "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
-                "can set the cwlVersion to v1.1 or greater."
+        if "https://w3id.org/cwl/cwl#requirements" in jobobj:
+            if cwlVersion not in ("v1.1.0-dev1", "v1.1"):
+                raise ValidationException(
+                    "`cwl:requirements` in the input object is not part of CWL "
+                    "v1.0. You can adjust to use `cwltool:overrides` instead; or you "
+                    "can set the cwlVersion to v1.1 or greater."
+                )
+            loadingContext.overrides_list.append(
+                {
+                    "overrideTarget": uri,
+                    "requirements": jobobj["https://w3id.org/cwl/cwl#requirements"],
+                }
             )
-        loadingContext.overrides_list.append(
-            {
-                "overrideTarget": uri,
-                "requirements": jobobj["https://w3id.org/cwl/cwl#requirements"],
-            }
-        )
-        del jobobj["https://w3id.org/cwl/cwl#requirements"]
+            del jobobj["https://w3id.org/cwl/cwl#requirements"]
 
     (sch_document_loader, avsc_names) = process.get_schema(cwlVersion)[:2]
 
@@ -567,21 +569,24 @@ def make_tool(uri: str | CommentedMap | CommentedSeq, loadingContext: LoadingCon
         resolveduri, metadata = loadingContext.loader.resolve_ref(uri)
 
     processobj = None
-    if isinstance(resolveduri, MutableSequence):
-        for obj in resolveduri:
-            if obj["id"].endswith("#main"):
-                processobj = obj
-                break
-        if not processobj:
-            raise GraphTargetMissingException(
-                "Tool file contains graph of multiple objects, must specify "
-                "one of #%s"
-                % ", #".join(urllib.parse.urldefrag(i["id"])[1] for i in resolveduri if "id" in i)
-            )
-    elif isinstance(resolveduri, MutableMapping):
-        processobj = resolveduri
-    else:
-        raise Exception("Must resolve to list or dict")
+    match resolveduri:
+        case MutableSequence():
+            for obj in resolveduri:
+                if obj["id"].endswith("#main"):
+                    processobj = obj
+                    break
+            if not processobj:
+                raise GraphTargetMissingException(
+                    "Tool file contains graph of multiple objects, must specify "
+                    "one of #%s"
+                    % ", #".join(
+                        urllib.parse.urldefrag(i["id"])[1] for i in resolveduri if "id" in i
+                    )
+                )
+        case MutableMapping():
+            processobj = resolveduri
+        case _:
+            raise Exception(f"Must resolve to list or dict: {resolveduri}")
 
     tool = loadingContext.construct_tool_object(processobj, loadingContext)
 

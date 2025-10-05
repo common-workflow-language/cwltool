@@ -225,6 +225,7 @@ def test_single_process_subwf_subwf_inline_step(tmp_path: Path) -> None:
         [
             "--outdir",
             str(tmp_path),
+            "--debug",
             "--single-process",
             "step1/stepX/stepY",
             get_data("tests/subgraph/count-lines17-wf.cwl.json"),

@@ -262,37 +262,35 @@ def stage_files(
             continue
         if not os.path.exists(os.path.dirname(entry.target)):
             os.makedirs(os.path.dirname(entry.target))
-        if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
-            if symlink:  # Use symlink func if allowed
-                os.symlink(entry.resolved, entry.target)
-            elif stage_func is not None:
+        match entry.type:
+            case "File" | "Directory" if os.path.exists(entry.resolved) and symlink:
+                os.symlink(entry.resolved, entry.target)  # Use symlink func if allowed
+            case "File" | "Directory" if os.path.exists(entry.resolved) and stage_func is not None:
                 stage_func(entry.resolved, entry.target)
-        elif (
-            entry.type == "Directory"
-            and not os.path.exists(entry.target)
-            and entry.resolved.startswith("_:")
-        ):
-            os.makedirs(entry.target)
-        elif entry.type == "WritableFile" and not ignore_writable:
-            shutil.copy(entry.resolved, entry.target)
-            ensure_writable(entry.target)
-        elif entry.type == "WritableDirectory" and not ignore_writable:
-            if entry.resolved.startswith("_:"):
+            case "Directory" if not os.path.exists(entry.target) and entry.resolved.startswith(
+                "_:"
+            ):
                 os.makedirs(entry.target)
-            else:
-                shutil.copytree(entry.resolved, entry.target)
-                ensure_writable(entry.target, include_root=True)
-        elif entry.type == "CreateFile" or entry.type == "CreateWritableFile":
-            with open(entry.target, "w") as new:
-                if secret_store is not None:
-                    new.write(cast(str, secret_store.retrieve(entry.resolved)))
-                else:
-                    new.write(entry.resolved)
-            if entry.type == "CreateFile":
-                os.chmod(entry.target, stat.S_IRUSR)  # Read only
-            else:  # it is a "CreateWritableFile"
+            case "WritableFile" if not ignore_writable:
+                shutil.copy(entry.resolved, entry.target)
                 ensure_writable(entry.target)
-            pathmapper.update(key, entry.target, entry.target, entry.type, entry.staged)
+            case "WritableDirectory" if not ignore_writable:
+                if entry.resolved.startswith("_:"):
+                    os.makedirs(entry.target)
+                else:
+                    shutil.copytree(entry.resolved, entry.target)
+                    ensure_writable(entry.target, include_root=True)
+            case "CreateFile" | "CreateWritableFile" as etype:
+                with open(entry.target, "w") as new:
+                    if secret_store is not None:
+                        new.write(cast(str, secret_store.retrieve(entry.resolved)))
+                    else:
+                        new.write(entry.resolved)
+                if etype == "CreateFile":
+                    os.chmod(entry.target, stat.S_IRUSR)  # Read only
+                else:  # it is a "CreateWritableFile"
+                    ensure_writable(entry.target)
+                pathmapper.update(key, entry.target, entry.target, entry.type, entry.staged)
 
 
 def relocateOutputs(
@@ -433,27 +431,27 @@ def avroize_type(
     name_prefix: str = "",
 ) -> CWLObjectType | MutableSequence[Any] | CWLOutputType | None:
     """Add missing information to a type so that CWL types are valid."""
-    if isinstance(field_type, MutableSequence):
-        for i, field in enumerate(field_type):
-            field_type[i] = avroize_type(field, name_prefix)
-    elif isinstance(field_type, MutableMapping):
-        if field_type["type"] in ("enum", "record"):
-            if "name" not in field_type:
-                field_type["name"] = name_prefix + str(uuid.uuid4())
-        if field_type["type"] == "record":
-            field_type["fields"] = avroize_type(
-                cast(MutableSequence[CWLOutputType], field_type["fields"]), name_prefix
+    match field_type:
+        case MutableSequence():
+            for i, field in enumerate(field_type):
+                field_type[i] = avroize_type(field, name_prefix)
+        case {"type": "enum" | "record" as f_type, **rest}:
+            if "name" not in rest:
+                cast(CWLObjectType, field_type)["name"] = name_prefix + str(uuid.uuid4())
+            if f_type == "record":
+                cast(CWLObjectType, field_type)["fields"] = avroize_type(
+                    cast(MutableSequence[CWLOutputType], rest["fields"]), name_prefix
+                )
+        case {"type": "array", "items": items}:
+            cast(CWLObjectType, field_type)["items"] = avroize_type(
+                cast(MutableSequence[CWLOutputType], items), name_prefix
             )
-        elif field_type["type"] == "array":
-            field_type["items"] = avroize_type(
-                cast(MutableSequence[CWLOutputType], field_type["items"]), name_prefix
-            )
-        else:
-            field_type["type"] = avroize_type(field_type["type"], name_prefix)
-    elif field_type == "File":
-        return "org.w3id.cwl.cwl.File"
-    elif field_type == "Directory":
-        return "org.w3id.cwl.cwl.Directory"
+        case {"type": f_type}:
+            cast(CWLObjectType, field_type)["type"] = avroize_type(f_type, name_prefix)
+        case "File":
+            return "org.w3id.cwl.cwl.File"
+        case "Directory":
+            return "org.w3id.cwl.cwl.Directory"
     return field_type
 
 
@@ -503,20 +501,26 @@ def var_spool_cwl_detector(
 
 
 def eval_resource(builder: Builder, resource_req: str | int | float) -> str | int | float | None:
+    """Evaluate any CWL expressions inside a ResourceRequirement."""
     if isinstance(resource_req, str) and expression.needs_parsing(resource_req):
         result = builder.do_eval(resource_req)
-        if isinstance(result, float):
-            if ORDERED_VERSIONS.index(builder.cwlVersion) >= ORDERED_VERSIONS.index("v1.2.0-dev4"):
+        match result:
+            case float(f_result) if ORDERED_VERSIONS.index(
+                builder.cwlVersion
+            ) >= ORDERED_VERSIONS.index("v1.2.0-dev4"):
+                return f_result
+            case float():
+                raise WorkflowException(
+                    "Floats are not valid in resource requirement expressions prior "
+                    f"to CWL v1.2: {resource_req} returned {result}."
+                )
+            case str() | int() | None:
                 return result
-            raise WorkflowException(
-                "Floats are not valid in resource requirement expressions prior "
-                f"to CWL v1.2: {resource_req} returned {result}."
-            )
-        if isinstance(result, (str, int)) or result is None:
-            return result
-        raise WorkflowException(
-            f"Got incorrect return type {type(result)} from resource expression evaluation of {resource_req}."
-        )
+            case _:
+                raise WorkflowException(
+                    f"Got incorrect return type {type(result)} from resource "
+                    "expression evaluation of {resource_req}."
+                )
     return resource_req
 
 
@@ -1222,52 +1226,54 @@ def scandeps(
                 }
                 if "basename" in doc:
                     deps["basename"] = doc["basename"]
-                if doc["class"] == "Directory" and "listing" in doc:
-                    deps["listing"] = doc["listing"]
-                if doc["class"] == "File" and "secondaryFiles" in doc:
-                    deps["secondaryFiles"] = cast(
-                        CWLOutputType,
-                        scandeps(
-                            base,
-                            cast(
-                                Union[CWLObjectType, MutableSequence[CWLObjectType]],
-                                doc["secondaryFiles"],
+                match doc:
+                    case {"class": "Directory", "listing": listing}:
+                        deps["listing"] = listing
+                    case {"class": "File", "secondaryFiles": sec_files}:
+                        deps["secondaryFiles"] = cast(
+                            CWLOutputType,
+                            scandeps(
+                                base,
+                                cast(
+                                    Union[CWLObjectType, MutableSequence[CWLObjectType]],
+                                    sec_files,
+                                ),
+                                reffields,
+                                urlfields,
+                                loadref,
+                                urljoin=urljoin,
+                                nestdirs=nestdirs,
                             ),
-                            reffields,
-                            urlfields,
-                            loadref,
-                            urljoin=urljoin,
-                            nestdirs=nestdirs,
-                        ),
-                    )
+                        )
                 if nestdirs:
                     deps = nestdir(base, deps)
                 r.append(deps)
             else:
-                if doc["class"] == "Directory" and "listing" in doc:
-                    r.extend(
-                        scandeps(
-                            base,
-                            cast(MutableSequence[CWLObjectType], doc["listing"]),
-                            reffields,
-                            urlfields,
-                            loadref,
-                            urljoin=urljoin,
-                            nestdirs=nestdirs,
+                match doc:
+                    case {"class": "Directory", "listing": listing}:
+                        r.extend(
+                            scandeps(
+                                base,
+                                cast(MutableSequence[CWLObjectType], listing),
+                                reffields,
+                                urlfields,
+                                loadref,
+                                urljoin=urljoin,
+                                nestdirs=nestdirs,
+                            )
                         )
-                    )
-                elif doc["class"] == "File" and "secondaryFiles" in doc:
-                    r.extend(
-                        scandeps(
-                            base,
-                            cast(MutableSequence[CWLObjectType], doc["secondaryFiles"]),
-                            reffields,
-                            urlfields,
-                            loadref,
-                            urljoin=urljoin,
-                            nestdirs=nestdirs,
+                    case {"class": "File", "secondaryFiles": sec_files}:
+                        r.extend(
+                            scandeps(
+                                base,
+                                cast(MutableSequence[CWLObjectType], sec_files),
+                                reffields,
+                                urlfields,
+                                loadref,
+                                urljoin=urljoin,
+                                nestdirs=nestdirs,
+                            )
                         )
-                    )
 
         for k, v in doc.items():
             if k in reffields:
