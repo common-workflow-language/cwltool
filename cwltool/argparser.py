@@ -3,8 +3,8 @@
 import argparse
 import os
 import urllib
-from collections.abc import MutableMapping, MutableSequence, Sequence
-from typing import Any, Callable, Optional, Union, cast
+from collections.abc import Callable, MutableMapping, MutableSequence, Sequence
+from typing import Any, cast
 
 import rich.markup
 from rich_argparse import HelpPreviewAction, RichHelpFormatter
@@ -732,7 +732,7 @@ def get_default_args() -> dict[str, Any]:
 class FSAction(argparse.Action):
     """Base action for our custom actions."""
 
-    objclass: Optional[str] = None
+    objclass: str | None = None
 
     def __init__(
         self,
@@ -754,8 +754,8 @@ class FSAction(argparse.Action):
         self,
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
-        values: Union[str, Sequence[Any], None],
-        option_string: Optional[str] = None,
+        values: str | Sequence[Any] | None,
+        option_string: str | None = None,
     ) -> None:
         setattr(
             namespace,
@@ -770,7 +770,7 @@ class FSAction(argparse.Action):
 class FSAppendAction(argparse.Action):
     """Appending version of the base action for our custom actions."""
 
-    objclass: Optional[str] = None
+    objclass: str | None = None
 
     def __init__(
         self,
@@ -792,8 +792,8 @@ class FSAppendAction(argparse.Action):
         self,
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
-        values: Union[str, Sequence[Any], None],
-        option_string: Optional[str] = None,
+        values: str | Sequence[Any] | None,
+        option_string: str | None = None,
     ) -> None:
         g = getattr(namespace, self.dest)
         if not g:
@@ -808,19 +808,19 @@ class FSAppendAction(argparse.Action):
 
 
 class FileAction(FSAction):
-    objclass: Optional[str] = "File"
+    objclass: str | None = "File"
 
 
 class DirectoryAction(FSAction):
-    objclass: Optional[str] = "Directory"
+    objclass: str | None = "Directory"
 
 
 class FileAppendAction(FSAppendAction):
-    objclass: Optional[str] = "File"
+    objclass: str | None = "File"
 
 
 class DirectoryAppendAction(FSAppendAction):
-    objclass: Optional[str] = "Directory"
+    objclass: str | None = "Directory"
 
 
 class AppendAction(argparse.Action):
@@ -844,8 +844,8 @@ class AppendAction(argparse.Action):
         self,
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
-        values: Union[str, Sequence[Any], None],
-        option_string: Optional[str] = None,
+        values: str | Sequence[Any] | None,
+        option_string: str | None = None,
     ) -> None:
         g = getattr(namespace, self.dest, None)
         if g is None:
@@ -893,8 +893,8 @@ def add_argument(
             return None
 
     ahelp = description.replace("%", "%%")
-    action: Optional[Union[type[argparse.Action], str]] = None
-    atype: Optional[Any] = None
+    action: type[argparse.Action] | str | None = None
+    atype: Any | None = None
     typekw: dict[str, Any] = {}
 
     if inptype == "File":

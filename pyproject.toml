@@ -34,4 +34,4 @@ before-all = "apk add libxml2-dev libxslt-dev nodejs || yum install -y libxml2-d
 
 [tool.black]
 line-length = 100
-target-version = [ "py39" ]
+target-version = [ "py310" ]

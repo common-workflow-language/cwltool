@@ -12,7 +12,7 @@ import importlib.metadata
 import os
 import string
 from collections.abc import MutableMapping, MutableSequence
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Union, cast
 
 from .utils import HasReqsHints
 
@@ -48,8 +48,8 @@ class DependenciesConfiguration:
 
     def __init__(self, args: argparse.Namespace) -> None:
         """Initialize."""
-        self.tool_dependency_dir: Optional[str] = None
-        self.dependency_resolvers_config_file: Optional[str] = None
+        self.tool_dependency_dir: str | None = None
+        self.dependency_resolvers_config_file: str | None = None
         conf_file = getattr(args, "beta_dependency_resolvers_configuration", None)
         tool_dependency_dir = getattr(args, "beta_dependencies_directory", None)
         conda_dependencies = getattr(args, "beta_conda_dependencies", None)
@@ -137,8 +137,8 @@ def get_dependencies(
 
 
 def get_container_from_software_requirements(
-    use_biocontainers: bool, builder: HasReqsHints, container_image_cache_path: Optional[str] = "."
-) -> Optional[str]:
+    use_biocontainers: bool, builder: HasReqsHints, container_image_cache_path: str | None = "."
+) -> str | None:
     if use_biocontainers:
         ensure_galaxy_lib_available()
         from galaxy.tool_util.deps.container_classes import DOCKER_CONTAINER_TYPE

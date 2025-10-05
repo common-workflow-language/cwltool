@@ -10,7 +10,7 @@ import uuid
 from collections.abc import MutableMapping, MutableSequence
 from pathlib import Path, PurePosixPath
 from socket import getfqdn
-from typing import IO, TYPE_CHECKING, Any, Optional, Union, cast
+from typing import IO, TYPE_CHECKING, Any, Optional, cast
 
 import prov.model as provM
 from prov.model import ProvDocument
@@ -95,7 +95,7 @@ class ResearchObject:
         user_provenance: bool,
         orcid: str,
         fsaccess: StdFsAccess,
-        run_uuid: Optional[uuid.UUID] = None,
+        run_uuid: uuid.UUID | None = None,
     ) -> "ProvenanceProfile":
         """
         Provide a provenance profile initialization hook function.
@@ -233,7 +233,7 @@ class ResearchObject:
             },
         )
 
-    def add_tagfile(self, path: str, timestamp: Optional[datetime.datetime] = None) -> None:
+    def add_tagfile(self, path: str, timestamp: datetime.datetime | None = None) -> None:
         """Add tag files to our research object."""
         self.self_check()
         checksums = {}
@@ -273,9 +273,9 @@ class ResearchObject:
 
         def guess_mediatype(
             rel_path: str,
-        ) -> tuple[Optional[str], Optional[Union[str, list[str]]]]:
+        ) -> tuple[str | None, str | list[str] | None]:
             """Return the mediatypes."""
-            media_types: dict[Union[str, None], str] = {
+            media_types: dict[str | None, str] = {
                 # Adapted from
                 # https://w3id.org/bundle/2014-11-05/#media-types
                 "txt": TEXT_PLAIN,
@@ -289,7 +289,7 @@ class ResearchObject:
                 "provn": 'text/provenance-notation; charset="UTF-8"',
                 "nt": "application/n-triples",
             }
-            conforms_to: dict[Union[str, None], str] = {
+            conforms_to: dict[str | None, str] = {
                 "provn": "http://www.w3.org/TR/2013/REC-prov-n-20130430/",
                 "cwl": "https://w3id.org/cwl/",
             }
@@ -304,13 +304,13 @@ class ResearchObject:
                 "json": "http://www.w3.org/Submission/2013/SUBM-prov-json-20130424/",
             }
 
-            extension: Optional[str] = rel_path.rsplit(".", 1)[-1].lower()
+            extension: str | None = rel_path.rsplit(".", 1)[-1].lower()
             if extension == rel_path:
                 # No ".", no extension
                 extension = None
 
-            mediatype: Optional[str] = media_types.get(extension, None)
-            conformsTo: Optional[Union[str, list[str]]] = conforms_to.get(extension, None)
+            mediatype: str | None = media_types.get(extension, None)
+            conformsTo: str | list[str] | None = conforms_to.get(extension, None)
             # TODO: Open CWL file to read its declared "cwlVersion", e.g.
             # cwlVersion = "v1.0"
 
@@ -401,7 +401,7 @@ class ResearchObject:
         aggregates.extend(self._external_aggregates)
         return aggregates
 
-    def add_uri(self, uri: str, timestamp: Optional[datetime.datetime] = None) -> Aggregate:
+    def add_uri(self, uri: str, timestamp: datetime.datetime | None = None) -> Aggregate:
         """Add the given URI to this RO."""
         self.self_check()
         aggr: Aggregate = {"uri": uri}
@@ -481,7 +481,7 @@ class ResearchObject:
         annotations.extend(self.annotations)
         return annotations
 
-    def _authored_by(self) -> Optional[AuthoredBy]:
+    def _authored_by(self) -> AuthoredBy | None:
         authored_by: AuthoredBy = {}
         """Returns the authoredBy metadata if it was supplied on CLI"""
         if self.orcid:
@@ -536,8 +536,8 @@ class ResearchObject:
     def add_data_file(
         self,
         from_fp: IO[Any],
-        timestamp: Optional[datetime.datetime] = None,
-        content_type: Optional[str] = None,
+        timestamp: datetime.datetime | None = None,
+        content_type: str | None = None,
     ) -> str:
         """Copy inputs to data/ folder."""
         self.self_check()
@@ -577,7 +577,7 @@ class ResearchObject:
         return rel_path
 
     def _self_made(
-        self, timestamp: Optional[datetime.datetime] = None
+        self, timestamp: datetime.datetime | None = None
     ) -> tuple[str, dict[str, str]]:  # createdOn, createdBy
         if timestamp is None:
             timestamp = datetime.datetime.now()
@@ -635,7 +635,7 @@ class ResearchObject:
 
     def _relativise_files(
         self,
-        structure: Union[CWLObjectType, CWLOutputType, MutableSequence[CWLObjectType]],
+        structure: CWLObjectType | CWLOutputType | MutableSequence[CWLObjectType],
     ) -> None:
         """Save any file objects into the RO and update the local paths."""
         # Base case - we found a File we need to update
@@ -643,7 +643,7 @@ class ResearchObject:
 
         if isinstance(structure, MutableMapping):
             if structure.get("class") == "File":
-                relative_path: Optional[Union[str, PurePosixPath]] = None
+                relative_path: str | PurePosixPath | None = None
                 if "checksum" in structure:
                     raw_checksum = cast(str, structure["checksum"])
                     alg, checksum = raw_checksum.split("$")

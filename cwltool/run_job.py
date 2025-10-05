@@ -4,7 +4,7 @@ import json
 import os
 import subprocess  # nosec
 import sys
-from typing import BinaryIO, Optional, TextIO, Union
+from typing import BinaryIO, TextIO
 
 
 def handle_software_environment(cwl_env: dict[str, str], script: str) -> dict[str, str]:
@@ -55,20 +55,20 @@ def main(argv: list[str]) -> int:
         stdout_path = popen_description["stdout_path"]
         stderr_path = popen_description["stderr_path"]
         if stdin_path is not None:
-            stdin: Union[BinaryIO, int] = open(stdin_path, "rb")
+            stdin: BinaryIO | int = open(stdin_path, "rb")
         else:
             stdin = subprocess.PIPE
         if stdout_path is not None:
-            stdout: Union[BinaryIO, TextIO] = open(stdout_path, "wb")
+            stdout: BinaryIO | TextIO = open(stdout_path, "wb")
         else:
             stdout = sys.stderr
         if stderr_path is not None:
-            stderr: Union[BinaryIO, TextIO] = open(stderr_path, "wb")
+            stderr: BinaryIO | TextIO = open(stderr_path, "wb")
         else:
             stderr = sys.stderr
 
         try:
-            env_script: Optional[str] = argv[2]
+            env_script: str | None = argv[2]
         except IndexError:
             env_script = None
         if env_script is not None:

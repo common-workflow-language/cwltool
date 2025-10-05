@@ -1,7 +1,7 @@
 import copy
-from collections.abc import MutableMapping, MutableSequence
+from collections.abc import Callable, MutableMapping, MutableSequence
 from functools import partial
-from typing import Callable, Optional, Union, cast
+from typing import cast
 
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
@@ -74,7 +74,7 @@ def v1_1to1_2(
     """Public updater for v1.1 to v1.2."""
     doc = copy.deepcopy(doc)
 
-    upd: Union[CommentedSeq, CommentedMap] = doc
+    upd: CommentedSeq | CommentedMap = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
         upd = upd["$graph"]
     for proc in aslist(upd):
@@ -125,7 +125,7 @@ def v1_0to1_1(
 
     def update_secondaryFiles(
         t: CWLOutputType, top: bool = False
-    ) -> Union[MutableSequence[MutableMapping[str, str]], MutableMapping[str, str]]:
+    ) -> MutableSequence[MutableMapping[str, str]] | MutableMapping[str, str]:
         if isinstance(t, CommentedSeq):
             new_seq = copy.deepcopy(t)
             for index, entry in enumerate(t):
@@ -158,7 +158,7 @@ def v1_0to1_1(
     visit_class(doc, ("ExpressionTool", "Workflow"), fix_inputBinding)
     visit_field(doc, "secondaryFiles", partial(update_secondaryFiles, top=True))
 
-    upd: Union[CommentedMap, CommentedSeq] = doc
+    upd: CommentedMap | CommentedSeq = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
         upd = upd["$graph"]
     for proc in aslist(upd):
@@ -213,7 +213,7 @@ def v1_2_0dev2todev3(
                         inp["pickValue"] = "the_only_non_null"
 
     visit_class(doc, "Workflow", update_pickvalue)
-    upd: Union[CommentedSeq, CommentedMap] = doc
+    upd: CommentedSeq | CommentedMap = doc
     if isinstance(upd, MutableMapping) and "$graph" in upd:
         upd = upd["$graph"]
     for proc in aslist(upd):
@@ -256,13 +256,13 @@ ORDERED_VERSIONS = [
     "v1.3.0-dev1",
 ]
 
-UPDATES: dict[str, Optional[Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]]]] = {
+UPDATES: dict[str, Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]] | None] = {
     "v1.0": v1_0to1_1,
     "v1.1": v1_1to1_2,
     "v1.2": v1_2to1_3dev1,
 }
 
-DEVUPDATES: dict[str, Optional[Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]]]] = {
+DEVUPDATES: dict[str, Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]] | None] = {
     "v1.1.0-dev1": v1_1_0dev1to1_1,
     "v1.2.0-dev1": v1_2_0dev1todev2,
     "v1.2.0-dev2": v1_2_0dev2todev3,
@@ -289,7 +289,7 @@ def identity(
 
 
 def checkversion(
-    doc: Union[CommentedSeq, CommentedMap],
+    doc: CommentedSeq | CommentedMap,
     metadata: CommentedMap,
     enable_dev: bool,
 ) -> tuple[CommentedMap, str]:
@@ -297,7 +297,7 @@ def checkversion(
 
     Returns the document and the validated version string.
     """
-    cdoc: Optional[CommentedMap] = None
+    cdoc: CommentedMap | None = None
     if isinstance(doc, CommentedSeq):
         if not isinstance(metadata, CommentedMap):
             raise Exception("Expected metadata to be CommentedMap")
@@ -343,12 +343,12 @@ def checkversion(
 
 
 def update(
-    doc: Union[CommentedSeq, CommentedMap],
+    doc: CommentedSeq | CommentedMap,
     loader: Loader,
     baseuri: str,
     enable_dev: bool,
     metadata: CommentedMap,
-    update_to: Optional[str] = None,
+    update_to: str | None = None,
 ) -> CommentedMap:
     """Update a CWL document to 'update_to' (if provided) or INTERNAL_VERSION."""
     if update_to is None:
@@ -357,7 +357,7 @@ def update(
     (cdoc, version) = checkversion(doc, metadata, enable_dev)
     originalversion = copy.copy(version)
 
-    nextupdate: Optional[Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]]] = identity
+    nextupdate: Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]] | None = identity
 
     while version != update_to and nextupdate:
         (cdoc, version) = nextupdate(cdoc, loader, baseuri)

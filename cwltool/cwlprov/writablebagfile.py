@@ -12,7 +12,7 @@ from collections.abc import MutableMapping
 from io import FileIO, TextIOWrapper
 from mmap import mmap
 from pathlib import Path, PurePosixPath
-from typing import Any, BinaryIO, Optional, Union, cast
+from typing import Any, BinaryIO, cast
 
 from schema_salad.utils import json_dumps
 
@@ -98,7 +98,7 @@ class WritableBagFile(FileIO):
         """Return False, reading is not supported."""
         return False
 
-    def truncate(self, size: Optional[int] = None) -> int:
+    def truncate(self, size: int | None = None) -> int:
         """Resize the stream, only if we haven't started writing."""
         # FIXME: This breaks contract IOBase,
         # as it means we would have to recalculate the hash
@@ -108,8 +108,8 @@ class WritableBagFile(FileIO):
 
 
 def write_bag_file(
-    research_object: "ResearchObject", path: str, encoding: Optional[str] = ENCODING
-) -> Union[TextIOWrapper, WritableBagFile]:
+    research_object: "ResearchObject", path: str, encoding: str | None = ENCODING
+) -> TextIOWrapper | WritableBagFile:
     """Write the bag file into our research object."""
     research_object.self_check()
     # For some reason below throws BlockingIOError
@@ -123,7 +123,7 @@ def write_bag_file(
 
 def open_log_file_for_activity(
     research_object: "ResearchObject", uuid_uri: str
-) -> Union[TextIOWrapper, WritableBagFile]:
+) -> TextIOWrapper | WritableBagFile:
     """Begin the per-activity log."""
     research_object.self_check()
     # Ensure valid UUID for safe filenames
@@ -196,7 +196,7 @@ def _finalize(research_object: "ResearchObject") -> None:
         (Path(research_object.folder) / "manifest-sha1.txt").touch()
 
 
-def close_ro(research_object: "ResearchObject", save_to: Optional[str] = None) -> None:
+def close_ro(research_object: "ResearchObject", save_to: str | None = None) -> None:
     """Close the Research Object, optionally saving to specified folder.
 
     Closing will remove any temporary files used by this research object.

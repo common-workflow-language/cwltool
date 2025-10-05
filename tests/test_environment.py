@@ -2,9 +2,9 @@
 
 import os
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Callable, Union
+from typing import Union
 
 import pytest
 from packaging.version import Version

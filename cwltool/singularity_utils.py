@@ -3,9 +3,8 @@
 import os
 import os.path
 import subprocess  # nosec
-from typing import Optional
 
-_USERNS: Optional[bool] = None
+_USERNS: bool | None = None
 
 
 def singularity_supports_userns() -> bool:
