@@ -130,7 +130,9 @@ def fetch_document(
         )
         workflowobj = cast(
             CommentedMap,
-            loadingContext.loader.fetch(fileuri, content_types=CWL_CONTENT_TYPES),
+            loadingContext.loader.fetch(
+                fileuri, content_types=CWL_CONTENT_TYPES, override_ids=True
+            ),
         )
         return loadingContext, workflowobj, uri
     if isinstance(argsworkflow, MutableMapping):
