@@ -3,8 +3,8 @@ import datetime
 import functools
 import logging
 import random
-from collections.abc import Mapping, MutableMapping, MutableSequence
-from typing import Callable, Optional, cast
+from collections.abc import Callable, Mapping, MutableMapping, MutableSequence
+from typing import cast
 from uuid import UUID
 
 from mypy_extensions import mypyc_attr
@@ -33,24 +33,25 @@ from .workflow_job import WorkflowJob
 
 def default_make_tool(toolpath_object: CommentedMap, loadingContext: LoadingContext) -> Process:
     """Instantiate the given CWL Process."""
-    if not isinstance(toolpath_object, MutableMapping):
-        raise WorkflowException("Not a dict: '%s'" % toolpath_object)
-    if "class" in toolpath_object:
-        if toolpath_object["class"] == "CommandLineTool":
+    match toolpath_object:
+        case {"class": "CommandLineTool"}:
             return command_line_tool.CommandLineTool(toolpath_object, loadingContext)
-        if toolpath_object["class"] == "ExpressionTool":
+        case {"class": "ExpressionTool"}:
             return command_line_tool.ExpressionTool(toolpath_object, loadingContext)
-        if toolpath_object["class"] == "Workflow":
+        case {"class": "Workflow"}:
             return Workflow(toolpath_object, loadingContext)
-        if toolpath_object["class"] == "ProcessGenerator":
+        case {"class": "ProcessGenerator"}:
             return procgenerator.ProcessGenerator(toolpath_object, loadingContext)
-        if toolpath_object["class"] == "Operation":
+        case {"class": "Operation"}:
             return command_line_tool.AbstractOperation(toolpath_object, loadingContext)
-
-    raise WorkflowException(
-        "Missing or invalid 'class' field in "
-        "%s, expecting one of: CommandLineTool, ExpressionTool, Workflow" % toolpath_object["id"]
-    )
+        case MutableMapping():
+            raise WorkflowException(
+                "Missing or invalid 'class' field in "
+                f"{toolpath_object['id']}, expecting one of: CommandLineTool, "
+                "ExpressionTool, Workflow"
+            )
+        case _:
+            raise WorkflowException("Not a dict: '%s'" % toolpath_object)
 
 
 context.default_make_tool = default_make_tool
@@ -65,9 +66,9 @@ class Workflow(Process):
     ) -> None:
         """Initialize this Workflow."""
         super().__init__(toolpath_object, loadingContext)
-        self.provenance_object: Optional[ProvenanceProfile] = None
+        self.provenance_object: ProvenanceProfile | None = None
         if loadingContext.research_obj is not None:
-            run_uuid: Optional[UUID] = None
+            run_uuid: UUID | None = None
             is_main = not loadingContext.prov_obj  # Not yet set
             if is_main:
                 run_uuid = loadingContext.research_obj.ro_uuid
@@ -137,7 +138,7 @@ class Workflow(Process):
         toolpath_object: CommentedMap,
         pos: int,
         loadingContext: LoadingContext,
-        parentworkflowProv: Optional[ProvenanceProfile] = None,
+        parentworkflowProv: ProvenanceProfile | None = None,
     ) -> "WorkflowStep":
         return WorkflowStep(toolpath_object, pos, loadingContext, parentworkflowProv)
 
@@ -187,7 +188,7 @@ class WorkflowStep(Process):
         toolpath_object: CommentedMap,
         pos: int,
         loadingContext: LoadingContext,
-        parentworkflowProv: Optional[ProvenanceProfile] = None,
+        parentworkflowProv: ProvenanceProfile | None = None,
     ) -> None:
         """Initialize this WorkflowStep."""
         debug = loadingContext.debug
@@ -385,7 +386,7 @@ class WorkflowStep(Process):
                     oparam["type"] = {"type": "array", "items": oparam["type"]}
             self.tool["inputs"] = inputparms
             self.tool["outputs"] = outputparms
-        self.prov_obj: Optional[ProvenanceProfile] = None
+        self.prov_obj: ProvenanceProfile | None = None
         if loadingContext.research_obj is not None:
             self.prov_obj = parentworkflowProv
             if self.embedded_tool.tool["class"] == "Workflow":

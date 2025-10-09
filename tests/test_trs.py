@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -10,7 +10,7 @@ from .util import get_data
 
 class MockResponse1:
     def __init__(
-        self, json_data: Any, status_code: int, raise_for_status: Optional[bool] = None
+        self, json_data: Any, status_code: int, raise_for_status: bool | None = None
     ) -> None:
         """Create a fake return object for requests.Session.head."""
         self.json_data = json_data
@@ -28,7 +28,7 @@ def mocked_requests_head(*args: Any, **kwargs: Any) -> MockResponse1:
 
 class MockResponse2:
     def __init__(
-        self, json_data: Any, status_code: int, raise_for_status: Optional[bool] = None
+        self, json_data: Any, status_code: int, raise_for_status: bool | None = None
     ) -> None:
         """Create a fake return object for requests.Session.get."""
         self.json_data = json_data

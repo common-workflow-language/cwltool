@@ -3,14 +3,13 @@
 import os
 import urllib
 from pathlib import Path
-from typing import Optional
 
 from schema_salad.ref_resolver import Loader
 
 from .loghandler import _logger
 
 
-def resolve_local(document_loader: Optional[Loader], uri: str) -> Optional[str]:
+def resolve_local(document_loader: Loader | None, uri: str) -> str | None:
     """Use the local resolver to find the target of the URI."""
     pathpart, frag = urllib.parse.urldefrag(uri)
 
@@ -41,7 +40,7 @@ def resolve_local(document_loader: Optional[Loader], uri: str) -> Optional[str]:
     return None
 
 
-def tool_resolver(document_loader: Loader, uri: str) -> Optional[str]:
+def tool_resolver(document_loader: Loader, uri: str) -> str | None:
     """Try both the local resolver and the GA4GH TRS resolver, in that order."""
     for r in [resolve_local, resolve_ga4gh_tool]:
         ret = r(document_loader, uri)
@@ -64,7 +63,7 @@ GA4GH_TRS_FILES = "{0}/api/ga4gh/v2/tools/{1}/versions/{2}/CWL/files"
 GA4GH_TRS_PRIMARY_DESCRIPTOR = "{0}/api/ga4gh/v2/tools/{1}/versions/{2}/plain-CWL/descriptor/{3}"
 
 
-def resolve_ga4gh_tool(document_loader: Loader, uri: str) -> Optional[str]:
+def resolve_ga4gh_tool(document_loader: Loader, uri: str) -> str | None:
     """Use the GA4GH TRS API to resolve a tool reference."""
     path, version = uri.partition(":")[::2]
     if not version:

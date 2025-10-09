@@ -6,7 +6,7 @@ import uuid
 from collections.abc import MutableMapping, MutableSequence, Sequence
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from prov.identifier import Identifier, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from .ro import ResearchObject
 
 
-def copy_job_order(job: Union[Process, JobsType], job_order_object: CWLObjectType) -> CWLObjectType:
+def copy_job_order(job: Process | JobsType, job_order_object: CWLObjectType) -> CWLObjectType:
     """Create copy of job object for provenance."""
     if not isinstance(job, WorkflowJob):
         # direct command line tool execution
@@ -78,7 +78,7 @@ class ProvenanceProfile:
         user_provenance: bool,
         orcid: str,
         fsaccess: StdFsAccess,
-        run_uuid: Optional[uuid.UUID] = None,
+        run_uuid: uuid.UUID | None = None,
     ) -> None:
         """Initialize the provenance profile."""
         self.fsaccess = fsaccess
@@ -198,8 +198,8 @@ class ProvenanceProfile:
             self.used_artefacts(customised_job, self.workflow_run_uri)
 
     def record_process_start(
-        self, process: Process, job: JobsType, process_run_id: Optional[str] = None
-    ) -> Optional[str]:
+        self, process: Process, job: JobsType, process_run_id: str | None = None
+    ) -> str | None:
         if not hasattr(process, "steps"):
             process_run_id = self.workflow_run_uri
         elif not hasattr(job, "workflow"):
@@ -215,7 +215,7 @@ class ProvenanceProfile:
         self,
         process_name: str,
         when: datetime.datetime,
-        process_run_id: Optional[str] = None,
+        process_run_id: str | None = None,
     ) -> str:
         """Record the start of each Process."""
         if process_run_id is None:
@@ -237,7 +237,7 @@ class ProvenanceProfile:
         self,
         process_name: str,
         process_run_id: str,
-        outputs: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
+        outputs: CWLObjectType | MutableSequence[CWLObjectType] | None,
         when: datetime.datetime,
     ) -> None:
         self.generate_output_prov(outputs, process_run_id, process_name)
@@ -248,7 +248,7 @@ class ProvenanceProfile:
         if value["class"] != "File":
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
-        entity: Optional[ProvEntity] = None
+        entity: ProvEntity | None = None
         checksum = None
         if "checksum" in value:
             csum = cast(str, value["checksum"])
@@ -352,10 +352,10 @@ class ProvenanceProfile:
         #     dir_bundle.identifier, {PROV["type"]: ORE["ResourceMap"],
         #                             ORE["describes"]: coll_b.identifier})
 
-        coll_attribs: list[tuple[Union[str, Identifier], Any]] = [
+        coll_attribs: list[tuple[str | Identifier, Any]] = [
             (ORE["isDescribedBy"], dir_bundle.identifier)
         ]
-        coll_b_attribs: list[tuple[Union[str, Identifier], Any]] = []
+        coll_b_attribs: list[tuple[str | Identifier, Any]] = []
 
         # FIXME: .listing might not be populated yet - hopefully
         # a later call to this method will sort that
@@ -436,127 +436,126 @@ class ProvenanceProfile:
 
     def declare_artefact(self, value: Any) -> ProvEntity:
         """Create data artefact entities for all file objects."""
-        if value is None:
-            # FIXME: If this can happen in CWL, we'll
-            # need a better way to represent this in PROV
-            return self.document.entity(CWLPROV["None"], {PROV_LABEL: "None"})
+        if isinstance(value, MutableMapping) and "@id" in value:
+            # Already processed this value, but it might not be in this PROV
+            entities = self.document.get_record(value["@id"])
+            if entities:
+                return cast(list[ProvEntity], entities)[0]
+            # else, unknown in PROV, re-add below as if it's fresh
 
-        if isinstance(value, (bool, int, float)):
-            # Typically used in job documents for flags
+        match value:
+            case None:
+                # FIXME: If this can happen in CWL, we'll
+                # need a better way to represent this in PROV
+                return self.document.entity(CWLPROV["None"], {PROV_LABEL: "None"})
 
-            # FIXME: Make consistent hash URIs for these
-            # that somehow include the type
-            # (so "1" != 1 != "1.0" != true)
-            entity = self.document.entity(uuid.uuid4().urn, {PROV_VALUE: value})
-            self.research_object.add_uri(entity.identifier.uri)
-            return entity
+            case bool() | int() | float():
+                # Typically used in job documents for flags
 
-        if isinstance(value, str):
-            (entity, _) = self.declare_string(value)
-            return entity
-
-        if isinstance(value, bytes):
-            # If we got here then we must be in Python 3
-            byte_s = BytesIO(value)
-            data_file = self.research_object.add_data_file(byte_s)
-            # FIXME: Don't naively assume add_data_file uses hash in filename!
-            data_id = f"data:{PurePosixPath(data_file).stem}"
-            return self.document.entity(
-                data_id,
-                {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)},
-            )
-
-        if isinstance(value, MutableMapping):
-            if "@id" in value:
-                # Already processed this value, but it might not be in this PROV
-                entities = self.document.get_record(value["@id"])
-                if entities:
-                    return cast(list[ProvEntity], entities)[0]
-                # else, unknown in PROV, re-add below as if it's fresh
-
-            # Base case - we found a File we need to update
-            if value.get("class") == "File":
-                (entity, _, _) = self.declare_file(value)
-                value["@id"] = entity.identifier.uri
+                # FIXME: Make consistent hash URIs for these
+                # that somehow include the type
+                # (so "1" != 1 != "1.0" != true)
+                entity = self.document.entity(uuid.uuid4().urn, {PROV_VALUE: value})
+                self.research_object.add_uri(entity.identifier.uri)
                 return entity
 
-            if value.get("class") == "Directory":
+            case str(val):
+                return self.declare_string(val)[0]
+
+            case bytes(val):
+                # If we got here then we must be in Python 3
+                byte_s = BytesIO(val)
+                data_file = self.research_object.add_data_file(byte_s)
+                # FIXME: Don't naively assume add_data_file uses hash in filename!
+                data_id = f"data:{PurePosixPath(data_file).stem}"
+                return self.document.entity(
+                    data_id,
+                    {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(val)},
+                )
+
+            # Base case - we found a File we need to update
+            case {"class": "File"}:
+                entity = self.declare_file(value)[0]
+                value["@id"] = entity.identifier.uri
+                return entity
+            case {"class": "Directory"}:
                 entity = self.declare_directory(value)
                 value["@id"] = entity.identifier.uri
                 return entity
-            coll_id = value.setdefault("@id", uuid.uuid4().urn)
-            # some other kind of dictionary?
-            # TODO: also Save as JSON
-            coll = self.document.entity(
-                coll_id,
-                [
-                    (PROV_TYPE, WFPROV["Artifact"]),
-                    (PROV_TYPE, PROV["Collection"]),
-                    (PROV_TYPE, PROV["Dictionary"]),
-                ],
-            )
+            case {**rest}:
+                coll_id = value.setdefault("@id", uuid.uuid4().urn)
+                # some other kind of dictionary?
+                # TODO: also Save as JSON
+                coll = self.document.entity(
+                    coll_id,
+                    [
+                        (PROV_TYPE, WFPROV["Artifact"]),
+                        (PROV_TYPE, PROV["Collection"]),
+                        (PROV_TYPE, PROV["Dictionary"]),
+                    ],
+                )
 
-            if value.get("class"):
-                _logger.warning("Unknown data class %s.", value["class"])
-                # FIXME: The class might be "http://example.com/somethingelse"
-                coll.add_asserted_type(CWLPROV[value["class"]])
+                if rest.get("class"):
+                    _logger.warning("Unknown data class %s.", rest["class"])
+                    # FIXME: The class might be "http://example.com/somethingelse"
+                    coll.add_asserted_type(CWLPROV[str(rest["class"])])
 
-            # Let's iterate and recurse
-            coll_attribs: list[tuple[Union[str, Identifier], Any]] = []
-            for key, val in value.items():
-                v_ent = self.declare_artefact(val)
-                self.document.membership(coll, v_ent)
-                m_entity = self.document.entity(uuid.uuid4().urn)
-                # Note: only support PROV-O style dictionary
-                # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
-                # as prov.py do not easily allow PROV-N extensions
-                m_entity.add_asserted_type(PROV["KeyEntityPair"])
-                m_entity.add_attributes({PROV["pairKey"]: str(key), PROV["pairEntity"]: v_ent})
-                coll_attribs.append((PROV["hadDictionaryMember"], m_entity))
-            coll.add_attributes(coll_attribs)
-            self.research_object.add_uri(coll.identifier.uri)
-            return coll
+                # Let's iterate and recurse
+                coll_attribs: list[tuple[str | Identifier, Any]] = []
+                for key, kval in rest.items():
+                    v_ent = self.declare_artefact(kval)
+                    self.document.membership(coll, v_ent)
+                    m_entity = self.document.entity(uuid.uuid4().urn)
+                    # Note: only support PROV-O style dictionary
+                    # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
+                    # as prov.py do not easily allow PROV-N extensions
+                    m_entity.add_asserted_type(PROV["KeyEntityPair"])
+                    m_entity.add_attributes({PROV["pairKey"]: str(key), PROV["pairEntity"]: v_ent})
+                    coll_attribs.append((PROV["hadDictionaryMember"], m_entity))
+                coll.add_attributes(coll_attribs)
+                self.research_object.add_uri(coll.identifier.uri)
+                return coll
 
-        # some other kind of Collection?
-        # TODO: also save as JSON
-        try:
-            members = []
-            for each_input_obj in iter(value):
-                # Recurse and register any nested objects
-                e = self.declare_artefact(each_input_obj)
-                members.append(e)
+            case _:  # some other kind of Collection?
+                # TODO: also save as JSON
+                try:
+                    members = []
+                    for each_input_obj in iter(value):
+                        # Recurse and register any nested objects
+                        e = self.declare_artefact(each_input_obj)
+                        members.append(e)
 
-            # If we reached this, then we were allowed to iterate
-            coll = self.document.entity(
-                uuid.uuid4().urn,
-                [
-                    (PROV_TYPE, WFPROV["Artifact"]),
-                    (PROV_TYPE, PROV["Collection"]),
-                ],
-            )
-            if not members:
-                coll.add_asserted_type(PROV["EmptyCollection"])
-            else:
-                for member in members:
-                    # FIXME: This won't preserve order, for that
-                    # we would need to use PROV.Dictionary
-                    # with numeric keys
-                    self.document.membership(coll, member)
-            self.research_object.add_uri(coll.identifier.uri)
-            # FIXME: list value does not support adding "@id"
-            return coll
-        except TypeError:
-            _logger.warning("Unrecognized type %s of %r", type(value), value, exc_info=True)
-            # Let's just fall back to Python repr()
-            entity = self.document.entity(uuid.uuid4().urn, {PROV_LABEL: repr(value)})
-            self.research_object.add_uri(entity.identifier.uri)
-            return entity
+                    # If we reached this, then we were allowed to iterate
+                    coll = self.document.entity(
+                        uuid.uuid4().urn,
+                        [
+                            (PROV_TYPE, WFPROV["Artifact"]),
+                            (PROV_TYPE, PROV["Collection"]),
+                        ],
+                    )
+                    if not members:
+                        coll.add_asserted_type(PROV["EmptyCollection"])
+                    else:
+                        for member in members:
+                            # FIXME: This won't preserve order, for that
+                            # we would need to use PROV.Dictionary
+                            # with numeric keys
+                            self.document.membership(coll, member)
+                    self.research_object.add_uri(coll.identifier.uri)
+                    # FIXME: list value does not support adding "@id"
+                    return coll
+                except TypeError:
+                    _logger.warning("Unrecognized type %s of %r", type(value), value, exc_info=True)
+                    # Let's just fall back to Python repr()
+                    entity = self.document.entity(uuid.uuid4().urn, {PROV_LABEL: repr(value)})
+                    self.research_object.add_uri(entity.identifier.uri)
+                    return entity
 
     def used_artefacts(
         self,
-        job_order: Union[CWLObjectType, list[CWLObjectType]],
+        job_order: CWLObjectType | list[CWLObjectType],
         process_run_id: str,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> None:
         """Add used() for each data artefact."""
         if isinstance(job_order, list):
@@ -583,9 +582,9 @@ class ProvenanceProfile:
 
     def generate_output_prov(
         self,
-        final_output: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
-        process_run_id: Optional[str],
-        name: Optional[str],
+        final_output: CWLObjectType | MutableSequence[CWLObjectType] | None,
+        process_run_id: str | None,
+        name: str | None,
     ) -> None:
         """Call wasGeneratedBy() for each output,copy the files into the RO."""
         if isinstance(final_output, MutableSequence):
@@ -657,7 +656,7 @@ class ProvenanceProfile:
         """Add http://www.w3.org/TR/prov-aq/ relations to nested PROV files."""
         # NOTE: The below will only work if the corresponding metadata/provenance arcp URI
         # is a pre-registered namespace in the PROV Document
-        attribs: list[tuple[Union[str, Identifier], Any]] = [
+        attribs: list[tuple[str | Identifier, Any]] = [
             (PROV["has_provenance"], prov_id) for prov_id in prov_ids
         ]
         self.document.activity(activity, other_attributes=attribs)
@@ -666,7 +665,7 @@ class ProvenanceProfile:
         uris = [i.uri for i in prov_ids]
         self.research_object.add_annotation(activity, uris, PROV["has_provenance"].uri)
 
-    def finalize_prov_profile(self, name: Optional[str]) -> list[QualifiedName]:
+    def finalize_prov_profile(self, name: str | None) -> list[QualifiedName]:
         """Transfer the provenance related files to the RO."""
         # NOTE: Relative posix path
         if name is None:

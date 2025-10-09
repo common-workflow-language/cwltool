@@ -9,7 +9,7 @@ import sys
 import urllib.parse
 from io import StringIO
 from pathlib import Path
-from typing import Any, Union, cast
+from typing import Any, cast
 
 import cwl_utils.expression as expr
 import pydot
@@ -403,8 +403,8 @@ def test_scandeps() -> None:
     }
 
     def loadref(
-        base: str, p: Union[CommentedMap, CommentedSeq, str, None]
-    ) -> Union[CommentedMap, CommentedSeq, str, None]:
+        base: str, p: CommentedMap | CommentedSeq | str | None
+    ) -> CommentedMap | CommentedSeq | str | None:
         if isinstance(p, dict):
             return p
         raise Exception("test case can't load things")
@@ -508,8 +508,8 @@ def test_scandeps_samedirname() -> None:
     }
 
     def loadref(
-        base: str, p: Union[CommentedMap, CommentedSeq, str, None]
-    ) -> Union[CommentedMap, CommentedSeq, str, None]:
+        base: str, p: CommentedMap | CommentedSeq | str | None
+    ) -> CommentedMap | CommentedSeq | str | None:
         if isinstance(p, dict):
             return p
         raise Exception("test case can't load things")

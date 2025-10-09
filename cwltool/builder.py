@@ -3,9 +3,9 @@
 import copy
 import logging
 import math
-from collections.abc import MutableMapping, MutableSequence
+from collections.abc import Callable, MutableMapping, MutableSequence
 from decimal import Decimal
-from typing import IO, TYPE_CHECKING, Any, Callable, Optional, Union, cast
+from typing import IO, TYPE_CHECKING, Any, Optional, cast
 
 from cwl_utils import expression
 from cwl_utils.file_formats import check_format
@@ -101,9 +101,9 @@ class Builder(HasReqsHints):
         names: Names,
         requirements: list[CWLObjectType],
         hints: list[CWLObjectType],
-        resources: dict[str, Union[int, float]],
-        mutation_manager: Optional[MutationManager],
-        formatgraph: Optional[Graph],
+        resources: dict[str, int | float],
+        mutation_manager: MutationManager | None,
+        formatgraph: Graph | None,
         make_fs_access: type[StdFsAccess],
         fs_access: StdFsAccess,
         job_script_provider: Optional["DependenciesConfiguration"],
@@ -157,23 +157,27 @@ class Builder(HasReqsHints):
 
         self.pathmapper: Optional["PathMapper"] = None
         self.prov_obj: Optional["ProvenanceProfile"] = None
-        self.find_default_container: Optional[Callable[[], str]] = None
+        self.find_default_container: Callable[[], str] | None = None
         self.container_engine = container_engine
 
-    def build_job_script(self, commands: list[str]) -> Optional[str]:
+    def build_job_script(self, commands: list[str]) -> str | None:
         """Use the job_script_provider to turn the commands into a job script."""
         if self.job_script_provider is not None:
             return self.job_script_provider.build_job_script(self, commands)
         return None
 
+    def _capture_files(self, f: CWLObjectType) -> CWLObjectType:
+        self.files.append(f)
+        return f
+
     def bind_input(
         self,
         schema: CWLObjectType,
-        datum: Union[CWLObjectType, list[CWLObjectType]],
+        datum: CWLObjectType | list[CWLObjectType],
         discover_secondaryFiles: bool,
-        lead_pos: Optional[Union[int, list[int]]] = None,
-        tail_pos: Optional[Union[str, list[int]]] = None,
-    ) -> list[MutableMapping[str, Union[str, list[int]]]]:
+        lead_pos: int | list[int] | None = None,
+        tail_pos: str | list[int] | None = None,
+    ) -> list[MutableMapping[str, str | list[int]]]:
         """
         Bind an input object to the command line.
 
@@ -189,8 +193,8 @@ class Builder(HasReqsHints):
         if lead_pos is None:
             lead_pos = []
 
-        bindings: list[MutableMapping[str, Union[str, list[int]]]] = []
-        binding: Union[MutableMapping[str, Union[str, list[int]]], CommentedMap] = {}
+        bindings: list[MutableMapping[str, str | list[int]]] = []
+        binding: MutableMapping[str, str | list[int]] | CommentedMap = {}
         value_from_expression = False
         if "inputBinding" in schema and isinstance(schema["inputBinding"], MutableMapping):
             binding = CommentedMap(schema["inputBinding"].items())
@@ -226,7 +230,7 @@ class Builder(HasReqsHints):
         if isinstance(schema["type"], MutableSequence):
             bound_input = False
             for t in schema["type"]:
-                avsc: Optional[Schema] = None
+                avsc: Schema | None = None
                 if isinstance(t, str) and self.names.has_name(t, None):
                     avsc = self.names.get_name(t, None)
                 elif (
@@ -360,9 +364,9 @@ class Builder(HasReqsHints):
                 datum = cast(CWLObjectType, datum)
                 self.files.append(datum)
 
-                loadContents_sourceline: Union[
-                    None, MutableMapping[str, Union[str, list[int]]], CWLObjectType
-                ] = None
+                loadContents_sourceline: (
+                    None | MutableMapping[str, str | list[int]] | CWLObjectType
+                ) = None
                 if binding and binding.get("loadContents"):
                     loadContents_sourceline = binding
                 elif schema.get("loadContents"):
@@ -502,7 +506,7 @@ class Builder(HasReqsHints):
                 if "format" in schema:
                     eval_format: Any = self.do_eval(schema["format"])
                     if isinstance(eval_format, str):
-                        evaluated_format: Union[str, list[str]] = eval_format
+                        evaluated_format: str | list[str] = eval_format
                     elif isinstance(eval_format, MutableSequence):
                         for index, entry in enumerate(eval_format):
                             message = None
@@ -555,7 +559,7 @@ class Builder(HasReqsHints):
                 visit_class(
                     datum.get("secondaryFiles", []),
                     ("File", "Directory"),
-                    _capture_files,
+                    self._capture_files,
                 )
 
             if schema["type"] == "org.w3id.cwl.cwl.Directory":
@@ -570,7 +574,7 @@ class Builder(HasReqsHints):
                 self.files.append(datum)
 
             if schema["type"] == "Any":
-                visit_class(datum, ("File", "Directory"), _capture_files)
+                visit_class(datum, ("File", "Directory"), self._capture_files)
 
         # Position to front of the sort key
         if binding:
@@ -582,30 +586,28 @@ class Builder(HasReqsHints):
 
         return bindings
 
-    def tostr(self, value: Union[MutableMapping[str, str], Any]) -> str:
+    def tostr(self, value: MutableMapping[str, str] | Any) -> str:
         """
         Represent an input parameter as a string.
 
         :raises WorkflowException: if the item is a File or Directory and the
           "path" is missing.
         """
-        if isinstance(value, MutableMapping) and value.get("class") in (
-            "File",
-            "Directory",
-        ):
-            if "path" not in value:
-                raise WorkflowException(
-                    '{} object missing "path": {}'.format(value["class"], value)
-                )
-            return value["path"]
-        elif isinstance(value, ScalarFloat):
-            rep = RoundTripRepresenter()
-            dec_value = Decimal(rep.represent_scalar_float(value).value)
-            if "E" in str(dec_value):
-                return str(dec_value.quantize(1))
-            return str(dec_value)
-        else:
-            return str(value)
+        match value:
+            case {"class": "File" | "Directory" as class_name, **rest}:
+                if "path" not in rest:
+                    raise WorkflowException(
+                        '{} object missing "path": {}'.format(class_name, value)
+                    )
+                return str(rest["path"])
+            case ScalarFloat():
+                rep = RoundTripRepresenter()
+                dec_value = Decimal(rep.represent_scalar_float(value).value)
+                if "E" in str(dec_value):
+                    return str(dec_value.quantize(1))
+                return str(dec_value)
+            case _:
+                return str(value)
 
     def generate_arg(self, binding: CWLObjectType) -> list[str]:
         """Convert an input binding to a list of command line arguments."""
@@ -632,30 +634,28 @@ class Builder(HasReqsHints):
                 raise WorkflowException("'separate' option can not be specified without prefix")
 
         argl: MutableSequence[CWLOutputType] = []
-        if isinstance(value, MutableSequence):
-            if binding.get("itemSeparator") and value:
-                itemSeparator = cast(str, binding["itemSeparator"])
-                argl = [itemSeparator.join([self.tostr(v) for v in value])]
-            elif binding.get("valueFrom"):
-                value = [self.tostr(v) for v in value]
-                return cast(list[str], ([prefix] if prefix else [])) + cast(list[str], value)
-            elif prefix and value:
+        match value:
+            case MutableSequence():
+                if binding.get("itemSeparator") and value:
+                    itemSeparator = cast(str, binding["itemSeparator"])
+                    argl = [itemSeparator.join([self.tostr(v) for v in value])]
+                elif binding.get("valueFrom"):
+                    value = [self.tostr(v) for v in value]
+                    return cast(list[str], ([prefix] if prefix else [])) + cast(list[str], value)
+                elif prefix and value:
+                    return [prefix]
+                else:
+                    return []
+            case {"class": "File" | "Directory"}:
+                argl = [cast(CWLOutputType, value)]
+            case MutableMapping():
+                return [prefix] if prefix else []
+            case True if prefix:
                 return [prefix]
-            else:
+            case bool() | None:
                 return []
-        elif isinstance(value, MutableMapping) and value.get("class") in (
-            "File",
-            "Directory",
-        ):
-            argl = cast(MutableSequence[CWLOutputType], [value])
-        elif isinstance(value, MutableMapping):
-            return [prefix] if prefix else []
-        elif value is True and prefix:
-            return [prefix]
-        elif value is False or value is None or (value is True and not prefix):
-            return []
-        else:
-            argl = [value]
+            case _:
+                argl = [value]
 
         args = []
         for j in argl:
@@ -668,11 +668,11 @@ class Builder(HasReqsHints):
 
     def do_eval(
         self,
-        ex: Optional[CWLOutputType],
-        context: Optional[Any] = None,
+        ex: CWLOutputType | None,
+        context: Any | None = None,
         recursive: bool = False,
         strip_whitespace: bool = True,
-    ) -> Optional[CWLOutputType]:
+    ) -> CWLOutputType | None:
         if recursive:
             if isinstance(ex, MutableMapping):
                 return {k: self.do_eval(v, context, recursive) for k, v in ex.items()}

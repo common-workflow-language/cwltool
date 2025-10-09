@@ -59,7 +59,7 @@ SPLIT_START_CATEGORIES = NAME_START_CATEGORIES + ["Nd"]
 
 XMLNS = "http://www.w3.org/XML/1998/namespace"
 
-def split_uri(uri: Any, split_start: Any = ...) -> Tuple[str, str]: ...
+def split_uri(uri: Any, split_start: Any = ...) -> tuple[str, str]: ...
 
 from rdflib.namespace._CSVW import CSVW
 from rdflib.namespace._DC import DC

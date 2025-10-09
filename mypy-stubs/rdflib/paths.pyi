@@ -1,5 +1,5 @@
-from collections.abc import Generator
-from typing import Any, Callable, Union
+from collections.abc import Callable, Generator
+from typing import Any, Union
 
 from rdflib.term import Node as Node
 from rdflib.term import URIRef as URIRef

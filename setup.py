@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from setuptools import Extension, setup
 
 if TYPE_CHECKING:
-    from typing_extensions import TypeGuard
+    from typing import TypeGuard
 
 if os.name == "nt":
     warnings.warn(
@@ -170,7 +170,7 @@ setup(
             "pillow",  # workaround for https://github.com/galaxyproject/galaxy/pull/20525
         ],
     },
-    python_requires=">=3.9, <3.15",
+    python_requires=">=3.10, <3.15",
     use_scm_version=True,
     setup_requires=PYTEST_RUNNER + ["setuptools_scm>=8.0.4,<10"],
     test_suite="tests",
@@ -196,7 +196,6 @@ setup(
         "Operating System :: POSIX",
         "Operating System :: POSIX :: Linux",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",

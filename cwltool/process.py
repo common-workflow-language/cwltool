@@ -13,10 +13,17 @@ import stat
 import textwrap
 import urllib.parse
 import uuid
-from collections.abc import Iterable, Iterator, MutableMapping, MutableSequence, Sized
+from collections.abc import (
+    Callable,
+    Iterable,
+    Iterator,
+    MutableMapping,
+    MutableSequence,
+    Sized,
+)
 from importlib.resources import files
 from os import scandir
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from cwl_utils import expression
 from mypy_extensions import mypyc_attr
@@ -145,12 +152,10 @@ salad_files = (
     "vocab_res_proc.yml",
 )
 
-SCHEMA_CACHE: dict[
-    str, tuple[Loader, Union[Names, SchemaParseException], CWLObjectType, Loader]
-] = {}
-SCHEMA_FILE: Optional[CWLObjectType] = None
-SCHEMA_DIR: Optional[CWLObjectType] = None
-SCHEMA_ANY: Optional[CWLObjectType] = None
+SCHEMA_CACHE: dict[str, tuple[Loader, Names | SchemaParseException, CWLObjectType, Loader]] = {}
+SCHEMA_FILE: CWLObjectType | None = None
+SCHEMA_DIR: CWLObjectType | None = None
+SCHEMA_ANY: CWLObjectType | None = None
 
 custom_schemas: dict[str, tuple[str, str]] = {}
 
@@ -170,11 +175,11 @@ def use_custom_schema(version: str, name: str, text: str) -> None:
 
 def get_schema(
     version: str,
-) -> tuple[Loader, Union[Names, SchemaParseException], CWLObjectType, Loader]:
+) -> tuple[Loader, Names | SchemaParseException, CWLObjectType, Loader]:
     if version in SCHEMA_CACHE:
         return SCHEMA_CACHE[version]
 
-    cache: dict[str, Union[str, Graph, bool]] = {}
+    cache: dict[str, str | Graph | bool] = {}
     version = version.split("#")[-1]
     if ".dev" in version:
         version = ".".join(version.split(".")[:-1])
@@ -216,10 +221,10 @@ def shortname(inputid: str) -> str:
 
 def stage_files(
     pathmapper: PathMapper,
-    stage_func: Optional[Callable[[str, str], None]] = None,
+    stage_func: Callable[[str, str], None] | None = None,
     ignore_writable: bool = False,
     symlink: bool = True,
-    secret_store: Optional[SecretStore] = None,
+    secret_store: SecretStore | None = None,
     fix_conflicts: bool = False,
 ) -> None:
     """
@@ -257,37 +262,35 @@ def stage_files(
             continue
         if not os.path.exists(os.path.dirname(entry.target)):
             os.makedirs(os.path.dirname(entry.target))
-        if entry.type in ("File", "Directory") and os.path.exists(entry.resolved):
-            if symlink:  # Use symlink func if allowed
-                os.symlink(entry.resolved, entry.target)
-            elif stage_func is not None:
+        match entry.type:
+            case "File" | "Directory" if os.path.exists(entry.resolved) and symlink:
+                os.symlink(entry.resolved, entry.target)  # Use symlink func if allowed
+            case "File" | "Directory" if os.path.exists(entry.resolved) and stage_func is not None:
                 stage_func(entry.resolved, entry.target)
-        elif (
-            entry.type == "Directory"
-            and not os.path.exists(entry.target)
-            and entry.resolved.startswith("_:")
-        ):
-            os.makedirs(entry.target)
-        elif entry.type == "WritableFile" and not ignore_writable:
-            shutil.copy(entry.resolved, entry.target)
-            ensure_writable(entry.target)
-        elif entry.type == "WritableDirectory" and not ignore_writable:
-            if entry.resolved.startswith("_:"):
+            case "Directory" if not os.path.exists(entry.target) and entry.resolved.startswith(
+                "_:"
+            ):
                 os.makedirs(entry.target)
-            else:
-                shutil.copytree(entry.resolved, entry.target)
-                ensure_writable(entry.target, include_root=True)
-        elif entry.type == "CreateFile" or entry.type == "CreateWritableFile":
-            with open(entry.target, "w") as new:
-                if secret_store is not None:
-                    new.write(cast(str, secret_store.retrieve(entry.resolved)))
-                else:
-                    new.write(entry.resolved)
-            if entry.type == "CreateFile":
-                os.chmod(entry.target, stat.S_IRUSR)  # Read only
-            else:  # it is a "CreateWritableFile"
+            case "WritableFile" if not ignore_writable:
+                shutil.copy(entry.resolved, entry.target)
                 ensure_writable(entry.target)
-            pathmapper.update(key, entry.target, entry.target, entry.type, entry.staged)
+            case "WritableDirectory" if not ignore_writable:
+                if entry.resolved.startswith("_:"):
+                    os.makedirs(entry.target)
+                else:
+                    shutil.copytree(entry.resolved, entry.target)
+                    ensure_writable(entry.target, include_root=True)
+            case "CreateFile" | "CreateWritableFile" as etype:
+                with open(entry.target, "w") as new:
+                    if secret_store is not None:
+                        new.write(cast(str, secret_store.retrieve(entry.resolved)))
+                    else:
+                        new.write(entry.resolved)
+                if etype == "CreateFile":
+                    os.chmod(entry.target, stat.S_IRUSR)  # Read only
+                else:  # it is a "CreateWritableFile"
+                    ensure_writable(entry.target)
+                pathmapper.update(key, entry.target, entry.target, entry.type, entry.staged)
 
 
 def relocateOutputs(
@@ -305,7 +308,7 @@ def relocateOutputs(
         return outputObj
 
     def _collectDirEntries(
-        obj: Union[CWLObjectType, MutableSequence[CWLObjectType], None],
+        obj: CWLObjectType | MutableSequence[CWLObjectType] | None,
     ) -> Iterator[CWLObjectType]:
         if isinstance(obj, dict):
             if obj.get("class") in ("File", "Directory"):
@@ -424,31 +427,31 @@ def fill_in_defaults(
 
 
 def avroize_type(
-    field_type: Union[CWLObjectType, MutableSequence[Any], CWLOutputType, None],
+    field_type: CWLObjectType | MutableSequence[Any] | CWLOutputType | None,
     name_prefix: str = "",
-) -> Union[CWLObjectType, MutableSequence[Any], CWLOutputType, None]:
+) -> CWLObjectType | MutableSequence[Any] | CWLOutputType | None:
     """Add missing information to a type so that CWL types are valid."""
-    if isinstance(field_type, MutableSequence):
-        for i, field in enumerate(field_type):
-            field_type[i] = avroize_type(field, name_prefix)
-    elif isinstance(field_type, MutableMapping):
-        if field_type["type"] in ("enum", "record"):
-            if "name" not in field_type:
-                field_type["name"] = name_prefix + str(uuid.uuid4())
-        if field_type["type"] == "record":
-            field_type["fields"] = avroize_type(
-                cast(MutableSequence[CWLOutputType], field_type["fields"]), name_prefix
+    match field_type:
+        case MutableSequence():
+            for i, field in enumerate(field_type):
+                field_type[i] = avroize_type(field, name_prefix)
+        case {"type": "enum" | "record" as f_type, **rest}:
+            if "name" not in rest:
+                cast(CWLObjectType, field_type)["name"] = name_prefix + str(uuid.uuid4())
+            if f_type == "record":
+                cast(CWLObjectType, field_type)["fields"] = avroize_type(
+                    cast(MutableSequence[CWLOutputType], rest["fields"]), name_prefix
+                )
+        case {"type": "array", "items": items}:
+            cast(CWLObjectType, field_type)["items"] = avroize_type(
+                cast(MutableSequence[CWLOutputType], items), name_prefix
             )
-        elif field_type["type"] == "array":
-            field_type["items"] = avroize_type(
-                cast(MutableSequence[CWLOutputType], field_type["items"]), name_prefix
-            )
-        else:
-            field_type["type"] = avroize_type(field_type["type"], name_prefix)
-    elif field_type == "File":
-        return "org.w3id.cwl.cwl.File"
-    elif field_type == "Directory":
-        return "org.w3id.cwl.cwl.Directory"
+        case {"type": f_type}:
+            cast(CWLObjectType, field_type)["type"] = avroize_type(f_type, name_prefix)
+        case "File":
+            return "org.w3id.cwl.cwl.File"
+        case "Directory":
+            return "org.w3id.cwl.cwl.Directory"
     return field_type
 
 
@@ -475,8 +478,8 @@ _VAR_SPOOL_ERROR = textwrap.dedent(
 
 def var_spool_cwl_detector(
     obj: CWLOutputType,
-    item: Optional[Any] = None,
-    obj_key: Optional[Any] = None,
+    item: Any | None = None,
+    obj_key: Any | None = None,
 ) -> bool:
     """Detect any textual reference to /var/spool/cwl."""
     r = False
@@ -497,23 +500,27 @@ def var_spool_cwl_detector(
     return r
 
 
-def eval_resource(
-    builder: Builder, resource_req: Union[str, int, float]
-) -> Optional[Union[str, int, float]]:
+def eval_resource(builder: Builder, resource_req: str | int | float) -> str | int | float | None:
+    """Evaluate any CWL expressions inside a ResourceRequirement."""
     if isinstance(resource_req, str) and expression.needs_parsing(resource_req):
         result = builder.do_eval(resource_req)
-        if isinstance(result, float):
-            if ORDERED_VERSIONS.index(builder.cwlVersion) >= ORDERED_VERSIONS.index("v1.2.0-dev4"):
+        match result:
+            case float(f_result) if ORDERED_VERSIONS.index(
+                builder.cwlVersion
+            ) >= ORDERED_VERSIONS.index("v1.2.0-dev4"):
+                return f_result
+            case float():
+                raise WorkflowException(
+                    "Floats are not valid in resource requirement expressions prior "
+                    f"to CWL v1.2: {resource_req} returned {result}."
+                )
+            case str() | int() | None:
                 return result
-            raise WorkflowException(
-                "Floats are not valid in resource requirement expressions prior "
-                f"to CWL v1.2: {resource_req} returned {result}."
-            )
-        if isinstance(result, (str, int)) or result is None:
-            return result
-        raise WorkflowException(
-            f"Got incorrect return type {type(result)} from resource expression evaluation of {resource_req}."
-        )
+            case _:
+                raise WorkflowException(
+                    f"Got incorrect return type {type(result)} from resource "
+                    "expression evaluation of {resource_req}."
+                )
     return resource_req
 
 
@@ -581,7 +588,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         self.doc_loader = loadingContext.loader
         self.doc_schema = loadingContext.avsc_names
 
-        self.formatgraph: Optional[Graph] = None
+        self.formatgraph: Graph | None = None
         if self.doc_loader is not None:
             self.formatgraph = self.doc_loader.graph
 
@@ -665,7 +672,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
         if toolpath_object.get("class") is not None and not getdefault(
             loadingContext.disable_js_validation, False
         ):
-            validate_js_options: Optional[dict[str, Union[list[str], str, int]]] = None
+            validate_js_options: dict[str, list[str] | str | int] | None = None
             if loadingContext.js_hint_options_file is not None:
                 try:
                     with open(loadingContext.js_hint_options_file) as options_file:
@@ -966,7 +973,7 @@ hints:
 
     def evalResources(
         self, builder: Builder, runtimeContext: RuntimeContext
-    ) -> dict[str, Union[int, float]]:
+    ) -> dict[str, int | float]:
         resourceReq, _ = self.get_requirement("ResourceRequirement")
         if resourceReq is None:
             resourceReq = {}
@@ -976,7 +983,7 @@ hints:
             ram = 1024
         else:
             ram = 256
-        request: dict[str, Union[int, float, str]] = {
+        request: dict[str, int | float | str] = {
             "coresMin": 1,
             "coresMax": 1,
             "ramMin": ram,
@@ -1001,8 +1008,8 @@ hints:
         ):
             if rsc is None:
                 continue
-            mn: Optional[Union[int, float]] = None
-            mx: Optional[Union[int, float]] = None
+            mn: int | float | None = None
+            mx: int | float | None = None
             if rsc.get(a + "Min"):
                 with SourceLine(rsc, f"{a}Min", WorkflowException, runtimeContext.debug):
                     mn = cast(
@@ -1041,7 +1048,7 @@ hints:
 
     def checkRequirements(
         self,
-        rec: Union[MutableSequence[CWLObjectType], CWLObjectType, CWLOutputType, None],
+        rec: MutableSequence[CWLObjectType] | CWLObjectType | CWLOutputType | None,
         supported_process_requirements: Iterable[str],
     ) -> None:
         """Check the presence of unsupported requirements."""
@@ -1107,7 +1114,7 @@ hints:
 _names: set[str] = set()
 
 
-def uniquename(stem: str, names: Optional[set[str]] = None) -> str:
+def uniquename(stem: str, names: set[str] | None = None) -> str:
     """Construct a thread-unique name using the given stem as a prefix."""
     if names is None:
         names = _names
@@ -1175,10 +1182,10 @@ CWL_IANA = "https://www.iana.org/assignments/media-types/application/cwl"
 
 def scandeps(
     base: str,
-    doc: Union[CWLObjectType, MutableSequence[CWLObjectType]],
+    doc: CWLObjectType | MutableSequence[CWLObjectType],
     reffields: set[str],
     urlfields: set[str],
-    loadref: Callable[[str, str], Union[CommentedMap, CommentedSeq, str, None]],
+    loadref: Callable[[str, str], CommentedMap | CommentedSeq | str | None],
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,
 ) -> MutableSequence[CWLObjectType]:
@@ -1219,52 +1226,54 @@ def scandeps(
                 }
                 if "basename" in doc:
                     deps["basename"] = doc["basename"]
-                if doc["class"] == "Directory" and "listing" in doc:
-                    deps["listing"] = doc["listing"]
-                if doc["class"] == "File" and "secondaryFiles" in doc:
-                    deps["secondaryFiles"] = cast(
-                        CWLOutputType,
-                        scandeps(
-                            base,
-                            cast(
-                                Union[CWLObjectType, MutableSequence[CWLObjectType]],
-                                doc["secondaryFiles"],
+                match doc:
+                    case {"class": "Directory", "listing": listing}:
+                        deps["listing"] = listing
+                    case {"class": "File", "secondaryFiles": sec_files}:
+                        deps["secondaryFiles"] = cast(
+                            CWLOutputType,
+                            scandeps(
+                                base,
+                                cast(
+                                    Union[CWLObjectType, MutableSequence[CWLObjectType]],
+                                    sec_files,
+                                ),
+                                reffields,
+                                urlfields,
+                                loadref,
+                                urljoin=urljoin,
+                                nestdirs=nestdirs,
                             ),
-                            reffields,
-                            urlfields,
-                            loadref,
-                            urljoin=urljoin,
-                            nestdirs=nestdirs,
-                        ),
-                    )
+                        )
                 if nestdirs:
                     deps = nestdir(base, deps)
                 r.append(deps)
             else:
-                if doc["class"] == "Directory" and "listing" in doc:
-                    r.extend(
-                        scandeps(
-                            base,
-                            cast(MutableSequence[CWLObjectType], doc["listing"]),
-                            reffields,
-                            urlfields,
-                            loadref,
-                            urljoin=urljoin,
-                            nestdirs=nestdirs,
+                match doc:
+                    case {"class": "Directory", "listing": listing}:
+                        r.extend(
+                            scandeps(
+                                base,
+                                cast(MutableSequence[CWLObjectType], listing),
+                                reffields,
+                                urlfields,
+                                loadref,
+                                urljoin=urljoin,
+                                nestdirs=nestdirs,
+                            )
                         )
-                    )
-                elif doc["class"] == "File" and "secondaryFiles" in doc:
-                    r.extend(
-                        scandeps(
-                            base,
-                            cast(MutableSequence[CWLObjectType], doc["secondaryFiles"]),
-                            reffields,
-                            urlfields,
-                            loadref,
-                            urljoin=urljoin,
-                            nestdirs=nestdirs,
+                    case {"class": "File", "secondaryFiles": sec_files}:
+                        r.extend(
+                            scandeps(
+                                base,
+                                cast(MutableSequence[CWLObjectType], sec_files),
+                                reffields,
+                                urlfields,
+                                loadref,
+                                urljoin=urljoin,
+                                nestdirs=nestdirs,
+                            )
                         )
-                    )
 
         for k, v in doc.items():
             if k in reffields:

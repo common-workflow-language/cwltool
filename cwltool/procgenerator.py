@@ -1,5 +1,5 @@
 import copy
-from typing import Optional, cast
+from typing import cast
 
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
@@ -19,10 +19,10 @@ class ProcessGeneratorJob:
     def __init__(self, procgenerator: "ProcessGenerator") -> None:
         """Create a ProccessGenerator Job."""
         self.procgenerator = procgenerator
-        self.jobout = None  # type: Optional[CWLObjectType]
-        self.processStatus = None  # type: Optional[str]
+        self.jobout: CWLObjectType | None = None
+        self.processStatus: str | None = None
 
-    def receive_output(self, jobout: Optional[CWLObjectType], processStatus: str) -> None:
+    def receive_output(self, jobout: CWLObjectType | None, processStatus: str) -> None:
         """Process the results."""
         self.jobout = jobout
         self.processStatus = processStatus
@@ -69,12 +69,12 @@ class ProcessGenerator(Process):
     ) -> None:
         """Create a ProcessGenerator from the given dictionary and context."""
         super().__init__(toolpath_object, loadingContext)
-        self.loadingContext = loadingContext  # type: LoadingContext
+        self.loadingContext: LoadingContext = loadingContext
         try:
             if isinstance(toolpath_object["run"], CommentedMap):
-                self.embedded_tool = loadingContext.construct_tool_object(
+                self.embedded_tool: Process = loadingContext.construct_tool_object(
                     toolpath_object["run"], loadingContext
-                )  # type: Process
+                )
             else:
                 loadingContext.metadata = {}
                 self.embedded_tool = load_tool(toolpath_object["run"], loadingContext)

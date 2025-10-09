@@ -9,9 +9,9 @@ import shutil
 import subprocess  # nosec
 import sys
 import threading
-from collections.abc import MutableMapping
+from collections.abc import Callable, MutableMapping
 from io import StringIO  # pylint: disable=redefined-builtin
-from typing import Callable, Optional, cast
+from typing import Optional, cast
 
 import requests
 
@@ -26,7 +26,7 @@ from .utils import CWLObjectType, create_tmp_dir, ensure_writable
 
 _IMAGES: set[str] = set()
 _IMAGES_LOCK = threading.Lock()
-__docker_machine_mounts: Optional[list[str]] = None
+__docker_machine_mounts: list[str] | None = None
 __docker_machine_mounts_lock = threading.Lock()
 
 
@@ -54,7 +54,7 @@ def _get_docker_machine_mounts() -> list[str]:
     return __docker_machine_mounts
 
 
-def _check_docker_machine_path(path: Optional[str]) -> None:
+def _check_docker_machine_path(path: str | None) -> None:
     if path is None:
         return
     mounts = _get_docker_machine_mounts()
@@ -201,7 +201,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         pull_image: bool,
         force_pull: bool,
         tmp_outdir_prefix: str,
-    ) -> Optional[str]:
+    ) -> str | None:
         if not shutil.which(self.docker_exec):
             raise WorkflowException(f"{self.docker_exec} executable is not available")
 
@@ -234,7 +234,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             os.makedirs(source)
 
     def add_file_or_directory_volume(
-        self, runtime: list[str], volume: MapperEnt, host_outdir_tgt: Optional[str]
+        self, runtime: list[str], volume: MapperEnt, host_outdir_tgt: str | None
     ) -> None:
         """Append volume a file/dir mapping to the runtime option list."""
         if not volume.resolved.startswith("_:"):
@@ -245,7 +245,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         self,
         runtime: list[str],
         volume: MapperEnt,
-        host_outdir_tgt: Optional[str],
+        host_outdir_tgt: str | None,
         tmpdir_prefix: str,
     ) -> None:
         """Append a writable file mapping to the runtime option list."""
@@ -269,7 +269,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         self,
         runtime: list[str],
         volume: MapperEnt,
-        host_outdir_tgt: Optional[str],
+        host_outdir_tgt: str | None,
         tmpdir_prefix: str,
     ) -> None:
         """Append a writable directory mapping to the runtime option list."""
@@ -307,7 +307,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
     def create_runtime(
         self, env: MutableMapping[str, str], runtimeContext: RuntimeContext
-    ) -> tuple[list[str], Optional[str]]:
+    ) -> tuple[list[str], str | None]:
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] or False
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
         if user_space_docker_cmd:
@@ -374,7 +374,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         if self.builder.resources.get("cudaDeviceCount"):
             runtime.append("--gpus=" + str(self.builder.resources["cudaDeviceCount"]))
 
-        cidfile_path: Optional[str] = None
+        cidfile_path: str | None = None
         # add parameters to docker to write a container ID file
         if runtimeContext.user_space_docker_cmd is None:
             if runtimeContext.cidfile_dir:

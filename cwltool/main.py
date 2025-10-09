@@ -15,9 +15,9 @@ import time
 import urllib
 import warnings
 from codecs import getwriter
-from collections.abc import Mapping, MutableMapping, MutableSequence, Sized
+from collections.abc import Callable, Mapping, MutableMapping, MutableSequence, Sized
 from importlib.resources import files
-from typing import IO, Any, Callable, Optional, Union, cast
+from typing import IO, Any, Union, cast
 
 import argcomplete
 import coloredlogs
@@ -166,8 +166,8 @@ def append_word_to_default_user_agent(word: str) -> None:
 
 
 def generate_example_input(
-    inptype: Optional[CWLOutputType],
-    default: Optional[CWLOutputType],
+    inptype: CWLOutputType | None,
+    default: CWLOutputType | None,
 ) -> tuple[Any, str]:
     """Convert a single input schema into an example."""
     example = None
@@ -186,39 +186,39 @@ def generate_example_input(
             [("class", "Directory"), ("path", "a/directory/path")]
         ),
     }
-    if isinstance(inptype, MutableSequence):
-        optional = False
-        if "null" in inptype:
-            inptype.remove("null")
-            optional = True
-        if len(inptype) == 1:
-            example, comment = generate_example_input(inptype[0], default)
-            if optional:
-                if comment:
+    match inptype:
+        case MutableSequence():
+            optional = False
+            if "null" in inptype:
+                inptype.remove("null")
+                optional = True
+            if len(inptype) == 1:
+                example, comment = generate_example_input(inptype[0], default)
+                if optional:
+                    if comment:
+                        comment = f"{comment} (optional)"
+                    else:
+                        comment = "optional"
+            else:
+                example, comment = generate_example_input(inptype[0], default)
+                type_names = []
+                for entry in inptype:
+                    value, e_comment = generate_example_input(entry, default)
+                    if e_comment:
+                        type_names.append(e_comment)
+                comment = "one of " + ", ".join(type_names)
+                if optional:
                     comment = f"{comment} (optional)"
-                else:
-                    comment = "optional"
-        else:
-            example, comment = generate_example_input(inptype[0], default)
-            type_names = []
-            for entry in inptype:
-                value, e_comment = generate_example_input(entry, default)
-                if e_comment:
-                    type_names.append(e_comment)
-            comment = "one of " + ", ".join(type_names)
-            if optional:
-                comment = f"{comment} (optional)"
-    elif isinstance(inptype, Mapping) and "type" in inptype:
-        if inptype["type"] == "array":
-            first_item = cast(MutableSequence[CWLObjectType], inptype["items"])[0]
-            items_len = len(cast(Sized, inptype["items"]))
+        case {"type": "array", "items": list(items)}:
+            first_item = cast(CWLObjectType, items[0])
+            items_len = len(items)
             if items_len == 1 and "type" in first_item and first_item["type"] == "enum":
                 # array of just an enum then list all the options
                 example = first_item["symbols"]
                 if "name" in first_item:
                     comment = 'array of type "{}".'.format(first_item["name"])
             else:
-                value, comment = generate_example_input(inptype["items"], None)
+                value, comment = generate_example_input(items, None)
                 comment = "array of " + comment
                 if items_len == 1:
                     example = [value]
@@ -226,46 +226,44 @@ def generate_example_input(
                     example = value
             if default is not None:
                 example = default
-        elif inptype["type"] == "enum":
-            symbols = cast(list[str], inptype["symbols"])
+        case {"type": "enum", "symbols": list(symbols), **rest}:
             if default is not None:
                 example = default
-            elif "default" in inptype:
-                example = inptype["default"]
-            elif len(cast(Sized, inptype["symbols"])) == 1:
+            elif "default" in rest:
+                example = rest["default"]
+            elif len(symbols) == 1:
                 example = symbols[0]
             else:
-                example = "{}_enum_value".format(inptype.get("name", "valid"))
+                example = "{}_enum_value".format(rest.get("name", "valid"))
             comment = 'enum; valid values: "{}"'.format('", "'.join(symbols))
-        elif inptype["type"] == "record":
+        case {"type": "record", "fields": list(fields), **rest}:
             example = ruamel.yaml.comments.CommentedMap()
-            if "name" in inptype:
-                comment = '"{}" record type.'.format(inptype["name"])
+            if "name" in rest:
+                comment = '"{}" record type.'.format(rest["name"])
             else:
                 comment = "Anonymous record type."
-            for field in cast(list[CWLObjectType], inptype["fields"]):
+            for field in cast(list[CWLObjectType], fields):
                 value, f_comment = generate_example_input(field["type"], None)
                 example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
-        elif "default" in inptype:
-            example = inptype["default"]
-            comment = f"default value of type {inptype['type']!r}"
-        else:
-            example = defaults.get(cast(str, inptype["type"]), str(inptype))
-            comment = f"type {inptype['type']!r}"
-    else:
-        if not default:
+        case {"type": str(inp_type), "default": default}:
+            example = default
+            comment = f"default value of type {inp_type!r}"
+        case {"type": str(inp_type)}:
+            example = defaults.get(inp_type, str(inptype))
+            comment = f"type {inp_type!r}"
+        case object() if not default:
             example = defaults.get(str(inptype), str(inptype))
             comment = f"type {inptype!r}"
-        else:
+        case _:
             example = default
             comment = f"default value of type {inptype!r}."
     return example, comment
 
 
 def realize_input_schema(
-    input_types: MutableSequence[Union[str, CWLObjectType]],
+    input_types: MutableSequence[str | CWLObjectType],
     schema_defs: MutableMapping[str, CWLObjectType],
-) -> MutableSequence[Union[str, CWLObjectType]]:
+) -> MutableSequence[str | CWLObjectType]:
     """Replace references to named typed with the actual types."""
     for index, entry in enumerate(input_types):
         if isinstance(entry, str):
@@ -338,10 +336,10 @@ def generate_input_template(tool: Process) -> CWLObjectType:
 def load_job_order(
     args: argparse.Namespace,
     stdin: IO[Any],
-    fetcher_constructor: Optional[FetcherCallableType],
+    fetcher_constructor: FetcherCallableType | None,
     overrides_list: list[CWLObjectType],
     tool_file_uri: str,
-) -> tuple[Optional[CWLObjectType], str, Loader]:
+) -> tuple[CWLObjectType | None, str, Loader]:
     job_order_object = None
     job_order_file = None
 
@@ -394,7 +392,7 @@ def load_job_order(
 
 
 def init_job_order(
-    job_order_object: Optional[CWLObjectType],
+    job_order_object: CWLObjectType | None,
     args: argparse.Namespace,
     process: Process,
     loader: Loader,
@@ -403,9 +401,9 @@ def init_job_order(
     relative_deps: str = "primary",
     make_fs_access: Callable[[str], StdFsAccess] = StdFsAccess,
     input_basedir: str = "",
-    secret_store: Optional[SecretStore] = None,
+    secret_store: SecretStore | None = None,
     input_required: bool = True,
-    runtime_context: Optional[RuntimeContext] = None,
+    runtime_context: RuntimeContext | None = None,
 ) -> CWLObjectType:
     secrets_req, _ = process.get_requirement("http://commonwl.org/cwltool#Secrets")
     if job_order_object is None:
@@ -503,7 +501,7 @@ def init_job_order(
         builder.bind_input(
             process.inputs_record_schema, job_order_object, discover_secondaryFiles=True
         )
-        basedir: Optional[str] = None
+        basedir: str | None = None
         uri = cast(str, job_order_object[jobloader_id_name])
         if uri == args.workflow:
             basedir = os.path.dirname(uri)
@@ -549,7 +547,7 @@ def printdeps(
     stdout: IO[str],
     relative_deps: str,
     uri: str,
-    basedir: Optional[str] = None,
+    basedir: str | None = None,
     nestdirs: bool = True,
 ) -> None:
     """Print a JSON representation of the dependencies of the CWL document."""
@@ -566,7 +564,7 @@ def prov_deps(
     obj: CWLObjectType,
     document_loader: Loader,
     uri: str,
-    basedir: Optional[str] = None,
+    basedir: str | None = None,
 ) -> CWLObjectType:
     deps = find_deps(obj, document_loader, uri, basedir=basedir)
 
@@ -587,7 +585,7 @@ def find_deps(
     obj: CWLObjectType,
     document_loader: Loader,
     uri: str,
-    basedir: Optional[str] = None,
+    basedir: str | None = None,
     nestdirs: bool = True,
 ) -> CWLObjectType:
     """Find the dependencies of the CWL document."""
@@ -597,7 +595,7 @@ def find_deps(
         "format": CWL_IANA,
     }
 
-    def loadref(base: str, uri: str) -> Union[CommentedMap, CommentedSeq, str, None]:
+    def loadref(base: str, uri: str) -> CommentedMap | CommentedSeq | str | None:
         return document_loader.fetch(document_loader.fetcher.urljoin(base, uri))
 
     sfs = scandeps(
@@ -639,7 +637,7 @@ def supported_cwl_versions(enable_dev: bool) -> list[str]:
 
 
 def setup_schema(
-    args: argparse.Namespace, custom_schema_callback: Optional[Callable[[], None]]
+    args: argparse.Namespace, custom_schema_callback: Callable[[], None] | None
 ) -> None:
     if custom_schema_callback is not None:
         custom_schema_callback()
@@ -669,7 +667,7 @@ class ProvLogFormatter(logging.Formatter):
         """Use the default formatter with our custom formatstring."""
         super().__init__("[%(asctime)sZ] %(message)s")
 
-    def formatTime(self, record: logging.LogRecord, datefmt: Optional[str] = None) -> str:
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
         """Override the default formatTime to include the timezone."""
         formatted_time = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(float(record.created)))
         with_msecs = f"{formatted_time},{record.msecs:03f}"
@@ -682,7 +680,7 @@ ProvOut = Union[io.TextIOWrapper, WritableBagFile]
 def setup_provenance(
     args: argparse.Namespace,
     runtimeContext: RuntimeContext,
-    argsl: Optional[list[str]] = None,
+    argsl: list[str] | None = None,
 ) -> tuple[ProvOut, "logging.StreamHandler[ProvOut]"]:
     if not args.compute_checksum:
         _logger.error("--provenance incompatible with --no-compute-checksum")
@@ -708,7 +706,7 @@ def setup_provenance(
 
 
 def setup_loadingContext(
-    loadingContext: Optional[LoadingContext],
+    loadingContext: LoadingContext | None,
     runtimeContext: RuntimeContext,
     args: argparse.Namespace,
 ) -> LoadingContext:
@@ -783,7 +781,7 @@ def choose_target(
     args: argparse.Namespace,
     tool: Process,
     loading_context: LoadingContext,
-) -> Optional[Process]:
+) -> Process | None:
     """Walk the Workflow, extract the subset matches all the args.targets."""
     if loading_context.loader is None:
         raise Exception("loading_context.loader cannot be None")
@@ -819,7 +817,7 @@ def choose_step(
     args: argparse.Namespace,
     tool: Process,
     loading_context: LoadingContext,
-) -> Optional[Process]:
+) -> Process | None:
     """Walk the given Workflow and extract just args.single_step."""
     if loading_context.loader is None:
         raise Exception("loading_context.loader cannot be None")
@@ -851,7 +849,7 @@ def choose_process(
     args: argparse.Namespace,
     tool: Process,
     loadingContext: LoadingContext,
-) -> Optional[Process]:
+) -> Process | None:
     """Walk the given Workflow and extract just args.single_process."""
     if loadingContext.loader is None:
         raise Exception("loadingContext.loader cannot be None")
@@ -883,7 +881,7 @@ def choose_process(
 
 def check_working_directories(
     runtimeContext: RuntimeContext,
-) -> Optional[int]:
+) -> int | None:
     """Make any needed working directories."""
     for dirprefix in ("tmpdir_prefix", "tmp_outdir_prefix", "cachedir"):
         if (
@@ -930,7 +928,7 @@ def print_targets(
         _logger.info("%s steps targets:", prefix[:-1])
         for t in tool.tool["steps"]:
             print(f"  {prefix}{shortname(t['id'])}", file=stdout)
-            run: Union[str, Process, dict[str, Any]] = t["run"]
+            run: str | Process | dict[str, Any] = t["run"]
             if isinstance(run, str):
                 process = make_tool(run, loading_context)
             elif isinstance(run, dict):
@@ -941,18 +939,18 @@ def print_targets(
 
 
 def main(
-    argsl: Optional[list[str]] = None,
-    args: Optional[argparse.Namespace] = None,
-    job_order_object: Optional[CWLObjectType] = None,
+    argsl: list[str] | None = None,
+    args: argparse.Namespace | None = None,
+    job_order_object: CWLObjectType | None = None,
     stdin: IO[Any] = sys.stdin,
-    stdout: Optional[IO[str]] = None,
+    stdout: IO[str] | None = None,
     stderr: IO[Any] = sys.stderr,
     versionfunc: Callable[[], str] = versionstring,
-    logger_handler: Optional[logging.Handler] = None,
-    custom_schema_callback: Optional[Callable[[], None]] = None,
-    executor: Optional[JobExecutor] = None,
-    loadingContext: Optional[LoadingContext] = None,
-    runtimeContext: Optional[RuntimeContext] = None,
+    logger_handler: logging.Handler | None = None,
+    custom_schema_callback: Callable[[], None] | None = None,
+    executor: JobExecutor | None = None,
+    loadingContext: LoadingContext | None = None,
+    runtimeContext: RuntimeContext | None = None,
     input_required: bool = True,
 ) -> int:
     if stdout is None:  # force UTF-8 even if the console is configured differently
@@ -970,7 +968,7 @@ def main(
 
     _logger.removeHandler(defaultStreamHandler)
     workflowobj = None
-    prov_log_handler: Optional[logging.StreamHandler[ProvOut]] = None
+    prov_log_handler: logging.StreamHandler[ProvOut] | None = None
     global docker_exe
 
     user_agent = "cwltool"
@@ -1054,7 +1052,7 @@ def main(
 
         setup_schema(args, custom_schema_callback)
 
-        prov_log_stream: Optional[Union[io.TextIOWrapper, WritableBagFile]] = None
+        prov_log_stream: io.TextIOWrapper | WritableBagFile | None = None
         if args.provenance:
             try:
                 prov_log_stream, prov_log_handler = setup_provenance(args, runtimeContext, argsl)
@@ -1430,10 +1428,10 @@ def main(
 
 def find_default_container(
     builder: HasReqsHints,
-    default_container: Optional[str] = None,
-    use_biocontainers: Optional[bool] = None,
-    container_image_cache_path: Optional[str] = None,
-) -> Optional[str]:
+    default_container: str | None = None,
+    use_biocontainers: bool | None = None,
+    container_image_cache_path: str | None = None,
+) -> str | None:
     """Find a container."""
     if not default_container and use_biocontainers:
         from .software_requirements import get_container_from_software_requirements

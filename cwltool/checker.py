@@ -23,9 +23,9 @@ def _get_type(tp: Any) -> Any:
 def check_types(
     srctype: SinkType,
     sinktype: SinkType,
-    linkMerge: Optional[str],
-    valueFrom: Optional[str],
-) -> Union[Literal["pass"], Literal["warning"], Literal["exception"]]:
+    linkMerge: str | None,
+    valueFrom: str | None,
+) -> Literal["pass"] | Literal["warning"] | Literal["exception"]:
     """
     Check if the source and sink types are correct.
 
@@ -33,34 +33,40 @@ def check_types(
     """
     if valueFrom is not None:
         return "pass"
-    if linkMerge is None:
-        if can_assign_src_to_sink(srctype, sinktype, strict=True):
-            return "pass"
-        if can_assign_src_to_sink(srctype, sinktype, strict=False):
-            return "warning"
-        return "exception"
-    if linkMerge == "merge_nested":
-        return check_types(
-            {"items": _get_type(srctype), "type": "array"},
-            _get_type(sinktype),
-            None,
-            None,
-        )
-    if linkMerge == "merge_flattened":
-        return check_types(merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None)
-    raise WorkflowException(f"Unrecognized linkMerge enum {linkMerge!r}")
+    match linkMerge:
+        case None:
+            if can_assign_src_to_sink(srctype, sinktype, strict=True):
+                return "pass"
+            if can_assign_src_to_sink(srctype, sinktype, strict=False):
+                return "warning"
+            return "exception"
+        case "merge_nested":
+            return check_types(
+                {"items": _get_type(srctype), "type": "array"},
+                _get_type(sinktype),
+                None,
+                None,
+            )
+        case "merge_flattened":
+            return check_types(
+                merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None
+            )
+        case _:
+            raise WorkflowException(f"Unrecognized linkMerge enum {linkMerge!r}")
 
 
 def merge_flatten_type(src: SinkType) -> CWLOutputType:
     """Return the merge flattened type of the source type."""
-    if isinstance(src, MutableSequence):
-        return [merge_flatten_type(t) for t in src]
-    if isinstance(src, MutableMapping) and src.get("type") == "array":
-        return src
-    return {"items": src, "type": "array"}
+    match src:
+        case MutableSequence():
+            return [merge_flatten_type(t) for t in src]
+        case {"type": "array"}:
+            return src
+        case _:
+            return {"items": src, "type": "array"}
 
 
-def can_assign_src_to_sink(src: SinkType, sink: Optional[SinkType], strict: bool = False) -> bool:
+def can_assign_src_to_sink(src: SinkType, sink: SinkType | None, strict: bool = False) -> bool:
     """
     Check for identical type specifications, ignoring extra keys like inputBinding.
 
@@ -322,14 +328,14 @@ class _SrcSink(NamedTuple):
 
     src: CWLObjectType
     sink: CWLObjectType
-    linkMerge: Optional[str]
-    message: Optional[str]
+    linkMerge: str | None
+    message: str | None
 
 
 def _check_all_types(
     src_dict: dict[str, CWLObjectType],
     sinks: MutableSequence[CWLObjectType],
-    sourceField: Union[Literal["source"], Literal["outputSource"]],
+    sourceField: Literal["source"] | Literal["outputSource"],
     param_to_step: dict[str, CWLObjectType],
 ) -> dict[str, list[_SrcSink]]:
     """
@@ -350,7 +356,7 @@ def _check_all_types(
                 extra_message = "pickValue is: %s" % pickValue
 
             if isinstance(sink[sourceField], MutableSequence):
-                linkMerge: Optional[str] = cast(
+                linkMerge: str | None = cast(
                     Optional[str],
                     sink.get(
                         "linkMerge",
@@ -518,7 +524,7 @@ def is_conditional_step(param_to_step: dict[str, CWLObjectType], parm_id: str) -
 
 def is_all_output_method_loop_step(param_to_step: dict[str, CWLObjectType], parm_id: str) -> bool:
     """Check if a step contains a `loop` directive with `all_iterations` outputMethod."""
-    source_step: Optional[MutableMapping[str, Any]] = param_to_step.get(parm_id)
+    source_step: MutableMapping[str, Any] | None = param_to_step.get(parm_id)
     if source_step is not None:
         if (
             source_step.get("loop") is not None

@@ -7,7 +7,7 @@ from collections.abc import Generator, MutableMapping
 from importlib.resources import files
 from io import StringIO
 from pathlib import Path
-from typing import Any, Optional, cast
+from typing import Any, cast
 
 import pytest
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -306,8 +306,8 @@ basetool = CommentedMap(
 def mk_tool(
     schema: Names,
     opts: list[str],
-    reqs: Optional[list[CommentedMap]] = None,
-    hints: Optional[list[CommentedMap]] = None,
+    reqs: list[CommentedMap] | None = None,
+    hints: list[CommentedMap] | None = None,
 ) -> tuple[RuntimeContext, CommandLineTool]:
     tool = basetool.copy()
 

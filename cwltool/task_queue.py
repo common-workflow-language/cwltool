@@ -5,7 +5,8 @@
 
 import queue
 import threading
-from typing import Callable, Optional
+from collections.abc import Callable
+from typing import Union
 
 from .loghandler import _logger
 
@@ -36,12 +37,12 @@ class TaskQueue:
     def __init__(self, lock: threading.Lock, thread_count: int):
         """Create a new task queue using the specified lock and number of threads."""
         self.thread_count = thread_count
-        self.task_queue: queue.Queue[Optional[Callable[[], None]]] = queue.Queue(
+        self.task_queue: queue.Queue[Callable[[], None] | None] = queue.Queue(
             maxsize=self.thread_count
         )
         self.task_queue_threads = []
         self.lock = lock
-        self.error: Optional[BaseException] = None
+        self.error: BaseException | None = None
 
         for _r in range(0, self.thread_count):
             t = threading.Thread(target=self._task_queue_func)
@@ -65,8 +66,8 @@ class TaskQueue:
     def add(
         self,
         task: Callable[[], None],
-        unlock: Optional[threading.Condition] = None,
-        check_done: Optional[threading.Event] = None,
+        unlock: Union[threading.Condition, None] = None,
+        check_done: Union[threading.Event, None] = None,
     ) -> None:
         """
         Add your task to the queue.

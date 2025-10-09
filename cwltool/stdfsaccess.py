@@ -54,7 +54,7 @@ class StdFsAccess:
         """Return a list containing the absolute path URLs of the entries in the directory given by path."""
         return [abspath(urllib.parse.quote(entry), fn) for entry in os.listdir(self._abs(fn))]
 
-    def join(self, path, *paths):  # type: (str, *str) -> str
+    def join(self, path: str, *paths: str) -> str:
         """Join one or more path segments intelligently."""
         return os.path.join(path, *paths)
 
