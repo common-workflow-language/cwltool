@@ -1,13 +1,15 @@
 """Support for executing Docker format containers using Singularity {2,3}.x or Apptainer 1.x."""
 
+import json
 import logging
 import os
 import os.path
 import re
 import shutil
+import subprocess
 import sys
 from collections.abc import MutableMapping
-from subprocess import check_call, check_output  # nosec
+from subprocess import DEVNULL, check_call, check_output, run  # nosec
 from typing import Callable, Optional, cast
 
 from schema_salad.sourceline import SourceLine
@@ -144,6 +146,27 @@ def _normalize_sif_id(string: str) -> str:
         string += "_latest"
     return string.replace("/", "_") + ".sif"
 
+def _inspect_singularity_image(path: str) -> bool:
+    """Inspect singularity image to be sure it is not an empty directory."""
+    cmd = [
+        "singularity",
+        "inspect",
+        "--json",
+        path,
+    ]
+    try:
+        result = run(cmd, capture_output=True, text=True)
+    except Exception:
+        return False
+    
+    if result.returncode == 0:
+        try:
+            output = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return False
+        if output.get('data', {}).get('attributes', {}):
+            return True
+    return False
 
 class SingularityCommandLineJob(ContainerCommandLineJob):
     def __init__(
@@ -229,24 +252,40 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     )
                 found = True
         elif "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
-            match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
-            img_name = _normalize_image_id(dockerRequirement["dockerPull"])
-            candidates.append(img_name)
-            if is_version_3_or_newer():
-                sif_name = _normalize_sif_id(dockerRequirement["dockerPull"])
-                candidates.append(sif_name)
-                dockerRequirement["dockerImageId"] = sif_name
+            # looking for local singularity sandbox image and handle it as a local image
+            if os.path.isdir(dockerRequirement["dockerPull"]) and _inspect_singularity_image(dockerRequirement["dockerPull"]):
+                dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
+                _logger.info(
+                    "Using local Singularity sandbox image found in %s",
+                    dockerRequirement["dockerImageId"],
+                )
+                return True
             else:
-                dockerRequirement["dockerImageId"] = img_name
-            if not match:
-                dockerRequirement["dockerPull"] = "docker://" + dockerRequirement["dockerPull"]
+                match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
+                img_name = _normalize_image_id(dockerRequirement["dockerPull"])
+                candidates.append(img_name)
+                if is_version_3_or_newer():
+                    sif_name = _normalize_sif_id(dockerRequirement["dockerPull"])
+                    candidates.append(sif_name)
+                    dockerRequirement["dockerImageId"] = sif_name
+                else:
+                    dockerRequirement["dockerImageId"] = img_name
+                if not match:
+                    dockerRequirement["dockerPull"] = "docker://" + dockerRequirement["dockerPull"]
         elif "dockerImageId" in dockerRequirement:
             if os.path.isfile(dockerRequirement["dockerImageId"]):
                 found = True
-            candidates.append(dockerRequirement["dockerImageId"])
-            candidates.append(_normalize_image_id(dockerRequirement["dockerImageId"]))
-            if is_version_3_or_newer():
-                candidates.append(_normalize_sif_id(dockerRequirement["dockerImageId"]))
+                candidates.append(dockerRequirement["dockerImageId"])
+                candidates.append(_normalize_image_id(dockerRequirement["dockerImageId"]))
+                if is_version_3_or_newer():
+                    candidates.append(_normalize_sif_id(dockerRequirement["dockerImageId"]))
+            # handling local singularity sandbox image
+            elif os.path.isdir(dockerRequirement["dockerImageId"]) and _inspect_singularity_image(dockerRequirement["dockerImageId"]):
+                _logger.info(
+                    "Using local Singularity sandbox image found in %s",
+                    dockerRequirement["dockerImageId"],
+                )
+                return True
 
         targets = [os.getcwd()]
         if "CWL_SINGULARITY_CACHE" in os.environ:
