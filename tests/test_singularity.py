@@ -160,9 +160,11 @@ def test_singularity3_docker_image_id_in_tool(tmp_path: Path) -> None:
         )
         assert result_code1 == 0
 
+
 @needs_singularity
 def test_singularity_local_sandbox_image(tmp_path: Path):
     import subprocess
+
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
     with working_directory(workdir):
@@ -174,7 +176,7 @@ def test_singularity_local_sandbox_image(tmp_path: Path):
             "build",
             "--sandbox",
             container_path / "alpine",
-            "docker://alpine:latest"
+            "docker://alpine:latest",
         ]
         build = subprocess.run(cmd, capture_output=True, text=True)
         if build.returncode == 0:
