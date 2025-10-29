@@ -2,16 +2,6 @@
 requires = [
     "setuptools>=45",
     "setuptools_scm[toml]>=8.0.4,<10",
-    "mypy==1.18.2",  # also update mypy-requirements.txt
-    "types-requests",
-    "types-psutil",
-    "ruamel.yaml>=0.16.0,<0.19",
-    "schema-salad>=8.9,<9",
-    "cwl-utils>=0.32",
-    "toml",
-    "argcomplete>=1.12.0",
-    "rich-argparse",
-    "pydot >= 1.4.1"
 ]
 build-backend = "setuptools.build_meta"
 
