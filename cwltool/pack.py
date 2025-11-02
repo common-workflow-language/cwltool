@@ -123,7 +123,7 @@ def pack(
     document_loader = SubLoader(loader or loadingContext.loader or Loader({}))
     loadingContext.do_update = False
     loadingContext.loader = document_loader
-    loadingContext.loader.idx = {}
+    loadingContext.loader.idx.clear()
     loadingContext.metadata = {}
     loadingContext, docobj, uri = fetch_document(uri, loadingContext)
     loadingContext, fileuri = resolve_and_validate_document(
