@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
 
 from mypy_extensions import mypyc_attr
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad.avro.schema import Schema
+from schema_salad.avro.schema import RecordSchema
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
@@ -1257,7 +1257,17 @@ class CommandLineTool(Process):
 
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
-            expected_schema = cast(Schema, self.names.get_name("outputs_record_schema", None))
+            expected_schema = cast(RecordSchema, self.names.get_name("outputs_record_schema", None))
+            for k in list(ret.keys()):
+                found = False
+                for field in expected_schema.fields:
+                    if k == field.name:
+                        found = True
+                        break
+                if not found:
+                    if _logger.isEnabledFor(logging.WARNING):
+                        _logger.warning(f"DIscarded undeclared `{k}` output from {custom_output}")
+                    ret.pop(k)
             validate_ex(
                 expected_schema,
                 ret,
