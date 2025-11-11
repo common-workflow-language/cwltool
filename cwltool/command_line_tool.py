@@ -1258,7 +1258,7 @@ class CommandLineTool(Process):
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
             expected_schema = cast(RecordSchema, self.names.get_name("outputs_record_schema", None))
-            for k in ret:
+            for k in list(ret.keys()):  # so we don't edit the loops iterable later
                 found = False
                 for field in expected_schema.fields:
                     if k == field.name:
