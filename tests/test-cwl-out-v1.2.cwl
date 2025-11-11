@@ -8,7 +8,7 @@ baseCommand: sh
 arguments:
    - -c
    - |
-     echo foo > foo && echo '{"foo": {"location": "foo", "class": "File"} }'
+     echo '{"foo": 5 }'
 
 stdout: cwl.output.json
 
