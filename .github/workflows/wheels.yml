@@ -86,8 +86,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # macos-13 is an intel runner, macos-14 is apple silicon
-        os: [macos-13, macos-14]
+        # macos-15-intel is an intel runner, macos-14 is apple silicon
+        os: [macos-15-intel, macos-14, macos-15]
     steps:
       - uses: actions/checkout@v5
         if: ${{ github.event_name != 'repository_dispatch' }}
