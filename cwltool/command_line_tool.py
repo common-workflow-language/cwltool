@@ -1258,17 +1258,20 @@ class CommandLineTool(Process):
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
             expected_schema = cast(RecordSchema, self.names.get_name("outputs_record_schema", None))
-            for k in list(ret.keys()):  # so we don't edit the loops iterable later
-                found = False
-                for field in expected_schema.fields:
-                    if k == field.name:
-                        found = True
-                        break
-                if not found:
-                    _logger.warning(
-                        f"Discarded undeclared output named {k!r} from {custom_output}."
-                    )
-                    ret.pop(k)
+            if ORDERED_VERSIONS.index(cast(str, cwl_version)) >= ORDERED_VERSIONS.index(
+                "v1.3.0-dev1"
+            ):
+                for k in list(ret):
+                    found = False
+                    for field in expected_schema.fields:
+                        if k == field.name:
+                            found = True
+                            break
+                    if not found:
+                        _logger.warning(
+                            f"Discarded undeclared output named {k!r} from {custom_output}."
+                        )
+                        ret.pop(k)
             validate_ex(
                 expected_schema,
                 ret,
