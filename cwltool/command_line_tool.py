@@ -1265,8 +1265,9 @@ class CommandLineTool(Process):
                         found = True
                         break
                 if not found:
-                    if _logger.isEnabledFor(logging.WARNING):
-                        _logger.warning(f"DIscarded undeclared `{k}` output from {custom_output}")
+                    _logger.warning(
+                        f"Discarded undeclared output named {k!r} from {custom_output}."
+                    )
                     ret.pop(k)
             validate_ex(
                 expected_schema,
