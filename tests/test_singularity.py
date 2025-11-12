@@ -3,9 +3,9 @@
 import json
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
-from collections.abc import Callable
 
 import pytest
 from mypy_extensions import KwArg, VarArg
