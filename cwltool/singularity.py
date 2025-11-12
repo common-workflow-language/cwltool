@@ -11,6 +11,7 @@ from collections.abc import Callable, MutableMapping
 from subprocess import check_call, check_output, run  # nosec
 from typing import cast
 
+from mypy_extensions import mypyc_attr
 from schema_salad.sourceline import SourceLine
 from spython.main import Client
 from spython.main.parse.parsers.docker import DockerParser
@@ -146,6 +147,7 @@ def _normalize_sif_id(string: str) -> str:
     return string.replace("/", "_") + ".sif"
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 def _inspect_singularity_image(path: str) -> bool:
     """Inspect singularity image to be sure it is not an empty directory."""
     cmd = [
