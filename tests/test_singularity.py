@@ -205,7 +205,7 @@ def test_singularity_local_sandbox_image(tmp_path: Path):
         else:
             pytest.skip(f"Failed to build the singularity image: {build.stderr}")
 
-    
+
 @needs_singularity
 def test_singularity_inspect_image(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Test inspect a real image works."""
@@ -231,9 +231,11 @@ def test_singularity_inspect_image(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     else:
         pytest.skip(f"singularity sandbox image build didn't worked: {build.stderr}")
 
+
 def _make_run_result(returncode: int, stdout: str):
     """Mock subprocess.run returning returncode and stdout."""
-    class DummyResult:
+
+    class DummyResult:  # noqa: B903
         def __init__(self, rc, out):
             self.returncode = rc
             self.stdout = out
@@ -242,6 +244,7 @@ def _make_run_result(returncode: int, stdout: str):
         return DummyResult(returncode, stdout)
 
     return _runner
+
 
 def test_json_decode_error_branch(monkeypatch):
     """Test json can't decode inspect result."""
@@ -255,16 +258,19 @@ def test_json_decode_error_branch(monkeypatch):
 
     assert _inspect_singularity_image("/tmp/image") is False
 
+
 def test_singularity_sandbox_image_not_exists():
     image_path = "/tmp/not_existing/image"
     res_inspect = _inspect_singularity_image(image_path)
     assert res_inspect is False
+
 
 def test_singularity_sandbox_not_an_image(tmp_path: Path):
     image_path = tmp_path / "image"
     image_path.mkdir()
     res_inspect = _inspect_singularity_image(str(image_path))
     assert res_inspect is False
+
 
 def test_inspect_image_wrong_sb_call(monkeypatch: pytest.MonkeyPatch):
 
