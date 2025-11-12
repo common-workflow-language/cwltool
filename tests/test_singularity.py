@@ -4,8 +4,11 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
+from collections.abc import Callable
 
 import pytest
+from mypy_extensions import KwArg, VarArg
 
 from cwltool.main import main
 from cwltool.singularity import _inspect_singularity_image
@@ -165,7 +168,7 @@ def test_singularity3_docker_image_id_in_tool(tmp_path: Path) -> None:
 
 
 @needs_singularity
-def test_singularity_local_sandbox_image(tmp_path: Path):
+def test_singularity_local_sandbox_image(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
     with working_directory(workdir):
@@ -207,7 +210,7 @@ def test_singularity_local_sandbox_image(tmp_path: Path):
 
 
 @needs_singularity
-def test_singularity_inspect_image(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_singularity_inspect_image(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test inspect a real image works."""
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
@@ -232,25 +235,28 @@ def test_singularity_inspect_image(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         pytest.skip(f"singularity sandbox image build didn't worked: {build.stderr}")
 
 
-def _make_run_result(returncode: int, stdout: str):
+class _DummyResult:  # noqa: B903
+    def __init__(self, rc: int, out: str) -> None:
+        self.returncode = rc
+        self.stdout = out
+
+
+def _make_run_result(
+    returncode: int, stdout: str
+) -> Callable[[VarArg(Any), KwArg(Any)], _DummyResult]:
     """Mock subprocess.run returning returncode and stdout."""
 
-    class DummyResult:  # noqa: B903
-        def __init__(self, rc, out):
-            self.returncode = rc
-            self.stdout = out
-
-    def _runner(*args, **kwargs):
-        return DummyResult(returncode, stdout)
+    def _runner(*args: Any, **kwargs: Any) -> _DummyResult:
+        return _DummyResult(returncode, stdout)
 
     return _runner
 
 
-def test_json_decode_error_branch(monkeypatch):
+def test_json_decode_error_branch(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test json can't decode inspect result."""
     monkeypatch.setattr("cwltool.singularity.run", _make_run_result(0, "not-a-json"))
 
-    def _raise_json_error(s):
+    def _raise_json_error(s: str) -> None:
         # construct and raise an actual JSONDecodeError
         raise json.JSONDecodeError("Expecting value", s, 0)
 
@@ -259,22 +265,22 @@ def test_json_decode_error_branch(monkeypatch):
     assert _inspect_singularity_image("/tmp/image") is False
 
 
-def test_singularity_sandbox_image_not_exists():
+def test_singularity_sandbox_image_not_exists() -> None:
     image_path = "/tmp/not_existing/image"
     res_inspect = _inspect_singularity_image(image_path)
     assert res_inspect is False
 
 
-def test_singularity_sandbox_not_an_image(tmp_path: Path):
+def test_singularity_sandbox_not_an_image(tmp_path: Path) -> None:
     image_path = tmp_path / "image"
     image_path.mkdir()
     res_inspect = _inspect_singularity_image(str(image_path))
     assert res_inspect is False
 
 
-def test_inspect_image_wrong_sb_call(monkeypatch: pytest.MonkeyPatch):
+def test_inspect_image_wrong_sb_call(monkeypatch: pytest.MonkeyPatch) -> None:
 
-    def mock_failed_subprocess(*args, **kwargs):
+    def mock_failed_subprocess(*args: Any, **kwargs: Any) -> None:
         raise subprocess.CalledProcessError(returncode=1, cmd=args[0])
 
     monkeypatch.setattr("cwltool.singularity.run", mock_failed_subprocess)
