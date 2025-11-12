@@ -286,7 +286,9 @@ def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch, tmp_path:
 
 
 @needs_singularity
-def test_singularity_get_image_from_sandbox(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_singularity_get_image_from_sandbox(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Test that SingularityCommandLineJob.get_image correctly handle sandbox image."""
 
     (tmp_path / "out").mkdir(exist_ok=True)
