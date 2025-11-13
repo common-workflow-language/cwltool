@@ -1,5 +1,6 @@
 """Support for executing Docker format containers using Singularity {2,3}.x or Apptainer 1.x."""
 
+import json
 import logging
 import os
 import os.path
@@ -7,9 +8,10 @@ import re
 import shutil
 import sys
 from collections.abc import Callable, MutableMapping
-from subprocess import check_call, check_output  # nosec
+from subprocess import check_call, check_output, run  # nosec
 from typing import cast
 
+from mypy_extensions import mypyc_attr
 from schema_salad.sourceline import SourceLine
 from spython.main import Client
 from spython.main.parse.parsers.docker import DockerParser
@@ -145,6 +147,30 @@ def _normalize_sif_id(string: str) -> str:
     return string.replace("/", "_") + ".sif"
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
+def _inspect_singularity_image(path: str) -> bool:
+    """Inspect singularity image to be sure it is not an empty directory."""
+    cmd = [
+        "singularity",
+        "inspect",
+        "--json",
+        path,
+    ]
+    try:
+        result = run(cmd, capture_output=True, text=True)  # nosec
+    except Exception:
+        return False
+
+    if result.returncode == 0:
+        try:
+            output = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return False
+        if output.get("data", {}).get("attributes", {}):
+            return True
+    return False
+
+
 class SingularityCommandLineJob(ContainerCommandLineJob):
     def __init__(
         self,
@@ -229,6 +255,16 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     )
                 found = True
         elif "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
+            # looking for local singularity sandbox image and handle it as a local image
+            if os.path.isdir(dockerRequirement["dockerPull"]) and _inspect_singularity_image(
+                dockerRequirement["dockerPull"]
+            ):
+                dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
+                _logger.info(
+                    "Using local Singularity sandbox image found in %s",
+                    dockerRequirement["dockerImageId"],
+                )
+                return True
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
             img_name = _normalize_image_id(dockerRequirement["dockerPull"])
             candidates.append(img_name)
@@ -243,6 +279,15 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         elif "dockerImageId" in dockerRequirement:
             if os.path.isfile(dockerRequirement["dockerImageId"]):
                 found = True
+            # handling local singularity sandbox image
+            elif os.path.isdir(dockerRequirement["dockerImageId"]) and _inspect_singularity_image(
+                dockerRequirement["dockerImageId"]
+            ):
+                _logger.info(
+                    "Using local Singularity sandbox image found in %s",
+                    dockerRequirement["dockerImageId"],
+                )
+                return True
             candidates.append(dockerRequirement["dockerImageId"])
             candidates.append(_normalize_image_id(dockerRequirement["dockerImageId"]))
             if is_version_3_or_newer():
