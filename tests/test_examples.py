@@ -1841,3 +1841,17 @@ def test_make_template() -> None:
         ]
     )
     assert exit_code == 0, stderr
+
+
+@pytest.mark.parametrize(
+    "file", ["tests/wf/bad_resreq_mnmx_clt.cwl", "tests/wf/bad_resreq_mnmx_wf.cwl"]
+)
+def test_invalid_resource_requirements(file):
+    """Ensure an error with an invalid resource requirement."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            get_data(file),
+        ]
+    )
+    assert exit_code == 1
+    assert "cannot be greater than" in stderr

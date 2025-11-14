@@ -39,6 +39,7 @@ from .builder import (
     content_limit_respected_read_bytes,
     substitute,
 )
+from .checker import resreq_minmax_checker
 from .context import LoadingContext, RuntimeContext, getdefault
 from .docker import DockerCommandLineJob, PodmanCommandLineJob
 from .errors import UnsupportedRequirement, WorkflowException
@@ -409,6 +410,10 @@ class CommandLineTool(Process):
             if loadingContext.relax_path_checks
             else PathCheckingMode.STRICT
         )
+
+        resource_req = self.get_requirement("ResourceRequirement")[0]
+        if getdefault(loadingContext.do_validate, True) and resource_req:
+            resreq_minmax_checker(resource_req)
 
     def make_job_runner(self, runtimeContext: RuntimeContext) -> type[JobBase]:
         """Return the correct CommandLineJob class given the container settings."""

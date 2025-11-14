@@ -1028,6 +1028,8 @@ hints:
                 mx = mn
 
             if mn is not None:
+                if mx < mn:
+                    raise ValidationException(f"{a}Min cannot be greater than {a}Max.")
                 request[a + "Min"] = mn
                 request[a + "Max"] = cast(Union[int, float], mx)
 
