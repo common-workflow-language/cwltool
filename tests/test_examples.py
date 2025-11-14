@@ -1846,7 +1846,7 @@ def test_make_template() -> None:
 @pytest.mark.parametrize(
     "file", ["tests/wf/bad_resreq_mnmx_clt.cwl", "tests/wf/bad_resreq_mnmx_wf.cwl"]
 )
-def test_invalid_resource_requirements(file):
+def test_invalid_resource_requirements(file: str) -> None:
     """Ensure an error with an invalid resource requirement."""
     exit_code, stdout, stderr = get_main_output(
         [

@@ -3,6 +3,7 @@
 import io
 import logging
 import re
+
 import pytest
 
 from .util import get_data, get_main_output
@@ -131,7 +132,7 @@ def test_validate_custom_logger() -> None:
 @pytest.mark.parametrize(
     "file", ["tests/wf/bad_resreq_mnmx_clt.cwl", "tests/wf/bad_resreq_mnmx_wf.cwl"]
 )
-def test_validate_with_invalid_requirements(file) -> None:
+def test_validate_with_invalid_requirements(file: str) -> None:
     """Ensure that --validate returns an error with an invalid resource requirement."""
     exit_code, stdout, stderr = get_main_output(
         [

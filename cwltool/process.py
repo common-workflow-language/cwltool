@@ -1027,11 +1027,11 @@ hints:
             elif mx is None:
                 mx = mn
 
-            if mn is not None:
+            if mn is not None and mx is not None:
                 if mx < mn:
                     raise ValidationException(f"{a}Min cannot be greater than {a}Max.")
                 request[a + "Min"] = mn
-                request[a + "Max"] = cast(Union[int, float], mx)
+                request[a + "Max"] = mx
 
         request_evaluated = cast(dict[str, Union[int, float]], request)
         if runtimeContext.select_resources is not None:

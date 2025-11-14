@@ -559,14 +559,14 @@ def loop_checker(steps: Iterator[MutableMapping[str, Any]]) -> None:
         raise ValidationException("\n".join(exceptions))
 
 
-def resreq_minmax_checker(requirement: CWLObjectType):
+def resreq_minmax_checker(requirement: CWLObjectType) -> None:
     """
     Check if the minResource is lesser than the maxResource in resource requirements.
 
     :raises ValidationException: If the minResource is greater than the maxResource.
     """
     for a in ("cores", "ram", "tmpdir", "outdir"):
-        mn: int | float | None = requirement.get(a + "Min")
-        mx: int | float | None = requirement.get(a + "Max")
+        mn: int | float | None = cast(Union[int, float], requirement.get(a + "Min"))
+        mx: int | float | None = cast(Union[int, float], requirement.get(a + "Max"))
         if mn is not None and mx is not None and mx < mn:
             raise ValidationException(f"{a}Min cannot be greater than {a}Max.")
