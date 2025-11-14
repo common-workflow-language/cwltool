@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
 
 from mypy_extensions import mypyc_attr
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
-from schema_salad.avro.schema import Schema
+from schema_salad.avro.schema import RecordSchema
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import file_uri, uri_file_path
 from schema_salad.sourceline import SourceLine
@@ -1221,6 +1221,7 @@ class CommandLineTool(Process):
         if cwl_version != "v1.0":
             builder.resources["exitCode"] = rcode
         try:
+            expected_schema = cast(RecordSchema, self.names.get_name("outputs_record_schema", None))
             fs_access = builder.make_fs_access(outdir)
             custom_output = fs_access.join(outdir, "cwl.output.json")
             if fs_access.exists(custom_output):
@@ -1232,6 +1233,20 @@ class CommandLineTool(Process):
                         custom_output,
                         json_dumps(ret, indent=4),
                     )
+                if ORDERED_VERSIONS.index(cast(str, cwl_version)) >= ORDERED_VERSIONS.index(
+                    "v1.3.0-dev1"
+                ):
+                    for k in list(ret):
+                        found = False
+                        for field in expected_schema.fields:
+                            if k == field.name:
+                                found = True
+                                break
+                        if not found:
+                            _logger.warning(
+                                f"Discarded undeclared output named {k!r} from {custom_output}."
+                            )
+                            ret.pop(k)
             else:
                 for i, port in enumerate(ports):
                     with SourceLine(
@@ -1262,7 +1277,6 @@ class CommandLineTool(Process):
 
                 if compute_checksum:
                     adjustFileObjs(ret, partial(compute_checksums, fs_access))
-            expected_schema = cast(Schema, self.names.get_name("outputs_record_schema", None))
             validate_ex(
                 expected_schema,
                 ret,
