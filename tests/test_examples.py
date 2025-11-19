@@ -1850,6 +1850,7 @@ def test_invalid_resource_requirements(file: str) -> None:
     """Ensure an error with an invalid resource requirement."""
     exit_code, stdout, stderr = get_main_output(
         [
+            "--disable-validate",
             get_data(file),
         ]
     )
