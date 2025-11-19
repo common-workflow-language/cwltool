@@ -1,35 +1,25 @@
 #!/usr/bin/env cwl-runner
-
-cwlVersion: v1.0
 class: Workflow
-inputs:
-  inp: File
-  ex: string
+cwlVersion: v1.2
 
 requirements:
   ResourceRequirement:
       ramMin: 128
       ramMax: 64
 
-outputs:
-  classout:
-    type: File
-    outputSource: argument/classfile
+inputs: []
+outputs: []
 
 steps:
-  untar:
-    run: tar-param.cwl
-    in:
-      tarfile: inp
-      extractfile: ex
-    out: [example_out]
+  hello_world:
     requirements:
       ResourceRequirement:
-          ramMin: 64
-          ramMax: 128
-
-  argument:
-    run: arguments.cwl
-    in:
-      src: untar/example_out
-    out: [classfile]
+        ramMin: 64
+        ramMax: 128
+    run:
+        class: CommandLineTool
+        baseCommand: [ "echo", "Hello World" ]
+        inputs: [ ]
+        outputs: [ ]
+    out: [ ]
+    in: [ ]

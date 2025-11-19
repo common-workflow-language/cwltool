@@ -8,13 +8,7 @@ requirements:
       coresMax: 2
 
 inputs: []
+outputs: []
 
-outputs:
-  output:
-    type: stdout
+baseCommand: ["echo", "Hello World"]
 
-baseCommand: echo
-
-stdout: cores.txt
-
-arguments: [ $(runtime.cores) ]
