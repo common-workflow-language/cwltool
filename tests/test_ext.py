@@ -285,3 +285,10 @@ def test_ext_validation_no_namespace_warning() -> None:
         "URI prefix 'cwltool' of 'cwltool:loop' not recognized, are you "
         "missing a $namespaces section?"
     ) not in stderr
+
+
+def test_ext_in_dollarsign_graph() -> None:
+    error_code, stdout, stderr = get_main_output(
+        ["--validate", "--enable-ext", get_data("tests/wf/hello_gpu.cwl")]
+    )
+    assert error_code == 0
