@@ -627,6 +627,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         pull_image: bool,
         force_pull: bool,
         tmp_outdir_prefix: str,
+        image_base_path: str | None = None,
     ) -> str | None:
         pass
 
@@ -788,6 +789,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                             runtimeContext.pull_image,
                             runtimeContext.force_docker_pull,
                             runtimeContext.tmp_outdir_prefix,
+                            runtimeContext.image_base_path,
                         )
                     )
                 if img_id is None:
