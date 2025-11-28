@@ -1,6 +1,7 @@
 """Tests to find local Singularity image."""
 
 import json
+import os
 import shutil
 import subprocess
 from collections.abc import Callable
@@ -69,7 +70,7 @@ def test_singularity_workflow(tmp_path: Path) -> None:
 def test_singularity_iwdr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     singularity_dir = tmp_path / "singularity"
     singularity_dir.mkdir()
-    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
+    monkeypatch.setenv("CWL_SINGULARITY_IMAGES", str(singularity_dir))
     result_code = main(
         [
             "--singularity",
@@ -171,21 +172,21 @@ def test_singularity3_docker_image_id_in_tool(tmp_path: Path) -> None:
 def test_singularity_local_sandbox_image(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
-    with working_directory(workdir):
-        # build a sandbox image
-        container_path = workdir / "container_repo"
-        container_path.mkdir()
-        cmd = [
-            "singularity",
-            "build",
-            "--sandbox",
-            str(container_path / "alpine"),
-            "docker://alpine:latest",
-        ]
-
-        build = subprocess.run(cmd, capture_output=True, text=True)
-        if build.returncode == 0:
-            result_code, stdout, stderr = get_main_output(
+    # build a sandbox image
+    container_path = workdir / "container_repo"
+    container_path.mkdir()
+    cmd = [
+        "singularity",
+        "build",
+        "--sandbox",
+        str(container_path / "alpine"),
+        "docker://alpine:latest",
+    ]
+    build = subprocess.run(cmd, capture_output=True, text=True)
+    if build.returncode == 0:
+        # test that we can work in sub directories
+        with working_directory(workdir):
+            result_code, _, _ = get_main_output(
                 [
                     "--singularity",
                     "--disable-pull",
@@ -195,7 +196,7 @@ def test_singularity_local_sandbox_image(tmp_path: Path) -> None:
                 ]
             )
             assert result_code == 0
-            result_code, stdout, stderr = get_main_output(
+            result_code, _, _ = get_main_output(
                 [
                     "--singularity",
                     "--disable-pull",
@@ -205,8 +206,34 @@ def test_singularity_local_sandbox_image(tmp_path: Path) -> None:
                 ]
             )
             assert result_code == 0
-        else:
-            pytest.skip(f"Failed to build the singularity image: {build.stderr}")
+        # test with --singularity-sandbox-path option:
+        result_code, out, err = get_main_output(
+            [
+                "--singularity",
+                "--disable-pull",
+                "--singularity-sandbox-path",
+                f"{workdir}",
+                get_data("tests/sing_local_sandbox_test.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
+        assert result_code == 0
+
+        # test with CWL_SINGULARITY_IMAGES env variable set:
+        os.environ["CWL_SINGULARITY_IMAGES"] = str(workdir)
+        result_code, _, _ = get_main_output(
+            [
+                "--singularity",
+                "--disable-pull",
+                get_data("tests/sing_local_sandbox_test.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
+        assert result_code == 0
+    else:
+        pytest.skip(f"Failed to build the singularity image: {build.stderr}")
 
 
 @needs_singularity
