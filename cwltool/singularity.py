@@ -1,11 +1,13 @@
 """Support for executing Docker format containers using Singularity {2,3}.x or Apptainer 1.x."""
 
+import copy
 import logging
 import os
 import os.path
 import re
 import shutil
 import sys
+import threading
 from collections.abc import Callable, MutableMapping
 from subprocess import check_call, check_output  # nosec
 from typing import cast
@@ -33,6 +35,10 @@ _SINGULARITY_VERSION: list[int] | None = None
 # Cached flavor / distribution of singularity
 # Can be singularity, singularity-ce or apptainer
 _SINGULARITY_FLAVOR: str = ""
+
+
+_IMAGES: dict[str, str] = {}
+_IMAGES_LOCK = threading.Lock()
 
 
 def get_version() -> tuple[list[int], str]:
@@ -180,18 +186,26 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         cache_folder = None
         debug = _logger.isEnabledFor(logging.DEBUG)
 
+        with _IMAGES_LOCK:
+            if "dockerImageId" in dockerRequirement:
+                if (d_image_id := dockerRequirement["dockerImageId"]) in _IMAGES:
+                    if (resolved_image_id := _IMAGES[d_image_id]) != d_image_id:
+                        dockerRequirement["dockerImage_id"] = resolved_image_id
+                    return True
+
+        docker_req = copy.deepcopy(dockerRequirement)  # thread safety
         if "CWL_SINGULARITY_CACHE" in os.environ:
             cache_folder = os.environ["CWL_SINGULARITY_CACHE"]
         elif is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
             cache_folder = os.environ["SINGULARITY_PULLFOLDER"]
 
-        if "dockerFile" in dockerRequirement:
+        if "dockerFile" in docker_req:
             if cache_folder is None:  # if environment variables were not set
                 cache_folder = create_tmp_dir(tmp_outdir_prefix)
 
             absolute_path = os.path.abspath(cache_folder)
-            if "dockerImageId" in dockerRequirement:
-                image_name = dockerRequirement["dockerImageId"]
+            if "dockerImageId" in docker_req:
+                image_name = docker_req["dockerImageId"]
                 image_path = os.path.join(absolute_path, image_name)
                 if os.path.exists(image_path):
                     found = True
@@ -204,7 +218,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 # FATAL:   Unable to create build: 'noexec' mount option set on
                 #          /tmp, temporary root filesystem won't be usable at this location
                 with open(dockerfile_path, "w") as dfile:
-                    dfile.write(dockerRequirement["dockerFile"])
+                    dfile.write(docker_req["dockerFile"])
 
                 singularityfile = SingularityWriter(DockerParser(dockerfile_path).parse()).convert()
                 with open(singularityfile_path, "w") as file:
@@ -212,11 +226,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
                 os.environ["APPTAINER_TMPDIR"] = absolute_path
                 singularity_options = ["--fakeroot"] if not shutil.which("proot") else []
-                if "dockerImageId" in dockerRequirement:
+                if "dockerImageId" in docker_req:
                     Client.build(
                         recipe=singularityfile_path,
                         build_folder=absolute_path,
-                        image=dockerRequirement["dockerImageId"],
+                        image=docker_req["dockerImageId"],
                         sudo=False,
                         options=singularity_options,
                     )
@@ -228,25 +242,25 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                         options=singularity_options,
                     )
                 found = True
-        elif "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
-            match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
-            img_name = _normalize_image_id(dockerRequirement["dockerPull"])
+        elif "dockerImageId" not in docker_req and "dockerPull" in docker_req:
+            match = re.search(pattern=r"([a-z]*://)", string=docker_req["dockerPull"])
+            img_name = _normalize_image_id(docker_req["dockerPull"])
             candidates.append(img_name)
             if is_version_3_or_newer():
-                sif_name = _normalize_sif_id(dockerRequirement["dockerPull"])
+                sif_name = _normalize_sif_id(docker_req["dockerPull"])
                 candidates.append(sif_name)
-                dockerRequirement["dockerImageId"] = sif_name
+                docker_req["dockerImageId"] = sif_name
             else:
-                dockerRequirement["dockerImageId"] = img_name
+                docker_req["dockerImageId"] = img_name
             if not match:
-                dockerRequirement["dockerPull"] = "docker://" + dockerRequirement["dockerPull"]
-        elif "dockerImageId" in dockerRequirement:
-            if os.path.isfile(dockerRequirement["dockerImageId"]):
+                docker_req["dockerPull"] = "docker://" + docker_req["dockerPull"]
+        elif "dockerImageId" in docker_req:
+            if os.path.isfile(docker_req["dockerImageId"]):
                 found = True
-            candidates.append(dockerRequirement["dockerImageId"])
-            candidates.append(_normalize_image_id(dockerRequirement["dockerImageId"]))
+            candidates.append(docker_req["dockerImageId"])
+            candidates.append(_normalize_image_id(docker_req["dockerImageId"]))
             if is_version_3_or_newer():
-                candidates.append(_normalize_sif_id(dockerRequirement["dockerImageId"]))
+                candidates.append(_normalize_sif_id(docker_req["dockerImageId"]))
 
         targets = [os.getcwd()]
         if "CWL_SINGULARITY_CACHE" in os.environ:
@@ -263,11 +277,11 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                                 "Using local copy of Singularity image found in %s",
                                 dirpath,
                             )
-                            dockerRequirement["dockerImageId"] = path
+                            docker_req["dockerImageId"] = path
                             found = True
         if (force_pull or not found) and pull_image:
             cmd: list[str] = []
-            if "dockerPull" in dockerRequirement:
+            if "dockerPull" in docker_req:
                 if cache_folder:
                     env = os.environ.copy()
                     if is_version_2_6():
@@ -277,8 +291,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                             "pull",
                             "--force",
                             "--name",
-                            dockerRequirement["dockerImageId"],
-                            str(dockerRequirement["dockerPull"]),
+                            docker_req["dockerImageId"],
+                            str(docker_req["dockerPull"]),
                         ]
                     else:
                         cmd = [
@@ -286,14 +300,14 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                             "pull",
                             "--force",
                             "--name",
-                            "{}/{}".format(cache_folder, dockerRequirement["dockerImageId"]),
-                            str(dockerRequirement["dockerPull"]),
+                            "{}/{}".format(cache_folder, docker_req["dockerImageId"]),
+                            str(docker_req["dockerPull"]),
                         ]
 
                     _logger.info(str(cmd))
                     check_call(cmd, env=env, stdout=sys.stderr)  # nosec
-                    dockerRequirement["dockerImageId"] = "{}/{}".format(
-                        cache_folder, dockerRequirement["dockerImageId"]
+                    docker_req["dockerImageId"] = "{}/{}".format(
+                        cache_folder, docker_req["dockerImageId"]
                     )
                     found = True
                 else:
@@ -302,44 +316,47 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                         "pull",
                         "--force",
                         "--name",
-                        str(dockerRequirement["dockerImageId"]),
-                        str(dockerRequirement["dockerPull"]),
+                        str(docker_req["dockerImageId"]),
+                        str(docker_req["dockerPull"]),
                     ]
                     _logger.info(str(cmd))
                     check_call(cmd, stdout=sys.stderr)  # nosec
                     found = True
 
-            elif "dockerLoad" in dockerRequirement:
+            elif "dockerLoad" in docker_req:
                 if is_version_3_1_or_newer():
-                    if "dockerImageId" in dockerRequirement:
-                        name = "{}.sif".format(dockerRequirement["dockerImageId"])
+                    if "dockerImageId" in docker_req:
+                        name = "{}.sif".format(docker_req["dockerImageId"])
                     else:
-                        name = "{}.sif".format(dockerRequirement["dockerLoad"])
+                        name = "{}.sif".format(docker_req["dockerLoad"])
                     cmd = [
                         "singularity",
                         "build",
                         name,
-                        "docker-archive://{}".format(dockerRequirement["dockerLoad"]),
+                        "docker-archive://{}".format(docker_req["dockerLoad"]),
                     ]
                     _logger.info(str(cmd))
                     check_call(cmd, stdout=sys.stderr)  # nosec
                     found = True
-                    dockerRequirement["dockerImageId"] = name
+                    docker_req["dockerImageId"] = name
                 else:
-                    raise SourceLine(
-                        dockerRequirement, "dockerLoad", WorkflowException, debug
-                    ).makeError(
+                    raise SourceLine(docker_req, "dockerLoad", WorkflowException, debug).makeError(
                         "dockerLoad is not currently supported when using the "
                         "Singularity runtime (version less than 3.1) for Docker containers."
                     )
-            elif "dockerImport" in dockerRequirement:
-                raise SourceLine(
-                    dockerRequirement, "dockerImport", WorkflowException, debug
-                ).makeError(
+            elif "dockerImport" in docker_req:
+                raise SourceLine(docker_req, "dockerImport", WorkflowException, debug).makeError(
                     "dockerImport is not currently supported when using the "
                     "Singularity runtime for Docker containers."
                 )
-
+        if found:
+            with _IMAGES_LOCK:
+                if "dockerImageId" in dockerRequirement:
+                    _IMAGES[dockerRequirement["dockerImageId"]] = docker_req["dockerImageId"]
+                dockerRequirement.clear()
+                dockerRequirement |= docker_req
+                if "dockerImageId" in docker_req:
+                    _IMAGES[docker_req["dockerImageId"]] = docker_req["dockerImageId"]
         return found
 
     def get_from_requirements(
