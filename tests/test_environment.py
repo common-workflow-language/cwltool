@@ -129,7 +129,6 @@ class Singularity(CheckHolder):
             "LD_LIBRARY_PATH": None,
             "PATH": None,
             "PS1": None,
-            "PWD": PWD,
             "TMPDIR": "/tmp",
         }
 
@@ -142,6 +141,8 @@ class Singularity(CheckHolder):
         }
         if version < Version("3.5"):
             sing_vars["SINGULARITY_APPNAME"] = None
+        if version < Version("4.3"):
+            sing_vars["PWD"] = PWD
         if (version >= Version("3.5")) and (version < Version("3.6")):
             sing_vars["SINGULARITY_INIT"] = "1"
         if version >= Version("3.5"):
