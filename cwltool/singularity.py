@@ -1,6 +1,7 @@
 """Support for executing Docker format containers using Singularity {2,3}.x or Apptainer 1.x."""
 
 import copy
+import hashlib
 import logging
 import os
 import os.path
@@ -13,6 +14,7 @@ from subprocess import check_call, check_output  # nosec
 from typing import cast
 
 from schema_salad.sourceline import SourceLine
+from schema_salad.utils import json_dumps
 from spython.main import Client
 from spython.main.parse.parsers.docker import DockerParser
 from spython.main.parse.writers.singularity import SingularityWriter
@@ -206,41 +208,46 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             absolute_path = os.path.abspath(cache_folder)
             if "dockerImageId" in docker_req:
                 image_name = docker_req["dockerImageId"]
-                image_path = os.path.join(absolute_path, image_name)
-                if os.path.exists(image_path):
-                    found = True
+            else:
+                image_name = hashlib.md5(  # nosec
+                    json_dumps(dockerRequirement, separators=(",", ":"), sort_keys=True).encode(
+                        "utf-8"
+                    )
+                ).hexdigest()
+            if is_version_3_or_newer():
+                image_name = _normalize_sif_id(image_name)
+            else:
+                image_name = _normalize_image_id(image_name)
+            image_name = os.path.join(absolute_path, image_name)
+            docker_req["dockerImageId"] = image_name
+            if os.path.exists(image_name):
+                found = True
             if found is False:
                 dockerfile_path = os.path.join(absolute_path, "Dockerfile")
                 singularityfile_path = dockerfile_path + ".def"
+                with open(dockerfile_path, "w") as dfile:
+                    dfile.write(docker_req["dockerFile"])
+
+                docker_recipe = DockerParser(dockerfile_path).parse()
+                docker_recipe["spython-base"].entrypoint = ""
+                singularityfile = SingularityWriter(docker_recipe).convert()
+                with open(singularityfile_path, "w") as file:
+                    file.write(singularityfile)
+
                 # if you do not set APPTAINER_TMPDIR will crash
                 # WARNING: 'nodev' mount option set on /tmp, it could be a
                 #          source of failure during build process
                 # FATAL:   Unable to create build: 'noexec' mount option set on
                 #          /tmp, temporary root filesystem won't be usable at this location
-                with open(dockerfile_path, "w") as dfile:
-                    dfile.write(docker_req["dockerFile"])
-
-                singularityfile = SingularityWriter(DockerParser(dockerfile_path).parse()).convert()
-                with open(singularityfile_path, "w") as file:
-                    file.write(singularityfile)
-
                 os.environ["APPTAINER_TMPDIR"] = absolute_path
                 singularity_options = ["--fakeroot"] if not shutil.which("proot") else []
-                if "dockerImageId" in docker_req:
-                    Client.build(
-                        recipe=singularityfile_path,
-                        build_folder=absolute_path,
-                        image=docker_req["dockerImageId"],
-                        sudo=False,
-                        options=singularity_options,
-                    )
-                else:
-                    Client.build(
-                        recipe=singularityfile_path,
-                        build_folder=absolute_path,
-                        sudo=False,
-                        options=singularity_options,
-                    )
+                Client.build(
+                    recipe=singularityfile_path,
+                    build_folder=absolute_path,
+                    image=image_name,
+                    sudo=False,
+                    options=singularity_options,
+                )
                 found = True
         elif "dockerImageId" not in docker_req and "dockerPull" in docker_req:
             match = re.search(pattern=r"([a-z]*://)", string=docker_req["dockerPull"])
