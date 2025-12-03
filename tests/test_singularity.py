@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from cwltool.main import main
+from cwltool.singularity import _IMAGES, _IMAGES_LOCK
 
 from .util import (
     get_data,
@@ -15,6 +16,12 @@ from .util import (
     needs_singularity_3_or_newer,
     working_directory,
 )
+
+
+@pytest.fixture(autouse=True)
+def clear_singularity_image_cache() -> None:
+    with _IMAGES_LOCK:
+        _IMAGES.clear()
 
 
 @needs_singularity_2_6
@@ -149,7 +156,7 @@ def test_singularity3_docker_image_id_in_tool(tmp_path: Path) -> None:
                 "hello",
             ]
         )
-        assert result_code == 0
+        assert result_code == 0, stderr
         result_code1, stdout, stderr = get_main_output(
             [
                 "--singularity",
@@ -159,3 +166,89 @@ def test_singularity3_docker_image_id_in_tool(tmp_path: Path) -> None:
             ]
         )
         assert result_code1 == 0
+
+
+@needs_singularity_3_or_newer
+def test_singularity_dockerfile_no_name_no_cache(tmp_path: Path) -> None:
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    with working_directory(workdir):
+        result_code, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                get_data("tests/sing_dockerfile_test.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
+        assert result_code == 0, stderr
+    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
+
+
+@needs_singularity_3_or_newer
+def test_singularity_dockerfile_no_name_with_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    cachedir = tmp_path / "cache"
+    cachedir.mkdir()
+    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(cachedir))
+    with working_directory(workdir):
+        result_code, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                get_data("tests/sing_dockerfile_test.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
+        assert result_code == 0, stderr
+    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
+    assert (cachedir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
+
+
+@needs_singularity_3_or_newer
+def test_singularity_dockerfile_with_name_no_cache(tmp_path: Path) -> None:
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    with working_directory(workdir):
+        result_code, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                get_data("tests/sing_dockerfile_named_test.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
+        assert result_code == 0, stderr
+    print(list(workdir.iterdir()))
+    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
+    assert not (workdir / "customDebian_latest.sif").exists()
+
+
+@needs_singularity_3_or_newer
+def test_singularity_dockerfile_with_name_with_cache(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    cachedir = tmp_path / "cache"
+    cachedir.mkdir()
+    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(cachedir))
+    with working_directory(workdir):
+        result_code, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                get_data("tests/sing_dockerfile_named_test.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
+        print(list(workdir.iterdir()))
+        print(list(cachedir.iterdir()))
+        assert result_code == 0, stderr
+    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
+    assert not (cachedir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
+    assert not (workdir / "customDebian_latest.sif").exists()
+    assert (cachedir / "customDebian_latest.sif").exists()
