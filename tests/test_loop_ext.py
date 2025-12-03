@@ -234,7 +234,7 @@ def test_loop_value_from_literal_file() -> None:
             "first,1-sha1$c2ee1cb0abf988529ae1d67c5a6798a9db9e133a",
             "first,2-sha1$7663c0076cdf1dbe14373237e8c2eea8735b04f2",
             "first,3-sha1$83b77de68c3c6cce92a381adc9159d6e59332545",
-            "first,4-sha1$eb74efd51e4399144f465534f4077f515d996d57"
+            "first,4-sha1$eb74efd51e4399144f465534f4077f515d996d57",
         ]
     }
     assert json.loads(stream.getvalue()) == expected
