@@ -732,14 +732,14 @@ To run the basic tests after installing `cwltool` execute the following:
 To run various tests in all supported Python environments, we use `tox <https://github.com/common-workflow-language/cwltool/tree/main/tox.ini>`_. To run the test suite in all supported Python environments
 first clone the complete code repository (see the ``git clone`` instructions above) and then run
 the following in the terminal:
-``pip install "tox<4"; tox -p``
+``pip install tox; tox -p``
 
 List of all environment can be seen using:
 ``tox --listenvs``
 and running a specific test env using:
-``tox -e <env name>``
+``tox run -e <env name>``
 and additionally run a specific test using this format:
-``tox -e py310-unit -- -v tests/test_examples.py::test_scandeps``
+``tox run -e py310-unit -- -v tests/test_examples.py::test_scandeps``
 
 -  Running the entire suite of CWL conformance tests:
 
