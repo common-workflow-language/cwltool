@@ -1,5 +1,6 @@
 """Support for executing Docker format containers using Singularity {2,3}.x or Apptainer 1.x."""
 
+import json
 import logging
 import os
 import os.path
@@ -7,9 +8,10 @@ import re
 import shutil
 import sys
 from collections.abc import Callable, MutableMapping
-from subprocess import check_call, check_output  # nosec
+from subprocess import check_call, check_output, run  # nosec
 from typing import cast
 
+from mypy_extensions import mypyc_attr
 from schema_salad.sourceline import SourceLine
 from spython.main import Client
 from spython.main.parse.parsers.docker import DockerParser
@@ -145,6 +147,30 @@ def _normalize_sif_id(string: str) -> str:
     return string.replace("/", "_") + ".sif"
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
+def _inspect_singularity_image(path: str) -> bool:
+    """Inspect singularity image to be sure it is not an empty directory."""
+    cmd = [
+        "singularity",
+        "inspect",
+        "--json",
+        path,
+    ]
+    try:
+        result = run(cmd, capture_output=True, text=True)  # nosec
+    except Exception:
+        return False
+
+    if result.returncode == 0:
+        try:
+            output = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return False
+        if output.get("data", {}).get("attributes", {}):
+            return True
+    return False
+
+
 class SingularityCommandLineJob(ContainerCommandLineJob):
     def __init__(
         self,
@@ -164,6 +190,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         pull_image: bool,
         tmp_outdir_prefix: str,
         force_pull: bool = False,
+        sandbox_base_path: str | None = None,
     ) -> bool:
         """
         Acquire the software container image in the specified dockerRequirement.
@@ -185,11 +212,21 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         elif is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
             cache_folder = os.environ["SINGULARITY_PULLFOLDER"]
 
-        if "dockerFile" in dockerRequirement:
-            if cache_folder is None:  # if environment variables were not set
-                cache_folder = create_tmp_dir(tmp_outdir_prefix)
+        if "CWL_SINGULARITY_IMAGES" in os.environ:
+            image_base_path = os.environ["CWL_SINGULARITY_IMAGES"]
+        else:
+            image_base_path = cache_folder if cache_folder else ""
 
-            absolute_path = os.path.abspath(cache_folder)
+        if not sandbox_base_path:
+            sandbox_base_path = os.path.abspath(image_base_path)
+        else:
+            sandbox_base_path = os.path.abspath(sandbox_base_path)
+
+        if "dockerFile" in dockerRequirement:
+            if image_base_path is None:  # if environment variables were not set
+                image_base_path = create_tmp_dir(tmp_outdir_prefix)
+
+            absolute_path = os.path.abspath(image_base_path)
             if "dockerImageId" in dockerRequirement:
                 image_name = dockerRequirement["dockerImageId"]
                 image_path = os.path.join(absolute_path, image_name)
@@ -229,6 +266,15 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     )
                 found = True
         elif "dockerImageId" not in dockerRequirement and "dockerPull" in dockerRequirement:
+            # looking for local singularity sandbox image and handle it as a local image
+            sandbox_image_path = os.path.join(sandbox_base_path, dockerRequirement["dockerPull"])
+            if os.path.isdir(sandbox_image_path) and _inspect_singularity_image(sandbox_image_path):
+                dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
+                _logger.info(
+                    "Using local Singularity sandbox image found in %s",
+                    sandbox_image_path,
+                )
+                return True
             match = re.search(pattern=r"([a-z]*://)", string=dockerRequirement["dockerPull"])
             img_name = _normalize_image_id(dockerRequirement["dockerPull"])
             candidates.append(img_name)
@@ -241,16 +287,26 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if not match:
                 dockerRequirement["dockerPull"] = "docker://" + dockerRequirement["dockerPull"]
         elif "dockerImageId" in dockerRequirement:
+            sandbox_image_path = os.path.join(sandbox_base_path, dockerRequirement["dockerImageId"])
             if os.path.isfile(dockerRequirement["dockerImageId"]):
                 found = True
+            # handling local singularity sandbox image
+            elif os.path.isdir(sandbox_image_path) and _inspect_singularity_image(
+                sandbox_image_path
+            ):
+                _logger.info(
+                    "Using local Singularity sandbox image found in %s",
+                    sandbox_image_path,
+                )
+                return True
             candidates.append(dockerRequirement["dockerImageId"])
             candidates.append(_normalize_image_id(dockerRequirement["dockerImageId"]))
             if is_version_3_or_newer():
                 candidates.append(_normalize_sif_id(dockerRequirement["dockerImageId"]))
 
         targets = [os.getcwd()]
-        if "CWL_SINGULARITY_CACHE" in os.environ:
-            targets.append(os.environ["CWL_SINGULARITY_CACHE"])
+        if "CWL_SINGULARITY_IMAGES" in os.environ:
+            targets.append(os.environ["CWL_SINGULARITY_IMAGES"])
         if is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
             targets.append(os.environ["SINGULARITY_PULLFOLDER"])
         for target in targets:
@@ -268,10 +324,10 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if (force_pull or not found) and pull_image:
             cmd: list[str] = []
             if "dockerPull" in dockerRequirement:
-                if cache_folder:
+                if image_base_path:
                     env = os.environ.copy()
                     if is_version_2_6():
-                        env["SINGULARITY_PULLFOLDER"] = cache_folder
+                        env["SINGULARITY_PULLFOLDER"] = image_base_path
                         cmd = [
                             "singularity",
                             "pull",
@@ -286,14 +342,14 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                             "pull",
                             "--force",
                             "--name",
-                            "{}/{}".format(cache_folder, dockerRequirement["dockerImageId"]),
+                            "{}/{}".format(image_base_path, dockerRequirement["dockerImageId"]),
                             str(dockerRequirement["dockerPull"]),
                         ]
 
                     _logger.info(str(cmd))
                     check_call(cmd, env=env, stdout=sys.stderr)  # nosec
                     dockerRequirement["dockerImageId"] = "{}/{}".format(
-                        cache_folder, dockerRequirement["dockerImageId"]
+                        image_base_path, dockerRequirement["dockerImageId"]
                     )
                     found = True
                 else:
@@ -348,6 +404,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         pull_image: bool,
         force_pull: bool,
         tmp_outdir_prefix: str,
+        image_base_path: str | None = None,
     ) -> str | None:
         """
         Return the filename of the Singularity image.
@@ -357,16 +414,24 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if not bool(shutil.which("singularity")):
             raise WorkflowException("singularity executable is not available")
 
-        if not self.get_image(cast(dict[str, str], r), pull_image, tmp_outdir_prefix, force_pull):
+        if not self.get_image(
+            cast(dict[str, str], r),
+            pull_image,
+            tmp_outdir_prefix,
+            force_pull,
+            sandbox_base_path=image_base_path,
+        ):
             raise WorkflowException("Container image {} not found".format(r["dockerImageId"]))
 
-        if "CWL_SINGULARITY_CACHE" in os.environ:
-            cache_folder = os.environ["CWL_SINGULARITY_CACHE"]
-            img_path = os.path.join(cache_folder, cast(str, r["dockerImageId"]))
+        if "CWL_SINGULARITY_IMAGES" in os.environ:
+            image_base_path = os.environ["CWL_SINGULARITY_IMAGES"]
+            image_path = os.path.join(image_base_path, cast(str, r["dockerImageId"]))
+        elif image_base_path:
+            image_path = os.path.join(image_base_path, cast(str, r["dockerImageId"]))
         else:
-            img_path = cast(str, r["dockerImageId"])
+            image_path = cast(str, r["dockerImageId"])
 
-        return os.path.abspath(img_path)
+        return os.path.abspath(image_path)
 
     @staticmethod
     def append_volume(runtime: list[str], source: str, target: str, writable: bool = False) -> None:
