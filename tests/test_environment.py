@@ -56,7 +56,9 @@ def assert_env_matches(
         if not env_accepts_null():
             e.pop("LC_CTYPE", None)
             e.pop("__CF_USER_TEXT_ENCODING", None)
-        assert len(e) == 0, f"Unexpected environment variable(s): {', '.join(e.keys())}"
+        assert (
+            len(e) == 0
+        ), f"Unexpected environment variable(s): {', '.join(e.keys())} from env {env}."
 
 
 class CheckHolder(ABC):
@@ -133,7 +135,7 @@ class Singularity(CheckHolder):
         }
 
         # Singularity variables appear to be in flux somewhat.
-        version = Version(".".join(map(str, get_version()[0])))
+        version, _ = get_version()
         assert version >= Version("3"), "Tests only work for Singularity 3+"
         sing_vars: EnvChecks = {
             "SINGULARITY_CONTAINER": None,
@@ -296,6 +298,7 @@ def test_preserve_all(
 
     for vname, val in env.items():
         try:
+            assert vname in checks, env
             assert_envvar_matches(checks[vname], vname, env)
         except KeyError:
             assert val == os.environ[vname]
