@@ -13,6 +13,7 @@ from collections.abc import Callable, MutableMapping
 from subprocess import check_call, check_output  # nosec
 from typing import cast
 
+from packaging.version import Version
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from spython.main import Client
@@ -33,7 +34,7 @@ from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_wr
 # This is a list containing major and minor versions as integer.
 # (The number of minor version digits can vary among different distributions,
 #  therefore we need a list here.)
-_SINGULARITY_VERSION: list[int] | None = None
+_SINGULARITY_VERSION: Version | None = None
 # Cached flavor / distribution of singularity
 # Can be singularity, singularity-ce or apptainer
 _SINGULARITY_FLAVOR: str = ""
@@ -43,14 +44,14 @@ _IMAGES: dict[str, str] = {}
 _IMAGES_LOCK = threading.Lock()
 
 
-def get_version() -> tuple[list[int], str]:
+def get_version() -> tuple[Version, str]:
     """
     Parse the output of 'singularity --version' to determine the flavor and version.
 
     Both pieces of information will be cached.
 
     :returns: A tuple containing:
-              - A tuple with major and minor version numbers as integer.
+              - A parsed Version object.
               - A string with the name of the singularity flavor.
     """
     global _SINGULARITY_VERSION  # pylint: disable=global-statement
@@ -63,7 +64,7 @@ def get_version() -> tuple[list[int], str]:
             raise RuntimeError("Output of 'singularity --version' not recognized.")
 
         version_string = version_match.group(2)
-        _SINGULARITY_VERSION = [int(i) for i in version_string.split(".")]
+        _SINGULARITY_VERSION = Version(version_string)
         _SINGULARITY_FLAVOR = version_match.group(1)
 
         _logger.debug(f"Singularity version: {version_string}" " ({_SINGULARITY_FLAVOR}.")
@@ -77,18 +78,18 @@ def is_apptainer_1_or_newer() -> bool:
     Apptainer v1.0.0 is compatible with SingularityCE 3.9.5.
     See: https://github.com/apptainer/apptainer/releases
     """
-    v = get_version()
-    if v[1] != "apptainer":
+    version, flavor = get_version()
+    if flavor != "apptainer":
         return False
-    return v[0][0] >= 1
+    return version >= Version("1")
 
 
 def is_apptainer_1_1_or_newer() -> bool:
     """Check if apptainer singularity distribution is version 1.1 or higher."""
-    v = get_version()
-    if v[1] != "apptainer":
+    version, flavor = get_version()
+    if flavor != "apptainer":
         return False
-    return v[0][0] >= 2 or (v[0][0] >= 1 and v[0][1] >= 1)
+    return version >= Version("1.1")
 
 
 def is_version_2_6() -> bool:
@@ -97,48 +98,58 @@ def is_version_2_6() -> bool:
 
     Also returns False if the flavor is not singularity or singularity-ce.
     """
-    v = get_version()
-    if v[1] != "singularity" and v[1] != "singularity-ce":
+    version, flavor = get_version()
+    if flavor not in ("singularity", "singularity-ce"):
         return False
-    return v[0][0] == 2 and v[0][1] == 6
+    return version >= Version("2.6") and version < Version("2.7")
 
 
 def is_version_3_or_newer() -> bool:
     """Check if this version is singularity version 3 or newer or equivalent."""
     if is_apptainer_1_or_newer():
         return True  # this is equivalent to singularity-ce > 3.9.5
-    v = get_version()
-    return v[0][0] >= 3
+    version, flavor = get_version()
+    if flavor == "apptainer":
+        return False
+    return version >= Version("3")
 
 
 def is_version_3_1_or_newer() -> bool:
     """Check if this version is singularity version 3.1 or newer or equivalent."""
     if is_apptainer_1_or_newer():
         return True  # this is equivalent to singularity-ce > 3.9.5
-    v = get_version()
-    return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 1)
+    version, flavor = get_version()
+    if flavor == "apptainer":
+        return False
+    return version >= Version("3.1")
 
 
 def is_version_3_4_or_newer() -> bool:
     """Detect if Singularity v3.4+ is available."""
     if is_apptainer_1_or_newer():
         return True  # this is equivalent to singularity-ce > 3.9.5
-    v = get_version()
-    return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 4)
+    version, flavor = get_version()
+    if flavor == "apptainer":
+        return False
+    return version >= Version("3.4")
 
 
 def is_version_3_9_or_newer() -> bool:
     """Detect if Singularity v3.9+ is available."""
     if is_apptainer_1_or_newer():
         return True  # this is equivalent to singularity-ce > 3.9.5
-    v = get_version()
-    return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 9)
+    version, flavor = get_version()
+    if flavor == "apptainer":
+        return False
+    return version >= Version("3.9")
 
 
 def is_version_3_10_or_newer() -> bool:
     """Detect if Singularity v3.10+ is available."""
-    v = get_version()
-    return v[0][0] >= 4 or (v[0][0] == 3 and v[0][1] >= 10)
+    version, flavor = get_version()
+    if flavor not in ("singularity", "singularity-ce"):
+        return False
+    return version >= Version("3.10")
 
 
 def _normalize_image_id(string: str) -> str:
