@@ -510,7 +510,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         runtime = [
             "singularity",
             "--quiet",
-            "run" if is_apptainer_1_1_or_newer() or is_version_3_10_or_newer() else "exec",
+            "run" if (is_apptainer_1_1_or_newer() or is_version_3_10_or_newer()) else "exec",
             "--contain",
             "--ipc",
             "--cleanenv",
