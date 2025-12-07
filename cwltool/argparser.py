@@ -37,6 +37,13 @@ def arg_parser() -> argparse.ArgumentParser:
         default=False,
         help="Run jobs in parallel. ",
     )
+    parser.add_argument(
+        "--parallel-max",
+        type=int,
+        default=0,
+        help="Maximum number of jobs to run in parallel. "
+        "Specify '0' to match the number of CPU cores available.",
+    )
     envgroup = parser.add_argument_group(title="Control environment variables")
     env_exclusive = envgroup.add_mutually_exclusive_group()
     env_exclusive.add_argument(

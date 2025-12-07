@@ -1243,7 +1243,7 @@ def main(
 
         if not executor:
             if args.parallel:
-                temp_executor = MultithreadedJobExecutor()
+                temp_executor = MultithreadedJobExecutor(max_parallel=args.parallel_max)
                 runtimeContext.select_resources = temp_executor.select_resources
                 real_executor: JobExecutor = temp_executor
             else:
