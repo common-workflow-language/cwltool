@@ -397,13 +397,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if not self.get_image(cast(dict[str, str], r), pull_image, tmp_outdir_prefix, force_pull):
             raise WorkflowException("Container image {} not found".format(r["dockerImageId"]))
 
-        if "CWL_SINGULARITY_CACHE" in os.environ:
-            cache_folder = os.environ["CWL_SINGULARITY_CACHE"]
-            img_path = os.path.join(cache_folder, cast(str, r["dockerImageId"]))
-        else:
-            img_path = cast(str, r["dockerImageId"])
-
-        return os.path.abspath(img_path)
+        return os.path.abspath(cast(str, r["dockerImageId"]))
 
     @staticmethod
     def append_volume(runtime: list[str], source: str, target: str, writable: bool = False) -> None:
