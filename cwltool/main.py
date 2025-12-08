@@ -1237,7 +1237,7 @@ def main(
         if args.cachedir:
             if args.move_outputs == "move":
                 runtimeContext.move_outputs = "copy"
-            runtimeContext.tmp_outdir_prefix = args.cachedir
+            runtimeContext.tmp_outdir_prefix = os.path.abspath(args.cachedir) + "_tmp"
 
         runtimeContext.log_dir = args.log_dir
 
