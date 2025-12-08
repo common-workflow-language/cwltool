@@ -275,28 +275,30 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         elif "dockerImageId" in docker_req:
             if os.path.isfile(docker_req["dockerImageId"]):
                 found = True
-            candidates.append(docker_req["dockerImageId"])
-            candidates.append(_normalize_image_id(docker_req["dockerImageId"]))
-            if is_version_3_or_newer():
-                candidates.append(_normalize_sif_id(docker_req["dockerImageId"]))
+            else:
+                candidates.append(docker_req["dockerImageId"])
+                candidates.append(_normalize_image_id(docker_req["dockerImageId"]))
+                if is_version_3_or_newer():
+                    candidates.append(_normalize_sif_id(docker_req["dockerImageId"]))
 
-        targets = [os.getcwd()]
-        if "CWL_SINGULARITY_CACHE" in os.environ:
-            targets.append(os.environ["CWL_SINGULARITY_CACHE"])
-        if is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
-            targets.append(os.environ["SINGULARITY_PULLFOLDER"])
-        for target in targets:
-            for dirpath, _subdirs, files in os.walk(target):
-                for entry in files:
-                    if entry in candidates:
-                        path = os.path.join(dirpath, entry)
-                        if os.path.isfile(path):
-                            _logger.info(
-                                "Using local copy of Singularity image found in %s",
-                                dirpath,
-                            )
-                            docker_req["dockerImageId"] = path
-                            found = True
+        if not found and len(candidates) > 0:
+            targets = [os.getcwd()]
+            if "CWL_SINGULARITY_CACHE" in os.environ:
+                targets.append(os.environ["CWL_SINGULARITY_CACHE"])
+            if is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
+                targets.append(os.environ["SINGULARITY_PULLFOLDER"])
+            for target in targets:
+                for dirpath, _subdirs, files in os.walk(target):
+                    for entry in files:
+                        if entry in candidates:
+                            path = os.path.join(dirpath, entry)
+                            if os.path.isfile(path):
+                                _logger.info(
+                                    "Using local copy of Singularity image found in %s",
+                                    dirpath,
+                                )
+                                docker_req["dockerImageId"] = path
+                                found = True
         if (force_pull or not found) and pull_image:
             cmd: list[str] = []
             if "dockerPull" in docker_req:
