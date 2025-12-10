@@ -18,7 +18,7 @@ import pytest
 
 from cwltool.env_to_stdout import deserialize_env
 from cwltool.main import main
-from cwltool.singularity import is_version_2_6, is_version_3_or_newer
+from cwltool.singularity import get_version, is_version_2_6, is_version_3_or_newer
 
 
 def force_default_container(default_container_id: str, _: str) -> str:
@@ -48,6 +48,11 @@ needs_docker = pytest.mark.skipif(
 
 needs_singularity = pytest.mark.skipif(
     not bool(shutil.which("singularity")),
+    reason="Requires the singularity executable on the system path.",
+)
+
+needs_singularity_not_apptainer = pytest.mark.skipif(
+    not (bool(shutil.which("singularity")) and "singularity" in get_version()[1]),
     reason="Requires the singularity executable on the system path.",
 )
 
