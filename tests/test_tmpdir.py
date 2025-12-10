@@ -285,6 +285,99 @@ def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch, tmp_path:
     shutil.rmtree(subdir)
 
 
+@needs_singularity
+def test_singularity_get_image_from_sandbox(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Test that SingularityCommandLineJob.get_image correctly handle sandbox image."""
+
+    (tmp_path / "out").mkdir(exist_ok=True)
+    tmp_outdir_prefix = tmp_path / "out"
+    tmp_outdir_prefix.mkdir(exist_ok=True)
+    (tmp_path / "tmp").mkdir(exist_ok=True)
+    tmpdir_prefix = str(tmp_path / "tmp")
+    runtime_context = RuntimeContext(
+        {"tmpdir_prefix": tmpdir_prefix, "user_space_docker_cmd": None}
+    )
+    builder = Builder(
+        {},
+        [],
+        [],
+        {},
+        schema.Names(),
+        [],
+        [],
+        {},
+        None,
+        None,
+        StdFsAccess,
+        StdFsAccess(""),
+        None,
+        0.1,
+        True,
+        False,
+        False,
+        "no_listing",
+        runtime_context.get_outdir(),
+        runtime_context.get_tmpdir(),
+        runtime_context.get_stagedir(),
+        INTERNAL_VERSION,
+        "singularity",
+    )
+
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    repo_path = workdir / "container_repo"
+    repo_path.mkdir()
+    image_path = repo_path / "alpine"
+    image_path.mkdir()
+
+    # directory exists but is not an image
+    monkeypatch.setattr(
+        "cwltool.singularity._inspect_singularity_image", lambda *args, **kwargs: False
+    )
+    req = {"class": "DockerRequirement", "dockerPull": f"{image_path}"}
+    res = SingularityCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_image(
+        req,
+        pull_image=False,
+        tmp_outdir_prefix=str(tmp_outdir_prefix),
+        force_pull=False,
+    )
+    assert req["dockerPull"] == f"{image_path}"
+    assert res is False
+
+    # directory exists and is an image:
+    monkeypatch.setattr(
+        "cwltool.singularity._inspect_singularity_image", lambda *args, **kwargs: True
+    )
+    req = {"class": "DockerRequirement", "dockerPull": f"{image_path}"}
+    res = SingularityCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_image(
+        req,
+        pull_image=False,
+        tmp_outdir_prefix=str(tmp_outdir_prefix),
+        force_pull=False,
+    )
+    assert req["dockerImageId"] == str(image_path)
+    assert res
+
+    # test that dockerImageId is set and image exists:
+    req = {"class": "DockerRequirement", "dockerImageId": f"{image_path}"}
+    res = SingularityCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_image(
+        req,
+        pull_image=False,
+        tmp_outdir_prefix=str(tmp_outdir_prefix),
+        force_pull=False,
+    )
+    assert req["dockerImageId"] == str(image_path)
+    assert res
+
+
 def test_docker_tmpdir_prefix(tmp_path: Path) -> None:
     """Test that DockerCommandLineJob respects temp directory directives."""
     (tmp_path / "3").mkdir()

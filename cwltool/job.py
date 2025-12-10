@@ -11,6 +11,7 @@ import signal
 import stat
 import subprocess  # nosec
 import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -626,6 +627,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
         pull_image: bool,
         force_pull: bool,
         tmp_outdir_prefix: str,
+        image_base_path: str | None = None,
     ) -> str | None:
         pass
 
@@ -787,6 +789,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                             runtimeContext.pull_image,
                             runtimeContext.force_docker_pull,
                             runtimeContext.tmp_outdir_prefix,
+                            runtimeContext.image_base_path,
                         )
                     )
                 if img_id is None:
@@ -888,37 +891,38 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             except OSError:
                 cid = None
         max_mem = psutil.virtual_memory().total
+        tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
+        stats_file = tempfile.NamedTemporaryFile(prefix=tmp_prefix, dir=tmp_dir)
+        stats_file_name = stats_file.name
         try:
-            cmds = [docker_exe, "stats"]
-            if "podman" not in docker_exe:
-                cmds.append("--no-trunc")
-            cmds.extend(["--format", "{{.MemPerc}}", cid])
-            stats_proc = subprocess.Popen(  # nosec
-                cmds,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            process.wait()
-            try:
-                stats_result, _ = stats_proc.communicate(timeout=1)
-            except subprocess.TimeoutExpired:
+            with open(stats_file_name, mode="w") as stats_file_handle:
+                cmds = [docker_exe, "stats"]
+                if "podman" not in docker_exe:
+                    cmds.append("--no-trunc")
+                cmds.extend(["--format", "{{.MemPerc}}", cid])
+                stats_proc = subprocess.Popen(  # nosec
+                    cmds,
+                    stdout=stats_file_handle,
+                    stderr=subprocess.DEVNULL,
+                )
+                process.wait()
                 stats_proc.kill()
-                stats_result, _ = stats_proc.communicate()
         except OSError as exc:
             _logger.warning("Ignored error with %s stats: %s", docker_exe, exc)
             return
         max_mem_percent: float = 0.0
         mem_percent: float = 0.0
-        for line in stats_result:
-            if not line:
-                continue
-            try:
-                mem_percent = float(re.sub(CONTROL_CODE_RE, "", line).replace("%", ""))
-                if mem_percent > max_mem_percent:
-                    max_mem_percent = mem_percent
-            except ValueError as exc:
-                _logger.debug("%s stats parsing error in line %s: %s", docker_exe, line, exc)
+        with open(stats_file_name) as stats:
+            while True:
+                line = stats.readline()
+                if not line:
+                    break
+                try:
+                    mem_percent = float(re.sub(CONTROL_CODE_RE, "", line).replace("%", ""))
+                    if mem_percent > max_mem_percent:
+                        max_mem_percent = mem_percent
+                except ValueError as exc:
+                    _logger.debug("%s stats parsing error in line %s: %s", docker_exe, line, exc)
         _logger.info(
             "[job %s] Max memory used: %iMiB",
             self.name,
