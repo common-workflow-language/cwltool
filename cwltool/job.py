@@ -896,15 +896,15 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             stats_proc = subprocess.Popen(  # nosec
                 cmds,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 text=True,
             )
             process.wait()
             try:
-                stats_result = stats_proc.communicate(timeout=1)[0]
+                stats_result, _ = stats_proc.communicate(timeout=1)
             except subprocess.TimeoutExpired:
                 stats_proc.kill()
-                stats_result = stats_proc.communicate()[0]
+                stats_result, _ = stats_proc.communicate()
         except OSError as exc:
             _logger.warning("Ignored error with %s stats: %s", docker_exe, exc)
             return
