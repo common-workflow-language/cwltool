@@ -11,7 +11,12 @@ from packaging.version import Version
 
 from cwltool.singularity import get_version
 
-from .util import env_accepts_null, get_tool_env, needs_docker, needs_singularity
+from .util import (
+    env_accepts_null,
+    get_tool_env,
+    needs_docker,
+    needs_singularity_not_apptainer,
+)
 
 # None => accept anything, just require the key is present
 # str => string equality
@@ -194,7 +199,7 @@ CRT_PARAMS = pytest.mark.parametrize(
     [
         NoContainer(),
         pytest.param(Docker(), marks=needs_docker),
-        pytest.param(Singularity(), marks=needs_singularity),
+        pytest.param(Singularity(), marks=needs_singularity_not_apptainer),
     ],
 )
 

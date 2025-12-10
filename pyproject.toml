@@ -4,7 +4,7 @@ requires = [
     "setuptools_scm[toml]>=8.0.4,<10",
     "mypy==1.18.2",  # also update mypy-requirements.txt
     "types-requests",
-    "types-psutil",
+    "types-psutil>=7.1.3.20251210",
     "ruamel.yaml>=0.16.0,<0.19",
     "schema-salad>=8.9,<9",
     "cwl-utils>=0.32",
