@@ -9,21 +9,30 @@ from schema_salad.utils import ContextType
 
 from .cwlviewer import CWLViewer
 from .process import Process
+from .utils import CWLObjectType
 
 
-def gather(tool: Process, ctx: ContextType) -> Graph:
+def gather(tool: Process, ctx: ContextType, inputs: CWLObjectType | None = None) -> Graph:
+    """Convert a Process with optional inputs object into a RDF Graph."""
     g = Graph()
 
     def visitor(t: CommentedMap) -> None:
         makerdf(t["id"], t, ctx, graph=g)
 
+    if inputs:
+        for inp_name in inputs:
+            for inp in tool.tool["inputs"]:
+                if inp["id"].endswith(f"#{inp_name}"):
+                    inp["rdf:value"] = inputs[inp_name]
     tool.visit(visitor)
     return g
 
 
-def printrdf(wflow: Process, ctx: ContextType, style: str) -> str:
+def printrdf(
+    wflow: Process, ctx: ContextType, style: str, inputs: CWLObjectType | None = None
+) -> str:
     """Serialize the CWL document into a string, ready for printing."""
-    rdf = gather(wflow, ctx).serialize(format=style, encoding="utf-8")
+    rdf = gather(wflow, ctx, inputs).serialize(format=style, encoding="utf-8")
     if not rdf:
         return ""
     return str(rdf, "utf-8")
