@@ -261,12 +261,12 @@ class SingleJobExecutor(JobExecutor):
 if sys.platform != "darwin":
 
     def _max_cores() -> int:
-        return len(psutil.Process().cpu_affinity() or [0])
+        return len(psutil.Process().cpu_affinity())
 
 else:
 
     def _max_cores() -> int:
-        return psutil.cpu_count()
+        return psutil.cpu_count() or 1
 
 
 class MultithreadedJobExecutor(JobExecutor):
