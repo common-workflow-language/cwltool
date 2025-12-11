@@ -4,10 +4,12 @@ cwlVersion: v1.2
 
 requirements:
   ResourceRequirement:
-      ramMin: 128
-      ramMax: 64
+    ramMin: 128
+    ramMax: 64
 
-inputs: []
+inputs:
+  message: string?
+
 outputs: []
 
 steps:
@@ -17,9 +19,15 @@ steps:
         ramMin: 64
         ramMax: 128
     run:
-        class: CommandLineTool
-        baseCommand: [ "echo", "Hello World" ]
-        inputs: [ ]
-        outputs: [ ]
-    out: [ ]
-    in: [ ]
+      class: CommandLineTool
+      baseCommand: echo
+      inputs:
+        message:
+          type: string?
+          default: "Hello World"
+      outputs: []
+      arguments:
+        - $(inputs.message)
+    in:
+      message: message
+    out: []
