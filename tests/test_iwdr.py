@@ -275,7 +275,7 @@ def test_iwdr_permutations_singularity(
     twelfth.touch()
     outdir = str(tmp_path_factory.mktemp("outdir"))
     singularity_dir = str(tmp_path_factory.mktemp("singularity"))
-    monkeypatch.setenv("CWL_SINGULARITY_IMAGES", singularity_dir)
+    monkeypatch.setenv("CWL_SINGULARITY_CACHE", singularity_dir)
     err_code, stdout, _ = get_main_output(
         [
             "--outdir",
@@ -340,7 +340,7 @@ def test_iwdr_permutations_singularity_inplace(
     twelfth.touch()
     outdir = str(tmp_path_factory.mktemp("outdir"))
     singularity_dir = str(tmp_path_factory.mktemp("singularity"))
-    monkeypatch.setenv("CWL_SINGULARITY_IMAGES", singularity_dir)
+    monkeypatch.setenv("CWL_SINGULARITY_CACHE", singularity_dir)
     assert (
         main(
             [

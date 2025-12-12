@@ -65,8 +65,8 @@ elif [ "${CONTAINER}" == "docker" ]; then
 elif [ "${CONTAINER}" == "podman" ]; then
     podman pull docker.io/node:slim
 elif [ "${CONTAINER}" == "singularity" ]; then
-    export CWL_SINGULARITY_IMAGES="$SCRIPT_DIRECTORY/sifcache"
-    mkdir --parents "${CWL_SINGULARITY_IMAGES}"
+    export CWL_SINGULARITY_CACHE="$SCRIPT_DIRECTORY/sifcache"
+    mkdir --parents "${CWL_SINGULARITY_CACHE}"
 fi
 
 # Setup environment

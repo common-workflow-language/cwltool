@@ -338,8 +338,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         if not found and len(candidates) > 0:
             targets = [os.getcwd()]
-            if "CWL_SINGULARITY_IMAGES" in os.environ:
-                targets.append(os.environ["CWL_SINGULARITY_IMAGES"])
+            if "CWL_SINGULARITY_CACHE" in os.environ:
+                targets.append(os.environ["CWL_SINGULARITY_CACHE"])
             if is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
                 targets.append(os.environ["SINGULARITY_PULLFOLDER"])
             for target in targets:

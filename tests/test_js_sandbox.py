@@ -109,7 +109,7 @@ def test_value_from_two_concatenated_expressions_singularity(
     factory.loading_context.debug = True
     factory.runtime_context.debug = True
     with monkeypatch.context() as m:
-        m.setenv("CWL_SINGULARITY_IMAGES", str(singularity_cache))
+        m.setenv("CWL_SINGULARITY_CACHE", str(singularity_cache))
         m.setenv("PATH", new_paths)
         echo = factory.make(get_data("tests/wf/vf-concat.cwl"))
         file = {"class": "File", "location": get_data("tests/wf/whale.txt")}

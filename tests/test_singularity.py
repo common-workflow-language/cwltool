@@ -76,7 +76,7 @@ def test_singularity_workflow(tmp_path: Path) -> None:
 def test_singularity_iwdr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     singularity_dir = tmp_path / "singularity"
     singularity_dir.mkdir()
-    monkeypatch.setenv("CWL_SINGULARITY_IMAGES", str(singularity_dir))
+    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
     result_code = main(
         [
             "--singularity",
