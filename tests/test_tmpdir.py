@@ -12,11 +12,12 @@ import pytest
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro import schema
 from schema_salad.sourceline import cmap
-from cwltool.errors import WorkflowException
+
 from cwltool.builder import Builder
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.docker import DockerCommandLineJob
+from cwltool.errors import WorkflowException
 from cwltool.job import JobBase
 from cwltool.main import main
 from cwltool.pathmapper import MapperEnt
@@ -377,6 +378,7 @@ def test_singularity_get_image_from_sandbox(
     assert req["dockerImageId"] == str(image_path)
     assert res
 
+
 def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     (tmp_path / "out").mkdir(exist_ok=True)
     tmp_outdir_prefix = tmp_path / "out"
@@ -429,11 +431,11 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
         pull_image=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
         force_pull=False,
-        sandbox_base_path=repo_path.absolute()
+        sandbox_base_path=repo_path.absolute(),
     )
     assert res
     assert req["dockerImageId"] == "alpine"
-    
+
     res = SingularityCommandLineJob(
         builder, {}, CommandLineTool.make_path_mapper, [], [], ""
     ).get_from_requirements(
@@ -441,7 +443,7 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
         pull_image=False,
         force_pull=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
-        image_base_path=repo_path.absolute()
+        image_base_path=repo_path.absolute(),
     )
     assert res == os.path.abspath(image_path)
 
