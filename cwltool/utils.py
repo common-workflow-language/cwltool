@@ -2,6 +2,8 @@
 
 import collections
 
+from cwl_utils.types import CWLObjectType, CWLOutputType, DirectoryType
+
 try:
     import fcntl
 except ImportError:
@@ -41,7 +43,6 @@ from typing import (
     NamedTuple,
     Optional,
     TypeAlias,
-    TypedDict,
     Union,
     cast,
 )
@@ -68,16 +69,6 @@ DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill: Deque["subprocess.Popen[str]"] = collections.deque()
 
-CWLOutputType: TypeAlias = Union[
-    None,
-    bool,
-    str,
-    int,
-    float,
-    MutableSequence["CWLOutputType"],
-    MutableMapping[str, "CWLOutputType"],
-]
-CWLObjectType: TypeAlias = MutableMapping[str, Optional[CWLOutputType]]
 """Typical raw dictionary found in lightly parsed CWL."""
 
 JobsType: TypeAlias = Union[
@@ -89,10 +80,6 @@ ResolverType: TypeAlias = Callable[["Loader", str], Optional[str]]
 DestinationsType: TypeAlias = MutableMapping[str, Optional[CWLOutputType]]
 ScatterDestinationsType: TypeAlias = MutableMapping[str, list[Optional[CWLOutputType]]]
 ScatterOutputCallbackType: TypeAlias = Callable[[Optional[ScatterDestinationsType], str], None]
-SinkType: TypeAlias = Union[CWLOutputType, CWLObjectType]
-DirectoryType = TypedDict(
-    "DirectoryType", {"class": str, "listing": list[CWLObjectType], "basename": str}
-)
 JSONType: TypeAlias = Union[dict[str, "JSONType"], list["JSONType"], str, int, float, bool, None]
 
 

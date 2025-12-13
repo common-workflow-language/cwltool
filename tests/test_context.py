@@ -6,9 +6,10 @@ from io import StringIO
 from pathlib import Path
 from typing import cast
 
+from cwl_utils.types import CWLObjectType
+
 from cwltool.context import RuntimeContext
 from cwltool.factory import Factory
-from cwltool.utils import CWLObjectType
 from cwltool.workflow_job import WorkflowJobStep
 
 from .util import get_data, needs_docker

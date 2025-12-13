@@ -5,6 +5,7 @@ import urllib
 from collections.abc import Callable, MutableMapping, MutableSequence
 from typing import Any, Optional, Union, cast
 
+from cwl_utils.types import CWLObjectType, CWLOutputType
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, SubLoader
 from schema_salad.utils import ResolveType
@@ -13,7 +14,6 @@ from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
 from .process import shortname, uniquename
 from .update import ORDERED_VERSIONS, ORIGINAL_CWLVERSION, update
-from .utils import CWLObjectType, CWLOutputType
 
 LoadRefType = Callable[[Optional[str], str], ResolveType]
 
