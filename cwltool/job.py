@@ -21,6 +21,7 @@ from threading import Timer
 from typing import IO, TYPE_CHECKING, Optional, TextIO, Union, cast
 
 import psutil
+from cwl_utils.types import CWLObjectType, CWLOutputType, DirectoryType
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
@@ -35,9 +36,6 @@ from .pathmapper import MapperEnt, PathMapper
 from .process import stage_files
 from .secrets import SecretStore
 from .utils import (
-    CWLObjectType,
-    CWLOutputType,
-    DirectoryType,
     HasReqsHints,
     OutputCallbackType,
     bytes2str_in_dicts,

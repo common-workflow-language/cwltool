@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping, MutableMapping, MutableSequence
 from typing import cast
 from uuid import UUID
 
+from cwl_utils.types import CWLObjectType
 from mypy_extensions import mypyc_attr
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
@@ -22,7 +23,6 @@ from .load_tool import load_tool
 from .loghandler import _logger
 from .process import Process, get_overrides, shortname
 from .utils import (
-    CWLObjectType,
     JobsGeneratorType,
     OutputCallbackType,
     StepType,

@@ -13,6 +13,7 @@ from collections.abc import Callable, MutableMapping
 from subprocess import check_call, check_output  # nosec
 from typing import cast
 
+from cwl_utils.types import CWLObjectType
 from packaging.version import Version
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
@@ -28,7 +29,7 @@ from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .singularity_utils import singularity_supports_userns
-from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_writable
+from .utils import create_tmp_dir, ensure_non_writable, ensure_writable
 
 # Cached version number of singularity
 # This is a list containing major and minor versions as integer.

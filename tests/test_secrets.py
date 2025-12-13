@@ -4,10 +4,10 @@ from collections.abc import Callable
 from io import StringIO
 
 import pytest
+from cwl_utils.types import CWLObjectType
 
 from cwltool.main import main
 from cwltool.secrets import SecretStore
-from cwltool.utils import CWLObjectType
 
 from .util import get_data, needs_docker, needs_singularity
 
