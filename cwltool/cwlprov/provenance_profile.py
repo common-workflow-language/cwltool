@@ -8,6 +8,7 @@ from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from typing import TYPE_CHECKING, Any, cast
 
+from cwl_utils.types import CWLObjectType
 from prov.identifier import Identifier, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
@@ -17,7 +18,7 @@ from ..job import CommandLineJob, JobBase
 from ..loghandler import _logger
 from ..process import Process, shortname
 from ..stdfsaccess import StdFsAccess
-from ..utils import CWLObjectType, JobsType, get_listing, posix_path, versionstring
+from ..utils import JobsType, get_listing, posix_path, versionstring
 from ..workflow_job import WorkflowJob
 from .provenance_constants import (
     ACCOUNT_UUID,

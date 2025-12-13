@@ -16,6 +16,7 @@ import pydot
 import pytest
 from cwl_utils.errors import JavascriptException
 from cwl_utils.sandboxjs import param_re
+from cwl_utils.types import CWLObjectType
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 
@@ -29,7 +30,7 @@ from cwltool.context import RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.process import CWL_IANA
-from cwltool.utils import CWLObjectType, dedup
+from cwltool.utils import dedup
 
 from .util import get_data, get_main_output, needs_docker, working_directory
 

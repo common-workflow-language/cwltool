@@ -24,6 +24,14 @@ from functools import cmp_to_key, partial
 from re import Pattern
 from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
 
+from cwl_utils.types import (
+    CWLObjectType,
+    CWLOutputType,
+    DirectoryType,
+    is_directory,
+    is_file,
+    is_file_or_directory,
+)
 from mypy_extensions import mypyc_attr
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import RecordSchema
@@ -60,9 +68,6 @@ from .stdfsaccess import StdFsAccess
 from .udocker import UDockerCommandLineJob
 from .update import ORDERED_VERSIONS, ORIGINAL_CWLVERSION
 from .utils import (
-    CWLObjectType,
-    CWLOutputType,
-    DirectoryType,
     JobsGeneratorType,
     OutputCallbackType,
     adjustDirObjs,
@@ -619,11 +624,8 @@ class CommandLineTool(Process):
                     et: CWLObjectType = {}
                     writable = t.get("writable", False)
                     et["writable"] = writable
-                    if isinstance(entry, Mapping) and entry.get("class") in (
-                        "File",
-                        "Directory",
-                    ):
-                        if writable and "secondaryFiles" in entry:
+                    if is_file_or_directory(entry):
+                        if writable and is_file(entry) and "secondaryFiles" in entry:
                             secFiles = cast(MutableSequence[CWLObjectType], entry["secondaryFiles"])
                             for sf in secFiles:
                                 sf["writable"] = writable
@@ -765,22 +767,23 @@ class CommandLineTool(Process):
             for entry in ls:
                 if "basename" in entry:
                     basename = cast(str, entry["basename"])
-                    dirname = os.path.join(builder.outdir, os.path.dirname(basename))
-                    entry["dirname"] = dirname
                     entry["basename"] = os.path.basename(basename)
-                    if "secondaryFiles" in entry:
-                        for sec_file in cast(
-                            MutableSequence[CWLObjectType], entry["secondaryFiles"]
-                        ):
-                            sec_file["dirname"] = dirname
+                    if is_file(entry):
+                        dirname = os.path.join(builder.outdir, os.path.dirname(basename))
+                        entry["dirname"] = dirname
+                        if "secondaryFiles" in entry:
+                            for sec_file in cast(
+                                MutableSequence[CWLObjectType], entry["secondaryFiles"]
+                            ):
+                                sec_file["dirname"] = dirname
                 normalizeFilesDirs(entry)
                 self.updatePathmap(
-                    cast(Optional[str], entry.get("dirname")) or builder.outdir,
+                    (entry.get("dirname") if is_file(entry) else None) or builder.outdir,
                     cast(PathMapper, builder.pathmapper),
                     entry,
                 )
 
-                if "listing" in entry:
+                if is_directory(entry) and "listing" in entry:
 
                     def remove_dirname(d: CWLObjectType) -> None:
                         if "dirname" in d:

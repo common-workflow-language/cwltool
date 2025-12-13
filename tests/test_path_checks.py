@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import IO, Any, cast
 
 import pytest
+from cwl_utils.types import CWLObjectType
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
@@ -14,7 +15,7 @@ from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
-from cwltool.utils import CONTENT_LIMIT, CWLObjectType, bytes2str_in_dicts
+from cwltool.utils import CONTENT_LIMIT, bytes2str_in_dicts
 
 from .util import needs_docker
 

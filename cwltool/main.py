@@ -23,6 +23,7 @@ import argcomplete
 import coloredlogs
 import requests
 import ruamel.yaml
+from cwl_utils.types import CWLObjectType, CWLOutputType
 from rich_argparse import RichHelpFormatter
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
@@ -89,8 +90,6 @@ from .subgraph import get_process, get_step, get_subgraph
 from .update import ALLUPDATES, UPDATES
 from .utils import (
     DEFAULT_TMP_PREFIX,
-    CWLObjectType,
-    CWLOutputType,
     HasReqsHints,
     adjustDirObjs,
     normalizeFilesDirs,

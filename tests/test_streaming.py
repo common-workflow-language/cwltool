@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from cwl_utils.types import CWLObjectType
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.sourceline import cmap
 
@@ -13,7 +14,6 @@ from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.job import JobBase
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
-from cwltool.utils import CWLObjectType
 
 from .util import get_data
 

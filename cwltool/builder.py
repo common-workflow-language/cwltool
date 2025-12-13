@@ -9,6 +9,7 @@ from typing import IO, TYPE_CHECKING, Any, Optional, cast
 
 from cwl_utils import expression
 from cwl_utils.file_formats import check_format
+from cwl_utils.types import CWLObjectType, CWLOutputType
 from mypy_extensions import mypyc_attr
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap
@@ -26,8 +27,6 @@ from .mutation import MutationManager
 from .stdfsaccess import StdFsAccess
 from .utils import (
     CONTENT_LIMIT,
-    CWLObjectType,
-    CWLOutputType,
     HasReqsHints,
     LoadListingType,
     aslist,

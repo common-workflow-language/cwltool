@@ -2,11 +2,12 @@ import urllib
 from collections.abc import Mapping, MutableMapping, MutableSequence
 from typing import Any, NamedTuple, Union, cast
 
+from cwl_utils.types import CWLObjectType
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from .context import LoadingContext
 from .load_tool import load_tool, make_tool
-from .utils import CWLObjectType, aslist
+from .utils import aslist
 from .workflow import Workflow, WorkflowStep
 
 

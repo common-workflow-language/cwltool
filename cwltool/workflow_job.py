@@ -7,6 +7,7 @@ from collections.abc import MutableMapping, MutableSequence, Sized
 from typing import TYPE_CHECKING, Optional, Union, cast
 
 from cwl_utils import expression
+from cwl_utils.types import CWLObjectType, CWLOutputType, SinkType
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 
@@ -18,14 +19,11 @@ from .loghandler import _logger
 from .process import shortname, uniquename
 from .stdfsaccess import StdFsAccess
 from .utils import (
-    CWLObjectType,
-    CWLOutputType,
     JobsGeneratorType,
     OutputCallbackType,
     ParametersType,
     ScatterDestinationsType,
     ScatterOutputCallbackType,
-    SinkType,
     WorkflowStateItem,
     adjustDirObjs,
     aslist,

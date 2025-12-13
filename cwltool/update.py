@@ -3,13 +3,14 @@ from collections.abc import Callable, MutableMapping, MutableSequence
 from functools import partial
 from typing import cast
 
+from cwl_utils.types import CWLObjectType, CWLOutputType
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from schema_salad.sourceline import SourceLine
 
 from .loghandler import _logger
-from .utils import CWLObjectType, CWLOutputType, aslist, visit_class, visit_field
+from .utils import aslist, visit_class, visit_field
 
 
 def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> tuple[CommentedMap, str]:

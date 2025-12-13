@@ -3,6 +3,7 @@
 from collections.abc import Iterator, MutableMapping, MutableSequence, Sized
 from typing import Any, Literal, NamedTuple, Optional, Union, cast
 
+from cwl_utils.types import CWLObjectType, CWLOutputType, SinkType
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
 from schema_salad.utils import json_dumps
@@ -10,7 +11,7 @@ from schema_salad.utils import json_dumps
 from .errors import WorkflowException
 from .loghandler import _logger
 from .process import shortname
-from .utils import CWLObjectType, CWLOutputType, SinkType, aslist
+from .utils import aslist
 
 
 def _get_type(tp: Any) -> Any:

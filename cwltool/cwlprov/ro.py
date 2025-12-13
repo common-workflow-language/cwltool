@@ -13,13 +13,12 @@ from socket import getfqdn
 from typing import IO, TYPE_CHECKING, Any, Optional, cast
 
 import prov.model as provM
+from cwl_utils.types import CWLObjectType, CWLOutputType, is_directory, is_file
 from prov.model import ProvDocument
 
 from ..loghandler import _logger
 from ..stdfsaccess import StdFsAccess
 from ..utils import (
-    CWLObjectType,
-    CWLOutputType,
     create_tmp_dir,
     local_path,
     posix_path,
@@ -642,10 +641,10 @@ class ResearchObject:
         _logger.debug("[provenance] Relativising: %s", structure)
 
         if isinstance(structure, MutableMapping):
-            if structure.get("class") == "File":
+            if is_file(structure):
                 relative_path: str | PurePosixPath | None = None
                 if "checksum" in structure:
-                    raw_checksum = cast(str, structure["checksum"])
+                    raw_checksum = structure["checksum"]
                     alg, checksum = raw_checksum.split("$")
                     if alg != SHA1:
                         raise TypeError(
@@ -659,7 +658,7 @@ class ResearchObject:
                     # Register in RO; but why was this not picked
                     # up by used_artefacts?
                     _logger.info("[provenance] Adding to RO %s", structure["location"])
-                    with self.fsaccess.open(cast(str, structure["location"]), "rb") as fp:
+                    with self.fsaccess.open(structure["location"], "rb") as fp:
                         relative_path = self.add_data_file(fp)
                         checksum = PurePosixPath(relative_path).name
                         structure["checksum"] = f"{SHA1}${checksum}"
@@ -668,7 +667,7 @@ class ResearchObject:
                 if "path" in structure:
                     del structure["path"]
 
-            if structure.get("class") == "Directory":
+            if is_directory(structure):
                 # TODO: Generate anonymous Directory with a "listing"
                 # pointing to the hashed files
                 del structure["location"]

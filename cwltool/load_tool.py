@@ -12,6 +12,7 @@ from functools import partial
 from typing import Any, Union, cast
 
 from cwl_utils.parser import cwl_v1_2, cwl_v1_2_utils
+from cwl_utils.types import CWLObjectType
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.fetcher import Fetcher
@@ -32,7 +33,7 @@ from .errors import GraphTargetMissingException
 from .loghandler import _logger
 from .process import Process, get_schema, shortname
 from .update import ALLUPDATES
-from .utils import CWLObjectType, ResolverType, visit_class
+from .utils import ResolverType, visit_class
 
 docloaderctx: ContextType = {
     "cwl": "https://w3id.org/cwl/cwl#",

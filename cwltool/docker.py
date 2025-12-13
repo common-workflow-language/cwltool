@@ -14,6 +14,7 @@ from io import StringIO  # pylint: disable=redefined-builtin
 from typing import Optional, cast
 
 import requests
+from cwl_utils.types import CWLObjectType
 
 from .builder import Builder
 from .context import RuntimeContext
@@ -22,7 +23,7 @@ from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
-from .utils import CWLObjectType, create_tmp_dir, ensure_writable
+from .utils import create_tmp_dir, ensure_writable
 
 _IMAGES: set[str] = set()
 _IMAGES_LOCK = threading.Lock()

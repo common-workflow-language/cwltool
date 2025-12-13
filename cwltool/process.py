@@ -26,6 +26,7 @@ from os import scandir
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from cwl_utils import expression
+from cwl_utils.types import CWLObjectType, CWLOutputType
 from mypy_extensions import mypyc_attr
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -52,8 +53,6 @@ from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION, ORDERED_VERSIONS, ORIGINAL_CWLVERSION
 from .utils import (
-    CWLObjectType,
-    CWLOutputType,
     HasReqsHints,
     JobsGeneratorType,
     LoadListingType,

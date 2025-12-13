@@ -1,6 +1,7 @@
 import copy
 from typing import cast
 
+from cwl_utils.types import CWLObjectType
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import indent
@@ -10,7 +11,7 @@ from .errors import WorkflowException
 from .load_tool import load_tool
 from .loghandler import _logger
 from .process import Process, shortname
-from .utils import CWLObjectType, JobsGeneratorType, OutputCallbackType
+from .utils import JobsGeneratorType, OutputCallbackType
 
 
 class ProcessGeneratorJob:

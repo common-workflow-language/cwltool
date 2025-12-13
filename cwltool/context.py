@@ -8,6 +8,7 @@ import threading
 from collections.abc import Callable, Iterable
 from typing import IO, TYPE_CHECKING, Any, Literal, Optional, TextIO, Union
 
+from cwl_utils.types import CWLObjectType
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro.schema import Names
 from schema_salad.ref_resolver import Loader
@@ -16,7 +17,7 @@ from schema_salad.utils import FetcherCallableType
 from .mpi import MpiConfig
 from .pathmapper import PathMapper
 from .stdfsaccess import StdFsAccess
-from .utils import DEFAULT_TMP_PREFIX, CWLObjectType, HasReqsHints, ResolverType
+from .utils import DEFAULT_TMP_PREFIX, HasReqsHints, ResolverType
 
 if TYPE_CHECKING:
     from _typeshed import SupportsWrite

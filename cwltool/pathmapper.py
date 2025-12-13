@@ -6,6 +6,7 @@ import uuid
 from collections.abc import ItemsView, Iterable, Iterator, KeysView
 from typing import NamedTuple, Optional, cast
 
+from cwl_utils.types import CWLObjectType
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import uri_file_path
@@ -13,7 +14,7 @@ from schema_salad.sourceline import SourceLine
 
 from .loghandler import _logger
 from .stdfsaccess import abspath
-from .utils import CWLObjectType, dedup, downloadHttpFile
+from .utils import dedup, downloadHttpFile
 
 
 class MapperEnt(NamedTuple):

@@ -1,7 +1,8 @@
 import pytest
+from cwl_utils.types import CWLObjectType
 
 from cwltool.pathmapper import PathMapper
-from cwltool.utils import CWLObjectType, normalizeFilesDirs
+from cwltool.utils import normalizeFilesDirs
 
 
 def test_subclass() -> None:
