@@ -79,7 +79,7 @@ def replace_refs(d: Any, rewrite: dict[str, str], stem: str, newstem: str) -> No
 
 
 def import_embed(
-    d: MutableSequence[CWLObjectType] | CWLObjectType | CWLOutputType,
+    d: MutableSequence[CWLObjectType] | CWLObjectType | CWLOutputType | None,
     seen: set[str],
 ) -> None:
     if isinstance(d, MutableSequence):

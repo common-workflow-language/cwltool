@@ -21,7 +21,7 @@ from threading import Timer
 from typing import IO, TYPE_CHECKING, Optional, TextIO, Union, cast
 
 import psutil
-from cwl_utils.types import CWLObjectType, CWLOutputType, DirectoryType
+from cwl_utils.types import CWLObjectType, CWLOutputType, CWLDirectoryType, CWLFileType
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
@@ -106,7 +106,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        make_path_mapper: Callable[
+            [MutableSequence[CWLFileType | CWLDirectoryType], str, RuntimeContext, bool], PathMapper
+        ],
         requirements: list[CWLObjectType],
         hints: list[CWLObjectType],
         name: str,
@@ -136,11 +138,13 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.tmpdir = ""
 
         self.environment: MutableMapping[str, str] = {}
-        self.generatefiles: DirectoryType = {
-            "class": "Directory",
-            "listing": [],
-            "basename": "",
-        }
+        self.generatefiles = CWLDirectoryType(
+            **{
+                "class": "Directory",
+                "listing": [],
+                "basename": "",
+            }
+        )
         self.stagedir: str | None = None
         self.inplace_update = False
         self.prov_obj: ProvenanceProfile | None = None
@@ -157,7 +161,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: Union[threading.Lock, None] = None,
+        tmpdir_lock: threading.Lock | None = None,
     ) -> None:
         pass
 
@@ -562,7 +566,7 @@ class CommandLineJob(JobBase):
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: Union[threading.Lock, None] = None,
+        tmpdir_lock: threading.Lock | None = None,
     ) -> None:
         if tmpdir_lock:
             with tmpdir_lock:
@@ -748,7 +752,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: Union[threading.Lock, None] = None,
+        tmpdir_lock: threading.Lock | None = None,
     ) -> None:
         debug = runtimeContext.debug
         if tmpdir_lock:

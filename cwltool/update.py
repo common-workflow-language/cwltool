@@ -125,7 +125,7 @@ def v1_0to1_1(
                 rewrite_requirements(s)
 
     def update_secondaryFiles(
-        t: CWLOutputType, top: bool = False
+        t: CWLOutputType | None, top: bool = False
     ) -> MutableSequence[MutableMapping[str, str]] | MutableMapping[str, str]:
         if isinstance(t, CommentedSeq):
             new_seq = copy.deepcopy(t)

@@ -9,12 +9,12 @@ import shutil
 import subprocess  # nosec
 import sys
 import threading
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, MutableMapping, MutableSequence
 from io import StringIO  # pylint: disable=redefined-builtin
 from typing import Optional, cast
 
 import requests
-from cwl_utils.types import CWLObjectType
+from cwl_utils.types import CWLObjectType, CWLDirectoryType, CWLFileType
 
 from .builder import Builder
 from .context import RuntimeContext
@@ -85,7 +85,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        make_path_mapper: Callable[
+            [MutableSequence[CWLFileType | CWLDirectoryType], str, RuntimeContext, bool], PathMapper
+        ],
         requirements: list[CWLObjectType],
         hints: list[CWLObjectType],
         name: str,
@@ -447,7 +449,9 @@ class PodmanCommandLineJob(DockerCommandLineJob):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        make_path_mapper: Callable[
+            [MutableSequence[CWLFileType | CWLDirectoryType], str, RuntimeContext, bool], PathMapper
+        ],
         requirements: list[CWLObjectType],
         hints: list[CWLObjectType],
         name: str,

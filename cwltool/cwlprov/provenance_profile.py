@@ -6,20 +6,13 @@ import uuid
 from collections.abc import MutableMapping, MutableSequence, Sequence
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, TYPE_CHECKING, TypedDict, cast
 
-from cwl_utils.types import CWLObjectType
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, is_directory, is_file
 from prov.identifier import Identifier, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
 
-from ..errors import WorkflowException
-from ..job import CommandLineJob, JobBase
-from ..loghandler import _logger
-from ..process import Process, shortname
-from ..stdfsaccess import StdFsAccess
-from ..utils import JobsType, get_listing, posix_path, versionstring
-from ..workflow_job import WorkflowJob
 from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV,
@@ -37,9 +30,26 @@ from .provenance_constants import (
     WFPROV,
 )
 from .writablebagfile import create_job, write_bag_file  # change this later
+from ..errors import WorkflowException
+from ..job import CommandLineJob, JobBase
+from ..loghandler import _logger
+from ..process import Process, shortname
+from ..stdfsaccess import StdFsAccess
+from ..utils import JobsType, get_listing, posix_path, versionstring
+from ..workflow_job import WorkflowJob
 
 if TYPE_CHECKING:
     from .ro import ResearchObject
+
+CWLArtifact = TypedDict("CWLArtifact", {"@id": str})
+
+
+class CWLDirectoryArtifact(CWLArtifact, CWLDirectoryType):
+    pass
+
+
+class CWLFileArtifact(CWLArtifact, CWLFileType):
+    pass
 
 
 def copy_job_order(job: Process | JobsType, job_order_object: CWLObjectType) -> CWLObjectType:
@@ -244,15 +254,15 @@ class ProvenanceProfile:
         self.generate_output_prov(outputs, process_run_id, process_name)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
-    def declare_file(self, value: CWLObjectType) -> tuple[ProvEntity, ProvEntity, str]:
+    def declare_file(self, value: CWLFileArtifact) -> tuple[ProvEntity, ProvEntity, str]:
         """Construct a FileEntity for the given CWL File object."""
-        if value["class"] != "File":
+        if not is_file(value):
             raise ValueError("Must have class:File: %s" % value)
         # Need to determine file hash aka RO filename
         entity: ProvEntity | None = None
         checksum = None
         if "checksum" in value:
-            csum = cast(str, value["checksum"])
+            csum = value["checksum"]
             (method, checksum) = csum.split("$", 1)
             if method == SHA1 and self.research_object.has_data_file(checksum):
                 entity = self.document.entity("data:" + checksum)
@@ -270,7 +280,7 @@ class ProvenanceProfile:
 
         if not entity and "contents" in value:
             # Anonymous file, add content as string
-            entity, checksum = self.declare_string(cast(str, value["contents"]))
+            entity, checksum = self.declare_string(value["contents"])
 
         # By here one of them should have worked!
         if not entity or not checksum:
@@ -280,7 +290,7 @@ class ProvenanceProfile:
         # secondaryFiles. Note that multiple uses of a file might thus record
         # different names for the same entity, so we'll
         # make/track a specialized entity by UUID
-        file_id = cast(str, value.setdefault("@id", uuid.uuid4().urn))
+        file_id = value.setdefault("@id", uuid.uuid4().urn)
         # A specialized entity that has just these names
         file_entity = self.document.entity(
             file_id,
@@ -288,20 +298,20 @@ class ProvenanceProfile:
         )
 
         if "basename" in value:
-            file_entity.add_attributes({CWLPROV["basename"]: cast(str, value["basename"])})
+            file_entity.add_attributes({CWLPROV["basename"]: value["basename"]})
         if "nameroot" in value:
-            file_entity.add_attributes({CWLPROV["nameroot"]: cast(str, value["nameroot"])})
+            file_entity.add_attributes({CWLPROV["nameroot"]: value["nameroot"]})
         if "nameext" in value:
-            file_entity.add_attributes({CWLPROV["nameext"]: cast(str, value["nameext"])})
+            file_entity.add_attributes({CWLPROV["nameext"]: value["nameext"]})
         self.document.specializationOf(file_entity, entity)
 
         # Check for secondaries
         for sec in cast(MutableSequence[CWLObjectType], value.get("secondaryFiles", [])):
             # TODO: Record these in a specializationOf entity with UUID?
-            if sec["class"] == "File":
-                (sec_entity, _, _) = self.declare_file(sec)
-            elif sec["class"] == "Directory":
-                sec_entity = self.declare_directory(sec)
+            if is_file(sec):
+                (sec_entity, _, _) = self.declare_file(cast(CWLFileArtifact, sec))
+            elif is_directory(sec):
+                sec_entity = self.declare_directory(cast(CWLDirectoryArtifact, sec))
             else:
                 raise ValueError(f"Got unexpected secondaryFiles value: {sec}")
             # We don't know how/when/where the secondary file was generated,
@@ -316,14 +326,14 @@ class ProvenanceProfile:
 
         return file_entity, entity, checksum
 
-    def declare_directory(self, value: CWLObjectType) -> ProvEntity:
+    def declare_directory(self, value: CWLDirectoryArtifact) -> ProvEntity:
         """Register any nested files/directories."""
         # FIXME: Calculate a hash-like identifier for directory
         # so we get same value if it's the same filenames/hashes
         # in a different location.
         # For now, mint a new UUID to identify this directory, but
         # attempt to keep it inside the value dictionary
-        dir_id = cast(str, value.setdefault("@id", uuid.uuid4().urn))
+        dir_id = value.setdefault("@id", uuid.uuid4().urn)
 
         # New annotation file to keep the ORE Folder listing
         ore_doc_fn = dir_id.replace("urn:uuid:", "directory-") + ".ttl"
@@ -340,7 +350,7 @@ class ProvenanceProfile:
         )
 
         if "basename" in value:
-            coll.add_attributes({CWLPROV["basename"]: cast(str, value["basename"])})
+            coll.add_attributes({CWLPROV["basename"]: value["basename"]})
 
         # ORE description of ro:Folder, saved separately
         coll_b = dir_bundle.entity(
@@ -476,11 +486,11 @@ class ProvenanceProfile:
 
             # Base case - we found a File we need to update
             case {"class": "File"}:
-                entity = self.declare_file(value)[0]
+                entity = self.declare_file(cast(CWLFileArtifact, value))[0]
                 value["@id"] = entity.identifier.uri
                 return entity
             case {"class": "Directory"}:
-                entity = self.declare_directory(value)
+                entity = self.declare_directory(cast(CWLDirectoryArtifact, value))
                 value["@id"] = entity.identifier.uri
                 return entity
             case {**rest}:

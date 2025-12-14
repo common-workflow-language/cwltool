@@ -9,11 +9,11 @@ import re
 import shutil
 import sys
 import threading
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, MutableMapping, MutableSequence
 from subprocess import check_call, check_output  # nosec
 from typing import cast
 
-from cwl_utils.types import CWLObjectType
+from cwl_utils.types import CWLObjectType, CWLDirectoryType, CWLFileType
 from packaging.version import Version
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
@@ -170,7 +170,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        make_path_mapper: Callable[
+            [MutableSequence[CWLFileType | CWLDirectoryType], str, RuntimeContext, bool], PathMapper
+        ],
         requirements: list[CWLObjectType],
         hints: list[CWLObjectType],
         name: str,

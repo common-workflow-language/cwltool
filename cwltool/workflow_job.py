@@ -4,7 +4,7 @@ import functools
 import logging
 import threading
 from collections.abc import MutableMapping, MutableSequence, Sized
-from typing import TYPE_CHECKING, Optional, Union, cast
+from typing import Optional, TYPE_CHECKING, cast
 
 from cwl_utils import expression
 from cwl_utils.types import CWLObjectType, CWLOutputType, SinkType
@@ -764,7 +764,7 @@ class WorkflowJob:
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: Union[threading.Lock, None] = None,
+        tmpdir_lock: threading.Lock | None = None,
     ) -> None:
         """Log the start of each workflow."""
         _logger.info("[%s] start", self.name)

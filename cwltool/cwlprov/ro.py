@@ -13,7 +13,15 @@ from socket import getfqdn
 from typing import IO, TYPE_CHECKING, Any, Optional, cast
 
 import prov.model as provM
-from cwl_utils.types import CWLObjectType, CWLOutputType, is_directory, is_file
+from cwl_utils.types import (
+    CWLDirectoryType,
+    CWLFileType,
+    CWLObjectType,
+    CWLOutputType,
+    is_directory,
+    is_file,
+    is_file_or_directory,
+)
 from prov.model import ProvDocument
 
 from ..loghandler import _logger
@@ -494,7 +502,7 @@ class ResearchObject:
             return authored_by
         return None
 
-    def generate_snapshot(self, prov_dep: CWLObjectType) -> None:
+    def generate_snapshot(self, prov_dep: CWLFileType | CWLDirectoryType) -> None:
         """Copy all of the CWL files to the snapshot/ directory."""
         self.self_check()
         for key, value in prov_dep.items():
@@ -520,8 +528,8 @@ class ResearchObject:
                     except PermissionError:
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
             elif key in ("secondaryFiles", "listing"):
-                for files in cast(MutableSequence[CWLObjectType], value):
-                    if isinstance(files, MutableMapping):
+                for files in cast(MutableSequence[CWLFileType | CWLDirectoryType], value):
+                    if is_file_or_directory(files):
                         self.generate_snapshot(files)
             else:
                 pass
@@ -634,7 +642,7 @@ class ResearchObject:
 
     def _relativise_files(
         self,
-        structure: CWLObjectType | CWLOutputType | MutableSequence[CWLObjectType],
+        structure: CWLObjectType | CWLOutputType | MutableSequence[CWLObjectType] | None,
     ) -> None:
         """Save any file objects into the RO and update the local paths."""
         # Base case - we found a File we need to update
@@ -674,7 +682,7 @@ class ResearchObject:
 
             for val in structure.values():
                 try:
-                    self._relativise_files(val)
+                    self._relativise_files(cast(CWLOutputType, val))
                 except OSError:
                     pass
             return

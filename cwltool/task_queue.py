@@ -6,7 +6,6 @@
 import queue
 import threading
 from collections.abc import Callable
-from typing import Union
 
 from .loghandler import _logger
 
@@ -66,8 +65,8 @@ class TaskQueue:
     def add(
         self,
         task: Callable[[], None],
-        unlock: Union[threading.Condition, None] = None,
-        check_done: Union[threading.Event, None] = None,
+        unlock: threading.Condition | None = None,
+        check_done: threading.Event | None = None,
     ) -> None:
         """
         Add your task to the queue.

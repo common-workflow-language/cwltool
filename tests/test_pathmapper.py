@@ -1,5 +1,7 @@
+from collections.abc import MutableSequence
+
 import pytest
-from cwl_utils.types import CWLObjectType
+from cwl_utils.types import CWLObjectType, CWLDirectoryType, CWLFileType
 
 from cwltool.pathmapper import PathMapper
 from cwltool.utils import normalizeFilesDirs
@@ -9,7 +11,7 @@ def test_subclass() -> None:
     class SubPathMapper(PathMapper):
         def __init__(
             self,
-            referenced_files: list[CWLObjectType],
+            referenced_files: MutableSequence[CWLFileType | CWLDirectoryType],
             basedir: str,
             stagedir: str,
             new: str,
@@ -90,7 +92,7 @@ def test_basename_field_generation(filename: str, expected: tuple[str, str]) -> 
         "nameext": nameext,
     }
 
-    my_file = {"class": "File", "location": "/foo/" + filename}
+    my_file = CWLFileType(**{"class": "File", "location": "/foo/" + filename})
 
     normalizeFilesDirs(my_file)
     assert my_file == expected2

@@ -7,7 +7,7 @@ import stat
 import subprocess
 import sys
 import urllib.parse
-from collections.abc import MutableMapping
+from collections.abc import MutableMapping, MutableSequence
 from io import StringIO
 from pathlib import Path
 from typing import Any, cast
@@ -17,7 +17,13 @@ import pydot
 import pytest
 from cwl_utils.errors import JavascriptException
 from cwl_utils.sandboxjs import param_re
-from cwl_utils.types import CWLObjectType, CWLOutputType, CWLParameterContext
+from cwl_utils.types import (
+    CWLObjectType,
+    CWLOutputType,
+    CWLParameterContext,
+    CWLDirectoryType,
+    CWLFileType,
+)
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 
@@ -590,24 +596,28 @@ def test_scandeps_defaults_with_secondaryfiles() -> None:
 
 
 def test_dedupe() -> None:
-    not_deduped: list[CWLObjectType] = [
-        {"class": "File", "location": "file:///example/a"},
-        {"class": "File", "location": "file:///example/a"},
-        {"class": "File", "location": "file:///example/d"},
-        {
-            "class": "Directory",
-            "location": "file:///example/c",
-            "listing": [{"class": "File", "location": "file:///example/d"}],
-        },
+    not_deduped: MutableSequence[CWLFileType | CWLDirectoryType] = [
+        CWLFileType(**{"class": "File", "location": "file:///example/a"}),
+        CWLFileType(**{"class": "File", "location": "file:///example/a"}),
+        CWLFileType(**{"class": "File", "location": "file:///example/d"}),
+        CWLDirectoryType(
+            **{
+                "class": "Directory",
+                "location": "file:///example/c",
+                "listing": [{"class": "File", "location": "file:///example/d"}],
+            }
+        ),
     ]
 
     expected = [
-        {"class": "File", "location": "file:///example/a"},
-        {
-            "class": "Directory",
-            "location": "file:///example/c",
-            "listing": [{"class": "File", "location": "file:///example/d"}],
-        },
+        CWLFileType(**{"class": "File", "location": "file:///example/a"}),
+        CWLDirectoryType(
+            **{
+                "class": "Directory",
+                "location": "file:///example/c",
+                "listing": [{"class": "File", "location": "file:///example/d"}],
+            }
+        ),
     ]
 
     assert dedup(not_deduped) == expected

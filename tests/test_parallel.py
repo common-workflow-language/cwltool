@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+from cwl_utils.types import CWLFileType
+
 from cwltool.context import RuntimeContext
 from cwltool.executors import MultithreadedJobExecutor
 from cwltool.factory import Factory
@@ -17,7 +19,7 @@ def test_sequential_workflow(tmp_path: Path) -> None:
     runtime_context.select_resources = executor.select_resources
     factory = Factory(executor, None, runtime_context)
     echo = factory.make(get_data(test_file))
-    file_contents = {"class": "File", "location": get_data("tests/wf/whale.txt")}
+    file_contents = CWLFileType(**{"class": "File", "location": get_data("tests/wf/whale.txt")})
     assert echo(file1=file_contents) == {"count_output": 16}
 
 
