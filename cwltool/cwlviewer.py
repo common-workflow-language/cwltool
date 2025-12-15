@@ -12,7 +12,7 @@ from packaging.version import Version
 if Version(pydot.__version__) > Version("3.0"):
     quote_id_if_necessary = pydot.quote_id_if_necessary
 else:
-    quote_id_if_necessary = pydot.quote_if_necessary
+    quote_id_if_necessary = pydot.quote_if_necessary  # type: ignore[attr-defined]
 
 
 def _get_inner_edges_query() -> str:
