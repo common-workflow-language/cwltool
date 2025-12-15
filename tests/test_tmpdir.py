@@ -1,5 +1,6 @@
 """Test that all temporary directories respect the --tmpdir-prefix and --tmp-outdir-prefix options."""
 
+import copy
 import os
 import re
 import shutil
@@ -24,7 +25,7 @@ from cwltool.pathmapper import MapperEnt
 from cwltool.singularity import SingularityCommandLineJob
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
-from cwltool.utils import create_tmp_dir
+from cwltool.utils import CWLObjectType, create_tmp_dir
 
 from .util import get_data, get_main_output, needs_docker, needs_singularity
 
@@ -379,7 +380,7 @@ def test_singularity_get_image_from_sandbox(
     assert res
 
 
-def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
+def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     (tmp_path / "out").mkdir(exist_ok=True)
     tmp_outdir_prefix = tmp_path / "out"
     tmp_outdir_prefix.mkdir(exist_ok=True)
@@ -425,65 +426,73 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     # ensure then env var is not set
     if os.environ.get("CWL_SINGULARITY_IMAGES", None):
         os.environ.pop("CWL_SINGULARITY_IMAGES")
-    req = {"class": "DockerRequirement", "dockerPull": "alpine"}
+    initial_requirements = {"class": "DockerRequirement", "dockerPull": "alpine"}
+    requirements = copy.deepcopy(initial_requirements)
     # get image from sandbox_base_path option
-    res = SingularityCommandLineJob(
+    res_get_image = SingularityCommandLineJob(
         builder, {}, CommandLineTool.make_path_mapper, [], [], ""
     ).get_image(
-        req,
+        requirements,
         pull_image=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
         force_pull=False,
-        sandbox_base_path=repo_path.absolute(),
+        sandbox_base_path=str(repo_path.absolute()),
     )
-    assert res
-    assert req["dockerImageId"] == "alpine"
+    assert res_get_image
+    assert requirements["dockerImageId"] == "alpine"
 
-    res = SingularityCommandLineJob(
+    requirements = copy.deepcopy(initial_requirements)
+    requirements_obj: CWLObjectType = {"class": "DockerRequirement", "dockerPull": "alpine"}
+    
+    res_get_req = SingularityCommandLineJob(
         builder, {}, CommandLineTool.make_path_mapper, [], [], ""
     ).get_from_requirements(
-        req,
+        requirements_obj,
         pull_image=False,
         force_pull=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
-        image_base_path=repo_path.absolute(),
+        image_base_path=str(repo_path.absolute()),
     )
-    assert res == os.path.abspath(image_path)
+    assert res_get_req == str(os.path.abspath(image_path))
 
     # get requirements from without sandbox image path
     # should return an error
-    with pytest.raises(WorkflowException):
-        res = SingularityCommandLineJob(
+    with pytest.raises(KeyError):
+        requirements = copy.deepcopy(initial_requirements)
+        res_get_req = SingularityCommandLineJob(
             builder, {}, CommandLineTool.make_path_mapper, [], [], ""
         ).get_from_requirements(
-            req,
+            requirements_obj,
             pull_image=False,
             force_pull=False,
             tmp_outdir_prefix=str(tmp_outdir_prefix),
         )
 
+    
     # get image from CWL_SINGULARITY_IMAGES env var
+    requirements = copy.deepcopy(initial_requirements)
     os.environ["CWL_SINGULARITY_IMAGES"] = str(repo_path.absolute())
-    res = SingularityCommandLineJob(
+    res_get_image = SingularityCommandLineJob(
         builder, {}, CommandLineTool.make_path_mapper, [], [], ""
     ).get_image(
-        req,
+        requirements,
         pull_image=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
         force_pull=False,
     )
-    assert res
-    assert req["dockerImageId"] == "alpine"
+    assert res_get_image
+    assert requirements["dockerImageId"] == "alpine"
 
-    res = SingularityCommandLineJob(
+    requirements = copy.deepcopy(initial_requirements)
+    res_get_req = SingularityCommandLineJob(
         builder, {}, CommandLineTool.make_path_mapper, [], [], ""
     ).get_from_requirements(
-        req,
+        requirements_obj,
         pull_image=False,
         force_pull=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
     )
-    assert res == os.path.abspath(image_path)
+    assert res_get_req == os.path.abspath(image_path)
 
     os.environ.pop("CWL_SINGULARITY_IMAGES")
 
