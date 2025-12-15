@@ -162,6 +162,7 @@ setup(
         "cwl-utils >= 0.32",
         "spython >= 0.3.0",
         "rich-argparse",
+        "typing-extensions >= 4.1.0",
     ],
     extras_require={
         "deps": [
