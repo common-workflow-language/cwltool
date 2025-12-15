@@ -250,10 +250,10 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             sandbox_base_path = os.path.abspath(sandbox_base_path)
 
         if "dockerFile" in docker_req:
-            if not image_base_path:  # if environment variables were not set
-                image_base_path = create_tmp_dir(tmp_outdir_prefix)
+            if cache_folder is None:  # if environment variables were not set
+                cache_folder = create_tmp_dir(tmp_outdir_prefix)
 
-            absolute_path = os.path.abspath(image_base_path)
+            absolute_path = os.path.abspath(cache_folder)
             if "dockerImageId" in docker_req:
                 image_name = docker_req["dockerImageId"]
             else:
