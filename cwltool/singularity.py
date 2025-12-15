@@ -239,7 +239,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         elif is_version_2_6() and "SINGULARITY_PULLFOLDER" in os.environ:
             cache_folder = os.environ["SINGULARITY_PULLFOLDER"]
 
-        if "CWL_SINGULARITY_IMAGES" in os.environ:
+        if os.environ.get("CWL_SINGULARITY_IMAGES", None):
             image_base_path = os.environ["CWL_SINGULARITY_IMAGES"]
         else:
             image_base_path = cache_folder if cache_folder else ""
@@ -459,7 +459,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         ):
             raise WorkflowException("Container image {} not found".format(r["dockerImageId"]))
 
-        if "CWL_SINGULARITY_IMAGES" in os.environ:
+        if os.environ.get("CWL_SINGULARITY_IMAGES", None):
             image_base_path = os.environ["CWL_SINGULARITY_IMAGES"]
             image_path = os.path.join(image_base_path, cast(str, r["dockerImageId"]))
         elif image_base_path:
