@@ -2,12 +2,16 @@
 
 import argparse
 import os
+import re
+import sys
 import urllib
 from collections.abc import Callable, MutableSequence, Sequence
 from typing import Any, cast
 
 import rich.markup
+from rich.table import Table
 from rich_argparse import HelpPreviewAction, RichHelpFormatter
+from typing_extensions import LiteralString
 
 from .loghandler import _logger
 from .process import Process, shortname
@@ -16,13 +20,83 @@ from .software_requirements import SOFTWARE_REQUIREMENTS_ENABLED
 from .utils import DEFAULT_TMP_PREFIX
 
 
+class _env_var_table(Table):
+    def __init__(self) -> None:
+        super().__init__(show_edge=False)
+        self.defs: list[tuple[str, str]] = []
+        self.add_column("environment variable")
+        self.add_column("usage")
+
+    def add_env(self, name: str, description: str) -> None:
+        self.defs.append((name, description))
+        self.add_row(name, description)
+
+    def splitlines(self) -> list[LiteralString]:  # used by sphinx.autoprogram
+        markup_link = re.compile(r"\[link=(.*?)](.*?)\[/]")
+        owh = RichHelpFormatter.styles["argparse.args"]  # options with hyphens
+        bt = RichHelpFormatter.styles["argparse.syntax"]  # backticks
+        owh_regex = re.compile(rf"\[{owh}](.*?)\[/]")
+        bt_regex = re.compile(rf"\[{bt}](.*?)\[/]")
+        lines = ["environment variables"]
+        lines.append("!" * len(lines[0]))
+
+        def _cvt(line: str) -> str:
+            result = re.sub(markup_link, r"`\2 <\1>`__", line)
+            result = re.sub(owh_regex, r":option:`\1`", result)
+            result = re.sub(bt_regex, r"``\1``", result)
+            return result
+
+        for name, description in self.defs:
+            lines.append(f".. envvar:: {name}")
+            lines.append("")
+            lines.append(f"    {_cvt(description)}")
+            lines.append("")
+        return lines
+
+
 def arg_parser() -> argparse.ArgumentParser:
     RichHelpFormatter.group_name_formatter = str
+    owh = RichHelpFormatter.styles["argparse.args"]  # options with hyphens
+    bt = RichHelpFormatter.styles["argparse.syntax"]  # backticks
+    env_table = _env_var_table()
+    env_table.add_env("CWLTOOL_OPTIONS", f"set additional space-separated [{bt}]cwltool[/] options")
+    env_table.add_env(
+        "CWL_FULL_NAME", f"full name of user to record as part of [{owh}]--provenance[/]"
+    )
+    env_table.add_env(
+        "CWL_SINGULARITY_CACHE",
+        f"directory path to find already downloaded Singularity images; "
+        f"[{bt}]dockerFile[/] images will also be searched for and stored here",
+    )
+    env_table.add_env(
+        "ORCID",
+        f"user [link=https://orcid.org/]ORCID identifier[/] to record as part of [{owh}]--provenance[/]",
+    )
+    env_table.add_env(
+        "XDG_CACHE_HOME",
+        f"directory path to store cached HTTP(S) downloads in a [{bt}]cwltool[/] sub-folder; "
+        f"if unset, then cache downloads are stored in [{bt}]$HOME/.cache/cwltool[/]",
+    )
+    env_table.add_env(
+        "XDG_DATA_HOME",
+        f"directory path to search for a [{bt}].local/commonwl[/] "
+        f"CWL tool folder; if unset, then [{bt}]$HOME/.local/commonwl[/] is searched",
+    )
+    env_table.add_env(
+        "XDG_DATA_DIRS",
+        f"directory path to search for a [{bt}]commonwl[/] "
+        f"CWL tool folder; if unset, then [{bt}]/usr/local/share/[/] and [{bt}]/usr/share/[/] are searched",
+    )
+
     parser = argparse.ArgumentParser(
         formatter_class=RichHelpFormatter,
         description="Reference executor for Common Workflow Language standards. "
         "Not for production use.",
+        epilog=env_table,  # type: ignore[arg-type]
     )
+    if sys.version_info >= (3, 14):
+        parser.suggest_on_error = True
+
     parser.add_argument("--basedir", type=str)
     parser.add_argument(
         "--outdir",
@@ -30,7 +104,14 @@ def arg_parser() -> argparse.ArgumentParser:
         default=os.path.abspath("."),
         help="Output directory. The default is the current directory.",
     )
-
+    parser.add_argument(
+        "--write-summary",
+        "-w",
+        type=str,
+        help="Path to write the final output JSON object to. Default is stdout.",
+        default="",
+        dest="write_summary",
+    )
     parser.add_argument(
         "--parallel",
         action="store_true",
@@ -44,173 +125,94 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Maximum number of jobs to run in parallel. "
         "Specify '0' to match the number of CPU cores available.",
     )
-    envgroup = parser.add_argument_group(title="Control environment variables")
-    env_exclusive = envgroup.add_mutually_exclusive_group()
-    env_exclusive.add_argument(
-        "--preserve-environment",
-        type=str,
-        action="append",
-        help="Preserve specific environment variable when running "
-        "CommandLineTools. May be provided multiple times. By default PATH is "
-        "preserved when not running in a container.",
-        metavar="ENVVAR",
-        default=[],
-        dest="preserve_environment",
-    )
-    env_exclusive.add_argument(
-        "--preserve-entire-environment",
-        action="store_true",
-        help="Preserve all environment variables when running CommandLineTools "
-        "without a software container.",
-        default=False,
-        dest="preserve_entire_environment",
-    )
-
-    files_group = parser.add_argument_group(
-        title="Manage intermediate, temporary, or final output files"
-    )
-    files_group.add_argument(
-        "--tmpdir-prefix",
-        type=str,
-        help="Path prefix for temporary directories. If --tmpdir-prefix is not "
-        "provided, then the prefix for temporary directories is influenced by "
-        "the value of the TMPDIR, TEMP, or TMP environment variables. Taking "
-        "those into consideration, the current default is {}.".format(DEFAULT_TMP_PREFIX),
-        default=DEFAULT_TMP_PREFIX,
-    )
-
-    intgroup = files_group.add_mutually_exclusive_group()
-    intgroup.add_argument(
-        "--tmp-outdir-prefix",
-        type=str,
-        help="Path prefix for intermediate output directories. Defaults to the "
-        "value of --tmpdir-prefix.",
-        default="",
-    )
-
-    intgroup.add_argument(
-        "--cachedir",
-        type=str,
-        default="",
-        help="Directory to cache intermediate workflow outputs to avoid "
-        "recomputing steps. Can be very helpful in the development and "
-        "troubleshooting of CWL documents.",
-    )
-
-    tmpgroup = files_group.add_mutually_exclusive_group()
-    tmpgroup.add_argument(
-        "--rm-tmpdir",
-        action="store_true",
-        default=True,
-        help="Delete intermediate temporary directories (default)",
-        dest="rm_tmpdir",
-    )
-
-    tmpgroup.add_argument(
-        "--leave-tmpdir",
-        action="store_false",
-        default=True,
-        help="Do not delete intermediate temporary directories",
-        dest="rm_tmpdir",
-    )
-
-    outgroup = files_group.add_mutually_exclusive_group()
-    outgroup.add_argument(
-        "--move-outputs",
-        action="store_const",
-        const="move",
-        default="move",
-        help="Move output files to the workflow output directory and delete "
-        "intermediate output directories (default).",
-        dest="move_outputs",
-    )
-
-    outgroup.add_argument(
-        "--leave-outputs",
-        action="store_const",
-        const="leave",
-        default="move",
-        help="Leave output files in intermediate output directories.",
-        dest="move_outputs",
-    )
-
-    outgroup.add_argument(
-        "--copy-outputs",
-        action="store_const",
-        const="copy",
-        default="move",
-        help="Copy output files to the workflow output directory and don't "
-        "delete intermediate output directories.",
-        dest="move_outputs",
-    )
-
     parser.add_argument(
-        "--eval-timeout",
-        help="Time to wait for a Javascript expression to evaluate before giving "
-        "an error, default 60s.",
-        type=float,
-        default=60,
-    )
-
-    provgroup = parser.add_argument_group("Recording provenance information of the execution")
-    provgroup.add_argument(
-        "--provenance",
-        help="Save provenance to specified folder as a "
-        "Research Object that captures and aggregates "
-        "workflow execution and data products.",
-        type=str,
-    )
-
-    provgroup.add_argument(
-        "--enable-user-provenance",
-        default=False,
+        "--skip-schemas",
         action="store_true",
-        help="Record user account info as part of provenance.",
-        dest="user_provenance",
-    )
-    provgroup.add_argument(
-        "--disable-user-provenance",
+        help="Skip loading of schemas",
         default=False,
-        action="store_false",
-        help="Do not record user account info in provenance.",
-        dest="user_provenance",
+        dest="skip_schemas",
     )
-    provgroup.add_argument(
-        "--enable-host-provenance",
-        default=False,
+    parser.add_argument(
+        "--enable-dev",
         action="store_true",
-        help="Record host info as part of provenance.",
-        dest="host_provenance",
-    )
-    provgroup.add_argument(
-        "--disable-host-provenance",
+        help="Enable loading and running unofficial development versions of " "the CWL standards.",
         default=False,
+    )
+    parser.add_argument(
+        "--enable-ext",
+        action="store_true",
+        help="Enable loading and running `cwltool:` extensions to the CWL standards.",
+        default=False,
+    )
+    parser.add_argument(
+        "--disable-validate",
+        dest="do_validate",
         action="store_false",
-        help="Do not record host info in provenance.",
-        dest="host_provenance",
+        default=True,
+        help=argparse.SUPPRESS,
     )
-    provgroup.add_argument(
-        "--orcid",
-        help="Record user ORCID identifier as part of "
-        "provenance, e.g. https://orcid.org/0000-0002-1825-0097 "
-        "or 0000-0002-1825-0097. Alternatively the environment variable "
-        "ORCID may be set.",
-        dest="orcid",
-        default=os.environ.get("ORCID", ""),
-        type=str,
+    parser.add_argument(
+        "--fast-parser",
+        dest="fast_parser",
+        action="store_true",
+        default=False,
+        help=argparse.SUPPRESS,
     )
-    provgroup.add_argument(
-        "--full-name",
-        help="Record full name of user as part of provenance, "
-        "e.g. Josiah Carberry. You may need to use shell quotes to preserve "
-        "spaces. Alternatively the environment variable CWL_FULL_NAME may "
-        "be set.",
-        dest="cwl_full_name",
-        default=os.environ.get("CWL_FULL_NAME", ""),
+    parser.add_argument(
+        "--on-error",
+        help="Desired workflow behavior when a step fails.  One of `stop` (do "
+        "not submit any more steps) or `continue` (may submit other steps that "
+        "are not downstream from the error). Default is `stop`.",
+        default="stop",
+        choices=("stop", "continue"),
+    )
+    parser.add_argument(
+        "--relax-path-checks",
+        action="store_true",
+        default=False,
+        help="Relax requirements on path names to permit " "spaces and hash characters.",
+        dest="relax_path_checks",
+    )
+    parser.add_argument(
+        "--overrides",
         type=str,
+        default=None,
+        help="Read process requirement overrides from file.",
+    )
+    parser.add_argument(
+        "--mpi-config-file",
+        type=str,
+        default=None,
+        help="Platform specific configuration for MPI (parallel launcher, its "
+        "flag etc). See README section 'Running MPI-based tools' for details "
+        "of the format.",
+    )
+    parser.add_argument(
+        "--generate-help-preview",
+        action=HelpPreviewAction,
+        path="help-preview.svg",  # (optional) or "help-preview.html" or "help-preview.txt"
+    )
+    parser.add_argument(
+        "workflow",
+        type=str,
+        nargs="?",
+        default=None,
+        metavar="cwl_document",
+        help="path or URL to a CWL Workflow, "
+        "CommandLineTool, or ExpressionTool. If the `inputs_object` has a "
+        "`cwl:tool` field indicating the path or URL to the cwl_document, "
+        " then the `cwl_document` argument is optional.",
+    )
+    parser.add_argument(
+        "job_order",
+        nargs=argparse.REMAINDER,
+        metavar="inputs_object",
+        help="path or URL to a YAML or JSON "
+        "formatted description of the required input values for the given "
+        "`cwl_document`.",
     )
 
-    non_exec_group = parser.add_argument_group(title="Non-execution options")
+    non_exec_group = parser.add_argument_group(title="non-execution options")
     printgroup = non_exec_group.add_mutually_exclusive_group()
     printgroup.add_argument(
         "--print-rdf",
@@ -260,6 +262,13 @@ def arg_parser() -> argparse.ArgumentParser:
         "--make-template", action="store_true", help="Generate a template input object"
     )
     non_exec_group.add_argument(
+        "--relative-deps",
+        choices=["primary", "cwd"],
+        default="primary",
+        help="When using --print-deps, print paths "
+        "relative to primary file or current working directory.",
+    )
+    non_exec_group.add_argument(
         "--rdf-serializer",
         help="Output RDF serialization format used by --print-rdf (one of "
         "turtle (default), n3, nt, xml)",
@@ -269,11 +278,185 @@ def arg_parser() -> argparse.ArgumentParser:
         "--tool-help", action="store_true", help="Print command line help for tool"
     )
 
+    logging_group = parser.add_argument_group(title="logging configuration")
+    logging_exclusive = logging_group.add_mutually_exclusive_group()
+    logging_exclusive.add_argument("--verbose", action="store_true", help="Default logging")
+    logging_exclusive.add_argument("--no-warnings", action="store_true", help="Only print errors.")
+    logging_exclusive.add_argument(
+        "--quiet", action="store_true", help="Only print warnings and errors."
+    )
+    logging_exclusive.add_argument("--debug", action="store_true", help="Print even more logging")
+    logging_group.add_argument(
+        "--log-dir",
+        type=str,
+        default="",
+        help="Log your tools stdout/stderr to this location outside of container "
+        "This will only log stdout/stderr if you specify stdout/stderr in their "
+        "respective fields or capture it as an output",
+    )
+    logging_group.add_argument(
+        "--timestamps",
+        action="store_true",
+        help="Add timestamps to the errors, warnings, and notifications.",
+    )
+
+    envgroup = parser.add_argument_group(title="environment variables control")
+    env_exclusive = envgroup.add_mutually_exclusive_group()
+    env_exclusive.add_argument(
+        "--preserve-environment",
+        type=str,
+        action="append",
+        help="Preserve specific environment variable when running "
+        "CommandLineTools. May be provided multiple times. By default PATH is "
+        "preserved when not running in a container.",
+        metavar="ENVVAR",
+        default=[],
+        dest="preserve_environment",
+    )
+    env_exclusive.add_argument(
+        "--preserve-entire-environment",
+        action="store_true",
+        help="Preserve all environment variables when running CommandLineTools "
+        "without a software container.",
+        default=False,
+        dest="preserve_entire_environment",
+    )
+
+    files_group = parser.add_argument_group(
+        title="intermediate, temporary, or final output files management"
+    )
+    files_group.add_argument(
+        "--tmpdir-prefix",
+        type=str,
+        help="Path prefix for temporary directories. If --tmpdir-prefix is not "
+        "provided, then the prefix for temporary directories is influenced by "
+        "the value of the TMPDIR, TEMP, or TMP environment variables. Taking "
+        "those into consideration, the current default is {}.".format(DEFAULT_TMP_PREFIX),
+        default=DEFAULT_TMP_PREFIX,
+    )
+
+    intgroup = files_group.add_mutually_exclusive_group()
+    intgroup.add_argument(
+        "--tmp-outdir-prefix",
+        type=str,
+        help="Path prefix for intermediate output directories. Defaults to the "
+        "value of --tmpdir-prefix.",
+        default="",
+    )
+    intgroup.add_argument(
+        "--cachedir",
+        type=str,
+        default="",
+        help="Directory to cache intermediate workflow outputs to avoid "
+        "recomputing steps. Can be very helpful in the development and "
+        "troubleshooting of CWL documents.",
+    )
+
+    tmpgroup = files_group.add_mutually_exclusive_group()
+    tmpgroup.add_argument(
+        "--rm-tmpdir",
+        action="store_true",
+        default=True,
+        help="Delete intermediate temporary directories (default)",
+        dest="rm_tmpdir",
+    )
+    tmpgroup.add_argument(
+        "--leave-tmpdir",
+        action="store_false",
+        default=True,
+        help="Do not delete intermediate temporary directories",
+        dest="rm_tmpdir",
+    )
+
+    outgroup = files_group.add_mutually_exclusive_group()
+    outgroup.add_argument(
+        "--move-outputs",
+        action="store_const",
+        const="move",
+        default="move",
+        help="Move output files to the workflow output directory and delete "
+        "intermediate output directories (default).",
+        dest="move_outputs",
+    )
+    outgroup.add_argument(
+        "--leave-outputs",
+        action="store_const",
+        const="leave",
+        default="move",
+        help="Leave output files in intermediate output directories.",
+        dest="move_outputs",
+    )
+    outgroup.add_argument(
+        "--copy-outputs",
+        action="store_const",
+        const="copy",
+        default="move",
+        help="Copy output files to the workflow output directory and don't "
+        "delete intermediate output directories.",
+        dest="move_outputs",
+    )
+
+    provgroup = parser.add_argument_group("provenance recording")
+    provgroup.add_argument(
+        "--provenance",
+        help="Save provenance to specified folder as a "
+        "Research Object that captures and aggregates "
+        "workflow execution and data products.",
+        type=str,
+    )
+    provgroup.add_argument(
+        "--enable-user-provenance",
+        default=False,
+        action="store_true",
+        help="Record user account info as part of --provenance.",
+        dest="user_provenance",
+    )
+    provgroup.add_argument(
+        "--disable-user-provenance",
+        default=False,
+        action="store_false",
+        help="Do not record user account info in --provenance.",
+        dest="user_provenance",
+    )
+    provgroup.add_argument(
+        "--enable-host-provenance",
+        default=False,
+        action="store_true",
+        help="Record host info as part of --provenance.",
+        dest="host_provenance",
+    )
+    provgroup.add_argument(
+        "--disable-host-provenance",
+        default=False,
+        action="store_false",
+        help="Do not record host info in --provenance.",
+        dest="host_provenance",
+    )
+    provgroup.add_argument(
+        "--orcid",
+        help="Record user ORCID identifier as part of "
+        "--provenance, e.g. https://orcid.org/0000-0002-1825-0097 "
+        "or 0000-0002-1825-0097. Alternatively the environment variable "
+        "ORCID may be set.",
+        dest="orcid",
+        default=os.environ.get("ORCID", ""),
+        type=str,
+    )
+    provgroup.add_argument(
+        "--full-name",
+        help="Record full name of user as part of --provenance, "
+        "e.g. `Josiah Carberry`. You may need to use shell quotes to preserve "
+        "spaces. Also set by the CWL_FULL_NAME environment variable.",
+        dest="cwl_full_name",
+        default=os.environ.get("CWL_FULL_NAME", ""),
+        type=str,
+    )
+
     strictgroup = parser.add_mutually_exclusive_group()
     strictgroup.add_argument(
         "--strict",
         action="store_true",
-        help="Strict validation (unrecognized or out of place fields are error)",
+        help="Strict validation (unrecognized or out of place fields are errors)",
         default=True,
         dest="strict",
     )
@@ -283,14 +466,6 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Lenient validation (ignore unrecognized fields)",
         default=True,
         dest="strict",
-    )
-
-    parser.add_argument(
-        "--skip-schemas",
-        action="store_true",
-        help="Skip loading of schemas",
-        default=False,
-        dest="skip_schemas",
     )
 
     doccachegroup = parser.add_mutually_exclusive_group()
@@ -309,162 +484,23 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="doc_cache",
     )
 
-    volumegroup = parser.add_argument_group(title="Configure logging")
-    volume_exclusive = volumegroup.add_mutually_exclusive_group()
-    volume_exclusive.add_argument("--verbose", action="store_true", help="Default logging")
-    volume_exclusive.add_argument("--no-warnings", action="store_true", help="Only print errors.")
-    volume_exclusive.add_argument(
-        "--quiet", action="store_true", help="Only print warnings and errors."
-    )
-    volume_exclusive.add_argument("--debug", action="store_true", help="Print even more logging")
-    volumegroup.add_argument(
-        "--log-dir",
-        type=str,
-        default="",
-        help="Log your tools stdout/stderr to this location outside of container "
-        "This will only log stdout/stderr if you specify stdout/stderr in their "
-        "respective fields or capture it as an output",
-    )
-    volumegroup.add_argument(
-        "--timestamps",
-        action="store_true",
-        help="Add timestamps to the errors, warnings, and notifications.",
-    )
-
-    parser.add_argument(
-        "--write-summary",
-        "-w",
-        type=str,
-        help="Path to write the final output JSON object to. Default is stdout.",
-        default="",
-        dest="write_summary",
-    )
-
-    parser.add_argument(
-        "--js-console", action="store_true", help="Enable javascript console output"
-    )
-    parser.add_argument(
-        "--disable-js-validation",
-        action="store_true",
-        help="Disable javascript validation.",
-    )
-    parser.add_argument(
-        "--js-hint-options-file",
-        type=str,
-        help="File of options to pass to jshint. "
-        'This includes the added option "includewarnings". ',
-    )
     container_group = parser.add_argument_group(
-        title="Software container engine selection and configuration"
+        title="software container engine selection and configuration"
     )
-    pullgroup = container_group.add_mutually_exclusive_group()
-    pullgroup.add_argument(
-        "--enable-pull",
-        default=True,
-        action="store_true",
-        help="Try to pull Docker images",
-        dest="pull_image",
-    )
-
-    pullgroup.add_argument(
-        "--disable-pull",
-        default=True,
-        action="store_false",
-        help="Do not try to pull Docker images",
-        dest="pull_image",
-    )
-    container_group.add_argument(
-        "--force-docker-pull",
-        action="store_true",
-        default=False,
-        help="Pull latest software container image even if it is locally present",
-        dest="force_docker_pull",
-    )
-    container_group.add_argument(
-        "--no-read-only",
-        action="store_true",
-        default=False,
-        help="Do not set root directory in the container as read-only",
-        dest="no_read_only",
-    )
-
-    container_group.add_argument(
-        "--default-container",
-        help="Specify a default software container to use for any "
-        "CommandLineTool without a DockerRequirement.",
-    )
-    container_group.add_argument(
-        "--no-match-user",
-        action="store_true",
-        help="Disable passing the current uid to `docker run --user`",
-    )
-    container_group.add_argument(
-        "--custom-net",
-        type=str,
-        help="Passed to `docker run` as the `--net` parameter when "
-        "NetworkAccess is true, which is its default setting.",
-    )
-
-    container_cleanup = container_group.add_mutually_exclusive_group()
-    container_cleanup.add_argument(
-        "--rm-container",
-        action="store_true",
-        default=True,
-        help="Delete Docker container used by jobs after they exit (default)",
-        dest="rm_container",
-    )
-
-    container_cleanup.add_argument(
-        "--leave-container",
-        action="store_false",
-        default=True,
-        help="Do not delete Docker container used by jobs after they exit",
-        dest="rm_container",
-    )
-
-    cidgroup = parser.add_argument_group("Recording the software container identifier into a file")
-    cidgroup.add_argument(
-        # Disabled as containerid is now saved by default
-        "--record-container-id",
-        action="store_true",
-        default=False,
-        help=argparse.SUPPRESS,
-        dest="record_container_id",
-    )
-
-    cidgroup.add_argument(
-        "--cidfile-dir",
-        type=str,
-        help="Store the software container ID into a file in the specified directory.",
-        default=None,
-        dest="cidfile_dir",
-    )
-
-    cidgroup.add_argument(
-        "--cidfile-prefix",
-        type=str,
-        help="Specify a prefix to the software container ID filename. "
-        "Final file name will be followed by a timestamp. "
-        "The default is no prefix.",
-        default=None,
-        dest="cidfile_prefix",
-    )
-
     dockergroup = container_group.add_mutually_exclusive_group()
     dockergroup.add_argument(
         "--user-space-docker-cmd",
         metavar="CMD",
-        help="(Linux/OS X only) Specify the path to udocker. Implies --udocker",
+        help="Specify the path to udocker. Implies --udocker",
     )
     dockergroup.add_argument(
         "--udocker",
-        help="(Linux/OS X only) Use the udocker runtime for running containers "
+        help="Use the udocker runtime for running containers "
         "(equivalent to --user-space-docker-cmd=udocker).",
         action="store_const",
         const="udocker",
         dest="user_space_docker_cmd",
     )
-
     dockergroup.add_argument(
         "--singularity",
         action="store_true",
@@ -490,6 +526,53 @@ def arg_parser() -> argparse.ArgumentParser:
         "is specified under `hints`.",
         dest="use_container",
     )
+
+    pullgroup = container_group.add_mutually_exclusive_group()
+    pullgroup.add_argument(
+        "--enable-pull",
+        default=True,
+        action="store_true",
+        help="Try to pull Docker images",
+        dest="pull_image",
+    )
+    pullgroup.add_argument(
+        "--disable-pull",
+        default=True,
+        action="store_false",
+        help="Do not try to pull Docker images",
+        dest="pull_image",
+    )
+
+    container_group.add_argument(
+        "--force-docker-pull",
+        action="store_true",
+        default=False,
+        help="Pull latest software container image even if it is locally present",
+        dest="force_docker_pull",
+    )
+    container_group.add_argument(
+        "--no-read-only",
+        action="store_true",
+        default=False,
+        help="Do not set root directory in the container as read-only",
+        dest="no_read_only",
+    )
+    container_group.add_argument(
+        "--default-container",
+        help="Specify a default software container to use for any "
+        "CommandLineTool without a DockerRequirement.",
+    )
+    container_group.add_argument(
+        "--no-match-user",
+        action="store_true",
+        help="Disable passing the current uid to `docker run --user`",
+    )
+    container_group.add_argument(
+        "--custom-net",
+        type=str,
+        help="Passed to `docker run` as the `--net` parameter when "
+        "NetworkAccess is true, which is its default setting.",
+    )
     container_group.add_argument(
         "--strict-memory-limit",
         action="store_true",
@@ -498,7 +581,6 @@ def arg_parser() -> argparse.ArgumentParser:
         "calculated memory allocation from ResourceRequirements or the "
         "default of 1 gigabyte to Docker's --memory option.",
     )
-
     container_group.add_argument(
         "--strict-cpu-limit",
         action="store_true",
@@ -509,6 +591,47 @@ def arg_parser() -> argparse.ArgumentParser:
         "Requires docker version >= v1.13.",
     )
 
+    container_cleanup = container_group.add_mutually_exclusive_group()
+    container_cleanup.add_argument(
+        "--rm-container",
+        action="store_true",
+        default=True,
+        help="Delete Docker container used by jobs after they exit (default)",
+        dest="rm_container",
+    )
+    container_cleanup.add_argument(
+        "--leave-container",
+        action="store_false",
+        default=True,
+        help="Do not delete Docker container used by jobs after they exit",
+        dest="rm_container",
+    )
+    container_group.add_argument(
+        # Disabled as containerid is now saved by default
+        "--record-container-id",
+        action="store_true",
+        default=False,
+        help=argparse.SUPPRESS,
+        dest="record_container_id",
+    )
+    container_group.add_argument(
+        "--cidfile-dir",
+        type=str,
+        help="Store the software container ID into a file in the specified directory.",
+        default=None,
+        dest="cidfile_dir",
+    )
+    container_group.add_argument(
+        "--cidfile-prefix",
+        type=str,
+        help="Specify a prefix to the software container ID filename. "
+        "Final file name will be followed by a timestamp. "
+        "The default is no prefix.",
+        default=None,
+        dest="cidfile_prefix",
+    )
+
+    dep_resolver_group = parser.add_argument_group("dependency resolver configuration")
     dependency_resolvers_configuration_help = argparse.SUPPRESS
     dependencies_directory_help = argparse.SUPPRESS
     use_biocontainers_help = argparse.SUPPRESS
@@ -528,47 +651,25 @@ def arg_parser() -> argparse.ArgumentParser:
         )
         conda_dependencies = "Short cut to use Conda to resolve `SoftwareRequirement` packages."
 
-    parser.add_argument(
+    dep_resolver_group.add_argument(
         "--beta-dependency-resolvers-configuration",
         default=None,
         help=dependency_resolvers_configuration_help,
     )
-    parser.add_argument(
+    dep_resolver_group.add_argument(
         "--beta-dependencies-directory", default=None, help=dependencies_directory_help
     )
-    parser.add_argument(
+    dep_resolver_group.add_argument(
         "--beta-use-biocontainers",
         default=None,
         help=use_biocontainers_help,
         action="store_true",
     )
-    parser.add_argument(
+    dep_resolver_group.add_argument(
         "--beta-conda-dependencies",
         default=None,
         help=conda_dependencies,
         action="store_true",
-    )
-
-    parser.add_argument(
-        "--relative-deps",
-        choices=["primary", "cwd"],
-        default="primary",
-        help="When using --print-deps, print paths "
-        "relative to primary file or current working directory.",
-    )
-
-    parser.add_argument(
-        "--enable-dev",
-        action="store_true",
-        help="Enable loading and running unofficial development versions of " "the CWL standards.",
-        default=False,
-    )
-
-    parser.add_argument(
-        "--enable-ext",
-        action="store_true",
-        help="Enable loading and running `cwltool:` extensions to the CWL standards.",
-        default=False,
     )
 
     colorgroup = parser.add_mutually_exclusive_group()
@@ -585,53 +686,30 @@ def arg_parser() -> argparse.ArgumentParser:
         help="Disable colored logging (default false)",
     )
 
-    parser.add_argument(
-        "--disable-validate",
-        dest="do_validate",
-        action="store_false",
-        default=True,
-        help=argparse.SUPPRESS,
+    reg_api_group = parser.add_argument_group(
+        title="tool resolution", description="(using the GA4GH Tool Registry Service (TRS) API)"
     )
-    parser.add_argument(
-        "--fast-parser",
-        dest="fast_parser",
-        action="store_true",
-        default=False,
-        help=argparse.SUPPRESS,
-    )
-
-    reggroup = parser.add_mutually_exclusive_group()
-    reggroup.add_argument(
+    reg_exclusive = reg_api_group.add_mutually_exclusive_group()
+    reg_exclusive.add_argument(
         "--enable-ga4gh-tool-registry",
         action="store_true",
-        help="Enable tool resolution using GA4GH tool registry API",
+        help="Enable tool resolution using GA4GH TRS API",
         dest="enable_ga4gh_tool_registry",
         default=True,
     )
-    reggroup.add_argument(
+    reg_exclusive.add_argument(
         "--disable-ga4gh-tool-registry",
         action="store_false",
-        help="Disable tool resolution using GA4GH tool registry API",
+        help="Disable tool resolution using GA4GH TRS API",
         dest="enable_ga4gh_tool_registry",
         default=True,
     )
-
-    parser.add_argument(
+    reg_api_group.add_argument(
         "--add-ga4gh-tool-registry",
         action="append",
-        help="Add a GA4GH tool registry endpoint to use for resolution, default %s"
-        % ga4gh_tool_registries,
+        help="Add a GA4GH TRS endpoint to use for resolution, default %s" % ga4gh_tool_registries,
         dest="ga4gh_tool_registries",
         default=[],
-    )
-
-    parser.add_argument(
-        "--on-error",
-        help="Desired workflow behavior when a step fails.  One of `stop` (do "
-        "not submit any more steps) or `continue` (may submit other steps that "
-        "are not downstream from the error). Default is `stop`.",
-        default="stop",
-        choices=("stop", "continue"),
     )
 
     checkgroup = parser.add_mutually_exclusive_group()
@@ -649,22 +727,33 @@ def arg_parser() -> argparse.ArgumentParser:
         dest="compute_checksum",
     )
 
-    parser.add_argument(
-        "--relax-path-checks",
+    jsgroup = parser.add_argument_group(title="javascript options")
+    jsgroup.add_argument(
+        "--eval-timeout",
+        help="Time to wait for a Javascript expression to evaluate before giving "
+        "an error, default 60s.",
+        type=float,
+        default=60,
+    )
+    jsgroup.add_argument(
+        "--js-console", action="store_true", help="Enable javascript console output"
+    )
+    jsgroup.add_argument(
+        "--disable-js-validation",
         action="store_true",
-        default=False,
-        help="Relax requirements on path names to permit " "spaces and hash characters.",
-        dest="relax_path_checks",
+        help="Disable javascript validation.",
     )
-
-    parser.add_argument(
-        "--overrides",
+    jsgroup.add_argument(
+        "--js-hint-options-file",
         type=str,
-        default=None,
-        help="Read process requirement overrides from file.",
+        help="File of options to pass to jshint. "
+        'This includes the added option "includewarnings". ',
     )
 
-    target_group = parser.add_argument_group(title="Target selection (optional)")
+    target_group = parser.add_argument_group(
+        title="execution target selection",
+        description="(optional, by default all target contributing to final outputs are executed)",
+    )
     subgroup = target_group.add_mutually_exclusive_group()
     subgroup.add_argument(
         "--target",
@@ -693,39 +782,6 @@ def arg_parser() -> argparse.ArgumentParser:
         "The input object must match that Process's inputs.",
     )
 
-    parser.add_argument(
-        "--mpi-config-file",
-        type=str,
-        default=None,
-        help="Platform specific configuration for MPI (parallel launcher, its "
-        "flag etc). See README section 'Running MPI-based tools' for details "
-        "of the format.",
-    )
-
-    parser.add_argument(
-        "workflow",
-        type=str,
-        nargs="?",
-        default=None,
-        metavar="cwl_document",
-        help="path or URL to a CWL Workflow, "
-        "CommandLineTool, or ExpressionTool. If the `inputs_object` has a "
-        "`cwl:tool` field indicating the path or URL to the cwl_document, "
-        " then the `cwl_document` argument is optional.",
-    )
-    parser.add_argument(
-        "job_order",
-        nargs=argparse.REMAINDER,
-        metavar="inputs_object",
-        help="path or URL to a YAML or JSON "
-        "formatted description of the required input values for the given "
-        "`cwl_document`.",
-    )
-    parser.add_argument(
-        "--generate-help-preview",
-        action=HelpPreviewAction,
-        path="help-preview.svg",  # (optional) or "help-preview.html" or "help-preview.txt"
-    )
     return parser
 
 
