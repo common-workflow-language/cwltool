@@ -457,7 +457,7 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
 
     # get requirements from without sandbox image path
     # should return an error
-    with pytest.raises(KeyError):
+    with pytest.raises(WorkflowException):
         requirements = copy.deepcopy(initial_requirements)
         res_get_req = SingularityCommandLineJob(
             builder, {}, CommandLineTool.make_path_mapper, [], [], ""
