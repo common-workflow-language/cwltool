@@ -424,9 +424,7 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     monkeypatch.setattr(
         "cwltool.singularity._inspect_singularity_image", lambda *args, **kwargs: True
     )
-    # ensure then env var is not set
-    if os.environ.get("CWL_SINGULARITY_IMAGES", None):
-        os.environ.pop("CWL_SINGULARITY_IMAGES")
+
     initial_requirements = {"class": "DockerRequirement", "dockerPull": "alpine"}
     requirements = copy.deepcopy(initial_requirements)
     # get image from sandbox_base_path option
@@ -471,7 +469,7 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
 
     # get image from CWL_SINGULARITY_IMAGES env var
     requirements = copy.deepcopy(initial_requirements)
-    os.environ["CWL_SINGULARITY_IMAGES"] = str(repo_path.absolute())
+    monkeypatch.setenv("CWL_SINGULARITY_IMAGES", str(repo_path.absolute()))
     res_get_image = SingularityCommandLineJob(
         builder, {}, CommandLineTool.make_path_mapper, [], [], ""
     ).get_image(
@@ -493,8 +491,6 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
         tmp_outdir_prefix=str(tmp_outdir_prefix),
     )
     assert res_get_req == os.path.abspath(image_path)
-
-    os.environ.pop("CWL_SINGULARITY_IMAGES")
 
 
 def test_docker_tmpdir_prefix(tmp_path: Path) -> None:

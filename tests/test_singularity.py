@@ -1,7 +1,6 @@
 """Tests to find local Singularity image."""
 
 import json
-import os
 import shutil
 import subprocess
 from collections.abc import Callable
@@ -261,7 +260,7 @@ def test_singularity_dockerfile_with_name_with_cache(
 
 
 @needs_singularity
-def test_singularity_local_sandbox_image(tmp_path: Path) -> None:
+def test_singularity_local_sandbox_image(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
     # build a sandbox image
@@ -313,7 +312,7 @@ def test_singularity_local_sandbox_image(tmp_path: Path) -> None:
         assert result_code == 0
 
         # test with CWL_SINGULARITY_IMAGES env variable set:
-        os.environ["CWL_SINGULARITY_IMAGES"] = str(workdir)
+        monkeypatch.setenv("CWL_SINGULARITY_IMAGES", str(workdir))
         result_code, _, _ = get_main_output(
             [
                 "--singularity",
