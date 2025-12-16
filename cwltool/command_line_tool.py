@@ -757,9 +757,9 @@ class CommandLineTool(Process):
                 if "basename" in entry:
                     basename = cast(str, entry["basename"])
                     entry["basename"] = os.path.basename(basename)
+                    dirname = os.path.join(builder.outdir, os.path.dirname(basename))
+                    entry["dirname"] = dirname
                     if is_file(entry):
-                        dirname = os.path.join(builder.outdir, os.path.dirname(basename))
-                        entry["dirname"] = dirname
                         if "secondaryFiles" in entry:
                             for sec_file in cast(
                                 MutableSequence[CWLObjectType], entry["secondaryFiles"]
@@ -767,7 +767,7 @@ class CommandLineTool(Process):
                                 sec_file["dirname"] = dirname
                 normalizeFilesDirs(entry)
                 self.updatePathmap(
-                    (entry.get("dirname") if is_file(entry) else None) or builder.outdir,
+                    cast(Optional[str], entry.get("dirname")) or builder.outdir,
                     cast(PathMapper, builder.pathmapper),
                     entry,
                 )
