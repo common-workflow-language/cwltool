@@ -379,6 +379,7 @@ def test_singularity_get_image_from_sandbox(
     assert req["dockerImageId"] == str(image_path)
     assert res
 
+
 @needs_singularity
 def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     (tmp_path / "out").mkdir(exist_ok=True)
@@ -455,10 +456,10 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     )
     assert res_get_req == str(os.path.abspath(image_path))
 
+    requirements = copy.deepcopy(initial_requirements)
     # get requirements from without sandbox image path
     # should return an error
     with pytest.raises(WorkflowException):
-        requirements = copy.deepcopy(initial_requirements)
         res_get_req = SingularityCommandLineJob(
             builder, {}, CommandLineTool.make_path_mapper, [], [], ""
         ).get_from_requirements(
