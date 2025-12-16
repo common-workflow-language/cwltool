@@ -50,11 +50,11 @@ if TYPE_CHECKING:
 CWLArtifact = TypedDict("CWLArtifact", {"@id": str})
 
 
-class CWLDirectoryArtifact(CWLArtifact, CWLDirectoryType):
+class _CWLDirectoryArtifact(CWLArtifact, CWLDirectoryType):
     pass
 
 
-class CWLFileArtifact(CWLArtifact, CWLFileType):
+class _CWLFileArtifact(CWLArtifact, CWLFileType):
     pass
 
 
@@ -260,7 +260,7 @@ class ProvenanceProfile:
         self.generate_output_prov(outputs, process_run_id, process_name)
         self.document.wasEndedBy(process_run_id, None, self.workflow_run_uri, when)
 
-    def declare_file(self, value: CWLFileArtifact) -> tuple[ProvEntity, ProvEntity, str]:
+    def declare_file(self, value: _CWLFileArtifact) -> tuple[ProvEntity, ProvEntity, str]:
         """Construct a FileEntity for the given CWL File object."""
         if not is_file(value):
             raise ValueError("Must have class:File: %s" % value)
@@ -315,9 +315,9 @@ class ProvenanceProfile:
         for sec in cast(MutableSequence[CWLObjectType], value.get("secondaryFiles", [])):
             # TODO: Record these in a specializationOf entity with UUID?
             if is_file(sec):
-                (sec_entity, _, _) = self.declare_file(cast(CWLFileArtifact, sec))
+                (sec_entity, _, _) = self.declare_file(cast(_CWLFileArtifact, sec))
             elif is_directory(sec):
-                sec_entity = self.declare_directory(cast(CWLDirectoryArtifact, sec))
+                sec_entity = self.declare_directory(cast(_CWLDirectoryArtifact, sec))
             else:
                 raise ValueError(f"Got unexpected secondaryFiles value: {sec}")
             # We don't know how/when/where the secondary file was generated,
@@ -332,7 +332,7 @@ class ProvenanceProfile:
 
         return file_entity, entity, checksum
 
-    def declare_directory(self, value: CWLDirectoryArtifact) -> ProvEntity:
+    def declare_directory(self, value: _CWLDirectoryArtifact) -> ProvEntity:
         """Register any nested files/directories."""
         # FIXME: Calculate a hash-like identifier for directory
         # so we get same value if it's the same filenames/hashes
@@ -492,11 +492,11 @@ class ProvenanceProfile:
 
             # Base case - we found a File we need to update
             case {"class": "File"}:
-                entity = self.declare_file(cast(CWLFileArtifact, value))[0]
+                entity = self.declare_file(cast(_CWLFileArtifact, value))[0]
                 value["@id"] = entity.identifier.uri
                 return entity
             case {"class": "Directory"}:
-                entity = self.declare_directory(cast(CWLDirectoryArtifact, value))
+                entity = self.declare_directory(cast(_CWLDirectoryArtifact, value))
                 value["@id"] = entity.identifier.uri
                 return entity
             case {**rest}:

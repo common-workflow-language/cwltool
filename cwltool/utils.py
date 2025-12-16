@@ -251,6 +251,7 @@ def adjustDirObjs(rec: Any, op: Union[Callable[..., Any], "partial[Any]"]) -> No
 def dedup(
     listing: MutableSequence[CWLFileType | CWLDirectoryType],
 ) -> MutableSequence[CWLFileType | CWLDirectoryType]:
+    """Remove duplicate entries from a CWL Directory 'listing'."""
     marksub = set()
 
     def mark(d: dict[str, str]) -> None:
@@ -403,6 +404,15 @@ def ensure_non_writable(path: str) -> None:
 def normalizeFilesDirs(
     job: Sequence[CWLObjectType | CWLOutputType | None] | CWLObjectType | CWLOutputType | None,
 ) -> None:
+    """
+    Add missing `location`s and `basename`s to CWL File and Directory objects.
+
+    :raises ValidationException: if anonymous objects are missing required fields,
+                                 or if the location ends in '/' but the object isn't
+                                 a directory
+
+    """
+
     def addLocation(d: CWLFileType | CWLDirectoryType) -> None:
         if "location" not in d:
             if is_file(d) and ("contents" not in d):

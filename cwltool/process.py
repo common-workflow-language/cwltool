@@ -1138,6 +1138,7 @@ def uniquename(stem: str, names: set[str] | None = None) -> str:
 
 
 def nestdir(base: str, deps: CWLFileType | CWLDirectoryType) -> CWLFileType | CWLDirectoryType:
+    """Add intermediate directory objects to preserve the  relative layout."""
     dirname = os.path.dirname(base) + "/"
     subid = deps["location"]
     if subid.startswith(dirname):
