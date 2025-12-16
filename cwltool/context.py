@@ -180,7 +180,7 @@ class RuntimeContext(ContextBase):
         self.cidfile_dir: str | None = None
         self.cidfile_prefix: str | None = None
 
-        self.workflow_eval_lock: threading.Condition | None = None
+        self.workflow_eval_lock: Union[threading.Condition, None] = None
         self.research_obj: ResearchObject | None = None
         self.orcid: str = ""
         self.cwl_full_name: str = ""

@@ -161,7 +161,8 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: threading.Lock | None = None,
+        tmpdir_lock: Union[threading.Lock, None] = None,
+        # use `threading.Lock | None` when we drop support for Python 3.12
     ) -> None:
         pass
 
@@ -566,7 +567,7 @@ class CommandLineJob(JobBase):
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: threading.Lock | None = None,
+        tmpdir_lock: Union[threading.Lock, None] = None,
     ) -> None:
         if tmpdir_lock:
             with tmpdir_lock:
@@ -752,7 +753,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: threading.Lock | None = None,
+        tmpdir_lock: Union[threading.Lock, None] = None,
     ) -> None:
         debug = runtimeContext.debug
         if tmpdir_lock:

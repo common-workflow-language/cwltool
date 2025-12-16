@@ -179,7 +179,7 @@ class ExpressionJob:
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: threading.Lock | None = None,
+        tmpdir_lock: Union[threading.Lock, None] = None,
     ) -> None:
         try:
             normalizeFilesDirs(self.builder.job)
@@ -329,7 +329,7 @@ class CallbackJob:
     def run(
         self,
         runtimeContext: RuntimeContext,
-        tmpdir_lock: threading.Lock | None = None,
+        tmpdir_lock: Union[threading.Lock, None] = None,
     ) -> None:
         if self.output_callback:
             self.output_callback(
