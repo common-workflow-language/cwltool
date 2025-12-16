@@ -14,7 +14,6 @@ import urllib
 import urllib.parse
 from collections.abc import (
     Generator,
-    Iterable,
     Mapping,
     MutableMapping,
     MutableSequence,
@@ -22,7 +21,7 @@ from collections.abc import (
 from enum import Enum
 from functools import cmp_to_key, partial
 from re import Pattern
-from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
+from typing import Any, Optional, TYPE_CHECKING, TextIO, Union, cast
 
 from cwl_utils.types import (
     CWLDirectoryType,
@@ -42,12 +41,7 @@ from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
 
-from .builder import (
-    INPUT_OBJ_VOCAB,
-    Builder,
-    content_limit_respected_read_bytes,
-    substitute,
-)
+from .builder import Builder, INPUT_OBJ_VOCAB, content_limit_respected_read_bytes, substitute
 from .context import LoadingContext, RuntimeContext, getdefault
 from .docker import DockerCommandLineJob, PodmanCommandLineJob
 from .errors import UnsupportedRequirement, WorkflowException
@@ -1292,7 +1286,7 @@ class CommandLineTool(Process):
         fs_access: StdFsAccess,
         compute_checksum: bool = True,
     ) -> CWLOutputType | None:
-        r: list[CWLOutputType] = []
+        r: MutableSequence[CWLFileType | CWLDirectoryType] = []
         empty_and_optional = False
         debug = _logger.isEnabledFor(logging.DEBUG)
         result: CWLOutputType | None = None
@@ -1340,9 +1334,9 @@ class CommandLineTool(Process):
                                 key=cmp_to_key(locale.strcoll),
                             )
                             r.extend(
-                                cast(
-                                    Iterable[CWLOutputType],
-                                    [
+                                [
+                                    cast(
+                                        CWLFileType | CWLDirectoryType,
                                         {
                                             "location": g,
                                             "path": fs_access.join(
@@ -1353,16 +1347,16 @@ class CommandLineTool(Process):
                                             "nameroot": os.path.splitext(decoded_basename)[0],
                                             "nameext": os.path.splitext(decoded_basename)[1],
                                             "class": "File" if fs_access.isfile(g) else "Directory",
-                                        }
-                                        for g, decoded_basename in zip(
+                                        },
+                                    )
+                                    for g, decoded_basename in zip(
+                                        sorted_glob_result,
+                                        map(
+                                            lambda x: os.path.basename(urllib.parse.unquote(x)),
                                             sorted_glob_result,
-                                            map(
-                                                lambda x: os.path.basename(urllib.parse.unquote(x)),
-                                                sorted_glob_result,
-                                            ),
-                                        )
-                                    ],
-                                )
+                                        ),
+                                    )
+                                ]
                             )
                         except OSError as e:
                             _logger.warning(str(e), exc_info=builder.debug)
@@ -1370,14 +1364,14 @@ class CommandLineTool(Process):
                             _logger.error("Unexpected error from fs_access", exc_info=True)
                             raise
 
-                for files in cast(MutableSequence[CWLFileType | CWLDirectoryType], r):
+                for files in r:
                     rfile = files.copy()
                     revmap(rfile)
                     if is_directory(files):
                         ll = binding.get("loadListing") or builder.loadListing
                         if ll and ll != "no_listing":
                             get_listing(fs_access, files, (ll == "deep_listing"))
-                    elif is_file(files):
+                    else:
                         if binding.get("loadContents"):
                             with fs_access.open(rfile["location"], "rb") as f:
                                 files["contents"] = str(

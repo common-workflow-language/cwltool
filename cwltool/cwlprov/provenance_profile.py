@@ -312,7 +312,7 @@ class ProvenanceProfile:
         self.document.specializationOf(file_entity, entity)
 
         # Check for secondaries
-        for sec in cast(MutableSequence[CWLObjectType], value.get("secondaryFiles", [])):
+        for sec in value.get("secondaryFiles", []):
             # TODO: Record these in a specializationOf entity with UUID?
             if is_file(sec):
                 (sec_entity, _, _) = self.declare_file(cast(_CWLFileArtifact, sec))

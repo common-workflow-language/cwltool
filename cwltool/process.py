@@ -1259,7 +1259,7 @@ def scandeps(
                         }
                     )
                     if "listing" in doc:
-                        deps["listing"] = cast(CWLDirectoryType, doc)["listing"]
+                        deps["listing"] = doc["listing"]
                 deps["location"] = urljoin(base, u)
                 if "basename" in doc:
                     deps["basename"] = doc["basename"]

@@ -6,7 +6,7 @@ import uuid
 from collections.abc import ItemsView, Iterable, Iterator, KeysView, MutableSequence
 from typing import NamedTuple, Optional, cast
 
-from cwl_utils.types import CWLDirectoryType, CWLFileType, is_directory, is_file
+from cwl_utils.types import CWLDirectoryType, CWLFileType, is_directory
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import uri_file_path
@@ -137,7 +137,7 @@ class PathMapper:
                 copy=copy,
                 staged=staged,
             )
-        elif is_file(obj):
+        else:
             path = obj["location"]
             ab = abspath(path, basedir)
             if "contents" in obj and path.startswith("_:"):
