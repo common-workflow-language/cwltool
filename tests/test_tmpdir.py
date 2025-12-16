@@ -443,7 +443,7 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
 
     requirements = copy.deepcopy(initial_requirements)
     requirements_obj: CWLObjectType = {"class": "DockerRequirement", "dockerPull": "alpine"}
-    
+
     res_get_req = SingularityCommandLineJob(
         builder, {}, CommandLineTool.make_path_mapper, [], [], ""
     ).get_from_requirements(
@@ -468,7 +468,6 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
             tmp_outdir_prefix=str(tmp_outdir_prefix),
         )
 
-    
     # get image from CWL_SINGULARITY_IMAGES env var
     requirements = copy.deepcopy(initial_requirements)
     os.environ["CWL_SINGULARITY_IMAGES"] = str(repo_path.absolute())
