@@ -23,7 +23,13 @@ import argcomplete
 import coloredlogs
 import requests
 import ruamel.yaml
-from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, CWLOutputType, is_file
+from cwl_utils.types import (
+    CWLDirectoryType,
+    CWLFileType,
+    CWLObjectType,
+    CWLOutputType,
+    is_file,
+)
 from rich_argparse import RichHelpFormatter
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML

@@ -18,11 +18,11 @@ import pytest
 from cwl_utils.errors import JavascriptException
 from cwl_utils.sandboxjs import param_re
 from cwl_utils.types import (
+    CWLDirectoryType,
+    CWLFileType,
     CWLObjectType,
     CWLOutputType,
     CWLParameterContext,
-    CWLDirectoryType,
-    CWLFileType,
 )
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException

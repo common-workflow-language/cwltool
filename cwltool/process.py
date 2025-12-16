@@ -28,10 +28,10 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from cwl_utils import expression
 from cwl_utils.types import (
-    CWLObjectType,
-    CWLOutputType,
     CWLDirectoryType,
     CWLFileType,
+    CWLObjectType,
+    CWLOutputType,
     is_directory,
     is_file,
     is_file_or_directory,

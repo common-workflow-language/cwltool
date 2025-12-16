@@ -14,7 +14,7 @@ from io import StringIO  # pylint: disable=redefined-builtin
 from typing import Optional, cast
 
 import requests
-from cwl_utils.types import CWLObjectType, CWLDirectoryType, CWLFileType
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType
 
 from .builder import Builder
 from .context import RuntimeContext

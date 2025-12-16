@@ -22,12 +22,7 @@ from .errors import WorkflowException
 from .load_tool import load_tool
 from .loghandler import _logger
 from .process import Process, get_overrides, shortname
-from .utils import (
-    JobsGeneratorType,
-    OutputCallbackType,
-    StepType,
-    aslist,
-)
+from .utils import JobsGeneratorType, OutputCallbackType, StepType, aslist
 from .workflow_job import WorkflowJob
 
 

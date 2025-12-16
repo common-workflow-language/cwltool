@@ -21,7 +21,7 @@ from threading import Timer
 from typing import IO, TYPE_CHECKING, Optional, TextIO, Union, cast
 
 import psutil
-from cwl_utils.types import CWLObjectType, CWLOutputType, CWLDirectoryType, CWLFileType
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, CWLOutputType
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps

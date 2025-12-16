@@ -1,7 +1,7 @@
 from collections.abc import MutableSequence
 
 import pytest
-from cwl_utils.types import CWLObjectType, CWLDirectoryType, CWLFileType
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType
 
 from cwltool.pathmapper import PathMapper
 from cwltool.utils import normalizeFilesDirs

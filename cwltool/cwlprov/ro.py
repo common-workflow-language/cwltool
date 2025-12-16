@@ -26,12 +26,7 @@ from prov.model import ProvDocument
 
 from ..loghandler import _logger
 from ..stdfsaccess import StdFsAccess
-from ..utils import (
-    create_tmp_dir,
-    local_path,
-    posix_path,
-    versionstring,
-)
+from ..utils import create_tmp_dir, local_path, posix_path, versionstring
 from . import Aggregate, Annotation, AuthoredBy, _valid_orcid, _whoami, checksum_copy
 from .provenance_constants import (
     ACCOUNT_UUID,

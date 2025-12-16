@@ -6,13 +6,26 @@ import uuid
 from collections.abc import MutableMapping, MutableSequence, Sequence
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
-from typing import Any, TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
-from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, is_directory, is_file
+from cwl_utils.types import (
+    CWLDirectoryType,
+    CWLFileType,
+    CWLObjectType,
+    is_directory,
+    is_file,
+)
 from prov.identifier import Identifier, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
 from schema_salad.sourceline import SourceLine
 
+from ..errors import WorkflowException
+from ..job import CommandLineJob, JobBase
+from ..loghandler import _logger
+from ..process import Process, shortname
+from ..stdfsaccess import StdFsAccess
+from ..utils import JobsType, get_listing, posix_path, versionstring
+from ..workflow_job import WorkflowJob
 from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV,
@@ -30,13 +43,6 @@ from .provenance_constants import (
     WFPROV,
 )
 from .writablebagfile import create_job, write_bag_file  # change this later
-from ..errors import WorkflowException
-from ..job import CommandLineJob, JobBase
-from ..loghandler import _logger
-from ..process import Process, shortname
-from ..stdfsaccess import StdFsAccess
-from ..utils import JobsType, get_listing, posix_path, versionstring
-from ..workflow_job import WorkflowJob
 
 if TYPE_CHECKING:
     from .ro import ResearchObject

@@ -25,10 +25,10 @@ from re import Pattern
 from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
 
 from cwl_utils.types import (
-    CWLObjectType,
-    CWLOutputType,
     CWLDirectoryType,
     CWLFileType,
+    CWLObjectType,
+    CWLOutputType,
     is_directory,
     is_file,
     is_file_or_directory,

@@ -13,7 +13,7 @@ from collections.abc import Callable, MutableMapping, MutableSequence
 from subprocess import check_call, check_output  # nosec
 from typing import cast
 
-from cwl_utils.types import CWLObjectType, CWLDirectoryType, CWLFileType
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType
 from packaging.version import Version
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
