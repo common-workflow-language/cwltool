@@ -37,21 +37,22 @@ def test_singularity_pullfolder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     with working_directory(workdir):
         pullfolder = tmp_path / "pullfolder"
         pullfolder.mkdir()
-        result_code, stdout, stderr = get_main_output(
-            [
-                "--singularity",
-                get_data("tests/sing_pullfolder_test.cwl"),
-                "--message",
-                "hello",
-            ],
-            extra_env={"SINGULARITY_PULLFOLDER": str(pullfolder)},
-            monkeypatch=monkeypatch,
-        )
-        print(stdout)
-        print(stderr)
-        assert result_code == 0
-        image = pullfolder / "debian.img"
-        assert image.exists()
+        with monkeypatch.context() as m:
+            result_code, stdout, stderr = get_main_output(
+                [
+                    "--singularity",
+                    get_data("tests/sing_pullfolder_test.cwl"),
+                    "--message",
+                    "hello",
+                ],
+                extra_env={"SINGULARITY_PULLFOLDER": str(pullfolder)},
+                monkeypatch=m,
+            )
+            print(stdout)
+            print(stderr)
+            assert result_code == 0
+            image = pullfolder / "debian.img"
+            assert image.exists()
 
 
 @needs_singularity
@@ -75,17 +76,18 @@ def test_singularity_workflow(tmp_path: Path) -> None:
 def test_singularity_iwdr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     singularity_dir = tmp_path / "singularity"
     singularity_dir.mkdir()
-    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
-    result_code = main(
-        [
-            "--singularity",
-            "--default-container",
-            "docker.io/debian:stable-slim",
-            get_data("tests/wf/iwdr-entry.cwl"),
-            "--message",
-            "hello",
-        ]
-    )
+    with monkeypatch.context() as m:
+        m.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
+        result_code = main(
+            [
+                "--singularity",
+                "--default-container",
+                "docker.io/debian:stable-slim",
+                get_data("tests/wf/iwdr-entry.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
     singularity_installed = bool(shutil.which("singularity"))
     if singularity_installed:
         assert result_code == 0
@@ -198,17 +200,18 @@ def test_singularity_dockerfile_no_name_with_cache(
     workdir.mkdir()
     cachedir = tmp_path / "cache"
     cachedir.mkdir()
-    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(cachedir))
-    with working_directory(workdir):
-        result_code, stdout, stderr = get_main_output(
-            [
-                "--singularity",
-                get_data("tests/sing_dockerfile_test.cwl"),
-                "--message",
-                "hello",
-            ]
-        )
-        assert result_code == 0, stderr
+    with monkeypatch.context() as m:
+        m.setenv("CWL_SINGULARITY_CACHE", str(cachedir))
+        with working_directory(workdir):
+            result_code, stdout, stderr = get_main_output(
+                [
+                    "--singularity",
+                    get_data("tests/sing_dockerfile_test.cwl"),
+                    "--message",
+                    "hello",
+                ]
+            )
+            assert result_code == 0, stderr
     assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
     assert (cachedir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
 
@@ -240,19 +243,20 @@ def test_singularity_dockerfile_with_name_with_cache(
     workdir.mkdir()
     cachedir = tmp_path / "cache"
     cachedir.mkdir()
-    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(cachedir))
-    with working_directory(workdir):
-        result_code, stdout, stderr = get_main_output(
-            [
-                "--singularity",
-                get_data("tests/sing_dockerfile_named_test.cwl"),
-                "--message",
-                "hello",
-            ]
-        )
-        print(list(workdir.iterdir()))
-        print(list(cachedir.iterdir()))
-        assert result_code == 0, stderr
+    with monkeypatch.context() as m:
+        m.setenv("CWL_SINGULARITY_CACHE", str(cachedir))
+        with working_directory(workdir):
+            result_code, stdout, stderr = get_main_output(
+                [
+                    "--singularity",
+                    get_data("tests/sing_dockerfile_named_test.cwl"),
+                    "--message",
+                    "hello",
+                ]
+            )
+            print(list(workdir.iterdir()))
+            print(list(cachedir.iterdir()))
+            assert result_code == 0, stderr
     assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
     assert not (cachedir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
     assert not (workdir / "customDebian_latest.sif").exists()
@@ -312,17 +316,18 @@ def test_singularity_local_sandbox_image(tmp_path: Path, monkeypatch: pytest.Mon
         assert result_code == 0
 
         # test with CWL_SINGULARITY_IMAGES env variable set:
-        monkeypatch.setenv("CWL_SINGULARITY_IMAGES", str(workdir))
-        result_code, _, _ = get_main_output(
-            [
-                "--singularity",
-                "--disable-pull",
-                get_data("tests/sing_local_sandbox_test.cwl"),
-                "--message",
-                "hello",
-            ]
-        )
-        assert result_code == 0
+        with monkeypatch.context() as m:
+            m.setenv("CWL_SINGULARITY_IMAGES", str(workdir))
+            result_code, _, _ = get_main_output(
+                [
+                    "--singularity",
+                    "--disable-pull",
+                    get_data("tests/sing_local_sandbox_test.cwl"),
+                    "--message",
+                    "hello",
+                ]
+            )
+            assert result_code == 0
     else:
         pytest.skip(f"Failed to build the singularity image: {build.stderr}")
 

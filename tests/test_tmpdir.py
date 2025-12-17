@@ -382,10 +382,9 @@ def test_singularity_get_image_from_sandbox(
 
 @needs_singularity
 def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    (tmp_path / "out").mkdir(exist_ok=True)
     tmp_outdir_prefix = tmp_path / "out"
-    tmp_outdir_prefix.mkdir(exist_ok=True)
-    (tmp_path / "tmp").mkdir(exist_ok=True)
+    tmp_outdir_prefix.mkdir()
+    (tmp_path / "tmp").mkdir()
 
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
@@ -426,27 +425,26 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     )
 
     initial_requirements = {"class": "DockerRequirement", "dockerPull": "alpine"}
-    requirements = copy.deepcopy(initial_requirements)
+    requirements1 = copy.deepcopy(initial_requirements)
     # get image from sandbox_base_path option
     res_get_image = SingularityCommandLineJob(
         builder, {}, CommandLineTool.make_path_mapper, [], [], ""
     ).get_image(
-        requirements,
+        requirements1,
         pull_image=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
         force_pull=False,
         sandbox_base_path=str(repo_path.absolute()),
     )
     assert res_get_image
-    assert requirements["dockerImageId"] == "alpine"
+    assert requirements1["dockerImageId"] == "alpine"
 
-    requirements = copy.deepcopy(initial_requirements)
-    requirements_obj: CWLObjectType = {"class": "DockerRequirement", "dockerPull": "alpine"}
+    requirements2: CWLObjectType = {"class": "DockerRequirement", "dockerPull": "alpine"}
 
     res_get_req = SingularityCommandLineJob(
         builder, {}, CommandLineTool.make_path_mapper, [], [], ""
     ).get_from_requirements(
-        requirements_obj,
+        requirements2,
         pull_image=False,
         force_pull=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
@@ -454,38 +452,39 @@ def test_singularity_image_base_path(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     )
     assert res_get_req == str(os.path.abspath(image_path))
 
-    requirements = copy.deepcopy(initial_requirements)
+    requirements3: CWLObjectType = {"class": "DockerRequirement", "dockerPull": "alpine"}
     # get requirements from without sandbox image path
     # should return an error
     with pytest.raises((WorkflowException, KeyError)):
         res_get_req = SingularityCommandLineJob(
             builder, {}, CommandLineTool.make_path_mapper, [], [], ""
         ).get_from_requirements(
-            requirements_obj,
+            requirements3,
             pull_image=False,
             force_pull=False,
             tmp_outdir_prefix=str(tmp_outdir_prefix),
         )
 
     # get image from CWL_SINGULARITY_IMAGES env var
-    requirements = copy.deepcopy(initial_requirements)
-    monkeypatch.setenv("CWL_SINGULARITY_IMAGES", str(repo_path.absolute()))
-    res_get_image = SingularityCommandLineJob(
-        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
-    ).get_image(
-        requirements,
-        pull_image=False,
-        tmp_outdir_prefix=str(tmp_outdir_prefix),
-        force_pull=False,
-    )
-    assert res_get_image
-    assert requirements["dockerImageId"] == "alpine"
+    requirements4 = copy.deepcopy(initial_requirements)
+    with monkeypatch.context() as m:
+        m.setenv("CWL_SINGULARITY_IMAGES", str(repo_path.absolute()))
+        res_get_image = SingularityCommandLineJob(
+            builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+        ).get_image(
+            requirements4,
+            pull_image=False,
+            tmp_outdir_prefix=str(tmp_outdir_prefix),
+            force_pull=False,
+        )
+        assert res_get_image
+        assert requirements4["dockerImageId"] == "alpine"
 
-    requirements = copy.deepcopy(initial_requirements)
+    requirements5: CWLObjectType = {"class": "DockerRequirement", "dockerPull": "alpine"}
     res_get_req = SingularityCommandLineJob(
         builder, {}, CommandLineTool.make_path_mapper, [], [], ""
     ).get_from_requirements(
-        requirements_obj,
+        requirements5,
         pull_image=False,
         force_pull=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
