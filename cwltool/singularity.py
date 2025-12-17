@@ -457,7 +457,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             force_pull,
             sandbox_base_path=image_base_path,
         ):
-            raise WorkflowException("Container image {} not found".format(r["dockerImageId"]))
+            raise WorkflowException(f"Container image not found for {r}")
 
         if os.environ.get("CWL_SINGULARITY_IMAGES", None):
             image_base_path = os.environ["CWL_SINGULARITY_IMAGES"]
