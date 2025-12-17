@@ -11,7 +11,11 @@ import pytest
 from mypy_extensions import KwArg, VarArg
 
 from cwltool.main import main
-from cwltool.singularity import _IMAGES, _IMAGES_LOCK, _inspect_singularity_image
+from cwltool.singularity import (
+    _IMAGES,
+    _IMAGES_LOCK,
+    _inspect_singularity_sandbox_image,
+)
 
 from .util import (
     get_data,
@@ -352,7 +356,7 @@ def test_singularity_inspect_image(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     build = subprocess.run(cmd, capture_output=True, text=True)
     if build.returncode == 0:
         # Verify the path is a correct container image
-        res_inspect = _inspect_singularity_image(str(image_path))
+        res_inspect = _inspect_singularity_sandbox_image(str(image_path))
         assert res_inspect is True
     else:
         pytest.skip(f"singularity sandbox image build didn't worked: {build.stderr}")
@@ -385,19 +389,19 @@ def test_json_decode_error_branch(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr("json.loads", _raise_json_error)
 
-    assert _inspect_singularity_image("/tmp/image") is False
+    assert _inspect_singularity_sandbox_image("/tmp/image") is False
 
 
 def test_singularity_sandbox_image_not_exists() -> None:
     image_path = "/tmp/not_existing/image"
-    res_inspect = _inspect_singularity_image(image_path)
+    res_inspect = _inspect_singularity_sandbox_image(image_path)
     assert res_inspect is False
 
 
 def test_singularity_sandbox_not_an_image(tmp_path: Path) -> None:
     image_path = tmp_path / "image"
     image_path.mkdir()
-    res_inspect = _inspect_singularity_image(str(image_path))
+    res_inspect = _inspect_singularity_sandbox_image(str(image_path))
     assert res_inspect is False
 
 
@@ -407,5 +411,5 @@ def test_inspect_image_wrong_sb_call(monkeypatch: pytest.MonkeyPatch) -> None:
         raise subprocess.CalledProcessError(returncode=1, cmd=args[0])
 
     monkeypatch.setattr("cwltool.singularity.run", mock_failed_subprocess)
-    res_inspect = _inspect_singularity_image("/tmp/container_repo/alpine")
+    res_inspect = _inspect_singularity_sandbox_image("/tmp/container_repo/alpine")
     assert res_inspect is False

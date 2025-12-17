@@ -343,7 +343,7 @@ def test_singularity_get_image_from_sandbox(
 
     # directory exists but is not an image
     monkeypatch.setattr(
-        "cwltool.singularity._inspect_singularity_image", lambda *args, **kwargs: False
+        "cwltool.singularity._inspect_singularity_sandbox_image", lambda *args, **kwargs: False
     )
     req = {"class": "DockerRequirement", "dockerPull": f"{image_path}"}
     res = SingularityCommandLineJob(
@@ -359,7 +359,7 @@ def test_singularity_get_image_from_sandbox(
 
     # directory exists and is an image:
     monkeypatch.setattr(
-        "cwltool.singularity._inspect_singularity_image", lambda *args, **kwargs: True
+        "cwltool.singularity._inspect_singularity_sandbox_image", lambda *args, **kwargs: True
     )
     req = {"class": "DockerRequirement", "dockerPull": f"{image_path}"}
     res = SingularityCommandLineJob(
@@ -433,7 +433,7 @@ def test_singularity_image_base_path(
     )
 
     monkeypatch.setattr(
-        "cwltool.singularity._inspect_singularity_image", lambda *args, **kwargs: True
+        "cwltool.singularity._inspect_singularity_sandbox_image", lambda *args, **kwargs: True
     )
 
     initial_requirements = {"class": "DockerRequirement", "dockerPull": "alpine"}
