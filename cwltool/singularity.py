@@ -166,17 +166,9 @@ def _normalize_sif_id(string: str) -> str:
     return string.replace("/", "_") + ".sif"
 
 
-def _normalize_sandbox_id(string: str) -> str:
-    if ":" not in string:
-        string += "_latest"
-    return string.replace("/", "_")
-
-
 @mypyc_attr(allow_interpreted_subclasses=True)
 def _inspect_singularity_sandbox_image(path: str) -> bool:
     """Inspect singularity sandbox image to be sure it is not an empty directory."""
-    if not os.path.isdir(path):
-        return False
     cmd = [
         "singularity",
         "inspect",
@@ -314,10 +306,10 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 found = True
         elif "dockerImageId" not in docker_req and "dockerPull" in docker_req:
             # looking for local singularity sandbox image and handle it as a local image
-            sandbox_image_path = os.path.join(
-                sandbox_base_path, _normalize_sandbox_id(dockerRequirement["dockerPull"])
-            )
-            if _inspect_singularity_sandbox_image(sandbox_image_path):
+            sandbox_image_path = os.path.join(sandbox_base_path, dockerRequirement["dockerPull"])
+            if os.path.isdir(sandbox_image_path) and _inspect_singularity_sandbox_image(
+                sandbox_image_path
+            ):
                 docker_req["dockerImageId"] = sandbox_image_path
                 _logger.info(
                     "Using local Singularity sandbox image found in %s",
@@ -339,7 +331,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         elif "dockerImageId" in docker_req:
             sandbox_image_path = os.path.join(sandbox_base_path, dockerRequirement["dockerImageId"])
             # handling local singularity sandbox image
-            if _inspect_singularity_sandbox_image(sandbox_image_path):
+            if os.path.isdir(sandbox_image_path) and _inspect_singularity_sandbox_image(
+                sandbox_image_path
+            ):
                 _logger.info(
                     "Using local Singularity sandbox image found in %s",
                     sandbox_image_path,

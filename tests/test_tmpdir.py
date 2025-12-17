@@ -463,6 +463,8 @@ def test_singularity_image_base_path(
     )
     assert res_get_req == str(image_path)
 
+    with _IMAGES_LOCK:
+        _IMAGES.clear()
     requirements3: CWLObjectType = {"class": "DockerRequirement", "dockerPull": "alpine"}
     # get requirements from without sandbox image path
     # should return an error
