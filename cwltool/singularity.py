@@ -228,10 +228,17 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
 
         with _IMAGES_LOCK:
             if "dockerImageId" in dockerRequirement:
-                if (d_image_id := dockerRequirement["dockerImageId"]) in _IMAGES:
+                d_image_id = dockerRequirement["dockerImageId"]
+                if d_image_id in _IMAGES:
                     if (resolved_image_id := _IMAGES[d_image_id]) != d_image_id:
                         dockerRequirement["dockerImage_id"] = resolved_image_id
                     return True
+                if d_image_id.startswith("/"):
+                    _logger.info(
+                        SourceLine(dockerRequirement, "dockerImageId").makeError(
+                            f"Non-portable: using an absolute file path in a 'dockerImageId': {d_image_id}"
+                        )
+                    )
 
         docker_req = copy.deepcopy(dockerRequirement)  # thread safety
         if "CWL_SINGULARITY_CACHE" in os.environ:
@@ -301,40 +308,41 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             # looking for local singularity sandbox image and handle it as a local image
             sandbox_image_path = os.path.join(sandbox_base_path, dockerRequirement["dockerPull"])
             if os.path.isdir(sandbox_image_path) and _inspect_singularity_image(sandbox_image_path):
-                dockerRequirement["dockerImageId"] = dockerRequirement["dockerPull"]
+                docker_req["dockerImageId"] = sandbox_image_path
                 _logger.info(
                     "Using local Singularity sandbox image found in %s",
                     sandbox_image_path,
                 )
-                return True
-            match = re.search(pattern=r"([a-z]*://)", string=docker_req["dockerPull"])
-            img_name = _normalize_image_id(docker_req["dockerPull"])
-            candidates.append(img_name)
-            if is_version_3_or_newer():
-                sif_name = _normalize_sif_id(docker_req["dockerPull"])
-                candidates.append(sif_name)
-                docker_req["dockerImageId"] = sif_name
+                found = True
             else:
-                docker_req["dockerImageId"] = img_name
-            if not match:
-                docker_req["dockerPull"] = "docker://" + docker_req["dockerPull"]
+                match = re.search(pattern=r"([a-z]*://)", string=docker_req["dockerPull"])
+                img_name = _normalize_image_id(docker_req["dockerPull"])
+                candidates.append(img_name)
+                if is_version_3_or_newer():
+                    sif_name = _normalize_sif_id(docker_req["dockerPull"])
+                    candidates.append(sif_name)
+                    docker_req["dockerImageId"] = sif_name
+                else:
+                    docker_req["dockerImageId"] = img_name
+                if not match:
+                    docker_req["dockerPull"] = "docker://" + docker_req["dockerPull"]
         elif "dockerImageId" in docker_req:
             sandbox_image_path = os.path.join(sandbox_base_path, dockerRequirement["dockerImageId"])
-            if os.path.isfile(docker_req["dockerImageId"]):
-                found = True
             # handling local singularity sandbox image
-            elif os.path.isdir(sandbox_image_path) and _inspect_singularity_image(
-                sandbox_image_path
-            ):
+            if os.path.isdir(sandbox_image_path) and _inspect_singularity_image(sandbox_image_path):
                 _logger.info(
                     "Using local Singularity sandbox image found in %s",
                     sandbox_image_path,
                 )
-                return True
-            candidates.append(docker_req["dockerImageId"])
-            candidates.append(_normalize_image_id(docker_req["dockerImageId"]))
-            if is_version_3_or_newer():
-                candidates.append(_normalize_sif_id(docker_req["dockerImageId"]))
+                docker_req["dockerImageId"] = sandbox_image_path
+                found = True
+            else:
+                if os.path.isfile(docker_req["dockerImageId"]):
+                    found = True
+                candidates.append(docker_req["dockerImageId"])
+                candidates.append(_normalize_image_id(docker_req["dockerImageId"]))
+                if is_version_3_or_newer():
+                    candidates.append(_normalize_sif_id(docker_req["dockerImageId"]))
 
         if not found and len(candidates) > 0:
             targets = [os.getcwd()]
@@ -459,15 +467,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         ):
             raise WorkflowException(f"Container image not found for {r}")
 
-        if os.environ.get("CWL_SINGULARITY_IMAGES", None):
-            image_base_path = os.environ["CWL_SINGULARITY_IMAGES"]
-            image_path = os.path.join(image_base_path, cast(str, r["dockerImageId"]))
-        elif image_base_path:
-            image_path = os.path.join(image_base_path, cast(str, r["dockerImageId"]))
-        else:
-            image_path = cast(str, r["dockerImageId"])
-
-        return os.path.abspath(image_path)
+        return os.path.abspath(cast(str, r["dockerImageId"]))
 
     @staticmethod
     def append_volume(runtime: list[str], source: str, target: str, writable: bool = False) -> None:
