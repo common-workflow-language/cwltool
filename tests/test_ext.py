@@ -33,12 +33,13 @@ def test_listing_deep() -> None:
 @needs_docker
 def test_cwltool_options(monkeypatch: pytest.MonkeyPatch) -> None:
     """Check setting options via environment variable."""
-    monkeypatch.setenv("CWLTOOL_OPTIONS", "--enable-ext")
-    params = [
-        get_data("tests/wf/listing_deep.cwl"),
-        get_data("tests/listing-job.yml"),
-    ]
-    assert main(params) == 0
+    with monkeypatch.context() as m:
+        m.setenv("CWLTOOL_OPTIONS", "--enable-ext")
+        params = [
+            get_data("tests/wf/listing_deep.cwl"),
+            get_data("tests/listing-job.yml"),
+        ]
+        assert main(params) == 0
 
 
 @needs_docker
