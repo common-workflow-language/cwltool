@@ -30,6 +30,11 @@ $graph:
   type: record
   inVocab: true
   extends: cwl:Process
+  specialize:
+    - specializeFrom: cwl:InputParameter
+      specializeTo: cwl:WorkflowInputParameter
+    - specializeFrom: cwl:OutputParameter
+      specializeTo: cwl:ExpressionToolOutputParameter
   documentRoot: true
   fields:
     - name: class

@@ -204,6 +204,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         pull_image: bool,
         force_pull: bool,
         tmp_outdir_prefix: str,
+        image_base_path: str | None = None,
     ) -> str | None:
         if not shutil.which(self.docker_exec):
             raise WorkflowException(f"{self.docker_exec} executable is not available")

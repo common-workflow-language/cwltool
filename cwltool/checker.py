@@ -25,6 +25,7 @@ def check_types(
     srctype: SinkType | None,
     sinktype: SinkType | None,
     linkMerge: str | None,
+    pickValue: str | None,
     valueFrom: str | None,
 ) -> Literal["pass"] | Literal["warning"] | Literal["exception"]:
     """
@@ -34,23 +35,49 @@ def check_types(
     """
     if valueFrom is not None:
         return "pass"
+    if pickValue is not None:
+        if (
+            isinstance((_srctype := _get_type(srctype)), MutableMapping)
+            and _srctype["type"] == "array"
+        ):
+            match pickValue:
+                case "all_non_null":
+                    _srctype = {"type": "array", "items": _srctype["items"]}
+                    if (
+                        isinstance(_srctype["items"], MutableSequence)
+                        and "null" in _srctype["items"]
+                    ):
+                        _srctype["items"].remove("null")
+                case "first_non_null" | "the_only_non_null":
+                    if (
+                        isinstance(_srctype["items"], MutableSequence)
+                        and "null" in _srctype["items"]
+                    ):
+                        _srctype = [elem for elem in _srctype["items"] if elem != "null"]
+                case _:
+                    raise WorkflowException(f"Unrecognized pickValue enum {pickValue!r}")
+        _sinktype = _get_type(sinktype)
+    else:
+        _srctype = srctype
+        _sinktype = sinktype
     match linkMerge:
         case None:
-            if can_assign_src_to_sink(srctype, sinktype, strict=True):
+            if can_assign_src_to_sink(_srctype, _sinktype, strict=True):
                 return "pass"
-            if can_assign_src_to_sink(srctype, sinktype, strict=False):
+            if can_assign_src_to_sink(_srctype, _sinktype, strict=False):
                 return "warning"
             return "exception"
         case "merge_nested":
             return check_types(
-                {"items": _get_type(srctype), "type": "array"},
+                {"items": _get_type(_srctype), "type": "array"},
                 _get_type(sinktype),
+                None,
                 None,
                 None,
             )
         case "merge_flattened":
             return check_types(
-                merge_flatten_type(_get_type(srctype)), _get_type(sinktype), None, None
+                merge_flatten_type(_get_type(_srctype)), _get_type(sinktype), None, None, None
             )
         case _:
             raise WorkflowException(f"Unrecognized linkMerge enum {linkMerge!r}")
@@ -373,7 +400,15 @@ def _check_all_types(
                 srcs_of_sink: list[CWLObjectType] = []
                 for parm_id in cast(MutableSequence[str], sink[sourceField]):
                     srcs_of_sink += [src_dict[parm_id]]
-                    if is_conditional_step(param_to_step, parm_id) and pickValue is None:
+                    sink_type = cast(
+                        Union[str, list[str], list[CWLObjectType], CWLObjectType], sink["type"]
+                    )
+                    if (
+                        is_conditional_step(param_to_step, parm_id)
+                        and "null" != sink_type
+                        and "null" not in sink_type
+                        and pickValue is None
+                    ):
                         validation["warning"].append(
                             _SrcSink(
                                 src_dict[parm_id],
@@ -435,7 +470,7 @@ def _check_all_types(
                     }
 
             for src in srcs_of_sink:
-                check_result = check_types(src, sink, linkMerge, valueFrom)
+                check_result = check_types(src, sink, linkMerge, pickValue, valueFrom)
                 if check_result == "warning":
                     validation["warning"].append(
                         _SrcSink(src, sink, linkMerge, message=extra_message)

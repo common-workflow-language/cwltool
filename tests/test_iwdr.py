@@ -275,41 +275,42 @@ def test_iwdr_permutations_singularity(
     twelfth.touch()
     outdir = str(tmp_path_factory.mktemp("outdir"))
     singularity_dir = str(tmp_path_factory.mktemp("singularity"))
-    monkeypatch.setenv("CWL_SINGULARITY_CACHE", singularity_dir)
-    err_code, stdout, _ = get_main_output(
-        [
-            "--outdir",
-            outdir,
-            "--debug",
-            "--singularity",
-            get_data("tests/wf/iwdr_permutations.cwl"),
-            "--first",
-            str(first),
-            "--second",
-            str(second),
-            "--third",
-            str(third),
-            "--fourth",
-            str(fourth),
-            "--fifth",
-            str(fifth),
-            "--sixth",
-            str(sixth),
-            "--seventh",
-            str(seventh),
-            "--eighth",
-            str(eighth),
-            "--eleventh",
-            str(eleventh),
-            "--eleventh",
-            str(twelfth),
-        ]
-    )
-    assert err_code == 0
-    log = json.loads(stdout)["log"]
-    with open(log["path"]) as log_h:
-        log_text = log_h.read()
-    assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log_text
+    with monkeypatch.context() as m:
+        m.setenv("CWL_SINGULARITY_CACHE", singularity_dir)
+        err_code, stdout, _ = get_main_output(
+            [
+                "--outdir",
+                outdir,
+                "--debug",
+                "--singularity",
+                get_data("tests/wf/iwdr_permutations.cwl"),
+                "--first",
+                str(first),
+                "--second",
+                str(second),
+                "--third",
+                str(third),
+                "--fourth",
+                str(fourth),
+                "--fifth",
+                str(fifth),
+                "--sixth",
+                str(sixth),
+                "--seventh",
+                str(seventh),
+                "--eighth",
+                str(eighth),
+                "--eleventh",
+                str(eleventh),
+                "--eleventh",
+                str(twelfth),
+            ]
+        )
+        assert err_code == 0
+        log = json.loads(stdout)["log"]
+        with open(log["path"]) as log_h:
+            log_text = log_h.read()
+        assert log["checksum"] == "sha1$bc51ebb3f65ca44282789dd1e6de9747d8abe75f", log_text
 
 
 @needs_singularity
@@ -340,42 +341,43 @@ def test_iwdr_permutations_singularity_inplace(
     twelfth.touch()
     outdir = str(tmp_path_factory.mktemp("outdir"))
     singularity_dir = str(tmp_path_factory.mktemp("singularity"))
-    monkeypatch.setenv("CWL_SINGULARITY_CACHE", singularity_dir)
-    assert (
-        main(
-            [
-                "--outdir",
-                outdir,
-                "--singularity",
-                "--enable-ext",
-                "--enable-dev",
-                "--overrides",
-                get_data("tests/wf/iwdr_permutations_inplace.yml"),
-                get_data("tests/wf/iwdr_permutations.cwl"),
-                "--first",
-                str(first),
-                "--second",
-                str(second),
-                "--third",
-                str(third),
-                "--fourth",
-                str(fourth),
-                "--fifth",
-                str(fifth),
-                "--sixth",
-                str(sixth),
-                "--seventh",
-                str(seventh),
-                "--eighth",
-                str(eighth),
-                "--eleventh",
-                str(eleventh),
-                "--eleventh",
-                str(twelfth),
-            ]
+    with monkeypatch.context() as m:
+        m.setenv("CWL_SINGULARITY_CACHE", singularity_dir)
+        assert (
+            main(
+                [
+                    "--outdir",
+                    outdir,
+                    "--singularity",
+                    "--enable-ext",
+                    "--enable-dev",
+                    "--overrides",
+                    get_data("tests/wf/iwdr_permutations_inplace.yml"),
+                    get_data("tests/wf/iwdr_permutations.cwl"),
+                    "--first",
+                    str(first),
+                    "--second",
+                    str(second),
+                    "--third",
+                    str(third),
+                    "--fourth",
+                    str(fourth),
+                    "--fifth",
+                    str(fifth),
+                    "--sixth",
+                    str(sixth),
+                    "--seventh",
+                    str(seventh),
+                    "--eighth",
+                    str(eighth),
+                    "--eleventh",
+                    str(eleventh),
+                    "--eleventh",
+                    str(twelfth),
+                ]
+            )
+            == 0
         )
-        == 0
-    )
 
 
 def test_iwdr_writable_secondaryfiles(tmp_path: Path) -> None:

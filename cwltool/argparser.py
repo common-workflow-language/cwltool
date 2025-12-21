@@ -544,6 +544,16 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     container_group.add_argument(
+        "--singularity-sandbox-path",
+        default=None,
+        type=str,
+        help="Singularity/Apptainer sandbox image base path. "
+        "Will use a pre-existing sandbox image. "
+        "Will be prepended to the dockerPull path. "
+        "Equivalent to use CWL_SINGULARITY_IMAGES variable. ",
+        dest="image_base_path",
+    )
+    container_group.add_argument(
         "--force-docker-pull",
         action="store_true",
         default=False,

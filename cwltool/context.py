@@ -152,6 +152,7 @@ class RuntimeContext(ContextBase):
         self.streaming_allowed: bool = False
 
         self.singularity: bool = False
+        self.image_base_path: str | None = None
         self.podman: bool = False
         self.debug: bool = False
         self.compute_checksum: bool = True
