@@ -1,24 +1,27 @@
 import os
+from collections.abc import MutableSequence
 from datetime import datetime
 from pathlib import Path
 
+from cwl_utils.types import CWLDirectoryType, CWLFileType
 from pytest_httpserver import HTTPServer
 
 from cwltool.pathmapper import PathMapper
-from cwltool.utils import CWLObjectType
 
 
 def test_http_path_mapping(tmp_path: Path) -> None:
     input_file_path = (
         "https://raw.githubusercontent.com/common-workflow-language/cwltool/main/tests/2.fasta"
     )
-    base_file: list[CWLObjectType] = [
-        {
-            "class": "File",
-            "location": "https://raw.githubusercontent.com/common-workflow-language/"
-            "cwltool/main/tests/2.fasta",
-            "basename": "chr20.fa",
-        }
+    base_file: MutableSequence[CWLFileType | CWLDirectoryType] = [
+        CWLFileType(
+            **{
+                "class": "File",
+                "location": "https://raw.githubusercontent.com/common-workflow-language/"
+                "cwltool/main/tests/2.fasta",
+                "basename": "chr20.fa",
+            }
+        )
     ]
     pathmap = PathMapper(base_file, os.getcwd(), str(tmp_path))._pathmap
 
@@ -54,12 +57,14 @@ def test_modification_date(tmp_path: Path) -> None:
         )
         location = httpserver.url_for(f"/{remote_file_name}")
 
-        base_file: list[CWLObjectType] = [
-            {
-                "class": "File",
-                "location": location,
-                "basename": remote_file_name,
-            }
+        base_file: MutableSequence[CWLFileType | CWLDirectoryType] = [
+            CWLFileType(
+                **{
+                    "class": "File",
+                    "location": location,
+                    "basename": remote_file_name,
+                }
+            )
         ]
 
         date_now = datetime.now()

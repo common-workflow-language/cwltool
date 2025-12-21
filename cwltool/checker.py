@@ -3,6 +3,7 @@
 from collections.abc import Iterator, MutableMapping, MutableSequence, Sized
 from typing import Any, Literal, NamedTuple, Optional, Union, cast
 
+from cwl_utils.types import CWLObjectType, CWLOutputType, SinkType
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, bullets, strip_dup_lineno
 from schema_salad.utils import json_dumps
@@ -10,7 +11,7 @@ from schema_salad.utils import json_dumps
 from .errors import WorkflowException
 from .loghandler import _logger
 from .process import shortname
-from .utils import CWLObjectType, CWLOutputType, SinkType, aslist
+from .utils import aslist
 
 
 def _get_type(tp: Any) -> Any:
@@ -21,8 +22,8 @@ def _get_type(tp: Any) -> Any:
 
 
 def check_types(
-    srctype: SinkType,
-    sinktype: SinkType,
+    srctype: SinkType | None,
+    sinktype: SinkType | None,
     linkMerge: str | None,
     pickValue: str | None,
     valueFrom: str | None,
@@ -82,7 +83,7 @@ def check_types(
             raise WorkflowException(f"Unrecognized linkMerge enum {linkMerge!r}")
 
 
-def merge_flatten_type(src: SinkType) -> CWLOutputType:
+def merge_flatten_type(src: SinkType | None) -> CWLOutputType | None:
     """Return the merge flattened type of the source type."""
     match src:
         case MutableSequence():
@@ -93,7 +94,9 @@ def merge_flatten_type(src: SinkType) -> CWLOutputType:
             return {"items": src, "type": "array"}
 
 
-def can_assign_src_to_sink(src: SinkType, sink: SinkType | None, strict: bool = False) -> bool:
+def can_assign_src_to_sink(
+    src: SinkType | None, sink: SinkType | None, strict: bool = False
+) -> bool:
     """
     Check for identical type specifications, ignoring extra keys like inputBinding.
 
@@ -111,8 +114,8 @@ def can_assign_src_to_sink(src: SinkType, sink: SinkType | None, strict: bool = 
             return False
         if src["type"] == "array" and sink["type"] == "array":
             return can_assign_src_to_sink(
-                cast(MutableSequence[CWLOutputType], src["items"]),
-                cast(MutableSequence[CWLOutputType], sink["items"]),
+                cast(MutableSequence[CWLOutputType | None], src["items"]),
+                cast(MutableSequence[CWLOutputType | None], sink["items"]),
                 strict,
             )
         if src["type"] == "record" and sink["type"] == "record":

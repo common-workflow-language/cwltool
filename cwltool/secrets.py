@@ -3,7 +3,7 @@
 import uuid
 from collections.abc import MutableMapping, MutableSequence
 
-from .utils import CWLObjectType, CWLOutputType
+from cwl_utils.types import CWLObjectType, CWLOutputType
 
 
 class SecretStore:

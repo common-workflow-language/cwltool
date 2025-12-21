@@ -21,6 +21,7 @@ from threading import Timer
 from typing import IO, TYPE_CHECKING, Optional, TextIO, Union, cast
 
 import psutil
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, CWLOutputType
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
@@ -35,9 +36,6 @@ from .pathmapper import MapperEnt, PathMapper
 from .process import stage_files
 from .secrets import SecretStore
 from .utils import (
-    CWLObjectType,
-    CWLOutputType,
-    DirectoryType,
     HasReqsHints,
     OutputCallbackType,
     bytes2str_in_dicts,
@@ -108,7 +106,9 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        make_path_mapper: Callable[
+            [MutableSequence[CWLFileType | CWLDirectoryType], str, RuntimeContext, bool], PathMapper
+        ],
         requirements: list[CWLObjectType],
         hints: list[CWLObjectType],
         name: str,
@@ -138,11 +138,13 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.tmpdir = ""
 
         self.environment: MutableMapping[str, str] = {}
-        self.generatefiles: DirectoryType = {
-            "class": "Directory",
-            "listing": [],
-            "basename": "",
-        }
+        self.generatefiles = CWLDirectoryType(
+            **{
+                "class": "Directory",
+                "listing": [],
+                "basename": "",
+            }
+        )
         self.stagedir: str | None = None
         self.inplace_update = False
         self.prov_obj: ProvenanceProfile | None = None
@@ -160,6 +162,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self,
         runtimeContext: RuntimeContext,
         tmpdir_lock: Union[threading.Lock, None] = None,
+        # use `threading.Lock | None` when we drop support for Python 3.12
     ) -> None:
         pass
 

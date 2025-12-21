@@ -3,9 +3,10 @@ import os
 import stat
 import urllib
 import uuid
-from collections.abc import ItemsView, Iterable, Iterator, KeysView
+from collections.abc import ItemsView, Iterable, Iterator, KeysView, MutableSequence
 from typing import NamedTuple, Optional, cast
 
+from cwl_utils.types import CWLDirectoryType, CWLFileType, is_directory
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import uri_file_path
@@ -13,7 +14,7 @@ from schema_salad.sourceline import SourceLine
 
 from .loghandler import _logger
 from .stdfsaccess import abspath
-from .utils import CWLObjectType, dedup, downloadHttpFile
+from .utils import dedup, downloadHttpFile
 
 
 class MapperEnt(NamedTuple):
@@ -75,7 +76,7 @@ class PathMapper:
 
     def __init__(
         self,
-        referenced_files: list[CWLObjectType],
+        referenced_files: MutableSequence[CWLFileType | CWLDirectoryType],
         basedir: str,
         stagedir: str,
         separateDirs: bool = True,
@@ -88,7 +89,7 @@ class PathMapper:
 
     def visitlisting(
         self,
-        listing: list[CWLObjectType],
+        listing: MutableSequence[CWLFileType | CWLDirectoryType],
         stagedir: str,
         basedir: str,
         copy: bool = False,
@@ -105,7 +106,7 @@ class PathMapper:
 
     def visit(
         self,
-        obj: CWLObjectType,
+        obj: CWLFileType | CWLDirectoryType,
         stagedir: str,
         basedir: str,
         copy: bool = False,
@@ -116,10 +117,10 @@ class PathMapper:
         stagedir = cast(Optional[str], obj.get("dirname")) or stagedir
         tgt = os.path.join(
             stagedir,
-            cast(str, obj["basename"]),
+            obj["basename"],
         )
-        if obj["class"] == "Directory":
-            location = cast(str, obj["location"])
+        if is_directory(obj):
+            location = obj["location"]
             if location.startswith("file://"):
                 resolved = uri_file_path(location)
             else:
@@ -130,18 +131,18 @@ class PathMapper:
             if location.startswith("file://"):
                 staged = False
             self.visitlisting(
-                cast(list[CWLObjectType], obj.get("listing", [])),
+                obj.get("listing", []),
                 tgt,
                 basedir,
                 copy=copy,
                 staged=staged,
             )
-        elif obj["class"] == "File":
-            path = cast(str, obj["location"])
+        else:
+            path = obj["location"]
             ab = abspath(path, basedir)
             if "contents" in obj and path.startswith("_:"):
                 self._pathmap[path] = MapperEnt(
-                    cast(str, obj["contents"]),
+                    obj["contents"],
                     tgt,
                     "CreateWritableFile" if copy else "CreateFile",
                     staged,
@@ -172,14 +173,16 @@ class PathMapper:
                         deref, tgt, "WritableFile" if copy else "File", staged
                     )
             self.visitlisting(
-                cast(list[CWLObjectType], obj.get("secondaryFiles", [])),
+                obj.get("secondaryFiles", []),
                 stagedir,
                 basedir,
                 copy=copy,
                 staged=staged,
             )
 
-    def setup(self, referenced_files: list[CWLObjectType], basedir: str) -> None:
+    def setup(
+        self, referenced_files: MutableSequence[CWLFileType | CWLDirectoryType], basedir: str
+    ) -> None:
         """
         For each file, set the target to its own directory.
 

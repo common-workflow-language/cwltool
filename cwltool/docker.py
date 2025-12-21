@@ -9,11 +9,12 @@ import shutil
 import subprocess  # nosec
 import sys
 import threading
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, MutableMapping, MutableSequence
 from io import StringIO  # pylint: disable=redefined-builtin
 from typing import Optional, cast
 
 import requests
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType
 
 from .builder import Builder
 from .context import RuntimeContext
@@ -22,7 +23,7 @@ from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
-from .utils import CWLObjectType, create_tmp_dir, ensure_writable
+from .utils import create_tmp_dir, ensure_writable
 
 _IMAGES: set[str] = set()
 _IMAGES_LOCK = threading.Lock()
@@ -84,7 +85,9 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        make_path_mapper: Callable[
+            [MutableSequence[CWLFileType | CWLDirectoryType], str, RuntimeContext, bool], PathMapper
+        ],
         requirements: list[CWLObjectType],
         hints: list[CWLObjectType],
         name: str,
@@ -447,7 +450,9 @@ class PodmanCommandLineJob(DockerCommandLineJob):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        make_path_mapper: Callable[
+            [MutableSequence[CWLFileType | CWLDirectoryType], str, RuntimeContext, bool], PathMapper
+        ],
         requirements: list[CWLObjectType],
         hints: list[CWLObjectType],
         name: str,

@@ -1,12 +1,13 @@
 import os
 from typing import Any
 
+from cwl_utils.types import CWLObjectType
+
 from . import load_tool
 from .context import LoadingContext, RuntimeContext
 from .errors import WorkflowException
 from .executors import JobExecutor, SingleJobExecutor
 from .process import Process
-from .utils import CWLObjectType
 
 
 class WorkflowStatus(Exception):

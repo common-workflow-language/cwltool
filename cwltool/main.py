@@ -23,6 +23,13 @@ import argcomplete
 import coloredlogs
 import requests
 import ruamel.yaml
+from cwl_utils.types import (
+    CWLDirectoryType,
+    CWLFileType,
+    CWLObjectType,
+    CWLOutputType,
+    is_file,
+)
 from rich_argparse import RichHelpFormatter
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
@@ -89,8 +96,6 @@ from .subgraph import get_process, get_step, get_subgraph
 from .update import ALLUPDATES, UPDATES
 from .utils import (
     DEFAULT_TMP_PREFIX,
-    CWLObjectType,
-    CWLOutputType,
     HasReqsHints,
     adjustDirObjs,
     normalizeFilesDirs,
@@ -245,8 +250,8 @@ def generate_example_input(
             for field in cast(list[CWLObjectType], fields):
                 value, f_comment = generate_example_input(field["type"], None)
                 example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
-        case {"type": str(inp_type), "default": default}:
-            example = default
+        case {"type": str(inp_type), "default": default_value}:
+            example = default_value
             comment = f"default value of type {inp_type!r}"
         case {"type": str(inp_type)}:
             example = defaults.get(inp_type, str(inptype))
@@ -298,7 +303,7 @@ def realize_input_schema(
             if isinstance(entry["type"], Mapping):
                 entry["type"] = cast(
                     CWLOutputType,
-                    realize_input_schema([entry["type"]], schema_defs),
+                    realize_input_schema([cast(CWLObjectType, entry["type"])], schema_defs),
                 )
             if entry["type"] == "array":
                 items = entry["items"] if not isinstance(entry["items"], str) else [entry["items"]]
@@ -565,14 +570,14 @@ def prov_deps(
     document_loader: Loader,
     uri: str,
     basedir: str | None = None,
-) -> CWLObjectType:
+) -> CWLFileType:
     deps = find_deps(obj, document_loader, uri, basedir=basedir)
 
-    def remove_non_cwl(deps: CWLObjectType) -> None:
-        if "secondaryFiles" in deps:
-            sec_files = cast(list[CWLObjectType], deps["secondaryFiles"])
+    def remove_non_cwl(deps: CWLFileType | CWLDirectoryType) -> None:
+        if is_file(deps) and "secondaryFiles" in deps:
+            sec_files = deps["secondaryFiles"]
             for index, entry in enumerate(sec_files):
-                if not ("format" in entry and entry["format"] == CWL_IANA):
+                if not (is_file(entry) and "format" in entry and entry["format"] == CWL_IANA):
                     del sec_files[index]
                 else:
                     remove_non_cwl(entry)
@@ -587,13 +592,15 @@ def find_deps(
     uri: str,
     basedir: str | None = None,
     nestdirs: bool = True,
-) -> CWLObjectType:
+) -> CWLFileType:
     """Find the dependencies of the CWL document."""
-    deps: CWLObjectType = {
-        "class": "File",
-        "location": uri,
-        "format": CWL_IANA,
-    }
+    deps = CWLFileType(
+        **{
+            "class": "File",
+            "location": uri,
+            "format": CWL_IANA,
+        }
+    )
 
     def loadref(base: str, uri: str) -> CommentedMap | CommentedSeq | str | None:
         return document_loader.fetch(document_loader.fetcher.urljoin(base, uri))
@@ -607,7 +614,7 @@ def find_deps(
         nestdirs=nestdirs,
     )
     if sfs is not None:
-        deps["secondaryFiles"] = cast(MutableSequence[CWLOutputType], mergedirs(sfs))
+        deps["secondaryFiles"] = mergedirs(sfs)
 
     return deps
 

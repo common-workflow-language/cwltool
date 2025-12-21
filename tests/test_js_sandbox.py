@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 from cwl_utils import sandboxjs
+from cwl_utils.types import CWLFileType
 
 from cwltool.factory import Factory
 from cwltool.loghandler import _logger, configure_logging
@@ -41,7 +42,7 @@ def test_value_from_two_concatenated_expressions() -> None:
     js_engine.localdata = threading.local()  # type: ignore[attr-defined]
     factory = Factory()
     echo = factory.make(get_data("tests/wf/vf-concat.cwl"))
-    file = {"class": "File", "location": get_data("tests/wf/whale.txt")}
+    file = CWLFileType(**{"class": "File", "location": get_data("tests/wf/whale.txt")})
 
     assert echo(file1=file) == {"out": "a string\n"}
 
@@ -87,7 +88,7 @@ def test_value_from_two_concatenated_expressions_podman(
     with monkeypatch.context() as m:
         m.setenv("PATH", new_paths)
         echo = factory.make(get_data("tests/wf/vf-concat.cwl"))
-        file = {"class": "File", "location": get_data("tests/wf/whale.txt")}
+        file = CWLFileType(**{"class": "File", "location": get_data("tests/wf/whale.txt")})
         assert echo(file1=file) == {"out": "a string\n"}
 
 
@@ -112,7 +113,7 @@ def test_value_from_two_concatenated_expressions_singularity(
         m.setenv("CWL_SINGULARITY_CACHE", str(singularity_cache))
         m.setenv("PATH", new_paths)
         echo = factory.make(get_data("tests/wf/vf-concat.cwl"))
-        file = {"class": "File", "location": get_data("tests/wf/whale.txt")}
+        file = CWLFileType(**{"class": "File", "location": get_data("tests/wf/whale.txt")})
         assert echo(file1=file) == {"out": "a string\n"}
 
 

@@ -13,18 +13,20 @@ from socket import getfqdn
 from typing import IO, TYPE_CHECKING, Any, Optional, cast
 
 import prov.model as provM
+from cwl_utils.types import (
+    CWLDirectoryType,
+    CWLFileType,
+    CWLObjectType,
+    CWLOutputType,
+    is_directory,
+    is_file,
+    is_file_or_directory,
+)
 from prov.model import ProvDocument
 
 from ..loghandler import _logger
 from ..stdfsaccess import StdFsAccess
-from ..utils import (
-    CWLObjectType,
-    CWLOutputType,
-    create_tmp_dir,
-    local_path,
-    posix_path,
-    versionstring,
-)
+from ..utils import create_tmp_dir, local_path, posix_path, versionstring
 from . import Aggregate, Annotation, AuthoredBy, _valid_orcid, _whoami, checksum_copy
 from .provenance_constants import (
     ACCOUNT_UUID,
@@ -495,7 +497,7 @@ class ResearchObject:
             return authored_by
         return None
 
-    def generate_snapshot(self, prov_dep: CWLObjectType) -> None:
+    def generate_snapshot(self, prov_dep: CWLFileType | CWLDirectoryType) -> None:
         """Copy all of the CWL files to the snapshot/ directory."""
         self.self_check()
         for key, value in prov_dep.items():
@@ -521,8 +523,8 @@ class ResearchObject:
                     except PermissionError:
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
             elif key in ("secondaryFiles", "listing"):
-                for files in cast(MutableSequence[CWLObjectType], value):
-                    if isinstance(files, MutableMapping):
+                for files in cast(MutableSequence[CWLFileType | CWLDirectoryType], value):
+                    if is_file_or_directory(files):
                         self.generate_snapshot(files)
             else:
                 pass
@@ -635,17 +637,17 @@ class ResearchObject:
 
     def _relativise_files(
         self,
-        structure: CWLObjectType | CWLOutputType | MutableSequence[CWLObjectType],
+        structure: CWLObjectType | CWLOutputType | MutableSequence[CWLObjectType] | None,
     ) -> None:
         """Save any file objects into the RO and update the local paths."""
         # Base case - we found a File we need to update
         _logger.debug("[provenance] Relativising: %s", structure)
 
         if isinstance(structure, MutableMapping):
-            if structure.get("class") == "File":
+            if is_file(structure):
                 relative_path: str | PurePosixPath | None = None
                 if "checksum" in structure:
-                    raw_checksum = cast(str, structure["checksum"])
+                    raw_checksum = structure["checksum"]
                     alg, checksum = raw_checksum.split("$")
                     if alg != SHA1:
                         raise TypeError(
@@ -659,7 +661,7 @@ class ResearchObject:
                     # Register in RO; but why was this not picked
                     # up by used_artefacts?
                     _logger.info("[provenance] Adding to RO %s", structure["location"])
-                    with self.fsaccess.open(cast(str, structure["location"]), "rb") as fp:
+                    with self.fsaccess.open(structure["location"], "rb") as fp:
                         relative_path = self.add_data_file(fp)
                         checksum = PurePosixPath(relative_path).name
                         structure["checksum"] = f"{SHA1}${checksum}"
@@ -668,14 +670,14 @@ class ResearchObject:
                 if "path" in structure:
                     del structure["path"]
 
-            if structure.get("class") == "Directory":
+            if is_directory(structure):
                 # TODO: Generate anonymous Directory with a "listing"
                 # pointing to the hashed files
                 del structure["location"]
 
             for val in structure.values():
                 try:
-                    self._relativise_files(val)
+                    self._relativise_files(cast(CWLOutputType, val))
                 except OSError:
                     pass
             return

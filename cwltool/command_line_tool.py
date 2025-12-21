@@ -12,18 +12,21 @@ import shutil
 import threading
 import urllib
 import urllib.parse
-from collections.abc import (
-    Generator,
-    Iterable,
-    Mapping,
-    MutableMapping,
-    MutableSequence,
-)
+from collections.abc import Generator, Mapping, MutableMapping, MutableSequence
 from enum import Enum
 from functools import cmp_to_key, partial
 from re import Pattern
 from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
 
+from cwl_utils.types import (
+    CWLDirectoryType,
+    CWLFileType,
+    CWLObjectType,
+    CWLOutputType,
+    is_directory,
+    is_file,
+    is_file_or_directory,
+)
 from mypy_extensions import mypyc_attr
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.avro.schema import RecordSchema
@@ -60,9 +63,6 @@ from .stdfsaccess import StdFsAccess
 from .udocker import UDockerCommandLineJob
 from .update import ORDERED_VERSIONS, ORIGINAL_CWLVERSION
 from .utils import (
-    CWLObjectType,
-    CWLOutputType,
-    DirectoryType,
     JobsGeneratorType,
     OutputCallbackType,
     adjustDirObjs,
@@ -178,18 +178,7 @@ class ExpressionJob:
         try:
             normalizeFilesDirs(self.builder.job)
             ev = self.builder.do_eval(self.script)
-            normalizeFilesDirs(
-                cast(
-                    Optional[
-                        Union[
-                            MutableSequence[MutableMapping[str, Any]],
-                            MutableMapping[str, Any],
-                            DirectoryType,
-                        ]
-                    ],
-                    ev,
-                )
-            )
+            normalizeFilesDirs(ev)
             if self.output_callback:
                 self.output_callback(cast(Optional[CWLObjectType], ev), "success")
         except WorkflowException as err:
@@ -239,7 +228,9 @@ def remove_path(f: CWLObjectType) -> None:
         del f["path"]
 
 
-def revmap_file(builder: Builder, outdir: str, f: CWLObjectType) -> CWLObjectType | None:
+def revmap_file(
+    builder: Builder, outdir: str, f: CWLFileType | CWLDirectoryType
+) -> CWLFileType | CWLDirectoryType:
     """
     Remap a file from internal path to external path.
 
@@ -258,18 +249,18 @@ def revmap_file(builder: Builder, outdir: str, f: CWLObjectType) -> CWLObjectTyp
     # quoted any further.
 
     if "location" in f and "path" not in f:
-        location = cast(str, f["location"])
+        location = f["location"]
         if location.startswith("file://"):
             f["path"] = uri_file_path(location)
         else:
-            f["location"] = builder.fs_access.join(outdir, cast(str, f["location"]))
+            f["location"] = builder.fs_access.join(outdir, f["location"])
             return f
 
-    if "dirname" in f:
+    if is_file(f) and "dirname" in f:
         del f["dirname"]
 
     if "path" in f:
-        path = builder.fs_access.join(builder.outdir, cast(str, f["path"]))
+        path = builder.fs_access.join(builder.outdir, f["path"])
         uripath = file_uri(path)
         del f["path"]
 
@@ -379,9 +370,9 @@ def check_valid_locations(fs_access: StdFsAccess, ob: CWLObjectType) -> None:
     location = cast(str, ob["location"])
     if location.startswith("_:"):
         pass
-    if ob["class"] == "File" and not fs_access.isfile(location):
+    if is_file(ob) and not fs_access.isfile(location):
         raise ValidationException("Does not exist or is not a File: '%s'" % location)
-    if ob["class"] == "Directory" and not fs_access.isdir(location):
+    if is_directory(ob) and not fs_access.isdir(location):
         raise ValidationException("Does not exist or is not a Directory: '%s'" % location)
 
 
@@ -449,7 +440,7 @@ class CommandLineTool(Process):
 
     @staticmethod
     def make_path_mapper(
-        reffiles: list[CWLObjectType],
+        reffiles: MutableSequence[CWLFileType | CWLDirectoryType],
         stagedir: str,
         runtimeContext: RuntimeContext,
         separateDirs: bool,
@@ -596,10 +587,7 @@ class CommandLineTool(Process):
 
                         filelist = True
                         for e in entry:
-                            if not isinstance(e, MutableMapping) or e.get("class") not in (
-                                "File",
-                                "Directory",
-                            ):
+                            if not is_file_or_directory(e):
                                 filelist = False
                                 break
 
@@ -619,11 +607,8 @@ class CommandLineTool(Process):
                     et: CWLObjectType = {}
                     writable = t.get("writable", False)
                     et["writable"] = writable
-                    if isinstance(entry, Mapping) and entry.get("class") in (
-                        "File",
-                        "Directory",
-                    ):
-                        if writable and "secondaryFiles" in entry:
+                    if is_file_or_directory(entry):
+                        if writable and is_file(entry) and "secondaryFiles" in entry:
                             secFiles = cast(MutableSequence[CWLObjectType], entry["secondaryFiles"])
                             for sf in secFiles:
                                 sf["writable"] = writable
@@ -704,7 +689,7 @@ class CommandLineTool(Process):
                     )
                 )
 
-            if t2["entry"].get("class") not in ("File", "Directory"):
+            if not is_file_or_directory(t2["entry"]):
                 raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
                     "Entry at index %s of listing is not a File or Directory object, was %s"
                     % (i, t2)
@@ -718,10 +703,10 @@ class CommandLineTool(Process):
                 t2entry["writable"] = t2copy.get("writable")
                 t2["entry"] = t2entry
 
-            ls[i] = t2["entry"]
+            ls[i] = cast(CWLObjectType, t2["entry"])
 
         for i, t3 in enumerate(ls):
-            if t3.get("class") not in ("File", "Directory"):
+            if not is_file_or_directory(t3):
                 # Check that every item is a File or Directory object now
                 raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
                     f"Entry at index {i} of listing is not a Dirent, File or "
@@ -729,7 +714,7 @@ class CommandLineTool(Process):
                 )
             if "basename" not in t3:
                 continue
-            basename = os.path.normpath(cast(str, t3["basename"]))
+            basename = os.path.normpath(t3["basename"])
             t3["basename"] = basename
             if basename.startswith("../"):
                 raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
@@ -761,18 +746,19 @@ class CommandLineTool(Process):
             return  # Only testing
 
         with SourceLine(initialWorkdir, "listing", WorkflowException, debug):
-            j.generatefiles["listing"] = ls
+            j.generatefiles["listing"] = cast(MutableSequence[CWLFileType | CWLDirectoryType], ls)
             for entry in ls:
                 if "basename" in entry:
                     basename = cast(str, entry["basename"])
+                    entry["basename"] = os.path.basename(basename)
                     dirname = os.path.join(builder.outdir, os.path.dirname(basename))
                     entry["dirname"] = dirname
-                    entry["basename"] = os.path.basename(basename)
-                    if "secondaryFiles" in entry:
-                        for sec_file in cast(
-                            MutableSequence[CWLObjectType], entry["secondaryFiles"]
-                        ):
-                            sec_file["dirname"] = dirname
+                    if is_file(entry):
+                        if "secondaryFiles" in entry:
+                            for sec_file in cast(
+                                MutableSequence[CWLObjectType], entry["secondaryFiles"]
+                            ):
+                                sec_file["dirname"] = dirname
                 normalizeFilesDirs(entry)
                 self.updatePathmap(
                     cast(Optional[str], entry.get("dirname")) or builder.outdir,
@@ -780,7 +766,7 @@ class CommandLineTool(Process):
                     entry,
                 )
 
-                if "listing" in entry:
+                if is_directory(entry) and "listing" in entry:
 
                     def remove_dirname(d: CWLObjectType) -> None:
                         if "dirname" in d:
@@ -857,10 +843,11 @@ class CommandLineTool(Process):
                     if (
                         "location" in e
                         and e["location"] == location
+                        and is_file(e)
                         and "checksum" in e
                         and e["checksum"] != "sha1$hash"
                     ):
-                        return cast(str, e["checksum"])
+                        return e["checksum"]
                 return None
 
             def remove_prefix(s: str, prefix: str) -> str:
@@ -1019,7 +1006,7 @@ class CommandLineTool(Process):
                     )
                 j.stdin = stdin_eval
                 if j.stdin:
-                    reffiles.append({"class": "File", "path": j.stdin})
+                    reffiles.append(CWLFileType(**{"class": "File", "path": j.stdin}))
 
         if self.tool.get("stderr"):
             with SourceLine(self.tool, "stderr", ValidationException, debug):
@@ -1299,7 +1286,7 @@ class CommandLineTool(Process):
         fs_access: StdFsAccess,
         compute_checksum: bool = True,
     ) -> CWLOutputType | None:
-        r: list[CWLOutputType] = []
+        r: MutableSequence[CWLFileType | CWLDirectoryType] = []
         empty_and_optional = False
         debug = _logger.isEnabledFor(logging.DEBUG)
         result: CWLOutputType | None = None
@@ -1347,9 +1334,9 @@ class CommandLineTool(Process):
                                 key=cmp_to_key(locale.strcoll),
                             )
                             r.extend(
-                                cast(
-                                    Iterable[CWLOutputType],
-                                    [
+                                [
+                                    cast(
+                                        CWLFileType | CWLDirectoryType,
                                         {
                                             "location": g,
                                             "path": fs_access.join(
@@ -1360,16 +1347,16 @@ class CommandLineTool(Process):
                                             "nameroot": os.path.splitext(decoded_basename)[0],
                                             "nameext": os.path.splitext(decoded_basename)[1],
                                             "class": "File" if fs_access.isfile(g) else "Directory",
-                                        }
-                                        for g, decoded_basename in zip(
+                                        },
+                                    )
+                                    for g, decoded_basename in zip(
+                                        sorted_glob_result,
+                                        map(
+                                            lambda x: os.path.basename(urllib.parse.unquote(x)),
                                             sorted_glob_result,
-                                            map(
-                                                lambda x: os.path.basename(urllib.parse.unquote(x)),
-                                                sorted_glob_result,
-                                            ),
-                                        )
-                                    ],
-                                )
+                                        ),
+                                    )
+                                ]
                             )
                         except OSError as e:
                             _logger.warning(str(e), exc_info=builder.debug)
@@ -1377,28 +1364,28 @@ class CommandLineTool(Process):
                             _logger.error("Unexpected error from fs_access", exc_info=True)
                             raise
 
-                for files in cast(list[dict[str, Optional[CWLOutputType]]], r):
+                for files in r:
                     rfile = files.copy()
                     revmap(rfile)
-                    if files["class"] == "Directory":
+                    if is_directory(files):
                         ll = binding.get("loadListing") or builder.loadListing
                         if ll and ll != "no_listing":
                             get_listing(fs_access, files, (ll == "deep_listing"))
                     else:
                         if binding.get("loadContents"):
-                            with fs_access.open(cast(str, rfile["location"]), "rb") as f:
+                            with fs_access.open(rfile["location"], "rb") as f:
                                 files["contents"] = str(
                                     content_limit_respected_read_bytes(f), "utf-8"
                                 )
                         if compute_checksum:
-                            with fs_access.open(cast(str, rfile["location"]), "rb") as f:
+                            with fs_access.open(rfile["location"], "rb") as f:
                                 checksum = hashlib.sha1()  # nosec
                                 contents = f.read(1024 * 1024)
                                 while contents != b"":
                                     checksum.update(contents)
                                     contents = f.read(1024 * 1024)
                                 files["checksum"] = "sha1$%s" % checksum.hexdigest()
-                        files["size"] = fs_access.size(cast(str, rfile["location"]))
+                        files["size"] = fs_access.size(rfile["location"])
 
             optional = False
             single = False

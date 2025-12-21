@@ -10,10 +10,11 @@ import re
 import shutil
 import sys
 import threading
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable, MutableMapping, MutableSequence
 from subprocess import check_call, check_output, run  # nosec
 from typing import cast
 
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType
 from mypy_extensions import mypyc_attr
 from packaging.version import Version
 from schema_salad.sourceline import SourceLine
@@ -30,7 +31,7 @@ from .job import ContainerCommandLineJob
 from .loghandler import _logger
 from .pathmapper import MapperEnt, PathMapper
 from .singularity_utils import singularity_supports_userns
-from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_writable
+from .utils import create_tmp_dir, ensure_non_writable, ensure_writable
 
 # Cached version number of singularity
 # This is a list containing major and minor versions as integer.
@@ -195,7 +196,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         self,
         builder: Builder,
         joborder: CWLObjectType,
-        make_path_mapper: Callable[[list[CWLObjectType], str, RuntimeContext, bool], PathMapper],
+        make_path_mapper: Callable[
+            [MutableSequence[CWLFileType | CWLDirectoryType], str, RuntimeContext, bool], PathMapper
+        ],
         requirements: list[CWLObjectType],
         hints: list[CWLObjectType],
         name: str,
