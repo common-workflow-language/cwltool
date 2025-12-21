@@ -12,16 +12,11 @@ import shutil
 import threading
 import urllib
 import urllib.parse
-from collections.abc import (
-    Generator,
-    Mapping,
-    MutableMapping,
-    MutableSequence,
-)
+from collections.abc import Generator, Mapping, MutableMapping, MutableSequence
 from enum import Enum
 from functools import cmp_to_key, partial
 from re import Pattern
-from typing import Any, Optional, TYPE_CHECKING, TextIO, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, TextIO, Union, cast
 
 from cwl_utils.types import (
     CWLDirectoryType,
@@ -41,7 +36,12 @@ from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
 from schema_salad.validate import validate_ex
 
-from .builder import Builder, INPUT_OBJ_VOCAB, content_limit_respected_read_bytes, substitute
+from .builder import (
+    INPUT_OBJ_VOCAB,
+    Builder,
+    content_limit_respected_read_bytes,
+    substitute,
+)
 from .context import LoadingContext, RuntimeContext, getdefault
 from .docker import DockerCommandLineJob, PodmanCommandLineJob
 from .errors import UnsupportedRequirement, WorkflowException
