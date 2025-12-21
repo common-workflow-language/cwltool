@@ -51,7 +51,6 @@ install-dep: install-dependencies
 
 install-dependencies: FORCE
 	pip install --upgrade $(DEVPKGS)
-	pip install -r requirements.txt
 
 install-doc-dep:
 	pip install -r docs/requirements.txt
