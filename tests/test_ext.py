@@ -33,12 +33,13 @@ def test_listing_deep() -> None:
 @needs_docker
 def test_cwltool_options(monkeypatch: pytest.MonkeyPatch) -> None:
     """Check setting options via environment variable."""
-    monkeypatch.setenv("CWLTOOL_OPTIONS", "--enable-ext")
-    params = [
-        get_data("tests/wf/listing_deep.cwl"),
-        get_data("tests/listing-job.yml"),
-    ]
-    assert main(params) == 0
+    with monkeypatch.context() as m:
+        m.setenv("CWLTOOL_OPTIONS", "--enable-ext")
+        params = [
+            get_data("tests/wf/listing_deep.cwl"),
+            get_data("tests/listing-job.yml"),
+        ]
+        assert main(params) == 0
 
 
 @needs_docker
@@ -285,3 +286,10 @@ def test_ext_validation_no_namespace_warning() -> None:
         "URI prefix 'cwltool' of 'cwltool:loop' not recognized, are you "
         "missing a $namespaces section?"
     ) not in stderr
+
+
+def test_ext_in_dollarsign_graph() -> None:
+    error_code, stdout, stderr = get_main_output(
+        ["--validate", "--enable-ext", get_data("tests/wf/hello_gpu.cwl")]
+    )
+    assert error_code == 0

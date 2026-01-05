@@ -645,9 +645,11 @@ def setup_schema(
         ext10 = files("cwltool").joinpath("extensions.yml").read_text("utf-8")
         ext11 = files("cwltool").joinpath("extensions-v1.1.yml").read_text("utf-8")
         ext12 = files("cwltool").joinpath("extensions-v1.2.yml").read_text("utf-8")
+        ext13 = files("cwltool").joinpath("extensions-v1.3.yml").read_text("utf-8")
         use_custom_schema("v1.0", "http://commonwl.org/cwltool", ext10)
         use_custom_schema("v1.1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2", "http://commonwl.org/cwltool", ext12)
+        use_custom_schema("v1.3.0-dev1", "http://commonwl.org/cwltool", ext13)
         use_custom_schema("v1.2.0-dev1", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev2", "http://commonwl.org/cwltool", ext11)
         use_custom_schema("v1.2.0-dev3", "http://commonwl.org/cwltool", ext11)
@@ -655,6 +657,7 @@ def setup_schema(
         use_standard_schema("v1.0")
         use_standard_schema("v1.1")
         use_standard_schema("v1.2")
+        use_standard_schema("v1.3.0-dev1")
         use_standard_schema("v1.2.0-dev1")
         use_standard_schema("v1.2.0-dev2")
         use_standard_schema("v1.2.0-dev3")
@@ -1234,7 +1237,7 @@ def main(
         if args.cachedir:
             if args.move_outputs == "move":
                 runtimeContext.move_outputs = "copy"
-            runtimeContext.tmp_outdir_prefix = args.cachedir
+            runtimeContext.tmp_outdir_prefix = os.path.abspath(args.cachedir) + "_tmp"
 
         runtimeContext.log_dir = args.log_dir
 
@@ -1243,7 +1246,7 @@ def main(
 
         if not executor:
             if args.parallel:
-                temp_executor = MultithreadedJobExecutor()
+                temp_executor = MultithreadedJobExecutor(max_parallel=args.parallel_max)
                 runtimeContext.select_resources = temp_executor.select_resources
                 real_executor: JobExecutor = temp_executor
             else:

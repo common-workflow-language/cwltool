@@ -14,14 +14,13 @@ def test_rdf_print() -> None:
 
 def test_rdf_print_unicode(monkeypatch: pytest.MonkeyPatch) -> None:
     """Force ASCII encoding but load UTF file with --print-rdf."""
-    monkeypatch.setenv("LC_ALL", "C")
-
-    params = [
-        sys.executable,
-        "-m",
-        "cwltool",
-        "--print-rdf",
-        get_data("tests/utf_doc_example.cwl"),
-    ]
-
-    assert subprocess.check_call(params) == 0
+    with monkeypatch.context() as m:
+        m.setenv("LC_ALL", "C")
+        params = [
+            sys.executable,
+            "-m",
+            "cwltool",
+            "--print-rdf",
+            get_data("tests/utf_doc_example.cwl"),
+        ]
+        assert subprocess.check_call(params) == 0

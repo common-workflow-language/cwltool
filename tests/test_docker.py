@@ -185,21 +185,21 @@ def test_podman_required_secfile(tmp_path: Path) -> None:
 def test_singularity_required_secfile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     singularity_dir = tmp_path / "singularity"
     singularity_dir.mkdir()
-    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
-
-    result_code, stdout, stderr = get_main_output(
-        [
-            "--singularity",
-            "--outdir",
-            str(tmp_path / "out"),
-            get_data("tests/secondary-files-required-container.cwl"),
-        ]
-    )
-    assert result_code == 0, stderr
-    assert (
-        json.loads(stdout)["output"]["secondaryFiles"][0]["checksum"]
-        == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
-    )
+    with monkeypatch.context() as m:
+        m.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
+        result_code, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                "--outdir",
+                str(tmp_path / "out"),
+                get_data("tests/secondary-files-required-container.cwl"),
+            ]
+        )
+        assert result_code == 0, stderr
+        assert (
+            json.loads(stdout)["output"]["secondaryFiles"][0]["checksum"]
+            == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
+        )
 
 
 @needs_docker
@@ -247,23 +247,22 @@ def test_singularity_required_missing_secfile(
 ) -> None:
     singularity_dir = tmp_path / "singularity"
     singularity_dir.mkdir()
-    monkeypatch.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
-    result_code, stdout, stderr = get_main_output(
-        [
-            "--singularity",
-            "--outdir",
-            str(tmp_path),
-            get_data("tests/secondary-files-required-missing-container.cwl"),
-        ]
-    )
-    assert result_code == 1, stderr
-    stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "Job error:" in stderr
-    assert "Error collecting output for parameter 'output'" in stderr
-    assert (
-        "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
-    )
-    assert "file.ext3" in stderr
+    with monkeypatch.context() as m:
+        m.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
+        result_code, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                "--outdir",
+                str(tmp_path),
+                get_data("tests/secondary-files-required-missing-container.cwl"),
+            ]
+        )
+        assert result_code == 1, stderr
+        stderr = re.sub(r"\s\s+", " ", stderr)
+        assert "Job error:" in stderr
+        assert "Error collecting output for parameter 'output'" in stderr
+        assert "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
+        assert "file.ext3" in stderr
 
 
 @needs_docker

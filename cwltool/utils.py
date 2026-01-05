@@ -329,13 +329,13 @@ def downloadHttpFile(httpurl: str) -> tuple[str, datetime | None]:
     if "XDG_CACHE_HOME" in os.environ:
         directory = os.environ["XDG_CACHE_HOME"]
     elif "HOME" in os.environ:
-        directory = os.environ["HOME"]
+        directory = os.path.join(os.environ["HOME"], ".cache")
     else:
-        directory = os.path.expanduser("~")
+        directory = os.path.join(os.path.expanduser("~"), ".cache")
 
     cache_session = CacheControl(
         requests.Session(),
-        cache=FileCache(os.path.join(directory, ".cache", "cwltool")),
+        cache=FileCache(os.path.join(directory, "cwltool")),
     )
 
     r = cache_session.get(httpurl, stream=True)

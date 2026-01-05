@@ -28,7 +28,7 @@ jobs:
 
   tox:
     name: Tox
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         py-ver-major: [3]
@@ -40,15 +40,15 @@ jobs:
       TOXENV: ${{ format('py{0}{1}-{2}', matrix.py-ver-major, matrix.py-ver-minor, matrix.step) }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Singularity and environment-modules
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
         run: |
-          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.2.1/singularity-ce_4.2.1-focal_amd64.deb
-          sudo apt-get install -y ./singularity-ce_4.2.1-focal_amd64.deb environment-modules
+          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.3.5/singularity-ce_4.3.5-noble_amd64.deb
+          sudo apt-get install -y ./singularity-ce_4.3.5-noble_amd64.deb environment-modules
 
       - name: Give the test runner user a name to make provenance happy.
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
@@ -70,11 +70,11 @@ jobs:
       - name: Upgrade setuptools and install tox
         run: |
           pip install -U pip setuptools wheel
-          pip install "tox<4" "tox-gh-actions<3"
+          pip install tox tox-gh-actions
 
       - name: MyPy cache
         if: ${{ matrix.step == 'mypy' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .mypy_cache/${{ env.py-semver }}
           key: mypy-${{ env.py-semver }}
@@ -103,7 +103,7 @@ jobs:
       TOXENV: ${{ format('py313-{0}', matrix.step) }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -116,7 +116,7 @@ jobs:
       - name: Upgrade setuptools and install tox
         run: |
           pip install -U pip setuptools wheel
-          pip install "tox<4" "tox-gh-actions<3"
+          pip install tox tox-gh-actions
 
       - if: ${{ matrix.step == 'pydocstyle' && github.event_name == 'pull_request'}}
         name: Create local branch for diff-quality for PRs
@@ -127,18 +127,18 @@ jobs:
 
   clean_working_dir:
     name: No leftovers
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       py-semver: "3.13"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Set up Singularity and environment-modules
         run: |
-          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.2.1/singularity-ce_4.2.1-focal_amd64.deb
-          sudo apt-get install -y ./singularity-ce_4.2.1-focal_amd64.deb environment-modules
+          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.3.5/singularity-ce_4.3.5-noble_amd64.deb
+          sudo apt-get install -y ./singularity-ce_4.3.5-noble_amd64.deb environment-modules
 
       - name: Give the test runner user a name to make provenance happy.
         run: sudo usermod -c 'CI Runner' "$(whoami)"
@@ -165,7 +165,7 @@ jobs:
 
   conformance_tests:
     name: CWL conformance
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false
@@ -181,17 +181,17 @@ jobs:
             extras: "--relax-path-checks"
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Singularity and environment-modules
         if: ${{ matrix.container == 'singularity' }}
         run: |
-          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.2.1/singularity-ce_4.2.1-focal_amd64.deb
-          sudo apt-get install -y ./singularity-ce_4.2.1-focal_amd64.deb environment-modules
+          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.3.5/singularity-ce_4.3.5-noble_amd64.deb
+          sudo apt-get install -y ./singularity-ce_4.3.5-noble_amd64.deb environment-modules
 
       - name: Singularity cache
         if: ${{ matrix.container == 'singularity' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: sifcache
           key: singularity
@@ -214,7 +214,7 @@ jobs:
           CWLTOOL_OPTIONS: ${{ matrix.cwl-version == 'v1.2' && '--relax-path-checks' || '' }} ${{ matrix.extras }}
         run: ./conformance-test.sh
       - name: Archive test results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: cwl-${{ matrix.cwl-version }}-${{ matrix.container }}${{ matrix.extras }}-conformance-results
           path: |
@@ -227,15 +227,15 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   release_test:
     name: cwltool release test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Singularity and environment-modules
         run: |
-          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.2.1/singularity-ce_4.2.1-focal_amd64.deb
-          sudo apt-get install -y ./singularity-ce_4.2.1-focal_amd64.deb environment-modules
+          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.3.5/singularity-ce_4.3.5-noble_amd64.deb
+          sudo apt-get install -y ./singularity-ce_4.3.5-noble_amd64.deb environment-modules
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -262,7 +262,7 @@ jobs:
   build_test_container:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: record cwltool version
@@ -276,7 +276,7 @@ jobs:
     env:
       TOXENV: py313-unit
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Set up Python
@@ -290,10 +290,10 @@ jobs:
       - name: Upgrade setuptools and install tox
         run: |
           pip install -U pip setuptools wheel
-          pip install "tox<4" "tox-gh-actions<3"
+          pip install tox tox-gh-actions
       # # docker for mac install is not currently stable
       # - name: 'SETUP MacOS: load Homebrew cache'
-      #   uses: actions/cache@v4
+      #   uses: actions/cache@v5
       #   if: runner.os == 'macOS'
       #   with:
       #      path: |

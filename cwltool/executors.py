@@ -5,6 +5,7 @@ import functools
 import logging
 import math
 import os
+import sys
 import threading
 from abc import ABCMeta, abstractmethod
 from collections.abc import Iterable, MutableSequence
@@ -257,6 +258,17 @@ class SingleJobExecutor(JobExecutor):
             raise WorkflowException(str(err)) from err
 
 
+if sys.platform != "darwin":
+
+    def _max_cores() -> int:
+        return len(psutil.Process().cpu_affinity())
+
+else:
+
+    def _max_cores() -> int:
+        return psutil.cpu_count() or 1
+
+
 class MultithreadedJobExecutor(JobExecutor):
     """
     Experimental multi-threaded CWL executor.
@@ -266,7 +278,7 @@ class MultithreadedJobExecutor(JobExecutor):
     optimize usage.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, max_parallel: int = 0) -> None:
         """Initialize."""
         super().__init__()
         self.exceptions: list[WorkflowException] = []
@@ -274,7 +286,7 @@ class MultithreadedJobExecutor(JobExecutor):
         self.pending_jobs_lock = threading.Lock()
 
         self.max_ram = int(psutil.virtual_memory().available / 2**20)
-        self.max_cores = float(psutil.cpu_count() or 1)
+        self.max_cores = float(max_parallel if max_parallel >= 1 else _max_cores())
         self.max_cuda = cuda_version_and_device_count()[1]
         self.allocated_ram = float(0)
         self.allocated_cores = float(0)

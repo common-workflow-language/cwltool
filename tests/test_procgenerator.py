@@ -45,16 +45,17 @@ def test_missing_enable_ext(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
         == 0
     )
 
-    monkeypatch.setenv("CWLTOOL_OPTIONS", "--enable-ext --enable-dev")
-    assert (
-        main(
-            [
-                "--outdir",
-                str(tmp_path),
-                get_data("tests/wf/generator/zing.cwl"),
-                "--zing",
-                "zipper",
-            ]
+    with monkeypatch.context() as m:
+        m.setenv("CWLTOOL_OPTIONS", "--enable-ext --enable-dev")
+        assert (
+            main(
+                [
+                    "--outdir",
+                    str(tmp_path),
+                    get_data("tests/wf/generator/zing.cwl"),
+                    "--zing",
+                    "zipper",
+                ]
+            )
+            == 0
         )
-        == 0
-    )

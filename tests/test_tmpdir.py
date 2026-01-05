@@ -1,5 +1,7 @@
 """Test that all temporary directories respect the --tmpdir-prefix and --tmp-outdir-prefix options."""
 
+import copy
+import logging
 import os
 import re
 import shutil
@@ -17,15 +19,22 @@ from cwltool.builder import Builder
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.docker import DockerCommandLineJob
+from cwltool.errors import WorkflowException
 from cwltool.job import JobBase
 from cwltool.main import main
 from cwltool.pathmapper import MapperEnt
-from cwltool.singularity import SingularityCommandLineJob
+from cwltool.singularity import _IMAGES, _IMAGES_LOCK, SingularityCommandLineJob
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
-from cwltool.utils import create_tmp_dir
+from cwltool.utils import CWLObjectType, create_tmp_dir
 
 from .util import get_data, get_main_output, needs_docker, needs_singularity
+
+
+@pytest.fixture(autouse=True)
+def clear_singularity_image_cache() -> None:
+    with _IMAGES_LOCK:
+        _IMAGES.clear()
 
 
 def test_docker_commandLineTool_job_tmpdir_prefix(tmp_path: Path) -> None:
@@ -283,6 +292,228 @@ def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch, tmp_path:
     image_path = children[0]
     assert image_path.exists()
     shutil.rmtree(subdir)
+
+
+@needs_singularity
+def test_singularity_get_image_from_sandbox(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Test that SingularityCommandLineJob.get_image correctly handle sandbox image."""
+
+    (tmp_path / "out").mkdir(exist_ok=True)
+    tmp_outdir_prefix = tmp_path / "out"
+    tmp_outdir_prefix.mkdir(exist_ok=True)
+    (tmp_path / "tmp").mkdir(exist_ok=True)
+    tmpdir_prefix = str(tmp_path / "tmp")
+    runtime_context = RuntimeContext(
+        {"tmpdir_prefix": tmpdir_prefix, "user_space_docker_cmd": None}
+    )
+    builder = Builder(
+        {},
+        [],
+        [],
+        {},
+        schema.Names(),
+        [],
+        [],
+        {},
+        None,
+        None,
+        StdFsAccess,
+        StdFsAccess(""),
+        None,
+        0.1,
+        True,
+        False,
+        False,
+        "no_listing",
+        runtime_context.get_outdir(),
+        runtime_context.get_tmpdir(),
+        runtime_context.get_stagedir(),
+        INTERNAL_VERSION,
+        "singularity",
+    )
+
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    repo_path = workdir / "container_repo"
+    repo_path.mkdir()
+    image_path = repo_path / "alpine"
+    image_path.mkdir()
+
+    # directory exists but is not an image
+    monkeypatch.setattr(
+        "cwltool.singularity._inspect_singularity_sandbox_image", lambda *args, **kwargs: False
+    )
+    req = {"class": "DockerRequirement", "dockerPull": f"{image_path}"}
+    res = SingularityCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_image(
+        req,
+        pull_image=False,
+        tmp_outdir_prefix=str(tmp_outdir_prefix),
+        force_pull=False,
+    )
+    assert req["dockerPull"] == f"{image_path}"
+    assert res is False
+
+    # directory exists and is an image:
+    monkeypatch.setattr(
+        "cwltool.singularity._inspect_singularity_sandbox_image", lambda *args, **kwargs: True
+    )
+    req = {"class": "DockerRequirement", "dockerPull": f"{image_path}"}
+    res = SingularityCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_image(
+        req,
+        pull_image=False,
+        tmp_outdir_prefix=str(tmp_outdir_prefix),
+        force_pull=False,
+    )
+    assert req["dockerImageId"] == str(image_path)
+    assert res
+
+    # test that dockerImageId is set and image exists:
+    req = {"class": "DockerRequirement", "dockerImageId": f"{image_path}"}
+    res = SingularityCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_image(
+        req,
+        pull_image=False,
+        tmp_outdir_prefix=str(tmp_outdir_prefix),
+        force_pull=False,
+    )
+    assert req["dockerImageId"] == str(image_path)
+    assert res
+
+
+@needs_singularity
+def test_singularity_image_base_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    tmp_outdir_prefix = tmp_path / "out"
+    tmp_outdir_prefix.mkdir()
+    tmpdir = tmp_path / "tmp"
+    tmpdir.mkdir()
+
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    repo_path = (workdir / "container_repo").absolute()
+    repo_path.mkdir()
+    image_path = (repo_path / "alpine").absolute()
+    image_path.mkdir()
+
+    runtime_context = RuntimeContext(
+        {"tmp_outdir_prefix": str(tmp_outdir_prefix), "tmpdir": str(tmpdir)}
+    )
+    builder = Builder(
+        {},
+        [],
+        [],
+        {},
+        schema.Names(),
+        [],
+        [],
+        {},
+        None,
+        None,
+        StdFsAccess,
+        StdFsAccess(""),
+        None,
+        0.1,
+        True,
+        False,
+        False,
+        "no_listing",
+        runtime_context.get_outdir(),
+        runtime_context.get_tmpdir(),
+        runtime_context.get_stagedir(),
+        INTERNAL_VERSION,
+        "singularity",
+    )
+
+    monkeypatch.setattr(
+        "cwltool.singularity._inspect_singularity_sandbox_image", lambda *args, **kwargs: True
+    )
+
+    initial_requirements = {"class": "DockerRequirement", "dockerPull": "alpine"}
+    requirements1 = copy.deepcopy(initial_requirements)
+    # get image from sandbox_base_path option
+    res_get_image = SingularityCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_image(
+        requirements1,
+        pull_image=False,
+        tmp_outdir_prefix=str(tmp_outdir_prefix),
+        force_pull=False,
+        sandbox_base_path=str(repo_path),
+    )
+    assert res_get_image
+    assert requirements1["dockerImageId"] == str(image_path)
+
+    requirements2: CWLObjectType = {"class": "DockerRequirement", "dockerPull": "alpine"}
+    res_get_req = SingularityCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+    ).get_from_requirements(
+        requirements2,
+        pull_image=False,
+        force_pull=False,
+        tmp_outdir_prefix=str(tmp_outdir_prefix),
+        image_base_path=str(repo_path),
+    )
+    assert res_get_req == str(image_path)
+
+    with _IMAGES_LOCK:
+        _IMAGES.clear()
+    requirements3: CWLObjectType = {"class": "DockerRequirement", "dockerPull": "alpine"}
+    # get requirements from without sandbox image path
+    # should return an error
+    with pytest.raises(WorkflowException):
+        res_get_req = SingularityCommandLineJob(
+            builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+        ).get_from_requirements(
+            requirements3,
+            pull_image=False,
+            force_pull=False,
+            tmp_outdir_prefix=str(tmp_outdir_prefix),
+        )
+
+    # get image from CWL_SINGULARITY_IMAGES env var
+    requirements4 = copy.deepcopy(initial_requirements)
+    with monkeypatch.context() as m:
+        m.setenv("CWL_SINGULARITY_IMAGES", str(repo_path))
+        res_get_image = SingularityCommandLineJob(
+            builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+        ).get_image(
+            requirements4,
+            pull_image=False,
+            tmp_outdir_prefix=str(tmp_outdir_prefix),
+            force_pull=False,
+        )
+        assert res_get_image
+        assert requirements4["dockerImageId"] == str(image_path)
+
+    with _IMAGES_LOCK:
+        _IMAGES.clear()
+    with caplog.at_level(logging.INFO):
+        requirements5: CWLObjectType = {
+            "class": "DockerRequirement",
+            "dockerPull": "alpine",
+            "dockerImageId": str(image_path),
+        }
+        res_get_req = SingularityCommandLineJob(
+            builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+        ).get_from_requirements(
+            requirements5,
+            pull_image=False,
+            force_pull=False,
+            tmp_outdir_prefix=str(tmp_outdir_prefix),
+        )
+        assert res_get_req == str(image_path)
+        assert (
+            f"Non-portable: using an absolute file path in a 'dockerImageId': {image_path}"
+            in caplog.text
+        )
 
 
 def test_docker_tmpdir_prefix(tmp_path: Path) -> None:

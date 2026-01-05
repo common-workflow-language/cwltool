@@ -149,8 +149,8 @@ setup(
     install_requires=[
         "requests >= 2.6.1",  # >= 2.6.1 to workaround
         # https://github.com/ionrock/cachecontrol/issues/137
-        "ruamel.yaml >= 0.16, < 0.19",
-        "rdflib >= 4.2.2, < 7.5.0",
+        "ruamel.yaml >= 0.16, < 0.20",
+        "rdflib >= 4.2.2, < 7.6.0",
         "schema-salad >= 8.9, < 9",
         "prov == 1.5.1",
         "mypy-extensions",
@@ -162,11 +162,12 @@ setup(
         "cwl-utils >= 0.32",
         "spython >= 0.3.0",
         "rich-argparse",
+        "typing-extensions >= 4.1.0",
     ],
     extras_require={
         "deps": [
-            "galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<25.1",
-            "galaxy-util <25.1",
+            "galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<25.2",
+            "galaxy-util <25.2",
             "pillow",  # workaround for https://github.com/galaxyproject/galaxy/pull/20525
         ],
     },
