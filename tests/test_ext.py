@@ -293,3 +293,16 @@ def test_ext_in_dollarsign_graph() -> None:
         ["--validate", "--enable-ext", get_data("tests/wf/hello_gpu.cwl")]
     )
     assert error_code == 0
+
+
+def test_ext_groups_help(capsys: pytest.CaptureFixture[str]) -> None:
+    error_code, stdout, stderr = get_main_output([get_data("tests/echo-groups.cwl"), "--help"])
+    assert error_code == 0
+    assert (
+        """my great inputs:
+  parameters related to the foobar feature
+
+  --first FIRST
+  --second SECOND"""
+        in capsys.readouterr().out
+    )

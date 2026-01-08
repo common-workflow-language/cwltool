@@ -17,7 +17,7 @@ from .loghandler import _logger
 from .process import Process, shortname
 from .resolver import ga4gh_tool_registries
 from .software_requirements import SOFTWARE_REQUIREMENTS_ENABLED
-from .utils import DEFAULT_TMP_PREFIX
+from .utils import DEFAULT_TMP_PREFIX, CWLObjectType
 
 
 class _env_var_table(Table):
@@ -933,7 +933,7 @@ class AppendAction(argparse.Action):
 
 
 def add_argument(
-    toolparser: argparse.ArgumentParser,
+    toolparser: argparse.ArgumentParser | "argparse._ArgumentGroup",
     name: str,
     inptype: Any,
     records: list[str],
@@ -1047,14 +1047,18 @@ def generate_parser(
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
-    for inp in tool.tool["inputs"]:
-        name = shortname(inp["id"])
+    inps = tool.tool["inputs"]
+
+    def process_input(
+        inp: CWLObjectType, parser: argparse.ArgumentParser | "argparse._ArgumentGroup"
+    ) -> None:
+        name = shortname(cast(str, inp["id"]))
         namemap[name.replace("-", "_")] = name
         inptype = inp["type"]
-        description = inp.get("doc", inp.get("label", ""))
+        description = cast(str, inp.get("doc", inp.get("label", "")))
         default = inp.get("default", None)
         add_argument(
-            toolparser,
+            parser,
             name,
             inptype,
             records,
@@ -1064,6 +1068,31 @@ def generate_parser(
             urljoin,
             base_uri,
         )
+
+    if (groups_req := tool.get_requirement("http://commonwl.org/cwltool#Groups")[0]) is not None:
+        groups = cast(CWLObjectType, groups_req["groups"])
+        for group_name in groups.keys():
+            group_inputs: list[CWLObjectType] = []
+            group_definition = cast(CWLObjectType, groups[group_name])
+            for input_name in cast(list[str], group_definition["groupMembers"]):
+                new_inps: list[CWLObjectType] = []
+                for inp in inps:
+                    if shortname(inp["id"]) == input_name:
+                        group_inputs.append(inp)
+                    else:
+                        new_inps.append(inp)
+                inps = new_inps
+
+            if len(group_inputs) > 0:
+                group = toolparser.add_argument_group(
+                    title=cast(str, group_definition.get("label", group_name)),
+                    description=cast(str | None, group_definition.get("doc", None)),
+                )
+                for inp in group_inputs:
+                    process_input(inp, group)
+
+    for inp in inps:
+        process_input(inp, toolparser)
 
     toolparser.add_argument(
         "--generate-help-preview",
