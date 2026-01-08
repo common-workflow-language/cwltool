@@ -1152,7 +1152,9 @@ def main(
 
             if args.print_rdf:
                 print(
-                    printrdf(tool, loadingContext.loader.ctx, args.rdf_serializer),
+                    printrdf(
+                        tool, loadingContext.loader.ctx, args.rdf_serializer, job_order_object
+                    ),
                     file=stdout,
                 )
                 return 0
