@@ -601,7 +601,7 @@ def resreq_minmax_checker(requirement: CWLObjectType) -> None:
     :raises ValidationException: If the minResource is greater than the maxResource.
     """
     for a in ("cores", "ram", "tmpdir", "outdir"):
-        mn = cast(Union[int, float, None], requirement.get(a + "Min"))
-        mx = cast(Union[int, float, None], requirement.get(a + "Max"))
-        if mn is not None and mx is not None and mx < mn:
+        mn = requirement.get(a + "Min")
+        mx = requirement.get(a + "Max")
+        if isinstance(mn, (int, float)) and isinstance(mx, (int, float)) and mx < mn:
             raise ValidationException(f"{a}Min cannot be greater than {a}Max.")
