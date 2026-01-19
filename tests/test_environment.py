@@ -11,7 +11,12 @@ from packaging.version import Version
 
 from cwltool.singularity import get_version
 
-from .util import env_accepts_null, get_tool_env, needs_docker, needs_singularity
+from .util import (
+    env_accepts_null,
+    get_tool_env,
+    needs_docker,
+    needs_singularity_not_apptainer,
+)
 
 # None => accept anything, just require the key is present
 # str => string equality
@@ -56,7 +61,9 @@ def assert_env_matches(
         if not env_accepts_null():
             e.pop("LC_CTYPE", None)
             e.pop("__CF_USER_TEXT_ENCODING", None)
-        assert len(e) == 0, f"Unexpected environment variable(s): {', '.join(e.keys())}"
+        assert (
+            len(e) == 0
+        ), f"Unexpected environment variable(s): {', '.join(e.keys())} from env {env}."
 
 
 class CheckHolder(ABC):
@@ -129,12 +136,11 @@ class Singularity(CheckHolder):
             "LD_LIBRARY_PATH": None,
             "PATH": None,
             "PS1": None,
-            "PWD": PWD,
             "TMPDIR": "/tmp",
         }
 
         # Singularity variables appear to be in flux somewhat.
-        version = Version(".".join(map(str, get_version()[0])))
+        version, _ = get_version()
         assert version >= Version("3"), "Tests only work for Singularity 3+"
         sing_vars: EnvChecks = {
             "SINGULARITY_CONTAINER": None,
@@ -142,6 +148,8 @@ class Singularity(CheckHolder):
         }
         if version < Version("3.5"):
             sing_vars["SINGULARITY_APPNAME"] = None
+        if version < Version("4.3"):
+            sing_vars["PWD"] = PWD
         if (version >= Version("3.5")) and (version < Version("3.6")):
             sing_vars["SINGULARITY_INIT"] = "1"
         if version >= Version("3.5"):
@@ -191,7 +199,7 @@ CRT_PARAMS = pytest.mark.parametrize(
     [
         NoContainer(),
         pytest.param(Docker(), marks=needs_docker),
-        pytest.param(Singularity(), marks=needs_singularity),
+        pytest.param(Singularity(), marks=needs_singularity_not_apptainer),
     ],
 )
 
@@ -295,6 +303,7 @@ def test_preserve_all(
 
     for vname, val in env.items():
         try:
+            assert vname in checks, env
             assert_envvar_matches(checks[vname], vname, env)
         except KeyError:
             assert val == os.environ[vname]

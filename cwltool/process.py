@@ -966,9 +966,7 @@ hints:
         bindings_copy = copy.deepcopy(bindings)
         del bindings[:]
         bindings.extend(sorted(bindings_copy, key=key))
-
-        if self.tool["class"] != "Workflow":
-            builder.resources = self.evalResources(builder, runtime_context)
+        builder.resources = self.evalResources(builder, runtime_context)
         return builder
 
     def evalResources(
