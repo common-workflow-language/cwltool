@@ -339,7 +339,14 @@ def relocateOutputs(
                 for dir_entry in scandir(src):
                     _relocate(dir_entry.path, fs_access.join(dst, dir_entry.name))
             else:
-                shutil.move(src, dst)
+                try:
+                    shutil.move(src, dst)
+                except (PermissionError, OSError, shutil.Error):
+                    # handle filesystems that don't support mode/attr changes
+                    try:
+                        shutil.move(src, dst, copy_function=shutil.copyfile)
+                    except:
+                        pass
 
         elif _action == "copy":
             _logger.debug("Copying %s to %s", src, dst)
@@ -350,7 +357,17 @@ def relocateOutputs(
                     os.unlink(dst)
                 shutil.copytree(src, dst)
             else:
-                shutil.copy2(src, dst)
+                try:
+                    shutil.copy2(src, dst)
+                except (PermissionError, OSError, shutil.Error):
+                    # handle filesystems that don't support mode/attr changes
+                    if os.path.isdir(dst):
+                        shutil.copyfile(src, os.path.join(dst, os.path.basename(src)))
+                    else:
+                        try:
+                            shutil.copyfile(src, dst)
+                        except:
+                            pass
 
     def _realpath(
         ob: CWLObjectType,
