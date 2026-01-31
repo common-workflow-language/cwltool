@@ -466,14 +466,12 @@ def get_overrides(overrides: MutableSequence[CWLObjectType], toolid: str) -> CWL
     return req
 
 
-_VAR_SPOOL_ERROR = textwrap.dedent(
-    """
+_VAR_SPOOL_ERROR = textwrap.dedent("""
     Non-portable reference to /var/spool/cwl detected: '{}'.
     To fix, replace /var/spool/cwl with $(runtime.outdir) or add
     DockerRequirement to the 'requirements' section and declare
     'dockerOutputDirectory: /var/spool/cwl'.
-    """
-)
+    """)
 
 
 def var_spool_cwl_detector(
@@ -802,8 +800,7 @@ hints:
   cwltool:LoadListingRequirement:
     loadListing: shallow_listing
 
-"""
-                                    % (filecount[0], k)
+""" % (filecount[0], k)
                                 )
                             )
                         )

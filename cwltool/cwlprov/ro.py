@@ -166,7 +166,7 @@ class ResearchObject:
     def user_provenance(self, document: ProvDocument) -> None:
         """Add the user provenance."""
         self.self_check()
-        (username, fullname) = self.resolve_user()
+        username, fullname = self.resolve_user()
 
         if not self.full_name:
             self.full_name = fullname

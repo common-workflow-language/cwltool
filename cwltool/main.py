@@ -1313,7 +1313,7 @@ def main(
             runtimeContext.validate_only = args.validate
             runtimeContext.validate_stdout = stdout
 
-            (out, status) = real_executor(
+            out, status = real_executor(
                 tool, initialized_job_order_object, runtimeContext, logger=_logger
             )
             if runtimeContext.validate_only is True:

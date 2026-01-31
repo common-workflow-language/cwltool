@@ -25,7 +25,7 @@ MODULE=cwltool
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
 PYSOURCES=$(wildcard ${MODULE}/**.py cwltool/cwlprov/*.py tests/*.py tests/cwl-conformance/*.py) setup.py
-DEVPKGS=diff_cover pylint pep257 pydocstyle 'tox<4' tox-pyenv auto-walrus \
+DEVPKGS=diff_cover pylint pep257 pydocstyle 'tox>4' auto-walrus \
 	isort wheel autoflake pyupgrade bandit -rlint-requirements.txt\
 	-rtest-requirements.txt -rmypy-requirements.txt -rdocs/requirements.txt
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \

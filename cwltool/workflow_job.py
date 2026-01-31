@@ -234,7 +234,7 @@ def flat_crossproduct_scatter(
     for i in process.tool["outputs"]:
         output[i["id"]] = [None] * crossproduct_size(joborder, scatter_keys)
     callback = ReceiveScatterOutput(output_callback, output, 0)
-    (steps, total) = _flat_crossproduct_scatter(
+    steps, total = _flat_crossproduct_scatter(
         process, joborder, scatter_keys, callback, 0, runtimeContext
     )
     callback.setTotal(total, steps)
@@ -270,7 +270,7 @@ def _flat_crossproduct_scatter(
                 steps.append(None)
             put += 1
         else:
-            (add, _) = _flat_crossproduct_scatter(
+            add, _ = _flat_crossproduct_scatter(
                 process, sjob, scatter_keys[1:], callback, put, runtimeContext
             )
             put += len(add)

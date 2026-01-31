@@ -27,8 +27,7 @@ try:
 except ModuleNotFoundError:
     SOFTWARE_REQUIREMENTS_ENABLED = False
 
-COMMAND_WITH_DEPENDENCIES_TEMPLATE = string.Template(
-    """#!/bin/bash
+COMMAND_WITH_DEPENDENCIES_TEMPLATE = string.Template("""#!/bin/bash
 cat > modify_environment.bash <<'EOF'
 $handle_dependencies
 # First try env -0
@@ -39,8 +38,7 @@ if ! env -0 > "output_environment.dat" 2> /dev/null; then
 fi
 EOF
 python3 "run_job.py" "job.json" "modify_environment.bash"
-"""
-)
+""")
 
 
 class DependenciesConfiguration:
@@ -105,7 +103,7 @@ class DependenciesConfiguration:
 def get_dependencies(
     builder: HasReqsHints,
 ) -> "ToolRequirements":
-    (software_requirement, _) = builder.get_requirement("SoftwareRequirement")
+    software_requirement, _ = builder.get_requirement("SoftwareRequirement")
     from galaxy.tool_util.deps.requirements import ToolRequirement, ToolRequirements
 
     dependencies: list[Union["ToolRequirement", dict[str, Any]]] = []
