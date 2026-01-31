@@ -389,12 +389,16 @@ OutputPortsType = dict[str, Optional[CWLOutputType]]
 
 
 class ParameterOutputWorkflowException(WorkflowException):
-    def __init__(self, msg: str, port: CWLObjectType, **kwargs: Any) -> None:
+    def __init__(self, msg: str, port: CWLObjectType) -> None:
         """Exception for when there was an error collecting output for a parameter."""
-        super().__init__(
-            "Error collecting output for parameter '%s': %s"
-            % (shortname(cast(str, port["id"])), msg),
-            kwargs,
+        super().__init__(msg, port)
+        self.msg = msg
+        self.port = port
+
+    def __str__(self) -> str:
+        return "Error collecting output for parameter '{}': {}".format(
+            shortname(cast(str, self.port["id"])),
+            self.msg,
         )
 
 
