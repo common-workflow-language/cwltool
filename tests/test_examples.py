@@ -1096,8 +1096,7 @@ def test_print_dot() -> None:
     cwl_path = get_data("tests/wf/three_step_color.cwl")
     expected_dot = cast(
         list[pydot.core.Dot],
-        pydot.graph_from_dot_data(
-            """
+        pydot.graph_from_dot_data("""
     digraph {{
         graph [bgcolor="#eeeeee",
                 clusterrank=local,
@@ -1141,8 +1140,7 @@ def test_print_dot() -> None:
         "operation" -> "string_output";
         "command_line_tool" -> "file_output";
 }}
-    """.format()
-        ),
+    """.format()),
     )[0]
     stdout = StringIO()
     assert main(["--debug", "--print-dot", cwl_path], stdout=stdout) == 0

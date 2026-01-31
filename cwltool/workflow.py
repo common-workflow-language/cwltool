@@ -338,7 +338,7 @@ class WorkflowStep(Process):
         super().__init__(toolpath_object, loadingContext)
 
         if self.embedded_tool.tool["class"] == "Workflow":
-            (feature, _) = self.get_requirement("SubworkflowFeatureRequirement")
+            feature, _ = self.get_requirement("SubworkflowFeatureRequirement")
             if not feature:
                 raise WorkflowException(
                     "Workflow contains embedded workflow but "
@@ -346,7 +346,7 @@ class WorkflowStep(Process):
                 )
 
         if "scatter" in self.tool:
-            (feature, _) = self.get_requirement("ScatterFeatureRequirement")
+            feature, _ = self.get_requirement("ScatterFeatureRequirement")
             if not feature:
                 raise WorkflowException(
                     "Workflow contains scatter but ScatterFeatureRequirement " "not in requirements"

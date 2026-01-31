@@ -363,7 +363,7 @@ def check_bagit(base_path: Path) -> None:
 
     bag = bagit.Bag(str(base_path))
     assert bag.has_oxum()
-    (only_manifest, only_fs) = bag.compare_manifests_with_fs()
+    only_manifest, only_fs = bag.compare_manifests_with_fs()
     assert not list(only_manifest), "Some files only in manifest"
     assert not list(only_fs), "Some files only on file system"
     missing_tagfiles = bag.missing_optional_tagfiles()

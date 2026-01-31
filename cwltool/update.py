@@ -354,13 +354,13 @@ def update(
     if update_to is None:
         update_to = INTERNAL_VERSION
 
-    (cdoc, version) = checkversion(doc, metadata, enable_dev)
+    cdoc, version = checkversion(doc, metadata, enable_dev)
     originalversion = copy.copy(version)
 
     nextupdate: Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]] | None = identity
 
     while version != update_to and nextupdate:
-        (cdoc, version) = nextupdate(cdoc, loader, baseuri)
+        cdoc, version = nextupdate(cdoc, loader, baseuri)
         nextupdate = ALLUPDATES[version]
 
     cdoc["cwlVersion"] = version

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Setup for the reference implementation of the CWL standards."""
+
 import glob
 import os
 import sys

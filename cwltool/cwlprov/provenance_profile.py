@@ -252,7 +252,7 @@ class ProvenanceProfile:
         checksum = None
         if "checksum" in value:
             csum = cast(str, value["checksum"])
-            (method, checksum) = csum.split("$", 1)
+            method, checksum = csum.split("$", 1)
             if method == SHA1 and self.research_object.has_data_file(checksum):
                 entity = self.document.entity("data:" + checksum)
 
@@ -298,7 +298,7 @@ class ProvenanceProfile:
         for sec in cast(MutableSequence[CWLObjectType], value.get("secondaryFiles", [])):
             # TODO: Record these in a specializationOf entity with UUID?
             if sec["class"] == "File":
-                (sec_entity, _, _) = self.declare_file(sec)
+                sec_entity, _, _ = self.declare_file(sec)
             elif sec["class"] == "Directory":
                 sec_entity = self.declare_directory(sec)
             else:

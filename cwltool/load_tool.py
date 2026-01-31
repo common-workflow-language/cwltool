@@ -452,7 +452,7 @@ def resolve_and_validate_document(
             )
             del jobobj["https://w3id.org/cwl/cwl#requirements"]
 
-    (sch_document_loader, avsc_names) = process.get_schema(cwlVersion)[:2]
+    sch_document_loader, avsc_names = process.get_schema(cwlVersion)[:2]
 
     if isinstance(avsc_names, Exception):
         raise avsc_names
