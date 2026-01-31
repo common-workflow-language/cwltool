@@ -12,9 +12,12 @@ from .utils import CWLObjectType
 class WorkflowStatus(Exception):
     def __init__(self, out: CWLObjectType | None, status: str) -> None:
         """Signaling exception for the status of a Workflow."""
-        super().__init__("Completed %s" % status)
+        super().__init__(out, status)
         self.out = out
         self.status = status
+
+    def __str__(self) -> str:
+        return f"Completed {self.status}"
 
 
 class Callable:
