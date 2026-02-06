@@ -118,10 +118,10 @@ codespell-fix:
 
 ## format                 : check/fix all code indentation and formatting (runs black)
 format:
-	black --exclude cwltool/schemas --exclude cwltool/_version.py setup.py cwltool.py cwltool tests mypy-stubs
+	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
 format-check:
-	black --diff --check --exclude cwltool/schemas setup.py --exclude cwltool/_version.py cwltool.py cwltool tests mypy-stubs
+	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
 ## pylint                 : run static code analysis on Python code
 pylint: $(PYSOURCES)
