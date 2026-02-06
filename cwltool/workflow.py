@@ -13,7 +13,12 @@ from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine, indent
 
 from . import command_line_tool, context, procgenerator
-from .checker import circular_dependency_checker, loop_checker, static_checker
+from .checker import (
+    circular_dependency_checker,
+    loop_checker,
+    resreq_minmax_checker,
+    static_checker,
+)
 from .context import LoadingContext, RuntimeContext, getdefault
 from .cwlprov.provenance_profile import ProvenanceProfile
 from .cwlprov.writablebagfile import create_job
@@ -132,6 +137,10 @@ class Workflow(Process):
             )
             circular_dependency_checker(step_inputs)
             loop_checker(step.tool for step in self.steps)
+
+            resource_req = self.get_requirement("ResourceRequirement")[0]
+            if resource_req:
+                resreq_minmax_checker(resource_req)
 
     def make_workflow_step(
         self,

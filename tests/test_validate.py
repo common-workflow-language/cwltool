@@ -4,6 +4,8 @@ import io
 import logging
 import re
 
+import pytest
+
 from .util import get_data, get_main_output
 
 
@@ -125,3 +127,18 @@ def test_validate_custom_logger() -> None:
     assert "tests/CometAdapter.cwl#out' previously defined" not in stdout
     assert "tests/CometAdapter.cwl#out' previously defined" not in stderr
     assert "tests/CometAdapter.cwl#out' previously defined" in custom_log_text
+
+
+@pytest.mark.parametrize(
+    "file", ["tests/wf/bad_resreq_mnmx_clt.cwl", "tests/wf/bad_resreq_mnmx_wf.cwl"]
+)
+def test_validate_with_invalid_requirements(file: str) -> None:
+    """Ensure that --validate returns an error with an invalid resource requirement."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--validate",
+            get_data(file),
+        ]
+    )
+    assert exit_code == 1
+    assert "cannot be greater than" in stdout
