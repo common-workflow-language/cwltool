@@ -151,7 +151,7 @@ setup(
         "requests >= 2.6.1",  # >= 2.6.1 to workaround
         # https://github.com/ionrock/cachecontrol/issues/137
         "ruamel.yaml >= 0.16, < 0.20",
-        "rdflib >= 4.2.2, < 7.6.0",
+        "rdflib >= 4.2.2, < 7.7.0",
         "schema-salad >= 8.9, < 9",
         "prov == 1.5.1",
         "mypy-extensions",
