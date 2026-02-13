@@ -1,6 +1,6 @@
 requests>=2.6.1
 ruamel.yaml>=0.16.0,<0.20
-rdflib>=4.2.2,<7.6
+rdflib>=4.2.2,<7.7
 schema-salad>=8.9,<9
 prov==1.5.1
 mypy-extensions
