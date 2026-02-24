@@ -1938,3 +1938,16 @@ def test_make_template() -> None:
         ]
     )
     assert exit_code == 0, stderr
+
+
+def test_anonymous_record_mismatch_error() -> None:
+    """Ensure that mis-matched usages of anonymous records generates a good error message."""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            "--validate",
+            get_data("tests/2205.cwl"),
+        ]
+    )
+    assert exit_code == 1, stderr
+    assert "tests/2205.cwl:11:9: Record comparison failure between this record and " in stdout
+    assert "tests/2205.cwl:24:14: Did not match fields for 'missing': None and string." in stdout

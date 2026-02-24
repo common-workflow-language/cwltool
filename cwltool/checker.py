@@ -173,10 +173,11 @@ def _compare_records(src: CWLObjectType, sink: CWLObjectType, strict: bool = Fal
             and sinkfields.get(key) is not None
         ):
             _logger.info(
-                "Record comparison failure for %s and %s\n"
-                "Did not match fields for %s: %s and %s",
-                src["name"],
-                sink["name"],
+                SourceLine(src, "fields")
+                .makeError("Record comparison failure between this record")
+                .replace("%", "%%")
+                + " and %s Did not match fields for '%s': %s and %s.",
+                SourceLine(sink, "fields").makeLead(),
                 key,
                 srcfields.get(key),
                 sinkfields.get(key),
