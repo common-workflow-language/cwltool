@@ -240,7 +240,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         """Append volume a file/dir mapping to the runtime option list."""
         if not volume.resolved.startswith("_:"):
             _check_docker_machine_path(volume.resolved)
-            self.append_volume(runtime, volume.resolved, volume.target)
+            self.append_volume(runtime, volume.resolved, volume.target, writable=volume.staged)
 
     def add_writable_file_volume(
         self,
