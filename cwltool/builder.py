@@ -597,7 +597,7 @@ class Builder(HasReqsHints):
             case {"class": "File" | "Directory" as class_name, **rest}:
                 if "path" not in rest:
                     raise WorkflowException(
-                        '{} object missing "path": {}'.format(class_name, value)
+                        f'{class_name} object missing "path": {value}'
                     )
                 return str(rest["path"])
             case ScalarFloat():
