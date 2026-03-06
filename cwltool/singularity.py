@@ -28,6 +28,7 @@ from .docker import DockerCommandLineJob
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
+from .mpi import MPIRequirementName
 from .pathmapper import MapperEnt, PathMapper
 from .singularity_utils import singularity_supports_userns
 from .utils import CWLObjectType, create_tmp_dir, ensure_non_writable, ensure_writable
@@ -593,10 +594,19 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             "singularity",
             "--quiet",
             "run" if (is_apptainer_1_1_or_newer() or is_version_3_10_or_newer()) else "exec",
-            "--contain",
             "--ipc",
-            "--cleanenv",
+            "--contain",
         ]
+        mpi_req, is_req = self.builder.get_requirement(MPIRequirementName)
+        if not mpi_req or not is_req:
+            runtime.append("--cleanenv")
+        else:
+            self.append_volume(
+                runtime,
+                runtime_context.create_tmpdir(),
+                "/dev/shm",
+                writable=True,
+            )
         if is_apptainer_1_1_or_newer() or is_version_3_10_or_newer():
             runtime.append("--no-eval")
 
