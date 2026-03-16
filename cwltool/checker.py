@@ -395,6 +395,8 @@ def _check_all_types(
 
                 if pickValue in ["first_non_null", "the_only_non_null"]:
                     linkMerge = None
+                elif pickValue == "all_non_null":
+                    linkMerge = linkMerge or "merge_nested"
 
                 srcs_of_sink: list[CWLObjectType] = []
                 for parm_id in cast(MutableSequence[str], sink[sourceField]):
