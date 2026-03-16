@@ -398,21 +398,18 @@ def object_from_state(
                 if a_state is not None and (
                     a_state.success in ("success", "skipped") or incomplete
                 ):
-                    link_merge = cast(
-                        Optional[str],
-                        inp.get(
-                            "linkMerge",
-                            ("merge_nested" if len(connections) > 1 else None),
-                        ),
-                    )
-                    if inp.get("pickValue") and link_merge is None:
-                        link_merge = "merge_nested"
                     if not match_types(
                         inp["type"],
                         a_state,
                         iid,
                         inputobj,
-                        linkMerge=link_merge,
+                        linkMerge=cast(
+                            Optional[str],
+                            inp.get(
+                                "linkMerge",
+                                ("merge_nested" if len(connections) > 1 else None),
+                            ),
+                        ),
                         valueFrom=cast(Optional[str], inp.get("valueFrom")),
                     ):
                         raise WorkflowException(
