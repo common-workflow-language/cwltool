@@ -591,9 +591,10 @@ def test_issue_1765_print_deps_with_workflows_having_namespace_location_steps() 
         ],
         stdout=stream,
     )
-    assert json.loads(stream.getvalue())["secondaryFiles"][0]["secondaryFiles"][0][
-        "location"
-    ].endswith("EDAM_1.18.owl")
+    output = stream.getvalue()
+    assert json.loads(output)["secondaryFiles"][0]["secondaryFiles"][0]["location"].endswith(
+        "EDAM_1.18.owl"
+    ), output
 
 
 def test_dedupe() -> None:
