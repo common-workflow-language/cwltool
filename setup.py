@@ -174,7 +174,7 @@ setup(
     },
     python_requires=">=3.10, <3.15",
     use_scm_version=True,
-    setup_requires=PYTEST_RUNNER + ["setuptools_scm>=8.0.4,<10"],
+    setup_requires=PYTEST_RUNNER + ["setuptools_scm>=8.0.4,<11"],
     test_suite="tests",
     tests_require=[
         "bagit >= 1.6.4, < 1.10",
