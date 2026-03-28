@@ -1518,8 +1518,21 @@ class CommandLineTool(Process):
                             )
                         primary["format"] = format_eval
                 else:
-                    for primary in aslist(result):
-                        primary["format"] = format_field
+
+                    def recursively_insert(j_dict: Any, key: Any, val: Any) -> Any:
+                        """Recursively insert a value into any dictionary."""
+                        if isinstance(j_dict, MutableSequence):
+                            return [recursively_insert(x, key, val) for x in j_dict]
+                        if isinstance(j_dict, MutableMapping):
+                            if j_dict.get("class") == "File":
+                                j_dict[key] = val
+                            else:
+                                return {
+                                    x: recursively_insert(y, key, val) for x, y in j_dict.items()
+                                }
+                        return j_dict
+
+                    result = recursively_insert(result, "format", format_field)
             # Ensure files point to local references outside of the run environment
             adjustFileObjs(result, revmap)
 
