@@ -78,7 +78,7 @@ override_parameters = [
 def test_overrides(parameters: list[str], result: dict[str, str]) -> None:
     sio = StringIO()
 
-    assert main(parameters, stdout=sio) == 0
+    assert main(["--debug"] + parameters, stdout=sio) == 0
     assert json.loads(sio.getvalue()) == result
 
 

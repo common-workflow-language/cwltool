@@ -134,6 +134,7 @@ def test_loop_single_variable() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/single-var-loop.cwl"),
         get_data("tests/loop-ext/single-var-loop-job.yml"),
     ]
@@ -147,6 +148,7 @@ def test_loop_single_variable_no_iteration() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/single-var-loop-no-iteration.cwl"),
         get_data("tests/loop-ext/single-var-loop-job.yml"),
     ]
@@ -160,6 +162,7 @@ def test_loop_two_variables() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/two-vars-loop.cwl"),
         get_data("tests/loop-ext/two-vars-loop-job.yml"),
     ]
@@ -173,6 +176,7 @@ def test_loop_two_variables_single_backpropagation() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/two-vars-loop-2.cwl"),
         get_data("tests/loop-ext/two-vars-loop-job.yml"),
     ]
@@ -186,6 +190,7 @@ def test_loop_with_all_output_method() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/all-output-loop.cwl"),
         get_data("tests/loop-ext/single-var-loop-job.yml"),
     ]
@@ -199,6 +204,7 @@ def test_loop_with_all_output_method_no_iteration() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/all-output-loop-no-iteration.cwl"),
         get_data("tests/loop-ext/single-var-loop-job.yml"),
     ]
@@ -225,6 +231,7 @@ def test_loop_value_from_literal_file() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/value-from-loop-2.cwl"),
     ]
     main(params, stdout=stream)
@@ -245,6 +252,7 @@ def test_loop_and_value_from_literal_file() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/value-from-loop-3.cwl"),
     ]
     main(params, stdout=stream)
@@ -264,6 +272,7 @@ def test_loop_value_from_fail_no_requirement() -> None:
     """Test workflow loop fails for valueFrom without StepInputExpressionRequirement."""
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/invalid-value-from-loop-no-requirement.cwl"),
         get_data("tests/loop-ext/two-vars-loop-job.yml"),
     ]
@@ -275,6 +284,7 @@ def test_loop_inside_scatter() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/loop-inside-scatter.cwl"),
         get_data("tests/loop-ext/loop-inside-scatter-job.yml"),
     ]
@@ -288,6 +298,7 @@ def test_scatter_inside_loop() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/scatter-inside-loop.cwl"),
         get_data("tests/loop-ext/loop-inside-scatter-job.yml"),
     ]
@@ -301,6 +312,7 @@ def test_loop_opt_variable() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/opt-var-loop.cwl"),
         get_data("tests/loop-ext/single-var-loop-job.yml"),
     ]
@@ -314,6 +326,7 @@ def test_nested_loops() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/loop-inside-loop.cwl"),
         get_data("tests/loop-ext/two-vars-loop-job.yml"),
     ]
@@ -327,6 +340,7 @@ def test_nested_loops_all() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/loop-inside-loop-all.cwl"),
         get_data("tests/loop-ext/two-vars-loop-job.yml"),
     ]
@@ -340,6 +354,7 @@ def test_multi_source_loop_input() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/multi-source-loop.cwl"),
         get_data("tests/loop-ext/single-var-loop-job.yml"),
     ]
@@ -363,6 +378,7 @@ def test_default_value_loop() -> None:
     stream = StringIO()
     params = [
         "--enable-ext",
+        "--debug",
         get_data("tests/loop-ext/default-value-loop.cwl"),
         get_data("tests/loop-ext/single-var-loop-job.yml"),
     ]

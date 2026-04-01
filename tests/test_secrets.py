@@ -1,13 +1,13 @@
 import shutil
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, MutableMapping
 from io import StringIO
 
 import pytest
+from cwl_utils.types import CWLObjectType
 
 from cwltool.main import main
 from cwltool.secrets import SecretStore
-from cwltool.utils import CWLObjectType
 
 from .util import get_data, needs_docker, needs_singularity
 
@@ -28,7 +28,7 @@ def test_obscuring(secrets: tuple[SecretStore, CWLObjectType]) -> None:
     assert obscured["foo"] != "bar"
     assert obscured["baz"] == "quux"
     result = storage.retrieve(obscured)
-    assert isinstance(result, dict) and result["foo"] == "bar"
+    assert isinstance(result, MutableMapping) and result["foo"] == "bar"
 
 
 obscured_factories_expected = [

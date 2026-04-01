@@ -5,6 +5,7 @@ import urllib
 from collections.abc import Callable, MutableMapping, MutableSequence
 from typing import Any, Optional, Union, cast
 
+from cwl_utils.types import CWLObjectType, CWLOutputType
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.ref_resolver import Loader, SubLoader
 from schema_salad.utils import ResolveType
@@ -13,7 +14,6 @@ from .context import LoadingContext
 from .load_tool import fetch_document, resolve_and_validate_document
 from .process import shortname, uniquename
 from .update import ORDERED_VERSIONS, ORIGINAL_CWLVERSION, update
-from .utils import CWLObjectType, CWLOutputType
 
 LoadRefType = Callable[[Optional[str], str], ResolveType]
 
@@ -84,7 +84,9 @@ def import_embed(
 ) -> None:
     if isinstance(d, MutableSequence):
         for v in d:
-            import_embed(v, seen)
+            import_embed(
+                cast(MutableSequence[CWLObjectType] | CWLObjectType | CWLOutputType, v), seen
+            )
     elif isinstance(d, MutableMapping):
         for n in ("id", "name"):
             if n in d:
@@ -100,7 +102,9 @@ def import_embed(
                         break
 
         for k in sorted(d.keys()):
-            import_embed(d[k], seen)
+            import_embed(
+                cast(MutableSequence[CWLObjectType] | CWLObjectType | CWLOutputType, d[k]), seen
+            )
 
 
 def pack(

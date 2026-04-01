@@ -7,6 +7,7 @@ import stat
 import subprocess
 import sys
 import urllib.parse
+from collections.abc import MutableSequence
 from io import StringIO
 from pathlib import Path
 from typing import Any, cast
@@ -16,6 +17,12 @@ import pydot
 import pytest
 from cwl_utils.errors import JavascriptException
 from cwl_utils.sandboxjs import param_re
+from cwl_utils.types import (
+    CWLDirectoryType,
+    CWLFileType,
+    CWLObjectType,
+    CWLParameterContext,
+)
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 
@@ -29,37 +36,37 @@ from cwltool.context import RuntimeContext
 from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.process import CWL_IANA
-from cwltool.utils import CWLObjectType, dedup
+from cwltool.utils import dedup
 
 from .util import get_data, get_main_output, needs_docker, working_directory
 
 sys.argv = [""]
 
 expression_match = [
-    ("(foo)", True),
-    ("(foo.bar)", True),
-    ("(foo['bar'])", True),
-    ('(foo["bar"])', True),
-    ("(foo.bar.baz)", True),
-    ("(foo['bar'].baz)", True),
-    ("(foo['bar']['baz'])", True),
-    ("(foo['b\\'ar']['baz'])", True),
-    ("(foo['b ar']['baz'])", True),
-    ("(foo_bar)", True),
-    ('(foo.["bar"])', False),
-    ('(.foo["bar"])', False),
-    ('(foo ["bar"])', False),
-    ('( foo["bar"])', False),
-    ("(foo[bar].baz)", False),
-    ("(foo['bar\"].baz)", False),
-    ("(foo['bar].baz)", False),
-    ("{foo}", False),
-    ("(foo.bar", False),
-    ("foo.bar)", False),
-    ("foo.b ar)", False),
-    ("foo.b'ar)", False),
-    ("(foo+bar", False),
-    ("(foo bar", False),
+    ("(inputs.foo)", True),
+    ("(inputs.foo.bar)", True),
+    ("(inputs.foo['bar'])", True),
+    ('(inputs.foo["bar"])', True),
+    ("(inputs.foo.bar.baz)", True),
+    ("(inputs.foo['bar'].baz)", True),
+    ("(inputs.foo['bar']['baz'])", True),
+    ("(inputs.foo['b\\'ar']['baz'])", True),
+    ("(inputs.foo['b ar']['baz'])", True),
+    ("(inputs.foo_bar)", True),
+    ('(inputs.foo.["bar"])', False),
+    ('(.inputs.foo["bar"])', False),
+    ('(inputs.foo ["bar"])', False),
+    ('( inputs.foo["bar"])', False),
+    ("(inputs.foo[bar].baz)", False),
+    ("(inputs.foo['bar\"].baz)", False),
+    ("(inputs.foo['bar].baz)", False),
+    ("{inputs.foo}", False),
+    ("(inputs.foo.bar", False),
+    ("inputs.foo.bar)", False),
+    ("inputs.foo.b ar)", False),
+    ("inputs.foo.b'ar)", False),
+    ("(inputs.foo+bar", False),
+    ("(inputs.foo bar", False),
 ]
 
 
@@ -69,54 +76,68 @@ def test_expression_match(expression: str, expected: bool) -> None:
     assert (match is not None) == expected
 
 
-interpolate_input: dict[str, Any] = {
-    "foo": {
-        "bar": {"baz": "zab1"},
-        "b ar": {"baz": 2},
-        "b'ar": {"baz": True},
-        'b"ar': {"baz": None},
-    },
-    "lst": ["A", "B"],
+interpolate_input: CWLParameterContext = {
+    "inputs": {
+        "foo": {
+            "bar": {"baz": "zab1"},
+            "b ar": {"baz": 2},
+            "b'ar": {"baz": True},
+            'b"ar': {"baz": None},
+        },
+        "lst": ["A", "B"],
+    }
 }
 
 interpolate_parameters = [
-    ("$(foo)", interpolate_input["foo"]),
-    ("$(foo.bar)", interpolate_input["foo"]["bar"]),
-    ("$(foo['bar'])", interpolate_input["foo"]["bar"]),
-    ('$(foo["bar"])', interpolate_input["foo"]["bar"]),
-    ("$(foo.bar.baz)", interpolate_input["foo"]["bar"]["baz"]),
-    ("$(foo['bar'].baz)", interpolate_input["foo"]["bar"]["baz"]),
-    ("$(foo['bar'][\"baz\"])", interpolate_input["foo"]["bar"]["baz"]),
-    ("$(foo.bar['baz'])", interpolate_input["foo"]["bar"]["baz"]),
-    ("$(foo['b\\'ar'].baz)", True),
-    ('$(foo["b\'ar"].baz)', True),
-    ("$(foo['b\\\"ar'].baz)", None),
-    ("$(lst[0])", "A"),
-    ("$(lst[1])", "B"),
-    ("$(lst.length)", 2),
-    ("$(lst['length'])", 2),
-    ("-$(foo.bar)", """-{"baz": "zab1"}"""),
-    ("-$(foo['bar'])", """-{"baz": "zab1"}"""),
-    ('-$(foo["bar"])', """-{"baz": "zab1"}"""),
-    ("-$(foo.bar.baz)", "-zab1"),
-    ("-$(foo['bar'].baz)", "-zab1"),
-    ("-$(foo['bar'][\"baz\"])", "-zab1"),
-    ("-$(foo.bar['baz'])", "-zab1"),
-    ("-$(foo['b ar'].baz)", "-2"),
-    ("-$(foo['b\\'ar'].baz)", "-true"),
-    ('-$(foo["b\\\'ar"].baz)', "-true"),
-    ("-$(foo['b\\\"ar'].baz)", "-null"),
-    ("$(foo.bar) $(foo.bar)", """{"baz": "zab1"} {"baz": "zab1"}"""),
-    ("$(foo['bar']) $(foo['bar'])", """{"baz": "zab1"} {"baz": "zab1"}"""),
-    ('$(foo["bar"]) $(foo["bar"])', """{"baz": "zab1"} {"baz": "zab1"}"""),
-    ("$(foo.bar.baz) $(foo.bar.baz)", "zab1 zab1"),
-    ("$(foo['bar'].baz) $(foo['bar'].baz)", "zab1 zab1"),
-    ("$(foo['bar'][\"baz\"]) $(foo['bar'][\"baz\"])", "zab1 zab1"),
-    ("$(foo.bar['baz']) $(foo.bar['baz'])", "zab1 zab1"),
-    ("$(foo['b ar'].baz) $(foo['b ar'].baz)", "2 2"),
-    ("$(foo['b\\'ar'].baz) $(foo['b\\'ar'].baz)", "true true"),
-    ('$(foo["b\\\'ar"].baz) $(foo["b\\\'ar"].baz)', "true true"),
-    ("$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", "null null"),
+    ("$(inputs.foo)", interpolate_input["inputs"]["foo"]),
+    ("$(inputs.foo.bar)", cast(CWLObjectType, interpolate_input["inputs"]["foo"])["bar"]),
+    ("$(inputs.foo['bar'])", cast(CWLObjectType, interpolate_input["inputs"]["foo"])["bar"]),
+    ('$(inputs.foo["bar"])', cast(CWLObjectType, interpolate_input["inputs"]["foo"])["bar"]),
+    (
+        "$(inputs.foo.bar.baz)",
+        cast(CWLObjectType, cast(CWLObjectType, interpolate_input["inputs"]["foo"])["bar"])["baz"],
+    ),
+    (
+        "$(inputs.foo['bar'].baz)",
+        cast(CWLObjectType, cast(CWLObjectType, interpolate_input["inputs"]["foo"])["bar"])["baz"],
+    ),
+    (
+        "$(inputs.foo['bar'][\"baz\"])",
+        cast(CWLObjectType, cast(CWLObjectType, interpolate_input["inputs"]["foo"])["bar"])["baz"],
+    ),
+    (
+        "$(inputs.foo.bar['baz'])",
+        cast(CWLObjectType, cast(CWLObjectType, interpolate_input["inputs"]["foo"])["bar"])["baz"],
+    ),
+    ("$(inputs.foo['b\\'ar'].baz)", True),
+    ('$(inputs.foo["b\'ar"].baz)', True),
+    ("$(inputs.foo['b\\\"ar'].baz)", None),
+    ("$(inputs.lst[0])", "A"),
+    ("$(inputs.lst[1])", "B"),
+    ("$(inputs.lst.length)", 2),
+    ("$(inputs.lst['length'])", 2),
+    ("-$(inputs.foo.bar)", """-{"baz": "zab1"}"""),
+    ("-$(inputs.foo['bar'])", """-{"baz": "zab1"}"""),
+    ('-$(inputs.foo["bar"])', """-{"baz": "zab1"}"""),
+    ("-$(inputs.foo.bar.baz)", "-zab1"),
+    ("-$(inputs.foo['bar'].baz)", "-zab1"),
+    ("-$(inputs.foo['bar'][\"baz\"])", "-zab1"),
+    ("-$(inputs.foo.bar['baz'])", "-zab1"),
+    ("-$(inputs.foo['b ar'].baz)", "-2"),
+    ("-$(inputs.foo['b\\'ar'].baz)", "-true"),
+    ('-$(inputs.foo["b\\\'ar"].baz)', "-true"),
+    ("-$(inputs.foo['b\\\"ar'].baz)", "-null"),
+    ("$(inputs.foo.bar) $(inputs.foo.bar)", """{"baz": "zab1"} {"baz": "zab1"}"""),
+    ("$(inputs.foo['bar']) $(inputs.foo['bar'])", """{"baz": "zab1"} {"baz": "zab1"}"""),
+    ('$(inputs.foo["bar"]) $(inputs.foo["bar"])', """{"baz": "zab1"} {"baz": "zab1"}"""),
+    ("$(inputs.foo.bar.baz) $(inputs.foo.bar.baz)", "zab1 zab1"),
+    ("$(inputs.foo['bar'].baz) $(inputs.foo['bar'].baz)", "zab1 zab1"),
+    ("$(inputs.foo['bar'][\"baz\"]) $(inputs.foo['bar'][\"baz\"])", "zab1 zab1"),
+    ("$(inputs.foo.bar['baz']) $(inputs.foo.bar['baz'])", "zab1 zab1"),
+    ("$(inputs.foo['b ar'].baz) $(inputs.foo['b ar'].baz)", "2 2"),
+    ("$(inputs.foo['b\\'ar'].baz) $(inputs.foo['b\\'ar'].baz)", "true true"),
+    ('$(inputs.foo["b\\\'ar"].baz) $(inputs.foo["b\\\'ar"].baz)', "true true"),
+    ("$(inputs.foo['b\\\"ar'].baz) $(inputs.foo['b\\\"ar'].baz)", "null null"),
 ]
 
 
@@ -127,31 +148,31 @@ def test_expression_interpolate(pattern: str, expected: Any) -> None:
 
 parameter_to_expressions = [
     (
-        "-$(foo)",
+        "-$(inputs.foo)",
         r"""-{"bar":{"baz":"zab1"},"b ar":{"baz":2},"b'ar":{"baz":true},"b\"ar":{"baz":null}}""",
     ),
-    ("-$(foo.bar)", """-{"baz":"zab1"}"""),
-    ("-$(foo['bar'])", """-{"baz":"zab1"}"""),
-    ('-$(foo["bar"])', """-{"baz":"zab1"}"""),
-    ("-$(foo.bar.baz)", "-zab1"),
-    ("-$(foo['bar'].baz)", "-zab1"),
-    ("-$(foo['bar'][\"baz\"])", "-zab1"),
-    ("-$(foo.bar['baz'])", "-zab1"),
-    ("-$(foo['b ar'].baz)", "-2"),
-    ("-$(foo['b\\'ar'].baz)", "-true"),
-    ('-$(foo["b\\\'ar"].baz)', "-true"),
-    ("-$(foo['b\\\"ar'].baz)", "-null"),
-    ("$(foo.bar) $(foo.bar)", """{"baz":"zab1"} {"baz":"zab1"}"""),
-    ("$(foo['bar']) $(foo['bar'])", """{"baz":"zab1"} {"baz":"zab1"}"""),
-    ('$(foo["bar"]) $(foo["bar"])', """{"baz":"zab1"} {"baz":"zab1"}"""),
-    ("$(foo.bar.baz) $(foo.bar.baz)", "zab1 zab1"),
-    ("$(foo['bar'].baz) $(foo['bar'].baz)", "zab1 zab1"),
-    ("$(foo['bar'][\"baz\"]) $(foo['bar'][\"baz\"])", "zab1 zab1"),
-    ("$(foo.bar['baz']) $(foo.bar['baz'])", "zab1 zab1"),
-    ("$(foo['b ar'].baz) $(foo['b ar'].baz)", "2 2"),
-    ("$(foo['b\\'ar'].baz) $(foo['b\\'ar'].baz)", "true true"),
-    ('$(foo["b\\\'ar"].baz) $(foo["b\\\'ar"].baz)', "true true"),
-    ("$(foo['b\\\"ar'].baz) $(foo['b\\\"ar'].baz)", "null null"),
+    ("-$(inputs.foo.bar)", """-{"baz":"zab1"}"""),
+    ("-$(inputs.foo['bar'])", """-{"baz":"zab1"}"""),
+    ('-$(inputs.foo["bar"])', """-{"baz":"zab1"}"""),
+    ("-$(inputs.foo.bar.baz)", "-zab1"),
+    ("-$(inputs.foo['bar'].baz)", "-zab1"),
+    ("-$(inputs.foo['bar'][\"baz\"])", "-zab1"),
+    ("-$(inputs.foo.bar['baz'])", "-zab1"),
+    ("-$(inputs.foo['b ar'].baz)", "-2"),
+    ("-$(inputs.foo['b\\'ar'].baz)", "-true"),
+    ('-$(inputs.foo["b\\\'ar"].baz)', "-true"),
+    ("-$(inputs.foo['b\\\"ar'].baz)", "-null"),
+    ("$(inputs.foo.bar) $(inputs.foo.bar)", """{"baz":"zab1"} {"baz":"zab1"}"""),
+    ("$(inputs.foo['bar']) $(inputs.foo['bar'])", """{"baz":"zab1"} {"baz":"zab1"}"""),
+    ('$(inputs.foo["bar"]) $(inputs.foo["bar"])', """{"baz":"zab1"} {"baz":"zab1"}"""),
+    ("$(inputs.foo.bar.baz) $(inputs.foo.bar.baz)", "zab1 zab1"),
+    ("$(inputs.foo['bar'].baz) $(inputs.foo['bar'].baz)", "zab1 zab1"),
+    ("$(inputs.foo['bar'][\"baz\"]) $(inputs.foo['bar'][\"baz\"])", "zab1 zab1"),
+    ("$(inputs.foo.bar['baz']) $(inputs.foo.bar['baz'])", "zab1 zab1"),
+    ("$(inputs.foo['b ar'].baz) $(inputs.foo['b ar'].baz)", "2 2"),
+    ("$(inputs.foo['b\\'ar'].baz) $(inputs.foo['b\\'ar'].baz)", "true true"),
+    ('$(inputs.foo["b\\\'ar"].baz) $(inputs.foo["b\\\'ar"].baz)', "true true"),
+    ("$(inputs.foo['b\\\"ar'].baz) $(inputs.foo['b\\\"ar'].baz)", "null null"),
 ]
 
 
@@ -173,22 +194,22 @@ def test_parameter_to_expression(pattern: str, expected: Any) -> None:
 
 
 param_to_expr_interpolate_escapebehavior = (
-    ("\\$(foo.bar.baz)", "$(foo.bar.baz)", 1),
-    ("\\\\$(foo.bar.baz)", "\\zab1", 1),
-    ("\\\\\\$(foo.bar.baz)", "\\$(foo.bar.baz)", 1),
-    ("\\\\\\\\$(foo.bar.baz)", "\\\\zab1", 1),
-    ("\\$foo", "$foo", 1),
-    ("\\foo", "foo", 1),
+    ("\\$(inputs.foo.bar.baz)", "$(inputs.foo.bar.baz)", 1),
+    ("\\\\$(inputs.foo.bar.baz)", "\\zab1", 1),
+    ("\\\\\\$(inputs.foo.bar.baz)", "\\$(inputs.foo.bar.baz)", 1),
+    ("\\\\\\\\$(inputs.foo.bar.baz)", "\\\\zab1", 1),
+    ("\\$inputs.foo", "$inputs.foo", 1),
+    ("\\inputs.foo", "inputs.foo", 1),
     ("\\x", "x", 1),
     ("\\\\x", "\\x", 1),
     ("\\\\\\x", "\\x", 1),
     ("\\\\\\\\x", "\\\\x", 1),
-    ("\\$(foo.bar.baz)", "$(foo.bar.baz)", 2),
-    ("\\\\$(foo.bar.baz)", "\\zab1", 2),
-    ("\\\\\\$(foo.bar.baz)", "\\$(foo.bar.baz)", 2),
-    ("\\\\\\\\$(foo.bar.baz)", "\\\\zab1", 2),
-    ("\\$foo", "\\$foo", 2),
-    ("\\foo", "\\foo", 2),
+    ("\\$(inputs.foo.bar.baz)", "$(inputs.foo.bar.baz)", 2),
+    ("\\\\$(inputs.foo.bar.baz)", "\\zab1", 2),
+    ("\\\\\\$(inputs.foo.bar.baz)", "\\$(inputs.foo.bar.baz)", 2),
+    ("\\\\\\\\$(inputs.foo.bar.baz)", "\\\\zab1", 2),
+    ("\\$inputs.foo", "\\$inputs.foo", 2),
+    ("\\inputs.foo", "\\inputs.foo", 2),
     ("\\x", "\\x", 2),
     ("\\\\x", "\\x", 2),
     ("\\\\\\x", "\\\\x", 2),
@@ -218,32 +239,32 @@ def test_parameter_to_expression_interpolate_escapebehavior(
 
 
 interpolate_bad_parameters = [
-    ("$(fooz)"),
-    ("$(foo.barz)"),
-    ("$(foo['barz'])"),
-    ('$(foo["barz"])'),
-    ("$(foo.bar.bazz)"),
-    ("$(foo['bar'].bazz)"),
-    ("$(foo['bar'][\"bazz\"])"),
-    ("$(foo.bar['bazz'])"),
-    ("$(foo['b\\'ar'].bazz)"),
-    ('$(foo["b\'ar"].bazz)'),
-    ("$(foo['b\\\"ar'].bazz)"),
-    ("$(lst[O])"),  # not "0" the number, but the letter O
-    ("$(lst[2])"),
-    ("$(lst.lengthz)"),
-    ("$(lst['lengthz'])"),
-    ("-$(foo.barz)"),
-    ("-$(foo['barz'])"),
-    ('-$(foo["barz"])'),
-    ("-$(foo.bar.bazz)"),
-    ("-$(foo['bar'].bazz)"),
-    ("-$(foo['bar'][\"bazz\"])"),
-    ("-$(foo.bar['bazz'])"),
-    ("-$(foo['b ar'].bazz)"),
-    ("-$(foo['b\\'ar'].bazz)"),
-    ('-$(foo["b\\\'ar"].bazz)'),
-    ("-$(foo['b\\\"ar'].bazz)"),
+    ("$(inputs.fooz)"),
+    ("$(inputs.foo.barz)"),
+    ("$(inputs.foo['barz'])"),
+    ('$(inputs.foo["barz"])'),
+    ("$(inputs.foo.bar.bazz)"),
+    ("$(inputs.foo['bar'].bazz)"),
+    ("$(inputs.foo['bar'][\"bazz\"])"),
+    ("$(inputs.foo.bar['bazz'])"),
+    ("$(inputs.foo['b\\'ar'].bazz)"),
+    ('$(inputs.foo["b\'ar"].bazz)'),
+    ("$(inputs.foo['b\\\"ar'].bazz)"),
+    ("$(inputs.lst[O])"),  # not "0" the number, but the letter O
+    ("$(inputs.lst[2])"),
+    ("$(inputs.lst.lengthz)"),
+    ("$(inputs.lst['lengthz'])"),
+    ("-$(inputs.foo.barz)"),
+    ("-$(inputs.foo['barz'])"),
+    ('-$(inputs.foo["barz"])'),
+    ("-$(inputs.foo.bar.bazz)"),
+    ("-$(inputs.foo['bar'].bazz)"),
+    ("-$(inputs.foo['bar'][\"bazz\"])"),
+    ("-$(inputs.foo.bar['bazz'])"),
+    ("-$(inputs.foo['b ar'].bazz)"),
+    ("-$(inputs.foo['b\\'ar'].bazz)"),
+    ('-$(inputs.foo["b\\\'ar"].bazz)'),
+    ("-$(inputs.foo['b\\\"ar'].bazz)"),
 ]
 
 
@@ -254,22 +275,22 @@ def test_expression_interpolate_failures(pattern: str) -> None:
 
 
 interpolate_escapebehavior = (
-    ("\\$(foo.bar.baz)", "$(foo.bar.baz)", 1),
-    ("\\\\$(foo.bar.baz)", "\\zab1", 1),
-    ("\\\\\\$(foo.bar.baz)", "\\$(foo.bar.baz)", 1),
-    ("\\\\\\\\$(foo.bar.baz)", "\\\\zab1", 1),
-    ("\\$foo", "$foo", 1),
-    ("\\foo", "foo", 1),
+    ("\\$(inputs.foo.bar.baz)", "$(inputs.foo.bar.baz)", 1),
+    ("\\\\$(inputs.foo.bar.baz)", "\\zab1", 1),
+    ("\\\\\\$(inputs.foo.bar.baz)", "\\$(inputs.foo.bar.baz)", 1),
+    ("\\\\\\\\$(inputs.foo.bar.baz)", "\\\\zab1", 1),
+    ("\\$inputs.foo", "$inputs.foo", 1),
+    ("\\inputs.foo", "inputs.foo", 1),
     ("\\x", "x", 1),
     ("\\\\x", "\\x", 1),
     ("\\\\\\x", "\\x", 1),
     ("\\\\\\\\x", "\\\\x", 1),
-    ("\\$(foo.bar.baz)", "$(foo.bar.baz)", 2),
-    ("\\\\$(foo.bar.baz)", "\\zab1", 2),
-    ("\\\\\\$(foo.bar.baz)", "\\$(foo.bar.baz)", 2),
-    ("\\\\\\\\$(foo.bar.baz)", "\\\\zab1", 2),
-    ("\\$foo", "\\$foo", 2),
-    ("\\foo", "\\foo", 2),
+    ("\\$(inputs.foo.bar.baz)", "$(inputs.foo.bar.baz)", 2),
+    ("\\\\$(inputs.foo.bar.baz)", "\\zab1", 2),
+    ("\\\\\\$(inputs.foo.bar.baz)", "\\$(inputs.foo.bar.baz)", 2),
+    ("\\\\\\\\$(inputs.foo.bar.baz)", "\\\\zab1", 2),
+    ("\\$inputs.foo", "\\$inputs.foo", 2),
+    ("\\inputs.foo", "\\inputs.foo", 2),
     ("\\x", "\\x", 2),
     ("\\\\x", "\\x", 2),
     ("\\\\\\x", "\\\\x", 2),
@@ -598,7 +619,7 @@ def test_issue_1765_print_deps_with_workflows_having_namespace_location_steps() 
 
 
 def test_dedupe() -> None:
-    not_deduped: list[CWLObjectType] = [
+    not_deduped: MutableSequence[CWLFileType | CWLDirectoryType] = [
         {"class": "File", "location": "file:///example/a"},
         {"class": "File", "location": "file:///example/a"},
         {"class": "File", "location": "file:///example/d"},
@@ -1615,7 +1636,7 @@ def test_v1_1_position_badexpression(factor: str) -> None:
 def test_optional_numeric_output_0(factor: str) -> None:
     test_file = "tests/wf/optional-numerical-output-0.cwl"
     commands = factor.split()
-    commands.extend([get_data(test_file)])
+    commands.extend(["--debug", get_data(test_file)])
     error_code, stdout, stderr = get_main_output(commands)
 
     stderr = re.sub(r"\s\s+", " ", stderr)
@@ -1684,6 +1705,7 @@ def test_scatter_output_filenames(tmp_path: Path) -> None:
     with working_directory(tmp_path):
         rtc = RuntimeContext()
         rtc.outdir = str(cwd)
+        rtc.debug = True
         factory = cwltool.factory.Factory(runtime_context=rtc)
         output_names = ["output.txt", "output.txt_2", "output.txt_3"]
         scatter_workflow = factory.make(get_data("tests/scatter_numbers.cwl"))
@@ -1819,7 +1841,7 @@ def test_command_line_tool_class() -> None:
 def test_record_default_with_long(tmp_path: Path) -> None:
     """Confirm that record defaults are respected."""
     tool_path = get_data("tests/wf/paramref_arguments_roundtrip.cwl")
-    err_code, stdout, stderr = get_main_output(["--outdir", str(tmp_path), tool_path])
+    err_code, stdout, stderr = get_main_output(["--debug", "--outdir", str(tmp_path), tool_path])
     assert err_code == 0
     result = json.loads(stdout)["same_record"]
     assert result["first"] == "y"
@@ -1900,6 +1922,7 @@ def test_res_req_expr_float_1_2() -> None:
     """Confirm no error when returning a float value from a ResourceRequirement expr in CWL v1.0."""
     exit_code, stdout, stderr = get_main_output(
         [
+            "--debug",
             get_data("tests/wf/resreq_expr_float_v1_2.cwl"),
             "--input_bam",
             get_data("tests/wf/whale.txt"),
@@ -1914,6 +1937,7 @@ def test_very_small_and_large_floats() -> None:
     """Confirm that very small or large numbers are not transformed into scientific notation."""
     exit_code, stdout, stderr = get_main_output(
         [
+            "--debug",
             get_data("tests/wf/floats_small_and_large.cwl"),
         ]
     )

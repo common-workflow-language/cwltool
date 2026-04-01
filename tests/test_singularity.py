@@ -84,6 +84,7 @@ def test_singularity_iwdr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         m.setenv("CWL_SINGULARITY_CACHE", str(singularity_dir))
         result_code = main(
             [
+                "--debug",
                 "--singularity",
                 "--default-container",
                 "docker.io/debian:stable-slim",

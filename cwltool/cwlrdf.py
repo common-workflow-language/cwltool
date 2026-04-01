@@ -2,6 +2,7 @@
 
 from typing import IO, Any
 
+from cwl_utils.types import CWLObjectType
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.jsonld_context import makerdf
@@ -9,7 +10,6 @@ from schema_salad.utils import ContextType
 
 from .cwlviewer import CWLViewer
 from .process import Process
-from .utils import CWLObjectType
 
 
 def gather(tool: Process, ctx: ContextType, inputs: CWLObjectType | None = None) -> Graph:

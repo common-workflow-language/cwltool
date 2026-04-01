@@ -49,8 +49,14 @@ from typing import (
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, CWLOutputType
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
+
+if sys.version_info >= (3, 11):
+    from typing import Required
+else:
+    from typing_extensions import Required
 
 if TYPE_CHECKING:
     from schema_salad.ref_resolver import Loader
@@ -68,16 +74,6 @@ DEFAULT_TMP_PREFIX = tempfile.gettempdir() + os.path.sep
 
 processes_to_kill: Deque["subprocess.Popen[str]"] = collections.deque()
 
-CWLOutputType: TypeAlias = Union[
-    None,
-    bool,
-    str,
-    int,
-    float,
-    MutableSequence["CWLOutputType"],
-    MutableMapping[str, "CWLOutputType"],
-]
-CWLObjectType: TypeAlias = MutableMapping[str, Optional[CWLOutputType]]
 """Typical raw dictionary found in lightly parsed CWL."""
 
 JobsType: TypeAlias = Union[
@@ -90,10 +86,15 @@ DestinationsType: TypeAlias = MutableMapping[str, Optional[CWLOutputType]]
 ScatterDestinationsType: TypeAlias = MutableMapping[str, list[Optional[CWLOutputType]]]
 ScatterOutputCallbackType: TypeAlias = Callable[[Optional[ScatterDestinationsType], str], None]
 SinkType: TypeAlias = Union[CWLOutputType, CWLObjectType]
-DirectoryType = TypedDict(
-    "DirectoryType", {"class": str, "listing": list[CWLObjectType], "basename": str}
-)
 JSONType: TypeAlias = Union[dict[str, "JSONType"], list["JSONType"], str, int, float, bool, None]
+
+
+class DirentType(TypedDict, total=False):
+    """InitialWorkDirRequirement.listing item."""
+
+    entry: Required[str | CWLFileType | CWLDirectoryType]
+    entryname: str
+    writable: bool
 
 
 class WorkflowStateItem(NamedTuple):
@@ -254,7 +255,10 @@ def adjustDirObjs(rec: Any, op: Union[Callable[..., Any], "partial[Any]"]) -> No
     visit_class(rec, ("Directory",), op)
 
 
-def dedup(listing: list[CWLObjectType]) -> list[CWLObjectType]:
+def dedup(
+    listing: MutableSequence[CWLFileType | CWLDirectoryType],
+) -> list[CWLFileType | CWLDirectoryType]:
+    """Remove duplicated items iin a list of CWL File/Directory objects."""
     marksub = set()
 
     def mark(d: dict[str, str]) -> None:
@@ -271,37 +275,44 @@ def dedup(listing: list[CWLObjectType]) -> list[CWLObjectType]:
     for r in listing:
         if r["location"] not in marksub and r["location"] not in markdup:
             dd.append(r)
-            markdup.add(cast(str, r["location"]))
+            markdup.add(r["location"])
 
     return dd
 
 
-def get_listing(fs_access: "StdFsAccess", rec: CWLObjectType, recursive: bool = True) -> None:
+def get_listing(
+    fs_access: "StdFsAccess", rec: CWLObjectType | CWLDirectoryType, recursive: bool = True
+) -> None:
     """Expand, recursively, any 'listing' fields in a Directory."""
     if rec.get("class") != "Directory":
         finddirs: list[CWLObjectType] = []
         visit_class(rec, ("Directory",), finddirs.append)
         for f in finddirs:
-            get_listing(fs_access, f, recursive=recursive)
+            _get_listing(fs_access, cast(CWLDirectoryType, f), recursive)
         return
+    _get_listing(fs_access, cast(CWLDirectoryType, rec), recursive)
+
+
+def _get_listing(fs_access: "StdFsAccess", rec: CWLDirectoryType, recursive: bool = True) -> None:
     if "listing" in rec:
         return
-    listing: list[CWLOutputType] = []
-    loc = cast(str, rec["location"])
-    for ld in fs_access.listdir(loc):
+    listing: MutableSequence[CWLFileType | CWLDirectoryType] = []
+    for ld in fs_access.listdir(rec["location"]):
         parse = urllib.parse.urlparse(ld)
         bn = os.path.basename(urllib.request.url2pathname(parse.path))
         if fs_access.isdir(ld):
-            ent: MutableMapping[str, Any] = {
-                "class": "Directory",
-                "location": ld,
-                "basename": bn,
-            }
+            ent = CWLDirectoryType(
+                **{
+                    "class": "Directory",
+                    "location": ld,
+                    "basename": bn,
+                }
+            )
             if recursive:
-                get_listing(fs_access, ent, recursive)
+                _get_listing(fs_access, ent, recursive)
             listing.append(ent)
         else:
-            listing.append({"class": "File", "location": ld, "basename": bn})
+            listing.append(CWLFileType(**{"class": "File", "location": ld, "basename": bn}))
     rec["listing"] = listing
 
 
@@ -401,8 +412,12 @@ def ensure_non_writable(path: str) -> None:
 
 
 def normalizeFilesDirs(
-    job: None | (
-        MutableSequence[MutableMapping[str, Any]] | MutableMapping[str, Any] | DirectoryType
+    job: (
+        None
+        | MutableSequence[CWLFileType | CWLDirectoryType]
+        | CWLFileType
+        | CWLDirectoryType
+        | CWLObjectType
     ),
 ) -> None:
     def addLocation(d: dict[str, Any]) -> None:
