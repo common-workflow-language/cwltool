@@ -13,18 +13,12 @@ from socket import getfqdn
 from typing import IO, TYPE_CHECKING, Any, Optional, cast
 
 import prov.model as provM
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, CWLOutputType
 from prov.model import ProvDocument
 
 from ..loghandler import _logger
 from ..stdfsaccess import StdFsAccess
-from ..utils import (
-    CWLObjectType,
-    CWLOutputType,
-    create_tmp_dir,
-    local_path,
-    posix_path,
-    versionstring,
-)
+from ..utils import create_tmp_dir, local_path, posix_path, versionstring
 from . import Aggregate, Annotation, AuthoredBy, _valid_orcid, _whoami, checksum_copy
 from .provenance_constants import (
     ACCOUNT_UUID,
@@ -495,7 +489,7 @@ class ResearchObject:
             return authored_by
         return None
 
-    def generate_snapshot(self, prov_dep: CWLObjectType) -> None:
+    def generate_snapshot(self, prov_dep: CWLFileType) -> None:
         """Copy all of the CWL files to the snapshot/ directory."""
         self.self_check()
         for key, value in prov_dep.items():
@@ -521,8 +515,8 @@ class ResearchObject:
                     except PermissionError:
                         pass  # FIXME: avoids duplicate snapshotting; need better solution
             elif key in ("secondaryFiles", "listing"):
-                for files in cast(MutableSequence[CWLObjectType], value):
-                    if isinstance(files, MutableMapping):
+                for files in cast(MutableSequence[CWLFileType | CWLDirectoryType], value):
+                    if files["class"] == "File":
                         self.generate_snapshot(files)
             else:
                 pass
@@ -675,7 +669,9 @@ class ResearchObject:
 
             for val in structure.values():
                 try:
-                    self._relativise_files(val)
+                    self._relativise_files(
+                        cast(CWLObjectType | CWLOutputType | MutableSequence[CWLObjectType], val)
+                    )
                 except OSError:
                     pass
             return
@@ -683,4 +679,6 @@ class ResearchObject:
         if isinstance(structure, MutableSequence):
             for obj in structure:
                 # Recurse and rewrite any nested File objects
-                self._relativise_files(obj)
+                self._relativise_files(
+                    cast(CWLObjectType | CWLOutputType | MutableSequence[CWLObjectType], obj)
+                )

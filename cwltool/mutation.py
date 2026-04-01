@@ -2,8 +2,9 @@
 
 from typing import NamedTuple, cast
 
+from cwl_utils.types import CWLObjectType
+
 from .errors import WorkflowException
-from .utils import CWLObjectType
 
 
 class _MutationState(NamedTuple):

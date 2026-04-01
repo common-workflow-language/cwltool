@@ -9,6 +9,7 @@ from typing import IO, TYPE_CHECKING, Any, Optional, cast
 
 from cwl_utils import expression
 from cwl_utils.file_formats import check_format
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, CWLOutputType
 from mypy_extensions import mypyc_attr
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap
@@ -26,8 +27,6 @@ from .mutation import MutationManager
 from .stdfsaccess import StdFsAccess
 from .utils import (
     CONTENT_LIMIT,
-    CWLObjectType,
-    CWLOutputType,
     HasReqsHints,
     LoadListingType,
     aslist,
@@ -95,7 +94,7 @@ class Builder(HasReqsHints):
     def __init__(
         self,
         job: CWLObjectType,
-        files: list[CWLObjectType],
+        files: list[CWLFileType | CWLDirectoryType],
         bindings: list[CWLObjectType],
         schemaDefs: MutableMapping[str, CWLObjectType],
         names: Names,
@@ -166,7 +165,7 @@ class Builder(HasReqsHints):
             return self.job_script_provider.build_job_script(self, commands)
         return None
 
-    def _capture_files(self, f: CWLObjectType) -> CWLObjectType:
+    def _capture_files(self, f: CWLFileType) -> CWLFileType:
         self.files.append(f)
         return f
 
@@ -356,13 +355,13 @@ class Builder(HasReqsHints):
                     )
                 binding = {}
 
-            def _capture_files(f: CWLObjectType) -> CWLObjectType:
+            def _capture_files(f: CWLFileType) -> CWLFileType:
                 self.files.append(f)
                 return f
 
             if schema["type"] == "org.w3id.cwl.cwl.File":
-                datum = cast(CWLObjectType, datum)
-                self.files.append(datum)
+                fdatum = cast(CWLFileType, datum)
+                self.files.append(fdatum)
 
                 loadContents_sourceline: (
                     None | MutableMapping[str, str | list[int]] | CWLObjectType
@@ -380,14 +379,14 @@ class Builder(HasReqsHints):
                         debug,
                     ):
                         try:
-                            with self.fs_access.open(cast(str, datum["location"]), "rb") as f2:
-                                datum["contents"] = content_limit_respected_read(f2)
+                            with self.fs_access.open(fdatum["location"], "rb") as f2:
+                                fdatum["contents"] = content_limit_respected_read(f2)
                         except Exception as e:
-                            raise Exception("Reading {}\n{}".format(datum["location"], e)) from e
+                            raise Exception("Reading {}\n{}".format(fdatum["location"], e)) from e
 
                 if "secondaryFiles" in schema:
-                    if "secondaryFiles" not in datum:
-                        datum["secondaryFiles"] = []
+                    if "secondaryFiles" not in fdatum:
+                        fdatum["secondaryFiles"] = []
                         sf_schema = aslist(schema["secondaryFiles"])
                     elif not discover_secondaryFiles:
                         sf_schema = []  # trust the inputs
@@ -396,7 +395,7 @@ class Builder(HasReqsHints):
 
                     for num, sf_entry in enumerate(sf_schema):
                         if "required" in sf_entry and sf_entry["required"] is not None:
-                            required_result = self.do_eval(sf_entry["required"], context=datum)
+                            required_result = self.do_eval(sf_entry["required"], context=fdatum)
                             if not (isinstance(required_result, bool) or required_result is None):
                                 if sf_schema == schema["secondaryFiles"]:
                                     sf_item: Any = sf_schema[num]
@@ -416,9 +415,9 @@ class Builder(HasReqsHints):
                             sf_required = True
 
                         if "$(" in sf_entry["pattern"] or "${" in sf_entry["pattern"]:
-                            sfpath = self.do_eval(sf_entry["pattern"], context=datum)
+                            sfpath = self.do_eval(sf_entry["pattern"], context=fdatum)
                         else:
-                            sfpath = substitute(cast(str, datum["basename"]), sf_entry["pattern"])
+                            sfpath = substitute(fdatum["basename"], sf_entry["pattern"])
 
                         for sfname in aslist(sfpath):
                             if not sfname:
@@ -426,7 +425,7 @@ class Builder(HasReqsHints):
                             found = False
 
                             if isinstance(sfname, str):
-                                d_location = cast(str, datum["location"])
+                                d_location = fdatum["location"]
                                 if "/" in d_location:
                                     sf_location = (
                                         d_location[0 : d_location.rindex("/") + 1] + sfname
@@ -449,7 +448,7 @@ class Builder(HasReqsHints):
 
                             for d in cast(
                                 MutableSequence[MutableMapping[str, str]],
-                                datum["secondaryFiles"],
+                                fdatum["secondaryFiles"],
                             ):
                                 if not d.get("basename"):
                                     d["basename"] = d["location"][d["location"].rindex("/") + 1 :]
@@ -472,7 +471,7 @@ class Builder(HasReqsHints):
                                     addsf(
                                         cast(
                                             MutableSequence[CWLObjectType],
-                                            datum["secondaryFiles"],
+                                            fdatum["secondaryFiles"],
                                         ),
                                         sfname,
                                     )
@@ -480,7 +479,7 @@ class Builder(HasReqsHints):
                                     addsf(
                                         cast(
                                             MutableSequence[CWLObjectType],
-                                            datum["secondaryFiles"],
+                                            fdatum["secondaryFiles"],
                                         ),
                                         {
                                             "location": sf_location,
@@ -496,12 +495,10 @@ class Builder(HasReqsHints):
                                         debug,
                                     ).makeError(
                                         "Missing required secondary file '%s' from file object: %s"
-                                        % (sfname, json_dumps(datum, indent=4))
+                                        % (sfname, json_dumps(fdatum, indent=4))
                                     )
 
-                    normalizeFilesDirs(
-                        cast(MutableSequence[CWLObjectType], datum["secondaryFiles"])
-                    )
+                    normalizeFilesDirs(fdatum["secondaryFiles"])
 
                 if "format" in schema:
                     eval_format: Any = self.do_eval(schema["format"])
@@ -546,7 +543,7 @@ class Builder(HasReqsHints):
                         )
                     try:
                         check_format(
-                            datum,
+                            fdatum,
                             evaluated_format,
                             self.formatgraph,
                         )
@@ -557,21 +554,21 @@ class Builder(HasReqsHints):
                         ) from ve
 
                 visit_class(
-                    datum.get("secondaryFiles", []),
+                    fdatum.get("secondaryFiles", []),
                     ("File", "Directory"),
                     self._capture_files,
                 )
 
             if schema["type"] == "org.w3id.cwl.cwl.Directory":
-                datum = cast(CWLObjectType, datum)
+                ddatum = cast(CWLDirectoryType, datum)
                 ll = schema.get("loadListing") or self.loadListing
                 if ll and ll != "no_listing":
                     get_listing(
                         self.fs_access,
-                        datum,
+                        ddatum,
                         (ll == "deep_listing"),
                     )
-                self.files.append(datum)
+                self.files.append(ddatum)
 
             if schema["type"] == "Any":
                 visit_class(datum, ("File", "Directory"), self._capture_files)

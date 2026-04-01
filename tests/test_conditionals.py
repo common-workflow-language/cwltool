@@ -10,6 +10,7 @@ def test_conditional_step_no_inputs() -> None:
     """Confirm fix for bug that populated `self` object for `when` expressions."""
     err_code, stdout, stderr = get_main_output(
         [
+            "--debug",
             get_data("tests/wf/conditional_step_no_inputs.cwl"),
         ]
     )

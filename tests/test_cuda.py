@@ -2,6 +2,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from cwl_utils.types import CWLObjectType
 from schema_salad.avro import schema
 
 from cwltool.builder import Builder
@@ -15,7 +16,6 @@ from cwltool.main import main
 from cwltool.process import use_custom_schema
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION
-from cwltool.utils import CWLObjectType
 
 from .util import get_data, needs_docker, needs_singularity_3_or_newer
 

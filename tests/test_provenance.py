@@ -42,6 +42,7 @@ def cwltool(tmp_path: Path, *args: Any, with_orcid: bool = False) -> Path:
     prov_folder = tmp_path / "provenance"
     prov_folder.mkdir()
     new_args = [
+        "--debug",
         "--enable-user-provenance",
         "--enable-host-provenance",
         "--provenance",

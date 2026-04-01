@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from cwl_utils.types import CWLObjectType
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.avro import schema
 from schema_salad.sourceline import cmap
@@ -26,7 +27,7 @@ from cwltool.pathmapper import MapperEnt
 from cwltool.singularity import _IMAGES, _IMAGES_LOCK, SingularityCommandLineJob
 from cwltool.stdfsaccess import StdFsAccess
 from cwltool.update import INTERNAL_VERSION, ORIGINAL_CWLVERSION
-from cwltool.utils import CWLObjectType, create_tmp_dir
+from cwltool.utils import create_tmp_dir
 
 from .util import get_data, get_main_output, needs_docker, needs_singularity
 

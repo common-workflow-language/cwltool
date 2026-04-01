@@ -14,10 +14,11 @@ from mmap import mmap
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO, cast
 
+from cwl_utils.types import CWLObjectType
 from schema_salad.utils import json_dumps
 
 from ..loghandler import _logger
-from ..utils import CWLObjectType, local_path, posix_path
+from ..utils import local_path, posix_path
 from .provenance_constants import (
     CWLPROV,
     CWLPROV_VERSION,

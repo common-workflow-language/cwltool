@@ -13,6 +13,7 @@ from threading import Lock
 from typing import Optional, cast
 
 import psutil
+from cwl_utils.types import CWLObjectType
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import SourceLine
@@ -27,7 +28,7 @@ from .mutation import MutationManager
 from .process import Process, cleanIntermediate, relocateOutputs
 from .task_queue import TaskQueue
 from .update import ORIGINAL_CWLVERSION
-from .utils import CWLObjectType, JobsType
+from .utils import JobsType
 from .workflow import Workflow
 from .workflow_job import WorkflowJob, WorkflowJobStep
 

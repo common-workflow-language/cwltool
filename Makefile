@@ -31,7 +31,7 @@ DEVPKGS=diff_cover pylint pep257 pydocstyle 'tox>4' auto-walrus \
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 
-VERSION=3.1.$(shell TZ=UTC git log --first-parent --max-count=1 \
+VERSION=3.2.$(shell TZ=UTC git log --first-parent --max-count=1 \
 	--format=format:%cd --date=format-local:%Y%m%d%H%M%S)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S=$(shell uname -s)

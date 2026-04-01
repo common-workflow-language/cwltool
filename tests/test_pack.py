@@ -208,7 +208,7 @@ def test_packed_workflow_execution(
     normal_output = StringIO()
     packed_output = StringIO()
 
-    normal_params = ["--outdir", str(tmp_path), get_data(wf_path), get_data(job_path)]
+    normal_params = ["--outdir", str(tmp_path), "--debug", get_data(wf_path), get_data(job_path)]
     packed_params = [
         "--outdir",
         str(tmp_path),

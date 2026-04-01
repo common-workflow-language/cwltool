@@ -17,6 +17,7 @@ from collections.abc import (
     Callable,
     Iterable,
     Iterator,
+    Mapping,
     MutableMapping,
     MutableSequence,
     Sized,
@@ -26,6 +27,7 @@ from os import scandir
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 from cwl_utils import expression
+from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, CWLOutputType
 from mypy_extensions import mypyc_attr
 from rdflib import Graph
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
@@ -52,8 +54,6 @@ from .secrets import SecretStore
 from .stdfsaccess import StdFsAccess
 from .update import INTERNAL_VERSION, ORDERED_VERSIONS, ORIGINAL_CWLVERSION
 from .utils import (
-    CWLObjectType,
-    CWLOutputType,
     HasReqsHints,
     JobsGeneratorType,
     LoadListingType,
@@ -308,14 +308,27 @@ def relocateOutputs(
         return outputObj
 
     def _collectDirEntries(
-        obj: CWLObjectType | MutableSequence[CWLObjectType] | None,
-    ) -> Iterator[CWLObjectType]:
-        if isinstance(obj, dict):
-            if obj.get("class") in ("File", "Directory"):
-                yield obj
+        obj: (
+            CWLObjectType
+            | CWLFileType
+            | CWLDirectoryType
+            | MutableSequence[CWLFileType | CWLDirectoryType | CWLObjectType]
+        ),
+    ) -> Iterator[CWLFileType | CWLDirectoryType]:
+        if isinstance(obj, Mapping):
+            if "class" in obj and obj["class"] in ("File", "Directory"):
+                yield cast(CWLFileType | CWLDirectoryType, obj)
             else:
                 for sub_obj in obj.values():
-                    yield from _collectDirEntries(sub_obj)
+                    yield from _collectDirEntries(
+                        cast(
+                            CWLObjectType
+                            | CWLFileType
+                            | CWLDirectoryType
+                            | MutableSequence[CWLFileType | CWLDirectoryType | CWLObjectType],
+                            sub_obj,
+                        )
+                    )
         elif isinstance(obj, MutableSequence):
             for sub_obj in obj:
                 yield from _collectDirEntries(sub_obj)
@@ -447,7 +460,8 @@ def avroize_type(
                 cast(MutableSequence[CWLOutputType], items), name_prefix
             )
         case {"type": f_type}:
-            cast(CWLObjectType, field_type)["type"] = avroize_type(f_type, name_prefix)
+            ff_type = cast(CWLObjectType | MutableSequence[Any] | CWLOutputType, f_type)
+            cast(CWLObjectType, field_type)["type"] = avroize_type(ff_type, name_prefix)
         case "File":
             return "org.w3id.cwl.cwl.File"
         case "Directory":
@@ -475,26 +489,27 @@ _VAR_SPOOL_ERROR = textwrap.dedent("""
 
 
 def var_spool_cwl_detector(
-    obj: CWLOutputType,
+    obj: CWLOutputType | None,
     item: Any | None = None,
     obj_key: Any | None = None,
 ) -> bool:
     """Detect any textual reference to /var/spool/cwl."""
     r = False
-    if isinstance(obj, str):
-        if "var/spool/cwl" in obj and obj_key != "dockerOutputDirectory":
-            _logger.warning(
-                SourceLine(item=item, key=obj_key, raise_type=str).makeError(
-                    _VAR_SPOOL_ERROR.format(obj)
+    match obj:
+        case str(str_obj):
+            if "var/spool/cwl" in str_obj and obj_key != "dockerOutputDirectory":
+                _logger.warning(
+                    SourceLine(item=item, key=obj_key, raise_type=str).makeError(
+                        _VAR_SPOOL_ERROR.format(str_obj)
+                    )
                 )
-            )
-            r = True
-    elif isinstance(obj, MutableMapping):
-        for mkey, mvalue in obj.items():
-            r = var_spool_cwl_detector(mvalue, obj, mkey) or r
-    elif isinstance(obj, MutableSequence):
-        for lkey, lvalue in enumerate(obj):
-            r = var_spool_cwl_detector(lvalue, obj, lkey) or r
+                r = True
+        case MutableMapping() as map_obj:
+            for mkey, mvalue in map_obj.items():
+                r = var_spool_cwl_detector(mvalue, map_obj, mkey) or r
+        case MutableSequence() as seq_obj:
+            for lkey, lvalue in enumerate(seq_obj):
+                r = var_spool_cwl_detector(lvalue, seq_obj, lkey) or r
     return r
 
 
@@ -808,7 +823,7 @@ hints:
         except (ValidationException, WorkflowException) as err:
             raise WorkflowException("Invalid job input record:\n" + str(err)) from err
 
-        files: list[CWLObjectType] = []
+        files: list[CWLFileType | CWLDirectoryType] = []
         bindings = CommentedSeq()
         outdir = ""
         tmpdir = ""
@@ -1124,9 +1139,10 @@ def uniquename(stem: str, names: set[str] | None = None) -> str:
     return u
 
 
-def nestdir(base: str, deps: CWLObjectType) -> CWLObjectType:
+def nestdir(base: str, deps: CWLFileType | CWLDirectoryType) -> CWLFileType | CWLDirectoryType:
+    """Insert Directory objects from the target location up to the base."""
     dirname = os.path.dirname(base) + "/"
-    subid = cast(str, deps["location"])
+    subid = deps["location"]
     if subid.startswith(dirname):
         s2 = subid[len(dirname) :]
         sp = s2.split("/")
@@ -1134,22 +1150,24 @@ def nestdir(base: str, deps: CWLObjectType) -> CWLObjectType:
         while sp:
             loc = dirname + "/".join(sp)
             nx = sp.pop()
-            deps = {
-                "class": "Directory",
-                "basename": nx,
-                "listing": [deps],
-                "location": loc,
-            }
+            deps = CWLDirectoryType(
+                **{
+                    "class": "Directory",
+                    "basename": nx,
+                    "listing": [deps],
+                    "location": loc,
+                }
+            )
     return deps
 
 
 def mergedirs(
-    listing: MutableSequence[CWLObjectType],
-) -> MutableSequence[CWLObjectType]:
-    r: list[CWLObjectType] = []
-    ents: dict[str, CWLObjectType] = {}
+    listing: MutableSequence[CWLFileType | CWLDirectoryType],
+) -> MutableSequence[CWLFileType | CWLDirectoryType]:
+    r: list[CWLFileType | CWLDirectoryType] = []
+    ents: dict[str, CWLFileType | CWLDirectoryType] = {}
     for e in listing:
-        basename = cast(str, e["basename"])
+        basename = e["basename"]
         if basename not in ents:
             ents[basename] = e
         elif e["location"] != ents[basename]["location"]:
@@ -1157,19 +1175,13 @@ def mergedirs(
                 "Conflicting basename in listing or secondaryFiles, '%s' used by both '%s' and '%s'"
                 % (basename, e["location"], ents[basename]["location"])
             )
-        elif e["class"] == "Directory":
-            if e.get("listing"):
-                # name already in entries
-                # merge it into the existing listing
-                cast(list[CWLObjectType], ents[basename].setdefault("listing", [])).extend(
-                    cast(list[CWLObjectType], e["listing"])
-                )
+        elif e["class"] == "Directory" and "listing" in e:
+            # name already in entries
+            # merge it into the existing listing
+            cast(CWLDirectoryType, ents[basename]).setdefault("listing", []).extend(e["listing"])
     for e in ents.values():
         if e["class"] == "Directory" and "listing" in e:
-            e["listing"] = cast(
-                MutableSequence[CWLOutputType],
-                mergedirs(cast(list[CWLObjectType], e["listing"])),
-            )
+            e["listing"] = mergedirs(e["listing"])
     r.extend(ents.values())
     return r
 
@@ -1179,13 +1191,17 @@ CWL_IANA = "https://www.iana.org/assignments/media-types/application/cwl"
 
 def scandeps(
     base: str,
-    doc: CWLObjectType | MutableSequence[CWLObjectType],
+    doc: (
+        CWLObjectType
+        | MutableSequence[CWLObjectType]
+        | MutableSequence[CWLFileType | CWLDirectoryType]
+    ),
     reffields: set[str],
     urlfields: set[str],
     loadref: Callable[[str, str], CommentedMap | CommentedSeq | str | None],
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     nestdirs: bool = True,
-) -> MutableSequence[CWLObjectType]:
+) -> MutableSequence[CWLFileType | CWLDirectoryType]:
     """
     Search for external files references in a CWL document or input object.
 
@@ -1205,7 +1221,7 @@ def scandeps(
       produce the same relative file system locations.
     :returns: A list of File or Directory dependencies
     """
-    r: MutableSequence[CWLObjectType] = []
+    r: MutableSequence[CWLFileType | CWLDirectoryType] = []
     if isinstance(doc, MutableMapping):
         if "id" in doc:
             if cast(str, doc["id"]).startswith("file://"):
@@ -1215,38 +1231,35 @@ def scandeps(
                     base = df
 
         if doc.get("class") in ("File", "Directory") and "location" in urlfields:
-            u = cast(Optional[str], doc.get("location", doc.get("path")))
+            doc_fd = cast(CWLFileType | CWLDirectoryType, doc)
+            u = doc_fd.get("location", doc_fd.get("path"))
             if u and not u.startswith("_:"):
-                deps: CWLObjectType = {
-                    "class": doc["class"],
-                    "location": urljoin(base, u),
-                }
-                if "basename" in doc:
-                    deps["basename"] = doc["basename"]
-                match doc:
-                    case {"class": "Directory", "listing": listing}:
-                        deps["listing"] = listing
-                    case {"class": "File", "secondaryFiles": sec_files}:
-                        deps["secondaryFiles"] = cast(
-                            CWLOutputType,
-                            scandeps(
-                                base,
-                                cast(
-                                    Union[CWLObjectType, MutableSequence[CWLObjectType]],
-                                    sec_files,
-                                ),
-                                reffields,
-                                urlfields,
-                                loadref,
-                                urljoin=urljoin,
-                                nestdirs=nestdirs,
-                            ),
-                        )
+                deps = cast(
+                    CWLFileType | CWLDirectoryType,
+                    {
+                        "class": doc_fd["class"],
+                        "location": urljoin(base, u),
+                    },
+                )
+                if "basename" in doc_fd:
+                    deps["basename"] = doc_fd["basename"]
+                if doc_fd["class"] == "Directory" and "listing" in doc_fd:
+                    cast(CWLDirectoryType, deps)["listing"] = doc_fd["listing"]
+                if doc_fd["class"] == "File" and "secondaryFiles" in doc_fd:
+                    cast(CWLFileType, deps)["secondaryFiles"] = scandeps(
+                        base,
+                        doc_fd["secondaryFiles"],
+                        reffields,
+                        urlfields,
+                        loadref,
+                        urljoin=urljoin,
+                        nestdirs=nestdirs,
+                    )
                 if nestdirs:
                     deps = nestdir(base, deps)
                 r.append(deps)
             else:
-                match doc:
+                match doc_fd:
                     case {"class": "Directory", "listing": listing}:
                         r.extend(
                             scandeps(
@@ -1297,7 +1310,7 @@ def scandeps(
                             Union[MutableSequence[CWLObjectType], CWLObjectType],
                             loadref(base, u2),
                         )
-                        deps2: CWLObjectType = {
+                        deps2: CWLFileType = {
                             "class": "File",
                             "location": subid,
                             "format": CWL_IANA,
@@ -1312,12 +1325,11 @@ def scandeps(
                             nestdirs=nestdirs,
                         )
                         if sf:
-                            deps2["secondaryFiles"] = cast(
-                                MutableSequence[CWLOutputType], mergedirs(sf)
-                            )
+                            deps2["secondaryFiles"] = mergedirs(sf)
                         if nestdirs:
-                            deps2 = nestdir(base, deps2)
-                        r.append(deps2)
+                            r.append(nestdir(base, deps2))
+                        else:
+                            r.append(deps2)
             elif k in urlfields and k != "location":
                 for u3 in aslist(v):
                     deps = {"class": "File", "location": urljoin(base, u3)}
@@ -1347,7 +1359,12 @@ def scandeps(
             r.extend(
                 scandeps(
                     base,
-                    d,
+                    cast(
+                        CWLObjectType
+                        | MutableSequence[CWLObjectType]
+                        | MutableSequence[CWLFileType | CWLDirectoryType],
+                        d,
+                    ),
                     reffields,
                     urlfields,
                     loadref,

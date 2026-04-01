@@ -3,13 +3,14 @@ from collections.abc import Callable, MutableMapping, MutableSequence
 from functools import partial
 from typing import cast
 
+from cwl_utils.types import CWLObjectType, CWLOutputType
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import Loader
 from schema_salad.sourceline import SourceLine
 
 from .loghandler import _logger
-from .utils import CWLObjectType, CWLOutputType, aslist, visit_class, visit_field
+from .utils import aslist, visit_class, visit_field
 
 
 def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> tuple[CommentedMap, str]:
@@ -55,7 +56,7 @@ def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> tuple[Comm
                         cast(
                             MutableSequence[CWLObjectType],
                             s["requirements"],
-                        ).pop(index=i)
+                        ).pop(i)
             if "hints" in s:
                 for r in cast(MutableSequence[CWLObjectType], s["hints"]):
                     cls = cast(str, r["class"])
@@ -132,7 +133,11 @@ def v1_0to1_1(
                 new_seq[index] = update_secondaryFiles(entry)
             return new_seq
         elif isinstance(t, MutableSequence):
-            return CommentedSeq([update_secondaryFiles(p) for p in t])
+            seq = CommentedSeq()
+            for p in t:
+                assert p is not None  # nosec
+                seq.append(update_secondaryFiles(p))
+            return seq
         elif isinstance(t, MutableMapping):
             return cast(MutableMapping[str, str], t)
         elif top:
