@@ -163,6 +163,7 @@ setup(
         "cwl-utils >= 0.41",
         "spython >= 0.3.0",
         "rich-argparse",
+        "pygments>=2.20.0",  # fix for CVE-2026-4539
         "typing-extensions >= 4.1.0",
     ],
     extras_require={
