@@ -2,8 +2,8 @@
 set -ex
 engine=${ENGINE:-docker}  # example: `ENGINE=podman ./build-cwltool-docker.sh`
 VERSION=$(setuptools-scm)
-${engine} build --build-arg VERSION=${VERSION} --file=cwltool.Dockerfile --tag=quay.io/commonwl/cwltool_module --target module .
-${engine} build --build-arg VERSION=${VERSION} --file=cwltool.Dockerfile --tag=quay.io/commonwl/cwltool .
+${engine} build --build-arg VERSION="${VERSION}" --file=cwltool.Dockerfile --tag=quay.io/commonwl/cwltool_module --target module .
+${engine} build --build-arg VERSION="${VERSION}" --file=cwltool.Dockerfile --tag=quay.io/commonwl/cwltool .
 
 ${engine} run -t -v /var/run/docker.sock:/var/run/docker.sock \
 	-v /tmp:/tmp \
