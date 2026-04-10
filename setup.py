@@ -168,7 +168,7 @@ setup(
     ],
     extras_require={
         "deps": [
-            "galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<25.2",
+            "galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<26.1",
             "galaxy-util <25.2",
             "pillow",  # workaround for https://github.com/galaxyproject/galaxy/pull/20525
         ],
