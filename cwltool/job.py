@@ -138,11 +138,13 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self.tmpdir = ""
 
         self.environment: MutableMapping[str, str] = {}
-        self.generatefiles: CWLDirectoryType = {
-            "class": "Directory",
-            "listing": [],
-            "basename": "",
-        }
+        self.generatefiles = CWLDirectoryType(
+            **{
+                "class": "Directory",
+                "listing": [],
+                "basename": "",
+            }
+        )
         self.stagedir: str | None = None
         self.inplace_update = False
         self.prov_obj: ProvenanceProfile | None = None

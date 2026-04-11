@@ -94,7 +94,7 @@ class Builder(HasReqsHints):
     def __init__(
         self,
         job: CWLObjectType,
-        files: list[CWLFileType | CWLDirectoryType],
+        files: MutableSequence[CWLFileType | CWLDirectoryType],
         bindings: list[CWLObjectType],
         schemaDefs: MutableMapping[str, CWLObjectType],
         names: Names,
@@ -458,8 +458,8 @@ class Builder(HasReqsHints):
                             if not found:
 
                                 def addsf(
-                                    files: MutableSequence[CWLObjectType],
-                                    newsf: CWLObjectType,
+                                    files: MutableSequence[CWLFileType | CWLDirectoryType],
+                                    newsf: CWLFileType | CWLDirectoryType,
                                 ) -> None:
                                     for f in files:
                                         if f["location"] == newsf["location"]:
@@ -469,23 +469,19 @@ class Builder(HasReqsHints):
 
                                 if isinstance(sfname, MutableMapping):
                                     addsf(
-                                        cast(
-                                            MutableSequence[CWLObjectType],
-                                            fdatum["secondaryFiles"],
-                                        ),
-                                        sfname,
+                                        fdatum["secondaryFiles"],
+                                        cast(CWLFileType | CWLDirectoryType, sfname),
                                     )
                                 elif discover_secondaryFiles and self.fs_access.exists(sf_location):
                                     addsf(
-                                        cast(
-                                            MutableSequence[CWLObjectType],
-                                            fdatum["secondaryFiles"],
+                                        fdatum["secondaryFiles"],
+                                        CWLFileType(
+                                            **{
+                                                "location": sf_location,
+                                                "basename": sfname,
+                                                "class": "File",
+                                            }
                                         ),
-                                        {
-                                            "location": sf_location,
-                                            "basename": sfname,
-                                            "class": "File",
-                                        },
                                     )
                                 elif sf_required:
                                     raise SourceLine(

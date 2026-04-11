@@ -6,7 +6,7 @@ import uuid
 from collections.abc import ItemsView, Iterable, Iterator, KeysView, MutableSequence
 from typing import NamedTuple, Optional, cast
 
-from cwl_utils.types import CWLDirectoryType, CWLFileType
+from cwl_utils.types import CWLDirectoryType, CWLFileType, is_directory
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 from schema_salad.ref_resolver import uri_file_path
@@ -89,7 +89,7 @@ class PathMapper:
 
     def visitlisting(
         self,
-        listing: list[CWLFileType | CWLDirectoryType],
+        listing: MutableSequence[CWLFileType | CWLDirectoryType],
         stagedir: str,
         basedir: str,
         copy: bool = False,
@@ -119,7 +119,7 @@ class PathMapper:
             stagedir,
             obj["basename"],
         )
-        if obj["class"] == "Directory":
+        if is_directory(obj):
             location = obj["location"]
             if location.startswith("file://"):
                 resolved = uri_file_path(location)
@@ -131,13 +131,13 @@ class PathMapper:
             if location.startswith("file://"):
                 staged = False
             self.visitlisting(
-                cast(list[CWLFileType | CWLDirectoryType], obj.get("listing", [])),
+                obj.get("listing", []),
                 tgt,
                 basedir,
                 copy=copy,
                 staged=staged,
             )
-        elif obj["class"] == "File":
+        else:
             path = obj["location"]
             ab = abspath(path, basedir)
             if "contents" in obj and path.startswith("_:"):
@@ -173,14 +173,16 @@ class PathMapper:
                         deref, tgt, "WritableFile" if copy else "File", staged
                     )
             self.visitlisting(
-                cast(list[CWLFileType | CWLDirectoryType], obj.get("secondaryFiles", [])),
+                obj.get("secondaryFiles", []),
                 stagedir,
                 basedir,
                 copy=copy,
                 staged=staged,
             )
 
-    def setup(self, referenced_files: list[CWLFileType | CWLDirectoryType], basedir: str) -> None:
+    def setup(
+        self, referenced_files: MutableSequence[CWLFileType | CWLDirectoryType], basedir: str
+    ) -> None:
         """
         For each file, set the target to its own directory.
 

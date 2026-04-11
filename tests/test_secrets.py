@@ -2,9 +2,10 @@ import shutil
 import tempfile
 from collections.abc import Callable, MutableMapping
 from io import StringIO
+from typing import cast
 
 import pytest
-from cwl_utils.types import CWLObjectType
+from cwl_utils.types import CWLObjectType, CWLOutputType
 
 from cwltool.main import main
 from cwltool.secrets import SecretStore
@@ -27,8 +28,8 @@ def test_obscuring(secrets: tuple[SecretStore, CWLObjectType]) -> None:
     storage, obscured = secrets
     assert obscured["foo"] != "bar"
     assert obscured["baz"] == "quux"
-    result = storage.retrieve(obscured)
-    assert isinstance(result, MutableMapping) and result["foo"] == "bar"
+    result = cast(MutableMapping[str, CWLOutputType], storage.retrieve(obscured))
+    assert isinstance(result, dict) and result["foo"] == "bar"
 
 
 obscured_factories_expected = [

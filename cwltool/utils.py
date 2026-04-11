@@ -2,6 +2,15 @@
 
 import collections
 
+from cwl_utils.types import (
+    CWLDirectoryType,
+    CWLFileType,
+    CWLObjectType,
+    CWLOutputType,
+    is_directory,
+    is_file,
+)
+
 try:
     import fcntl
 except ImportError:
@@ -25,6 +34,7 @@ from collections.abc import (
     Iterable,
     MutableMapping,
     MutableSequence,
+    Sequence,
 )
 from datetime import datetime
 from email.utils import parsedate_to_datetime
@@ -43,13 +53,11 @@ from typing import (
     TypeAlias,
     TypedDict,
     Union,
-    cast,
 )
 
 import requests
 from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
-from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, CWLOutputType
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
 
@@ -85,7 +93,6 @@ ResolverType: TypeAlias = Callable[["Loader", str], Optional[str]]
 DestinationsType: TypeAlias = MutableMapping[str, Optional[CWLOutputType]]
 ScatterDestinationsType: TypeAlias = MutableMapping[str, list[Optional[CWLOutputType]]]
 ScatterOutputCallbackType: TypeAlias = Callable[[Optional[ScatterDestinationsType], str], None]
-SinkType: TypeAlias = Union[CWLOutputType, CWLObjectType]
 JSONType: TypeAlias = Union[dict[str, "JSONType"], list["JSONType"], str, int, float, bool, None]
 
 
@@ -257,16 +264,16 @@ def adjustDirObjs(rec: Any, op: Union[Callable[..., Any], "partial[Any]"]) -> No
 
 def dedup(
     listing: MutableSequence[CWLFileType | CWLDirectoryType],
-) -> list[CWLFileType | CWLDirectoryType]:
-    """Remove duplicated items iin a list of CWL File/Directory objects."""
+) -> MutableSequence[CWLFileType | CWLDirectoryType]:
+    """Remove duplicate entries from a CWL Directory 'listing'."""
     marksub = set()
 
     def mark(d: dict[str, str]) -> None:
         marksub.add(d["location"])
 
     for entry in listing:
-        if entry["class"] == "Directory":
-            for e in cast(list[CWLObjectType], entry.get("listing", [])):
+        if is_directory(entry):
+            for e in entry.get("listing", []):
                 adjustFileObjs(e, mark)
                 adjustDirObjs(e, mark)
 
@@ -284,20 +291,17 @@ def get_listing(
     fs_access: "StdFsAccess", rec: CWLObjectType | CWLDirectoryType, recursive: bool = True
 ) -> None:
     """Expand, recursively, any 'listing' fields in a Directory."""
-    if rec.get("class") != "Directory":
-        finddirs: list[CWLObjectType] = []
+    if not is_directory(rec):
+        finddirs: list[CWLDirectoryType] = []
         visit_class(rec, ("Directory",), finddirs.append)
         for f in finddirs:
-            _get_listing(fs_access, cast(CWLDirectoryType, f), recursive)
+            get_listing(fs_access, f, recursive=recursive)
         return
-    _get_listing(fs_access, cast(CWLDirectoryType, rec), recursive)
-
-
-def _get_listing(fs_access: "StdFsAccess", rec: CWLDirectoryType, recursive: bool = True) -> None:
     if "listing" in rec:
         return
     listing: MutableSequence[CWLFileType | CWLDirectoryType] = []
-    for ld in fs_access.listdir(rec["location"]):
+    loc = rec["location"]
+    for ld in fs_access.listdir(loc):
         parse = urllib.parse.urlparse(ld)
         bn = os.path.basename(urllib.request.url2pathname(parse.path))
         if fs_access.isdir(ld):
@@ -309,7 +313,7 @@ def _get_listing(fs_access: "StdFsAccess", rec: CWLDirectoryType, recursive: boo
                 }
             )
             if recursive:
-                _get_listing(fs_access, ent, recursive)
+                get_listing(fs_access, ent, recursive)
             listing.append(ent)
         else:
             listing.append(CWLFileType(**{"class": "File", "location": ld, "basename": bn}))
@@ -412,21 +416,24 @@ def ensure_non_writable(path: str) -> None:
 
 
 def normalizeFilesDirs(
-    job: (
-        None
-        | MutableSequence[CWLFileType | CWLDirectoryType]
-        | CWLFileType
-        | CWLDirectoryType
-        | CWLObjectType
-    ),
+    job: Sequence[CWLObjectType | CWLOutputType | None] | CWLObjectType | CWLOutputType | None,
 ) -> None:
-    def addLocation(d: dict[str, Any]) -> None:
+    """
+    Add missing `location`s and `basename`s to CWL File and Directory objects.
+
+    :raises ValidationException: if anonymous objects are missing required fields,
+                                 or if the location ends in '/' but the object isn't
+                                 a directory
+
+    """
+
+    def addLocation(d: CWLFileType | CWLDirectoryType) -> None:
         if "location" not in d:
-            if d["class"] == "File" and ("contents" not in d):
+            if is_file(d) and ("contents" not in d):
                 raise ValidationException(
                     "Anonymous file object must have 'contents' and 'basename' fields."
                 )
-            if d["class"] == "Directory" and ("listing" not in d or "basename" not in d):
+            if is_directory(d) and ("listing" not in d or "basename" not in d):
                 raise ValidationException(
                     "Anonymous directory object must have 'listing' and 'basename' fields."
                 )
@@ -438,7 +445,7 @@ def normalizeFilesDirs(
         path = parse.path
         # strip trailing slash
         if path.endswith("/"):
-            if d["class"] != "Directory":
+            if not is_directory(d):
                 raise ValidationException(
                     "location '%s' ends with '/' but is not a Directory" % d["location"]
                 )
@@ -460,7 +467,7 @@ def normalizeFilesDirs(
             else:
                 d["basename"] = str(os.path.basename(urllib.request.url2pathname(path)))
 
-        if d["class"] == "File":
+        if is_file(d):
             nr, ne = os.path.splitext(d["basename"])
             if d.get("nameroot") != nr:
                 d["nameroot"] = str(nr)

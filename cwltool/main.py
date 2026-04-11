@@ -23,7 +23,13 @@ import argcomplete
 import coloredlogs
 import requests
 import ruamel.yaml
-from cwl_utils.types import CWLFileType, CWLObjectType, CWLOutputType
+from cwl_utils.types import (
+    CWLDirectoryType,
+    CWLFileType,
+    CWLObjectType,
+    CWLOutputType,
+    is_file,
+)
 from rich_argparse import RichHelpFormatter
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ruamel.yaml.main import YAML
@@ -297,9 +303,7 @@ def realize_input_schema(
             if isinstance(entry["type"], Mapping):
                 entry["type"] = cast(
                     CWLOutputType,
-                    realize_input_schema(
-                        cast(MutableSequence[str | CWLObjectType], [entry["type"]]), schema_defs
-                    ),
+                    realize_input_schema([cast(CWLObjectType, entry["type"])], schema_defs),
                 )
             if entry["type"] == "array":
                 items = entry["items"] if not isinstance(entry["items"], str) else [entry["items"]]
@@ -569,13 +573,11 @@ def prov_deps(
 ) -> CWLFileType:
     deps = find_deps(obj, document_loader, uri, basedir=basedir)
 
-    def remove_non_cwl(deps: CWLFileType) -> None:
-        if "secondaryFiles" in deps:
+    def remove_non_cwl(deps: CWLFileType | CWLDirectoryType) -> None:
+        if is_file(deps) and "secondaryFiles" in deps:
             sec_files = deps["secondaryFiles"]
             for index, entry in enumerate(sec_files):
-                if not (
-                    entry["class"] == "File" and "format" in entry and entry["format"] == CWL_IANA
-                ):
+                if not (is_file(entry) and "format" in entry and entry["format"] == CWL_IANA):
                     del sec_files[index]
                 else:
                     remove_non_cwl(entry)
@@ -592,7 +594,13 @@ def find_deps(
     nestdirs: bool = True,
 ) -> CWLFileType:
     """Find the dependencies of the CWL document."""
-    deps = CWLFileType(**{"class": "File", "location": uri, "format": CWL_IANA})
+    deps = CWLFileType(
+        **{
+            "class": "File",
+            "location": uri,
+            "format": CWL_IANA,
+        }
+    )
 
     def loadref(base: str, uri: str) -> CommentedMap | CommentedSeq | str | None:
         return document_loader.fetch(document_loader.fetcher.urljoin(base, uri))

@@ -13,6 +13,7 @@ from typing import Any, Union, cast
 
 from cwl_utils.parser import cwl_v1_2, cwl_v1_2_utils
 from cwl_utils.types import CWLObjectType
+from mypy_extensions import i32, i64
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.fetcher import Fetcher
@@ -255,10 +256,12 @@ def _fast_parser_convert_stdstreams_to_files(
             cwl_v1_2_utils.convert_stdstreams_to_files(processobj)
         case cwl_v1_2.Workflow(steps=steps):
             for st in steps:
-                _fast_parser_convert_stdstreams_to_files(st.run)
+                if not isinstance(st.run, str):
+                    _fast_parser_convert_stdstreams_to_files(st.run)
         case MutableSequence():
             for p in processobj:
-                _fast_parser_convert_stdstreams_to_files(p)
+                if not isinstance(p, str):
+                    _fast_parser_convert_stdstreams_to_files(p)
 
 
 def _fast_parser_expand_hint_class(
@@ -282,7 +285,8 @@ def _fast_parser_handle_hints(
         case cwl_v1_2.Workflow(steps=steps):
             for st in steps:
                 _fast_parser_expand_hint_class(st.hints, loadingOptions)
-                _fast_parser_handle_hints(st.run, loadingOptions)
+                if not isinstance(st.run, str):
+                    _fast_parser_handle_hints(st.run, loadingOptions)
         case MutableSequence():
             for p in processobj:
                 _fast_parser_handle_hints(p, loadingOptions)
@@ -315,7 +319,7 @@ def fast_parser(
     _fast_parser_convert_stdstreams_to_files(objects)
     _fast_parser_handle_hints(objects, loadopt)
 
-    processobj: MutableMapping[str, Any] | MutableSequence[Any] | float | str | None
+    processobj: MutableMapping[str, Any] | MutableSequence[Any] | i32 | i64 | float | str | None
 
     processobj = cwl_v1_2.save(objects, relative_uris=False)
 

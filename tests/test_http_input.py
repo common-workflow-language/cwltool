@@ -14,12 +14,14 @@ def test_http_path_mapping(tmp_path: Path) -> None:
         "https://raw.githubusercontent.com/common-workflow-language/cwltool/main/tests/2.fasta"
     )
     base_file: MutableSequence[CWLFileType | CWLDirectoryType] = [
-        {
-            "class": "File",
-            "location": "https://raw.githubusercontent.com/common-workflow-language/"
-            "cwltool/main/tests/2.fasta",
-            "basename": "chr20.fa",
-        }
+        CWLFileType(
+            **{
+                "class": "File",
+                "location": "https://raw.githubusercontent.com/common-workflow-language/"
+                "cwltool/main/tests/2.fasta",
+                "basename": "chr20.fa",
+            }
+        )
     ]
     pathmap = PathMapper(base_file, os.getcwd(), str(tmp_path))._pathmap
 
@@ -56,11 +58,13 @@ def test_modification_date(tmp_path: Path) -> None:
         location = httpserver.url_for(f"/{remote_file_name}")
 
         base_file: MutableSequence[CWLFileType | CWLDirectoryType] = [
-            {
-                "class": "File",
-                "location": location,
-                "basename": remote_file_name,
-            }
+            CWLFileType(
+                **{
+                    "class": "File",
+                    "location": location,
+                    "basename": remote_file_name,
+                }
+            )
         ]
 
         date_now = datetime.now()

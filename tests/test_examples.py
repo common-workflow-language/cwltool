@@ -620,23 +620,27 @@ def test_issue_1765_print_deps_with_workflows_having_namespace_location_steps() 
 
 def test_dedupe() -> None:
     not_deduped: MutableSequence[CWLFileType | CWLDirectoryType] = [
-        {"class": "File", "location": "file:///example/a"},
-        {"class": "File", "location": "file:///example/a"},
-        {"class": "File", "location": "file:///example/d"},
-        {
-            "class": "Directory",
-            "location": "file:///example/c",
-            "listing": [{"class": "File", "location": "file:///example/d"}],
-        },
+        CWLFileType(**{"class": "File", "location": "file:///example/a"}),
+        CWLFileType(**{"class": "File", "location": "file:///example/a"}),
+        CWLFileType(**{"class": "File", "location": "file:///example/d"}),
+        CWLDirectoryType(
+            **{
+                "class": "Directory",
+                "location": "file:///example/c",
+                "listing": [{"class": "File", "location": "file:///example/d"}],
+            }
+        ),
     ]
 
     expected = [
-        {"class": "File", "location": "file:///example/a"},
-        {
-            "class": "Directory",
-            "location": "file:///example/c",
-            "listing": [{"class": "File", "location": "file:///example/d"}],
-        },
+        CWLFileType(**{"class": "File", "location": "file:///example/a"}),
+        CWLDirectoryType(
+            **{
+                "class": "Directory",
+                "location": "file:///example/c",
+                "listing": [{"class": "File", "location": "file:///example/d"}],
+            }
+        ),
     ]
 
     assert dedup(not_deduped) == expected
