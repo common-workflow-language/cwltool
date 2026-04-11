@@ -42,6 +42,7 @@ def test_docker_iwdr() -> None:
         [
             "--default-container",
             "docker.io/debian:stable-slim",
+            "--debug",
             get_data("tests/wf/iwdr-entry.cwl"),
             "--message",
             "hello",

@@ -367,7 +367,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 runtime.append("--log-driver=none")
 
             euid, egid = docker_vm_id()
-            euid, egid = euid or os.geteuid(), egid or os.getgid()
+            euid = euid if euid is not None else os.geteuid()
+            egid = egid if egid is not None else os.getgid()
 
             if runtimeContext.no_match_user is False and (euid is not None and egid is not None):
                 runtime.append("--user=%d:%d" % (euid, egid))

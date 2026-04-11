@@ -91,9 +91,7 @@ if __name__ == "__main__":
     assert args.no_fail == True, "Didn't set the --no-fail flag"
     r = Runner()
     r.run_many(args.num, args.progargs)
-""".format(
-        interpreter=sys.executable
-    )
+""".format(interpreter=sys.executable)
     mpitmp = tmp_path_factory.mktemp("fake_mpi")
     mpirun_file = mpitmp / "fake_mpirun"
     mpirun_file.write_text(mpirun_text)

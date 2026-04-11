@@ -65,7 +65,7 @@ jobs:
             tox.ini
 
       - name: install dev libraries
-        run: sudo apt-get install -y libxml2-dev libxslt-dev
+        run: sudo apt-get update && sudo apt-get install -y libxml2-dev libxslt-dev
 
       - name: Upgrade setuptools and install tox
         run: |
@@ -84,7 +84,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: ${{ matrix.step == 'unit' }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: true
         env:
@@ -151,7 +151,7 @@ jobs:
 
       - name: install with test dependencies
         run: |
-          pip install -U pip setuptools wheel "hatchling>=1.27.0"
+          pip install pip==23.1 setuptools==67.6.1 wheel
           pip install --no-build-isolation -rtest-requirements.txt .[deps]
 
       - name: make working directory read-only
@@ -214,13 +214,13 @@ jobs:
           CWLTOOL_OPTIONS: ${{ matrix.cwl-version == 'v1.2' && '--relax-path-checks' || '' }} ${{ matrix.extras }}
         run: ./conformance-test.sh
       - name: Archive test results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cwl-${{ matrix.cwl-version }}-${{ matrix.container }}${{ matrix.extras }}-conformance-results
           path: |
             **/cwltool_conf*.xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: true
         env:
@@ -265,8 +265,8 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: record cwltool version
-        run: pip install -U setuptools wheel && pip install setuptools_scm[toml] && python setup.py --version
+      - name: prepare to record cwltool version
+        run: pip install -U setuptools_scm[simple]
       - name: build & test cwltool_module container
         run: ./build-cwltool-docker.sh
 
@@ -305,7 +305,7 @@ jobs:
       - name: Test with tox
         run: tox
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: true
         env:

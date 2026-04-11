@@ -31,7 +31,7 @@ DEVPKGS=diff_cover pylint pep257 pydocstyle 'tox>4' auto-walrus \
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 
-VERSION=3.1.$(shell TZ=UTC git log --first-parent --max-count=1 \
+VERSION=3.2.$(shell TZ=UTC git log --first-parent --max-count=1 \
 	--format=format:%cd --date=format-local:%Y%m%d%H%M%S)
 mkfile_dir := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 UNAME_S=$(shell uname -s)
@@ -51,6 +51,7 @@ install-dep: install-dependencies
 
 install-dependencies: FORCE
 	pip install --upgrade $(DEVPKGS)
+	pip install -r requirements.txt
 
 install-doc-dep:
 	pip install -r docs/requirements.txt
@@ -117,10 +118,10 @@ codespell-fix:
 
 ## format                 : check/fix all code indentation and formatting (runs black)
 format:
-	black --exclude cwltool/schemas --exclude cwltool/_version.py setup.py cwltool.py cwltool tests mypy-stubs
+	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
 format-check:
-	black --diff --check --exclude cwltool/schemas setup.py --exclude cwltool/_version.py cwltool.py cwltool tests mypy-stubs
+	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
 ## pylint                 : run static code analysis on Python code
 pylint: $(PYSOURCES)

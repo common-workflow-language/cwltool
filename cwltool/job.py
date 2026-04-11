@@ -162,7 +162,6 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         self,
         runtimeContext: RuntimeContext,
         tmpdir_lock: Union[threading.Lock, None] = None,
-        # use `threading.Lock | None` when we drop support for Python 3.12
     ) -> None:
         pass
 
@@ -765,7 +764,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
             if not os.path.exists(self.tmpdir):
                 os.makedirs(self.tmpdir)
 
-        (docker_req, docker_is_req) = self.get_requirement("DockerRequirement")
+        docker_req, docker_is_req = self.get_requirement("DockerRequirement")
         self.prov_obj = runtimeContext.prov_obj
         img_id: str | None = None
         user_space_docker_cmd = runtimeContext.user_space_docker_cmd
@@ -843,7 +842,7 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
 
         # Copy as don't want to modify our env
         env = dict(os.environ)
-        (runtime, cidfile) = self.create_runtime(env, runtimeContext)
+        runtime, cidfile = self.create_runtime(env, runtimeContext)
 
         runtime.append(str(img_id))
         monitor_function = None

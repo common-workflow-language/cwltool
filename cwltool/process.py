@@ -17,6 +17,7 @@ from collections.abc import (
     Callable,
     Iterable,
     Iterator,
+    Mapping,
     MutableMapping,
     MutableSequence,
     Sequence,
@@ -316,9 +317,9 @@ def relocateOutputs(
         return outputObj
 
     def _collectDirEntries(
-        obj: CWLObjectType | MutableSequence[CWLObjectType] | None,
+        obj: CWLObjectType | MutableSequence[CWLObjectType] | CWLOutputType | None,
     ) -> Iterator[CWLFileType | CWLDirectoryType]:
-        if isinstance(obj, dict):
+        if isinstance(obj, Mapping):
             if is_file_or_directory(obj):
                 yield obj
             else:
@@ -455,9 +456,8 @@ def avroize_type(
                 cast(MutableSequence[CWLOutputType], items), name_prefix
             )
         case {"type": f_type}:
-            cast(CWLObjectType, field_type)["type"] = avroize_type(
-                cast(CWLObjectType, f_type), name_prefix
-            )
+            ff_type = cast(CWLObjectType | MutableSequence[Any] | CWLOutputType, f_type)
+            cast(CWLObjectType, field_type)["type"] = avroize_type(ff_type, name_prefix)
         case "File":
             return "org.w3id.cwl.cwl.File"
         case "Directory":
@@ -476,14 +476,12 @@ def get_overrides(overrides: MutableSequence[CWLObjectType], toolid: str) -> CWL
     return req
 
 
-_VAR_SPOOL_ERROR = textwrap.dedent(
-    """
+_VAR_SPOOL_ERROR = textwrap.dedent("""
     Non-portable reference to /var/spool/cwl detected: '{}'.
     To fix, replace /var/spool/cwl with $(runtime.outdir) or add
     DockerRequirement to the 'requirements' section and declare
     'dockerOutputDirectory: /var/spool/cwl'.
-    """
-)
+    """)
 
 
 def var_spool_cwl_detector(
@@ -493,20 +491,21 @@ def var_spool_cwl_detector(
 ) -> bool:
     """Detect any textual reference to /var/spool/cwl."""
     r = False
-    if isinstance(obj, str):
-        if "var/spool/cwl" in obj and obj_key != "dockerOutputDirectory":
-            _logger.warning(
-                SourceLine(item=item, key=obj_key, raise_type=str).makeError(
-                    _VAR_SPOOL_ERROR.format(obj)
+    match obj:
+        case str(str_obj):
+            if "var/spool/cwl" in str_obj and obj_key != "dockerOutputDirectory":
+                _logger.warning(
+                    SourceLine(item=item, key=obj_key, raise_type=str).makeError(
+                        _VAR_SPOOL_ERROR.format(str_obj)
+                    )
                 )
-            )
-            r = True
-    elif isinstance(obj, MutableMapping):
-        for mkey, mvalue in obj.items():
-            r = var_spool_cwl_detector(mvalue, obj, mkey) or r
-    elif isinstance(obj, MutableSequence):
-        for lkey, lvalue in enumerate(obj):
-            r = var_spool_cwl_detector(lvalue, obj, lkey) or r
+                r = True
+        case MutableMapping() as map_obj:
+            for mkey, mvalue in map_obj.items():
+                r = var_spool_cwl_detector(mvalue, map_obj, mkey) or r
+        case MutableSequence() as seq_obj:
+            for lkey, lvalue in enumerate(seq_obj):
+                r = var_spool_cwl_detector(lvalue, seq_obj, lkey) or r
     return r
 
 
@@ -812,8 +811,7 @@ hints:
   cwltool:LoadListingRequirement:
     loadListing: shallow_listing
 
-"""
-                                    % (filecount[0], k)
+""" % (filecount[0], k)
                                 )
                             )
                         )
@@ -1138,7 +1136,7 @@ def uniquename(stem: str, names: set[str] | None = None) -> str:
 
 
 def nestdir(base: str, deps: CWLFileType | CWLDirectoryType) -> CWLFileType | CWLDirectoryType:
-    """Add intermediate directory objects to preserve the  relative layout."""
+    """Add intermediate directory objects to preserve the relative layout."""
     dirname = os.path.dirname(base) + "/"
     subid = deps["location"]
     if subid.startswith(dirname):
@@ -1173,13 +1171,10 @@ def mergedirs(
                 "Conflicting basename in listing or secondaryFiles, '%s' used by both '%s' and '%s'"
                 % (basename, e["location"], ents[basename]["location"])
             )
-        elif is_directory(e):
-            if e.get("listing"):
-                # name already in entries
-                # merge it into the existing listing
-                cast(CWLDirectoryType, ents[basename]).setdefault("listing", []).extend(
-                    e["listing"]
-                )
+        elif is_directory(e) and "listing" in e:
+            # name already in entries
+            # merge it into the existing listing
+            cast(CWLDirectoryType, ents[basename]).setdefault("listing", []).extend(e["listing"])
     for e in ents.values():
         if is_directory(e) and "listing" in e:
             e["listing"] = mergedirs(e["listing"])

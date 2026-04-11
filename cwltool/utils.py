@@ -51,6 +51,7 @@ from typing import (
     NamedTuple,
     Optional,
     TypeAlias,
+    TypedDict,
     Union,
 )
 
@@ -59,6 +60,11 @@ from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
+
+if sys.version_info >= (3, 11):
+    from typing import Required
+else:
+    from typing_extensions import Required
 
 if TYPE_CHECKING:
     from schema_salad.ref_resolver import Loader
@@ -88,6 +94,14 @@ DestinationsType: TypeAlias = MutableMapping[str, Optional[CWLOutputType]]
 ScatterDestinationsType: TypeAlias = MutableMapping[str, list[Optional[CWLOutputType]]]
 ScatterOutputCallbackType: TypeAlias = Callable[[Optional[ScatterDestinationsType], str], None]
 JSONType: TypeAlias = Union[dict[str, "JSONType"], list["JSONType"], str, int, float, bool, None]
+
+
+class DirentType(TypedDict, total=False):
+    """InitialWorkDirRequirement.listing item."""
+
+    entry: Required[str | CWLFileType | CWLDirectoryType]
+    entryname: str
+    writable: bool
 
 
 class WorkflowStateItem(NamedTuple):

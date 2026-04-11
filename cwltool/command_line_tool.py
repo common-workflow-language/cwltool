@@ -63,6 +63,7 @@ from .stdfsaccess import StdFsAccess
 from .udocker import UDockerCommandLineJob
 from .update import ORDERED_VERSIONS, ORIGINAL_CWLVERSION
 from .utils import (
+    DirentType,
     JobsGeneratorType,
     OutputCallbackType,
     adjustDirObjs,
@@ -380,12 +381,16 @@ OutputPortsType = dict[str, Optional[CWLOutputType]]
 
 
 class ParameterOutputWorkflowException(WorkflowException):
-    def __init__(self, msg: str, port: CWLObjectType, **kwargs: Any) -> None:
+    def __init__(self, msg: str, port: CWLObjectType) -> None:
         """Exception for when there was an error collecting output for a parameter."""
-        super().__init__(
-            "Error collecting output for parameter '%s': %s"
-            % (shortname(cast(str, port["id"])), msg),
-            kwargs,
+        super().__init__(msg, port)
+        self.msg = msg
+        self.port = port
+
+    def __str__(self) -> str:
+        return "Error collecting output for parameter '{}': {}".format(
+            shortname(cast(str, self.port["id"])),
+            self.msg,
         )
 
 
@@ -447,7 +452,9 @@ class CommandLineTool(Process):
     ) -> PathMapper:
         return PathMapper(reffiles, runtimeContext.basedir, stagedir, separateDirs)
 
-    def updatePathmap(self, outdir: str, pathmap: PathMapper, fn: CWLObjectType) -> None:
+    def updatePathmap(
+        self, outdir: str, pathmap: PathMapper, fn: CWLFileType | CWLDirectoryType
+    ) -> None:
         """Update a PathMapper with a CWL File or Directory object."""
         if not isinstance(fn, MutableMapping):
             raise WorkflowException("Expected File or Directory object, was %s" % type(fn))
@@ -462,10 +469,12 @@ class CommandLineTool(Process):
                     ("Writable" if fn.get("writable") else "") + cast(str, fn["class"]),
                     False,
                 )
-        for sf in cast(list[CWLObjectType], fn.get("secondaryFiles", [])):
-            self.updatePathmap(outdir, pathmap, sf)
-        for ls in cast(list[CWLObjectType], fn.get("listing", [])):
-            self.updatePathmap(os.path.join(outdir, cast(str, fn["basename"])), pathmap, ls)
+        if fn["class"] == "File" and "secondaryFiles" in fn:
+            for sf in fn["secondaryFiles"]:
+                self.updatePathmap(outdir, pathmap, sf)
+        if fn["class"] == "Directory" and "listing" in fn:
+            for ls in fn["listing"]:
+                self.updatePathmap(os.path.join(outdir, fn["basename"]), pathmap, ls)
 
     def _initialworkdir(self, j: JobBase | None, builder: Builder) -> None:
         """
@@ -487,7 +496,7 @@ class CommandLineTool(Process):
             cwl_version
         ) < ORDERED_VERSIONS.index("v1.1.0-dev1")
 
-        ls: list[CWLObjectType] = []
+        ls: MutableSequence[CWLFileType | CWLDirectoryType | DirentType] = []
         if isinstance(initialWorkdir["listing"], str):
             # "listing" is just a string (must be an expression) so
             # just evaluate it and use the result as if it was in
@@ -498,17 +507,20 @@ class CommandLineTool(Process):
             if not isinstance(ls_evaluated, MutableSequence):
                 fail = ls_evaluated
             else:
-                ls_evaluated2 = ls_evaluated
-                for entry in ls_evaluated2:
-                    if entry == None:  # noqa
+                entry1: None | MutableSequence[CWLObjectType] | CWLObjectType
+                for entry1 in cast(
+                    MutableSequence[None | MutableSequence[CWLObjectType] | CWLObjectType],
+                    ls_evaluated,
+                ):
+                    if entry1 == None:  # noqa
                         if classic_dirent:
-                            fail = entry
+                            fail = entry1
                             fail_suffix = (
                                 " Dirent.entry cannot return 'null' before CWL "
                                 "v1.2. Please consider using 'cwl-upgrader' to "
                                 "upgrade your document to CWL version v1.2."
                             )
-                    elif isinstance(entry, MutableSequence):
+                    elif isinstance(entry1, MutableSequence):
                         if classic_listing:
                             raise SourceLine(
                                 initialWorkdir, "listing", WorkflowException, debug
@@ -520,7 +532,7 @@ class CommandLineTool(Process):
                                 "your document to CWL v1.1' or later."
                             )
                         else:
-                            for entry2 in entry:
+                            for entry2 in entry1:
                                 if not (
                                     isinstance(entry2, MutableMapping)
                                     and (
@@ -534,14 +546,14 @@ class CommandLineTool(Process):
                                         "not a File nor a Directory object."
                                     )
                     elif not (
-                        isinstance(entry, MutableMapping)
+                        isinstance(entry1, MutableMapping)
                         and (
-                            "class" in entry
-                            and (entry["class"] == "File" or "Directory")
-                            or "entry" in entry
+                            "class" in entry1
+                            and (entry1["class"] == "File" or "Directory")
+                            or "entry" in entry1
                         )
                     ):
-                        fail = entry
+                        fail = entry1
             if fail is not False:
                 message = (
                     "Expression in a 'InitialWorkdirRequirement.listing' field "
@@ -557,7 +569,7 @@ class CommandLineTool(Process):
                 raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
                     message
                 )
-            ls = cast(list[CWLObjectType], ls_evaluated)
+            ls = cast(MutableSequence[CWLFileType | CWLDirectoryType | DirentType], ls_evaluated)
         else:
             # "listing" is an array of either expressions or Dirent so
             # evaluate each item
@@ -569,11 +581,11 @@ class CommandLineTool(Process):
                     # Dirent
                     entry_field = cast(str, t["entry"])
                     # the schema guarantees that 'entry' is a string, so the cast is safe
-                    entry = builder.do_eval(entry_field, strip_whitespace=False)
-                    if entry is None:
+                    entry3 = builder.do_eval(entry_field, strip_whitespace=False)
+                    if entry3 is None:
                         continue
 
-                    if isinstance(entry, MutableSequence):
+                    if isinstance(entry3, MutableSequence):
                         if classic_listing:
                             raise SourceLine(t, "entry", WorkflowException, debug).makeError(
                                 "'entry' expressions are not allowed to evaluate "
@@ -586,8 +598,8 @@ class CommandLineTool(Process):
                         # file list, otherwise JSON serialize it if CWL v1.2.
 
                         filelist = True
-                        for e in entry:
-                            if not is_file_or_directory(e):
+                        for e1 in entry3:
+                            if not is_file_or_directory(e1):
                                 filelist = False
                                 break
 
@@ -598,24 +610,27 @@ class CommandLineTool(Process):
                                 ).makeError(
                                     "'entryname' is invalid when 'entry' returns list of File or Directory"
                                 )
-                            for e in entry:
-                                ec = cast(CWLObjectType, e)
+                            for e2 in entry3:
+                                ec = cast(CWLObjectType, e2)
                                 ec["writable"] = t.get("writable", False)
-                            ls.extend(cast(list[CWLObjectType], entry))
+                            ls.extend(
+                                cast(
+                                    MutableSequence[CWLFileType | CWLDirectoryType | DirentType],
+                                    entry3,
+                                )
+                            )
                             continue
 
-                    et: CWLObjectType = {}
-                    writable = t.get("writable", False)
-                    et["writable"] = writable
-                    if is_file_or_directory(entry):
-                        if writable and is_file(entry) and "secondaryFiles" in entry:
-                            secFiles = cast(MutableSequence[CWLObjectType], entry["secondaryFiles"])
-                            for sf in secFiles:
-                                sf["writable"] = writable
-                        et["entry"] = cast(CWLOutputType, entry)
+                    writable = bool(t.get("writable", False))
+                    et_writable = writable
+                    if is_file_or_directory(entry3):
+                        if writable and is_file(entry3) and "secondaryFiles" in entry3:
+                            for sf in entry3["secondaryFiles"]:
+                                sf["writable"] = writable  # type: ignore[typeddict-unknown-key]
+                        et_entry: str | CWLFileType | CWLDirectoryType = entry3
                     else:
-                        if isinstance(entry, str):
-                            et["entry"] = entry
+                        if isinstance(entry3, str):
+                            et_entry = entry3
                         else:
                             if classic_dirent:
                                 raise SourceLine(t, "entry", WorkflowException, debug).makeError(
@@ -627,9 +642,9 @@ class CommandLineTool(Process):
                                     "If that is the desired result then please "
                                     "consider using 'cwl-upgrader' to upgrade "
                                     "your document to CWL version 1.2. "
-                                    f"Result of {entry_field!r} was {entry!r}."
+                                    f"Result of {entry_field!r} was {entry3!r}."
                                 )
-                            et["entry"] = json_dumps(entry, sort_keys=True)
+                            et_entry = json_dumps(entry3, sort_keys=True)
 
                     if "entryname" in t:
                         entryname_field = cast(str, t["entryname"])
@@ -642,12 +657,17 @@ class CommandLineTool(Process):
                                     "'entryname' expression must result a string. "
                                     f"Got {en!r} from {entryname_field!r}"
                                 )
-                            et["entryname"] = en
+                            et_entryname = en
                         else:
-                            et["entryname"] = entryname_field
+                            et_entryname = entryname_field
                     else:
-                        et["entryname"] = None
-                    ls.append(et)
+                        et_entryname = None
+                    if et_entryname:
+                        ls.append(
+                            DirentType(entry=et_entry, entryname=et_entryname, writable=et_writable)
+                        )
+                    else:
+                        ls.append(DirentType(entry=et_entry, writable=et_writable))
                 else:
                     # Expression, must return a Dirent, File, Directory
                     # or array of such.
@@ -655,9 +675,14 @@ class CommandLineTool(Process):
                     if not initwd_item:
                         continue
                     if isinstance(initwd_item, MutableSequence):
-                        ls.extend(cast(list[CWLObjectType], initwd_item))
+                        ls.extend(
+                            cast(
+                                MutableSequence[CWLFileType | CWLDirectoryType | DirentType],
+                                initwd_item,
+                            )
+                        )
                     else:
-                        ls.append(cast(CWLObjectType, initwd_item))
+                        ls.append(cast(CWLFileType | CWLDirectoryType | DirentType, initwd_item))
 
         for i, t2 in enumerate(ls):
             if not isinstance(t2, Mapping):
@@ -667,19 +692,21 @@ class CommandLineTool(Process):
 
             if "entry" not in t2:
                 continue
-
+            assert "class" not in t2  # nosec
             # Dirent
             if isinstance(t2["entry"], str):
                 if not t2["entryname"]:
                     raise SourceLine(initialWorkdir, "listing", WorkflowException, debug).makeError(
                         "Entry at index %s of listing missing entryname" % (i)
                     )
-                ls[i] = {
-                    "class": "File",
-                    "basename": t2["entryname"],
-                    "contents": t2["entry"],
-                    "writable": t2.get("writable"),
-                }
+                ls[i] = CWLFileType(
+                    **{
+                        "class": "File",
+                        "basename": t2["entryname"],
+                        "contents": t2["entry"],
+                        "writable": t2.get("writable"),  # type: ignore[typeddict-unknown-key]
+                    }
+                )
                 continue
 
             if not isinstance(t2["entry"], Mapping):
@@ -697,13 +724,13 @@ class CommandLineTool(Process):
 
             if t2.get("entryname") or t2.get("writable"):
                 t2copy = copy.deepcopy(t2)
-                t2entry = cast(CWLObjectType, t2copy["entry"])
+                t2entry = cast(CWLFileType | CWLDirectoryType, t2copy["entry"])
                 if t2.get("entryname"):
                     t2entry["basename"] = t2copy["entryname"]
-                t2entry["writable"] = t2copy.get("writable")
+                t2entry["writable"] = t2copy.get("writable")  # type: ignore[typeddict-unknown-key]
                 t2["entry"] = t2entry
 
-            ls[i] = cast(CWLObjectType, t2["entry"])
+            ls[i] = t2["entry"]
 
         for i, t3 in enumerate(ls):
             if not is_file_or_directory(t3):
@@ -712,6 +739,7 @@ class CommandLineTool(Process):
                     f"Entry at index {i} of listing is not a Dirent, File or "
                     f"Directory object, was {t2}."
                 )
+            assert "entry" not in t3  # nosec
             if "basename" not in t3:
                 continue
             basename = os.path.normpath(t3["basename"])
@@ -745,35 +773,35 @@ class CommandLineTool(Process):
         if j is None:
             return  # Only testing
 
+        ls2 = cast(MutableSequence[CWLFileType | CWLDirectoryType], ls)
         with SourceLine(initialWorkdir, "listing", WorkflowException, debug):
-            j.generatefiles["listing"] = cast(MutableSequence[CWLFileType | CWLDirectoryType], ls)
-            for entry in ls:
-                if "basename" in entry:
-                    basename = cast(str, entry["basename"])
-                    entry["basename"] = os.path.basename(basename)
+            j.generatefiles["listing"] = ls2
+            for entry4 in ls2:
+                if "basename" in entry4:
+                    basename = entry4["basename"]
                     dirname = os.path.join(builder.outdir, os.path.dirname(basename))
-                    entry["dirname"] = dirname
-                    if is_file(entry):
-                        if "secondaryFiles" in entry:
-                            for sec_file in cast(
-                                MutableSequence[CWLObjectType], entry["secondaryFiles"]
-                            ):
-                                sec_file["dirname"] = dirname
-                normalizeFilesDirs(entry)
+                    entry4["dirname"] = dirname  # type: ignore[typeddict-unknown-key]
+                    entry4["basename"] = os.path.basename(basename)
+                    if is_file(entry4) and "secondaryFiles" in entry4:
+                        for sec_file in cast(
+                            MutableSequence[CWLObjectType], entry4["secondaryFiles"]
+                        ):
+                            sec_file["dirname"] = dirname
+                normalizeFilesDirs(entry4)
                 self.updatePathmap(
-                    cast(Optional[str], entry.get("dirname")) or builder.outdir,
+                    cast(Optional[str], entry4.get("dirname")) or builder.outdir,
                     cast(PathMapper, builder.pathmapper),
-                    entry,
+                    entry4,
                 )
 
-                if is_directory(entry) and "listing" in entry:
+                if is_directory(entry4) and "listing" in entry4:
 
                     def remove_dirname(d: CWLObjectType) -> None:
                         if "dirname" in d:
                             del d["dirname"]
 
                     visit_class(
-                        entry["listing"],
+                        entry4["listing"],
                         ("File", "Directory"),
                         remove_dirname,
                     )
@@ -1356,7 +1384,7 @@ class CommandLineTool(Process):
                                             sorted_glob_result,
                                         ),
                                     )
-                                ]
+                                ],
                             )
                         except OSError as e:
                             _logger.warning(str(e), exc_info=builder.debug)

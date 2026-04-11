@@ -250,8 +250,8 @@ def generate_example_input(
             for field in cast(list[CWLObjectType], fields):
                 value, f_comment = generate_example_input(field["type"], None)
                 example.insert(0, shortname(cast(str, field["name"])), value, f_comment)
-        case {"type": str(inp_type), "default": default_value}:
-            example = default_value
+        case {"type": str(inp_type), "default": default2}:
+            example = default2
             comment = f"default value of type {inp_type!r}"
         case {"type": str(inp_type)}:
             example = defaults.get(inp_type, str(inptype))
@@ -1100,10 +1100,6 @@ def main(
 
             loadingContext, workflowobj, uri = fetch_document(uri, loadingContext)
 
-            if args.print_deps and loadingContext.loader:
-                printdeps(workflowobj, loadingContext.loader, stdout, args.relative_deps, uri)
-                return 0
-
             loadingContext, uri = resolve_and_validate_document(
                 loadingContext,
                 workflowobj,
@@ -1117,6 +1113,10 @@ def main(
             processobj = cast(Union[CommentedMap, CommentedSeq], processobj)
             if args.pack:
                 print(print_pack(loadingContext, uri), file=stdout)
+                return 0
+
+            if args.print_deps:
+                printdeps(workflowobj, loadingContext.loader, stdout, args.relative_deps, uri)
                 return 0
 
             if args.provenance and runtimeContext.research_obj:
@@ -1159,7 +1159,9 @@ def main(
 
             if args.print_rdf:
                 print(
-                    printrdf(tool, loadingContext.loader.ctx, args.rdf_serializer),
+                    printrdf(
+                        tool, loadingContext.loader.ctx, args.rdf_serializer, job_order_object
+                    ),
                     file=stdout,
                 )
                 return 0
@@ -1318,7 +1320,7 @@ def main(
             runtimeContext.validate_only = args.validate
             runtimeContext.validate_stdout = stdout
 
-            (out, status) = real_executor(
+            out, status = real_executor(
                 tool, initialized_job_order_object, runtimeContext, logger=_logger
             )
             if runtimeContext.validate_only is True:

@@ -84,7 +84,9 @@ def import_embed(
 ) -> None:
     if isinstance(d, MutableSequence):
         for v in d:
-            import_embed(v, seen)
+            import_embed(
+                cast(MutableSequence[CWLObjectType] | CWLObjectType | CWLOutputType, v), seen
+            )
     elif isinstance(d, MutableMapping):
         for n in ("id", "name"):
             if n in d:
@@ -100,7 +102,9 @@ def import_embed(
                         break
 
         for k in sorted(d.keys()):
-            import_embed(d[k], seen)
+            import_embed(
+                cast(MutableSequence[CWLObjectType] | CWLObjectType | CWLOutputType, d[k]), seen
+            )
 
 
 def pack(

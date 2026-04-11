@@ -56,7 +56,7 @@ def v1_2to1_3dev1(doc: CommentedMap, loader: Loader, baseuri: str) -> tuple[Comm
                         cast(
                             MutableSequence[CWLObjectType],
                             s["requirements"],
-                        ).pop(index=i)
+                        ).pop(i)
             if "hints" in s:
                 for r in cast(MutableSequence[CWLObjectType], s["hints"]):
                     cls = cast(str, r["class"])
@@ -133,7 +133,11 @@ def v1_0to1_1(
                 new_seq[index] = update_secondaryFiles(entry)
             return new_seq
         elif isinstance(t, MutableSequence):
-            return CommentedSeq([update_secondaryFiles(p) for p in t])
+            seq = CommentedSeq()
+            for p in t:
+                assert p is not None  # nosec
+                seq.append(update_secondaryFiles(p))
+            return seq
         elif isinstance(t, MutableMapping):
             return cast(MutableMapping[str, str], t)
         elif top:
@@ -355,13 +359,13 @@ def update(
     if update_to is None:
         update_to = INTERNAL_VERSION
 
-    (cdoc, version) = checkversion(doc, metadata, enable_dev)
+    cdoc, version = checkversion(doc, metadata, enable_dev)
     originalversion = copy.copy(version)
 
     nextupdate: Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]] | None = identity
 
     while version != update_to and nextupdate:
-        (cdoc, version) = nextupdate(cdoc, loader, baseuri)
+        cdoc, version = nextupdate(cdoc, loader, baseuri)
         nextupdate = ALLUPDATES[version]
 
     cdoc["cwlVersion"] = version

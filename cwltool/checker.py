@@ -176,10 +176,11 @@ def _compare_records(src: CWLObjectType, sink: CWLObjectType, strict: bool = Fal
             and sinkfields.get(key) is not None
         ):
             _logger.info(
-                "Record comparison failure for %s and %s\n"
-                "Did not match fields for %s: %s and %s",
-                src["name"],
-                sink["name"],
+                SourceLine(src, "fields")
+                .makeError("Record comparison failure between this record")
+                .replace("%", "%%")
+                + " and %s Did not match fields for '%s': %s and %s.",
+                SourceLine(sink, "fields").makeLead(),
                 key,
                 srcfields.get(key),
                 sinkfields.get(key),
@@ -396,6 +397,9 @@ def _check_all_types(
 
                 if pickValue in ["first_non_null", "the_only_non_null"]:
                     linkMerge = None
+                elif pickValue == "all_non_null" and linkMerge is None:
+                    sink["linkMerge"] = "merge_nested"
+                    linkMerge = cast(Optional[str], sink["linkMerge"])
 
                 srcs_of_sink: list[CWLObjectType] = []
                 for parm_id in cast(MutableSequence[str], sink[sourceField]):

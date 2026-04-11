@@ -1,6 +1,6 @@
-requests>=2.6.1
-ruamel.yaml>=0.16.0,<0.19
-rdflib>=4.2.2,<7.6
+requests>=2.32.2
+ruamel.yaml>=0.16.0,<0.20
+rdflib>=4.2.2,<7.7
 schema-salad>=8.9,<9
 prov==1.5.1
 mypy-extensions
@@ -9,7 +9,10 @@ coloredlogs
 pydot>=1.4.1
 argcomplete>=1.12.0
 pyparsing!=3.0.2  # breaks --print-dot (pydot) https://github.com/pyparsing/pyparsing/issues/319
-cwl-utils @ git+https://github.com/common-workflow-language/cwl-utils.git@refs/pull/396/head
+cwl-utils>=0.41
 spython>=0.3.0
 rich-argparse
+pygments>=2.20.0  # fix for CVE-2026-4539
 typing-extensions>=4.1.0
+urllib3>=1.26.19 # not directly required, pinned by Snyk to avoid a vulnerability
+zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability

@@ -12,7 +12,7 @@ def test_main_parsed_args(tmp_path: Path) -> None:
     stdout = io.StringIO()
     stderr = io.StringIO()
 
-    unparsed_args = [get_data("tests/echo.cwl"), "--inp", "Hello"]
+    unparsed_args = ["--debug", get_data("tests/echo.cwl"), "--inp", "Hello"]
     parsed_args = arg_parser().parse_args(unparsed_args)
 
     try:
@@ -28,7 +28,14 @@ def test_main_parsed_args_provenance(tmp_path: Path) -> None:
 
     prov_folder = tmp_path / "provenance"  # will be created if necessary
 
-    unparsed_args = ["--provenance", str(prov_folder), get_data("tests/echo.cwl"), "--inp", "Hello"]
+    unparsed_args = [
+        "--provenance",
+        str(prov_folder),
+        "--debug",
+        get_data("tests/echo.cwl"),
+        "--inp",
+        "Hello",
+    ]
     parsed_args = arg_parser().parse_args(unparsed_args)
 
     try:
