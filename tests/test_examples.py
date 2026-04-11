@@ -1997,3 +1997,29 @@ def test_anonymous_record_mismatch_error() -> None:
     assert exit_code == 1, stderr
     assert "tests/2205.cwl:11:9: Record comparison failure between this record and " in stdout
     assert "tests/2205.cwl:24:14: Did not match fields for 'missing': None and string." in stdout
+
+
+def test_all_non_null() -> None:
+    """Test pickValue: all_non_null with a single element source"""
+    exit_code, stdout, stderr = get_main_output(
+        [
+            get_data("tests/single_all_non_null.cwl"),
+            get_data("tests/echo-job.yaml"),
+        ]
+    )
+    assert exit_code == 0
+    assert json.loads(stdout)["out"] == [1]
+    exit_code, stdout, stderr = get_main_output(
+        [
+            get_data("tests/single_all_non_null.cwl"),
+        ]
+    )
+    assert exit_code == 0
+    assert json.loads(stdout)["out"] == [0]
+    exit_code, stdout, stderr = get_main_output(
+        [
+            get_data("tests/single_all_non_null_err.cwl"),
+            get_data("tests/echo-job.yaml"),
+        ]
+    )
+    assert exit_code == 1

@@ -403,7 +403,7 @@ def object_from_state(
                         a_state,
                         iid,
                         inputobj,
-                        cast(
+                        linkMerge=cast(
                             Optional[str],
                             inp.get(
                                 "linkMerge",
