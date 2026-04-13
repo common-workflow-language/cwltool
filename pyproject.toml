@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "setuptools>=45",
+    "setuptools>=82.0.1",
     "setuptools_scm[simple]>=8.0.4,<11",
     "mypy==1.20.1",  # also update mypy-requirements.txt
     "types-requests",
