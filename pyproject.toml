@@ -9,7 +9,7 @@ requires = [
     "schema-salad>=8.9,<9",
     "cwl-utils>=0.41",
     "toml",
-    "argcomplete>=1.12.0",
+    "argcomplete>=3.6.3",
     "rich-argparse",
     "pygments>=2.20.0",  # fix for CVE-2026-4539
     "pydot >= 1.4.1"
