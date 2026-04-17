@@ -1,8 +1,8 @@
 """Support for InplaceUpdateRequirement."""
 
-from typing import NamedTuple, cast
+from typing import Final, NamedTuple
 
-from cwl_utils.types import CWLObjectType
+from cwl_utils.types import CWLDirectoryType, CWLFileType
 
 from .errors import WorkflowException
 
@@ -13,7 +13,7 @@ class _MutationState(NamedTuple):
     stepname: str
 
 
-_generation = "http://commonwl.org/cwltool#generation"
+_generation: Final[str] = "http://commonwl.org/cwltool#generation"
 
 
 class MutationManager:
@@ -29,8 +29,9 @@ class MutationManager:
         """Initialize."""
         self.generations: dict[str, _MutationState] = {}
 
-    def register_reader(self, stepname: str, obj: CWLObjectType) -> None:
-        loc = cast(str, obj["location"])
+    def register_reader(self, stepname: str, obj: CWLFileType | CWLDirectoryType) -> None:
+        """Register a file as being read by a particular step."""
+        loc = obj["location"]
         current = self.generations.get(loc, _MutationState(0, [], ""))
         obj_generation = obj.get(_generation, 0)
 
@@ -45,8 +46,9 @@ class MutationManager:
         current.readers.append(stepname)
         self.generations[loc] = current
 
-    def release_reader(self, stepname: str, obj: CWLObjectType) -> None:
-        loc = cast(str, obj["location"])
+    def release_reader(self, stepname: str, obj: CWLFileType | CWLDirectoryType) -> None:
+        """Unregister a file as being read by a particular step."""
+        loc = obj["location"]
         current = self.generations.get(loc, _MutationState(0, [], ""))
         obj_generation = obj.get(_generation, 0)
 
@@ -60,8 +62,9 @@ class MutationManager:
 
         self.generations[loc].readers.remove(stepname)
 
-    def register_mutation(self, stepname: str, obj: CWLObjectType) -> None:
-        loc = cast(str, obj["location"])
+    def register_mutation(self, stepname: str, obj: CWLFileType | CWLDirectoryType) -> None:
+        """Register a file as being modified by a particular step."""
+        loc = obj["location"]
         current = self.generations.get(loc, _MutationState(0, [], ""))
         obj_generation = obj.get(_generation, 0)
 
@@ -82,10 +85,12 @@ class MutationManager:
 
         self.generations[loc] = _MutationState(current.generation + 1, current.readers, stepname)
 
-    def set_generation(self, obj: CWLObjectType) -> None:
-        loc = cast(str, obj["location"])
+    def set_generation(self, obj: CWLFileType) -> None:
+        """Register a File for mutation tracking."""
+        loc = obj["location"]
         current = self.generations.get(loc, _MutationState(0, [], ""))
-        obj[_generation] = current.generation
+        obj[_generation] = current.generation  # type: ignore[literal-required]
 
-    def unset_generation(self, obj: CWLObjectType) -> None:
-        obj.pop(_generation, None)
+    def unset_generation(self, obj: CWLFileType) -> None:
+        """Remove the mutation tracking metadata from a File."""
+        obj.pop(_generation, None)  # type: ignore[misc]

@@ -15,7 +15,7 @@ from cwltool.context import LoadingContext
 from cwltool.load_tool import fetch_document, resolve_and_validate_document
 from cwltool.main import main, make_relative, print_pack
 from cwltool.resolver import tool_resolver
-from cwltool.utils import adjustDirObjs, adjustFileObjs
+from cwltool.utils import adjustFileDirObjs
 
 from .util import get_data, needs_docker
 
@@ -47,8 +47,7 @@ def test_packing(unpacked: str, expected: str) -> None:
 
     packed = json.loads(print_pack(loadingContext, uri))
     context_dir = os.path.abspath(os.path.dirname(get_data(unpacked)))
-    adjustFileObjs(packed, partial(make_relative, context_dir))
-    adjustDirObjs(packed, partial(make_relative, context_dir))
+    adjustFileDirObjs(packed, partial(make_relative, context_dir))
 
     with open(get_data(expected)) as packed_file:
         expect_packed = json.load(packed_file)
@@ -84,8 +83,7 @@ def test_pack_fragment() -> None:
 
     loadingContext, workflowobj, uri = fetch_document(get_data("tests/wf/scatter2.cwl"))
     packed = cwltool.pack.pack(loadingContext, uri + "#scatterstep/mysub")
-    adjustFileObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
-    adjustDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
+    adjustFileDirObjs(packed, partial(make_relative, os.path.abspath(get_data("tests/wf"))))
 
     packed_result = json.dumps(packed, sort_keys=True, indent=2)
     expected = json.dumps(expect_packed, sort_keys=True, indent=2)

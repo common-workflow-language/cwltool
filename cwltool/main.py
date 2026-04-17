@@ -102,7 +102,8 @@ from .utils import (
     processes_to_kill,
     trim_listing,
     versionstring,
-    visit_class,
+    visit_files,
+    visit_files_directories,
 )
 from .workflow import Workflow
 
@@ -473,7 +474,7 @@ def init_job_order(
                 job_order_object = {}
             job_order_object[shortname(inp["id"])] = inp["default"]
 
-    def path_to_loc(p: CWLObjectType) -> None:
+    def path_to_loc(p: CWLFileType | CWLDirectoryType) -> None:
         if "location" not in p and "path" in p:
             p["location"] = p["path"]
             del p["path"]
@@ -483,17 +484,16 @@ def init_job_order(
     ns.update(cast(ContextType, process.metadata.get("$namespaces", {})))
     ld = Loader(ns)
 
-    def expand_formats(p: CWLObjectType) -> None:
+    def expand_formats(p: CWLFileType) -> None:
         if "format" in p:
-            p["format"] = ld.expand_url(cast(str, p["format"]), "")
+            p["format"] = ld.expand_url(p["format"], "")
 
-    visit_class(job_order_object, ("File", "Directory"), path_to_loc)
-    visit_class(
+    visit_files_directories(job_order_object, path_to_loc)
+    visit_files(
         job_order_object,
-        ("File",),
         functools.partial(add_sizes, make_fs_access(input_basedir)),
     )
-    visit_class(job_order_object, ("File",), expand_formats)
+    visit_files(job_order_object, expand_formats)
     adjustDirObjs(job_order_object, trim_listing)
     normalizeFilesDirs(job_order_object)
 
@@ -561,7 +561,7 @@ def printdeps(
         base = basedir if basedir else os.path.dirname(uri_file_path(str(uri)))
     elif relative_deps == "cwd":
         base = os.getcwd()
-    visit_class(deps, ("File", "Directory"), functools.partial(make_relative, base))
+    visit_files_directories(deps, functools.partial(make_relative, base))
     json_dump(deps, stdout, indent=4, default=str)
 
 
@@ -1344,23 +1344,22 @@ def main(
                                             remove_at_id(entry)
 
                     remove_at_id(out)
-                    visit_class(
+                    visit_files(
                         out,
-                        ("File",),
                         functools.partial(add_sizes, runtimeContext.make_fs_access("")),
                     )
 
-                def loc_to_path(obj: CWLObjectType) -> None:
+                def loc_to_path(obj: CWLFileType | CWLDirectoryType) -> None:
                     for field in ("path", "nameext", "nameroot", "dirname"):
                         if field in obj:
-                            del obj[field]
-                    if cast(str, obj["location"]).startswith("file://"):
-                        obj["path"] = uri_file_path(cast(str, obj["location"]))
+                            del obj[field]  # type: ignore[misc]
+                    if obj["location"].startswith("file://"):
+                        obj["path"] = uri_file_path(obj["location"])
 
-                visit_class(out, ("File", "Directory"), loc_to_path)
+                visit_files_directories(out, loc_to_path)
 
                 # Unsetting the Generation from final output object
-                visit_class(out, ("File",), MutationManager().unset_generation)
+                visit_files(out, MutationManager().unset_generation)
 
                 if args.write_summary:
                     with open(args.write_summary, "w") as output_file:

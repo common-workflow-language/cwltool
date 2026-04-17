@@ -74,7 +74,9 @@ from .utils import (
     get_listing,
     normalizeFilesDirs,
     random_outdir,
-    visit_class,
+    visit_directories,
+    visit_files,
+    visit_files_directories,
 )
 from .validate_js import validate_js_expressions
 
@@ -362,9 +364,9 @@ def relocateOutputs(
                 shutil.copy2(src, dst)
 
     def _realpath(
-        ob: CWLObjectType,
-    ) -> None:  # should be type Union[CWLFile, CWLDirectory]
-        location = cast(str, ob["location"])
+        ob: CWLFileType | CWLDirectoryType,
+    ) -> None:
+        location = ob["location"]
         if location.startswith("file:"):
             ob["location"] = file_uri(os.path.realpath(uri_file_path(location)))
         elif location.startswith("/"):
@@ -373,20 +375,20 @@ def relocateOutputs(
             ob["location"] = file_uri(fs_access.realpath(location))
 
     outfiles = list(_collectDirEntries(outputObj))
-    visit_class(outfiles, ("File", "Directory"), _realpath)
+    visit_files_directories(outfiles, _realpath)
     pm = path_mapper(outfiles, "", destination_path, separateDirs=False)
     stage_files(pm, stage_func=_relocate, symlink=False, fix_conflicts=True)
 
-    def _check_adjust(a_file: CWLObjectType) -> CWLObjectType:
-        a_file["location"] = file_uri(pm.mapper(cast(str, a_file["location"]))[1])
-        if "contents" in a_file:
+    def _check_adjust(a_file: CWLFileType | CWLDirectoryType) -> CWLFileType | CWLDirectoryType:
+        a_file["location"] = file_uri(pm.mapper(a_file["location"])[1])
+        if is_file(a_file) and "contents" in a_file:
             del a_file["contents"]
         return a_file
 
-    visit_class(outputObj, ("File", "Directory"), _check_adjust)
+    visit_files_directories(outputObj, _check_adjust)
 
     if compute_checksum:
-        visit_class(outputObj, ("File",), functools.partial(compute_checksums, fs_access))
+        visit_files(outputObj, functools.partial(compute_checksums, fs_access))
     return outputObj
 
 
@@ -774,7 +776,7 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
             if load_listing != "no_listing":
                 get_listing(fs_access, job, recursive=(load_listing == "deep_listing"))
 
-            visit_class(job, ("File",), functools.partial(add_sizes, fs_access))
+            visit_files(job, functools.partial(add_sizes, fs_access))
 
             if load_listing == "deep_listing":
                 for i, inparm in enumerate(self.tool["inputs"]):
@@ -787,11 +789,11 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     def inc(d: list[int]) -> None:
                         d[0] += 1
 
-                    visit_class(v, ("Directory",), lambda x: inc(dircount))  # noqa: B023
+                    visit_directories(v, lambda x: inc(dircount))  # noqa: B023
                     if dircount[0] == 0:
                         continue
                     filecount = [0]
-                    visit_class(v, ("File",), lambda x: inc(filecount))  # noqa: B023
+                    visit_files(v, lambda x: inc(filecount))  # noqa: B023
                     if filecount[0] > FILE_COUNT_WARNING:
                         # Long lines in this message are okay, will be reflowed based on terminal columns.
                         _logger.warning(
@@ -1378,12 +1380,13 @@ def scandeps(
     return r
 
 
-def compute_checksums(fs_access: StdFsAccess, fileobj: CWLObjectType) -> None:
+def compute_checksums(fs_access: StdFsAccess, fileobj: CWLFileType) -> None:
+    """Compute a SHA1 checksum for the given file and store it as an attribute."""
     if "checksum" not in fileobj:
         checksum = hashlib.sha1()  # nosec
-        location = cast(str, fileobj["location"])
+        location = fileobj["location"]
         if "contents" in fileobj:
-            contents = cast(str, fileobj["contents"]).encode("utf-8")
+            contents = fileobj["contents"].encode("utf-8")
             checksum.update(contents)
             fileobj["size"] = len(contents)
         else:
