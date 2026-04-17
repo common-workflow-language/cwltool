@@ -67,6 +67,7 @@ from .utils import (
     JobsGeneratorType,
     OutputCallbackType,
     adjustDirObjs,
+    adjustFileDirObjs,
     adjustFileObjs,
     aslist,
     get_listing,
@@ -75,7 +76,8 @@ from .utils import (
     shared_file_lock,
     trim_listing,
     upgrade_lock,
-    visit_class,
+    visit_files,
+    visit_files_directories,
 )
 
 if TYPE_CHECKING:
@@ -223,7 +225,7 @@ class AbstractOperation(Process):
         raise WorkflowException("Abstract operation cannot be executed.")
 
 
-def remove_path(f: CWLObjectType) -> None:
+def remove_path(f: CWLFileType | CWLDirectoryType) -> None:
     """Remove any 'path' property, if present."""
     if "path" in f:
         del f["path"]
@@ -338,7 +340,9 @@ class CallbackJob:
             )
 
 
-def check_adjust(accept_re: Pattern[str], builder: Builder, file_o: CWLObjectType) -> CWLObjectType:
+def check_adjust(
+    accept_re: Pattern[str], builder: Builder, file_o: CWLFileType | CWLDirectoryType
+) -> CWLFileType | CWLDirectoryType:
     """
     Map files to assigned path inside a container.
 
@@ -347,14 +351,14 @@ def check_adjust(accept_re: Pattern[str], builder: Builder, file_o: CWLObjectTyp
     """
     if not builder.pathmapper:
         raise ValueError("Do not call check_adjust using a builder that doesn't have a pathmapper.")
-    file_o["path"] = path = builder.pathmapper.mapper(cast(str, file_o["location"]))[1]
+    file_o["path"] = path = builder.pathmapper.mapper(file_o["location"])[1]
     basename = cast(str, file_o.get("basename"))
     dn, bn = os.path.split(path)
-    if file_o.get("dirname") != dn:
-        file_o["dirname"] = str(dn)
     if basename != bn:
         file_o["basename"] = basename = str(bn)
-    if file_o["class"] == "File":
+    if is_file(file_o):
+        if file_o.get("dirname") != dn:
+            file_o["dirname"] = str(dn)
         nr, ne = os.path.splitext(basename)
         if file_o.get("nameroot") != nr:
             file_o["nameroot"] = str(nr)
@@ -469,10 +473,10 @@ class CommandLineTool(Process):
                     ("Writable" if fn.get("writable") else "") + cast(str, fn["class"]),
                     False,
                 )
-        if fn["class"] == "File" and "secondaryFiles" in fn:
+        if is_file(fn) and "secondaryFiles" in fn:
             for sf in fn["secondaryFiles"]:
                 self.updatePathmap(outdir, pathmap, sf)
-        if fn["class"] == "Directory" and "listing" in fn:
+        if is_directory(fn) and "listing" in fn:
             for ls in fn["listing"]:
                 self.updatePathmap(os.path.join(outdir, fn["basename"]), pathmap, ls)
 
@@ -533,26 +537,12 @@ class CommandLineTool(Process):
                             )
                         else:
                             for entry2 in entry1:
-                                if not (
-                                    isinstance(entry2, MutableMapping)
-                                    and (
-                                        "class" in entry2
-                                        and entry2["class"] == "File"
-                                        or "Directory"
-                                    )
-                                ):
+                                if not is_file_or_directory(entry2):
                                     fail = (
                                         "an array with an item ('{entry2}') that is "
                                         "not a File nor a Directory object."
                                     )
-                    elif not (
-                        isinstance(entry1, MutableMapping)
-                        and (
-                            "class" in entry1
-                            and (entry1["class"] == "File" or "Directory")
-                            or "entry" in entry1
-                        )
-                    ):
+                    elif not (is_file_or_directory(entry1) or "entry" in entry1):
                         fail = entry1
             if fail is not False:
                 message = (
@@ -796,19 +786,17 @@ class CommandLineTool(Process):
 
                 if is_directory(entry4) and "listing" in entry4:
 
-                    def remove_dirname(d: CWLObjectType) -> None:
-                        if "dirname" in d:
+                    def remove_dirname(d: CWLFileType | CWLDirectoryType) -> None:
+                        if is_file(d) and "dirname" in d:
                             del d["dirname"]
 
-                    visit_class(
+                    visit_files_directories(
                         entry4["listing"],
-                        ("File", "Directory"),
                         remove_dirname,
                     )
 
-            visit_class(
+            visit_files_directories(
                 [builder.files, builder.bindings],
-                ("File", "Directory"),
                 partial(check_adjust, self.path_check_mode.value, builder),
             )
 
@@ -839,12 +827,11 @@ class CommandLineTool(Process):
                 compute_checksums,
                 runtimeContext.make_fs_access(runtimeContext.basedir),
             )
-            visit_class(
+            visit_files_directories(
                 [cachebuilder.files, cachebuilder.bindings],
-                ("File", "Directory"),
                 _check_adjust,
             )
-            visit_class([cachebuilder.files, cachebuilder.bindings], ("File"), _checksum)
+            visit_files([cachebuilder.files, cachebuilder.bindings], _checksum)
             self._initialworkdir(None, cachebuilder)  # test the initial working directory
 
             cmdline = flatten(list(map(cachebuilder.generate_arg, cachebuilder.bindings)))
@@ -1010,7 +997,7 @@ class CommandLineTool(Process):
 
         _check_adjust = partial(check_adjust, self.path_check_mode.value, builder)
 
-        visit_class([builder.files, builder.bindings], ("File", "Directory"), _check_adjust)
+        visit_files_directories([builder.files, builder.bindings], _check_adjust)
 
         self._initialworkdir(j, builder)
 
@@ -1087,34 +1074,30 @@ class CommandLineTool(Process):
             j.inplace_update = cast(bool, inplaceUpdateReq["inplaceUpdate"])
         normalizeFilesDirs(j.generatefiles)
 
-        readers: dict[str, CWLObjectType] = {}
+        readers: dict[str, CWLFileType | CWLDirectoryType] = {}
         muts: set[str] = set()
 
         if builder.mutation_manager is not None:
 
-            def register_mut(f: CWLObjectType) -> None:
+            def register_mut(f: CWLFileType | CWLDirectoryType) -> None:
                 mm = cast(MutationManager, builder.mutation_manager)
-                muts.add(cast(str, f["location"]))
+                muts.add(f["location"])
                 mm.register_mutation(j.name, f)
 
-            def register_reader(f: CWLObjectType) -> None:
+            def register_reader(f: CWLFileType | CWLDirectoryType) -> None:
                 mm = cast(MutationManager, builder.mutation_manager)
-                if cast(str, f["location"]) not in muts:
+                if f["location"] not in muts:
                     mm.register_reader(j.name, f)
-                    readers[cast(str, f["location"])] = copy.deepcopy(f)
+                    readers[f["location"]] = copy.deepcopy(f)
 
             for li in j.generatefiles["listing"]:
                 if li.get("writable") and j.inplace_update:
-                    adjustFileObjs(li, register_mut)
-                    adjustDirObjs(li, register_mut)
+                    adjustFileDirObjs(li, register_mut)
                 else:
-                    adjustFileObjs(li, register_reader)
-                    adjustDirObjs(li, register_reader)
+                    adjustFileDirObjs(li, register_reader)
 
-            adjustFileObjs(builder.files, register_reader)
-            adjustFileObjs(builder.bindings, register_reader)
-            adjustDirObjs(builder.files, register_reader)
-            adjustDirObjs(builder.bindings, register_reader)
+            adjustFileDirObjs(builder.files, register_reader)
+            adjustFileDirObjs(builder.bindings, register_reader)
 
         timelimit, _ = self.get_requirement("ToolTimeLimit")
         if timelimit is not None:
@@ -1223,7 +1206,7 @@ class CommandLineTool(Process):
         rcode: int,
         compute_checksum: bool = True,
         jobname: str = "",
-        readers: MutableMapping[str, CWLObjectType] | None = None,
+        readers: MutableMapping[str, CWLFileType | CWLDirectoryType] | None = None,
     ) -> OutputPortsType:
         ret: OutputPortsType = {}
         debug = _logger.isEnabledFor(logging.DEBUG)
@@ -1276,12 +1259,11 @@ class CommandLineTool(Process):
             if ret:
                 revmap = partial(revmap_file, builder, outdir)
                 adjustDirObjs(ret, trim_listing)
-                visit_class(ret, ("File", "Directory"), revmap)
-                visit_class(ret, ("File", "Directory"), remove_path)
+                visit_files_directories(ret, revmap)
+                visit_files_directories(ret, remove_path)
                 normalizeFilesDirs(ret)
-                visit_class(
+                visit_files_directories(
                     ret,
-                    ("File", "Directory"),
                     partial(check_valid_locations, fs_access),
                 )
 

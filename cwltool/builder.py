@@ -32,7 +32,7 @@ from .utils import (
     aslist,
     get_listing,
     normalizeFilesDirs,
-    visit_class,
+    visit_files_directories,
 )
 
 if TYPE_CHECKING:
@@ -165,7 +165,7 @@ class Builder(HasReqsHints):
             return self.job_script_provider.build_job_script(self, commands)
         return None
 
-    def _capture_files(self, f: CWLFileType) -> CWLFileType:
+    def _capture_files(self, f: CWLFileType | CWLDirectoryType) -> CWLFileType | CWLDirectoryType:
         self.files.append(f)
         return f
 
@@ -549,9 +549,8 @@ class Builder(HasReqsHints):
                             f"format {schema['format']!r} but\n {ve}"
                         ) from ve
 
-                visit_class(
+                visit_files_directories(
                     fdatum.get("secondaryFiles", []),
-                    ("File", "Directory"),
                     self._capture_files,
                 )
 
@@ -567,7 +566,7 @@ class Builder(HasReqsHints):
                 self.files.append(ddatum)
 
             if schema["type"] == "Any":
-                visit_class(datum, ("File", "Directory"), self._capture_files)
+                visit_files_directories(datum, self._capture_files)
 
         # Position to front of the sort key
         if binding:

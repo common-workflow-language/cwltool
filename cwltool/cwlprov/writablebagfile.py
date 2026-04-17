@@ -14,7 +14,7 @@ from mmap import mmap
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO, cast
 
-from cwl_utils.types import CWLObjectType
+from cwl_utils.types import CWLObjectType, is_file_or_directory
 from schema_salad.utils import json_dumps
 
 from ..loghandler import _logger
@@ -265,7 +265,7 @@ def create_job(
     # 2) for other attributes, the actual value.
     for key, value in copied.items():
         if isinstance(value, MutableMapping):
-            if value.get("class") in ("File", "Directory"):
+            if is_file_or_directory(value):
                 relativised_input_objecttemp[key] = value
         else:
             relativised_input_objecttemp[key] = value

@@ -9,6 +9,7 @@ from cwl_utils.types import (
     CWLOutputType,
     is_directory,
     is_file,
+    is_file_or_directory,
 )
 
 try:
@@ -221,6 +222,42 @@ def visit_class(rec: Any, cls: Iterable[Any], op: Callable[..., Any]) -> None:
             visit_class(d, cls, op)
 
 
+def visit_files(rec: Any, op: Callable[[CWLFileType], Any]) -> None:
+    """Apply a function for any File objects."""
+    if isinstance(rec, MutableMapping):
+        if is_file(rec):
+            op(rec)
+        for d in rec:
+            visit_files(rec[d], op)
+    if isinstance(rec, MutableSequence):
+        for d in rec:
+            visit_files(d, op)
+
+
+def visit_directories(rec: Any, op: Callable[[CWLDirectoryType], Any]) -> None:
+    """Apply a function for any Directory objects."""
+    if isinstance(rec, MutableMapping):
+        if is_directory(rec):
+            op(rec)
+        for d in rec:
+            visit_directories(rec[d], op)
+    if isinstance(rec, MutableSequence):
+        for d in rec:
+            visit_directories(d, op)
+
+
+def visit_files_directories(rec: Any, op: Callable[[CWLFileType | CWLDirectoryType], Any]) -> None:
+    """Apply a function for any File or Directory objects."""
+    if isinstance(rec, MutableMapping):
+        if is_file_or_directory(rec):
+            op(rec)
+        for d in rec:
+            visit_files_directories(rec[d], op)
+    if isinstance(rec, MutableSequence):
+        for d in rec:
+            visit_files_directories(d, op)
+
+
 def visit_field(rec: Any, field: str, op: Callable[..., Any]) -> None:
     """Apply a function to mapping with 'field'."""
     if isinstance(rec, MutableMapping):
@@ -252,14 +289,21 @@ def upgrade_lock(fd: IO[Any]) -> None:
     fcntl.flock(fd.fileno(), fcntl.LOCK_EX)
 
 
-def adjustFileObjs(rec: Any, op: Union[Callable[..., Any], "partial[Any]"]) -> None:
+def adjustFileObjs(rec: Any, op: Union[Callable[[CWLFileType], Any], "partial[Any]"]) -> None:
     """Apply an update function to each File object in the object `rec`."""
-    visit_class(rec, ("File",), op)
+    visit_files(rec, op)
 
 
-def adjustDirObjs(rec: Any, op: Union[Callable[..., Any], "partial[Any]"]) -> None:
+def adjustDirObjs(rec: Any, op: Union[Callable[[CWLDirectoryType], Any], "partial[Any]"]) -> None:
     """Apply an update function to each Directory object in the object `rec`."""
-    visit_class(rec, ("Directory",), op)
+    visit_directories(rec, op)
+
+
+def adjustFileDirObjs(
+    rec: Any, op: Union[Callable[[CWLFileType | CWLDirectoryType], Any], "partial[Any]"]
+) -> None:
+    """Apply an update function to each File/Directory object in the object `rec`."""
+    visit_files_directories(rec, op)
 
 
 def dedup(
@@ -268,14 +312,13 @@ def dedup(
     """Remove duplicate entries from a CWL Directory 'listing'."""
     marksub = set()
 
-    def mark(d: dict[str, str]) -> None:
+    def mark(d: CWLFileType | CWLDirectoryType) -> None:
         marksub.add(d["location"])
 
     for entry in listing:
         if is_directory(entry):
             for e in entry.get("listing", []):
-                adjustFileObjs(e, mark)
-                adjustDirObjs(e, mark)
+                adjustFileDirObjs(e, mark)
 
     dd = []
     markdup: set[str] = set()
@@ -293,7 +336,7 @@ def get_listing(
     """Expand, recursively, any 'listing' fields in a Directory."""
     if not is_directory(rec):
         finddirs: list[CWLDirectoryType] = []
-        visit_class(rec, ("Directory",), finddirs.append)
+        visit_directories(rec, finddirs.append)
         for f in finddirs:
             get_listing(fs_access, f, recursive=recursive)
         return
@@ -320,7 +363,7 @@ def get_listing(
     rec["listing"] = listing
 
 
-def trim_listing(obj: dict[str, Any]) -> None:
+def trim_listing(obj: CWLDirectoryType) -> None:
     """
     Remove 'listing' field from Directory objects that are file references.
 
@@ -474,7 +517,7 @@ def normalizeFilesDirs(
             if d.get("nameext") != ne:
                 d["nameext"] = str(ne)
 
-    visit_class(job, ("File", "Directory"), addLocation)
+    visit_files_directories(job, addLocation)
 
 
 def posix_path(local_path: str) -> str:
