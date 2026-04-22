@@ -5,7 +5,7 @@ psutil # enhances pytest-xdist to allow "-n logical"
 pytest-httpserver
 pytest-retry
 mock>=2.0.0
-pytest-mock>=1.10.0
+pytest-mock>=3.15.1
 pytest-cov
 arcp>=0.2.0
 -r requirements.txt
