@@ -193,6 +193,16 @@ pyupgrade: $(PYSOURCES)
 	pyupgrade --exit-zero-even-if-changed --py310-plus $^
 	auto-walrus $^
 
+cwltool/fast_parser.py: FORCE
+	schema-salad-tool --codegen python \
+		--codegen-parser-info "org.w3id.cwl.v1_2" \
+		--codegen-parent "https://w3id.org/cwl/salad=schema_salad.metaschema" \
+		--codegen-parent "https://w3id.org/cwl/cwl=cwl_utils.parser.cwl_v1_2" \
+		https://github.com/common-workflow-language/cwl-v1.2/raw/codegen/extensions.yml \
+		> $@
+
+regen_fast_parser: cwltool/fast_parser.py
+
 release-test: FORCE
 	git diff-index --quiet HEAD -- || ( echo You have uncommitted changes, please commit them and try again; false )
 	./release-test.sh
