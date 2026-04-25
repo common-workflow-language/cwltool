@@ -32,6 +32,7 @@ from schema_salad.utils import (
 from . import CWL_CONTENT_TYPES, process, update
 from .context import LoadingContext
 from .errors import GraphTargetMissingException
+from .fast_parser import load_document_with_metadata
 from .loghandler import _logger
 from .process import Process, get_schema, shortname
 from .update import ALLUPDATES
@@ -306,7 +307,7 @@ def fast_parser(
     lopt = LoadingOptions(idx=loadingContext.codegen_idx, fileuri=fileuri, fetcher=fetcher)
 
     if uri not in loadingContext.codegen_idx:
-        cwl_v1_2.load_document_with_metadata(
+        load_document_with_metadata(
             workflowobj,
             fileuri,
             loadingOptions=lopt,
