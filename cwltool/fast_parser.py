@@ -3849,7 +3849,7 @@ is equivalent to
    stdout: random_stdout_filenameABCDEFG
 
 
-If the ``CommandLineTool`` contains logically chained commands (e.g. ``echo a &amp;&amp; echo b``) ``stdout`` must include the output of every command.
+If the ``CommandLineTool`` contains logically chained commands (e.g. ``echo a && echo b``) ``stdout`` must include the output of every command.
 """
 stderrLoader: Final = _EnumLoader(("stderr",), "stderr")
 """
