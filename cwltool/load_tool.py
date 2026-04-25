@@ -18,6 +18,7 @@ from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from schema_salad.exceptions import ValidationException
 from schema_salad.fetcher import Fetcher
 from schema_salad.ref_resolver import Loader, file_uri
+from schema_salad.runtime import LoadingOptions, save
 from schema_salad.schema import validate_doc
 from schema_salad.sourceline import SourceLine, cmap
 from schema_salad.utils import (
@@ -31,6 +32,7 @@ from schema_salad.utils import (
 from . import CWL_CONTENT_TYPES, process, update
 from .context import LoadingContext
 from .errors import GraphTargetMissingException
+from .fast_parser import load_document_with_metadata
 from .loghandler import _logger
 from .process import Process, get_schema, shortname
 from .update import ALLUPDATES
@@ -264,9 +266,7 @@ def _fast_parser_convert_stdstreams_to_files(
                     _fast_parser_convert_stdstreams_to_files(p)
 
 
-def _fast_parser_expand_hint_class(
-    hints: Any | None, loadingOptions: cwl_v1_2.LoadingOptions
-) -> None:
+def _fast_parser_expand_hint_class(hints: Any | None, loadingOptions: LoadingOptions) -> None:
     if isinstance(hints, MutableSequence):
         for h in hints:
             if isinstance(h, MutableMapping) and "class" in h:
@@ -277,7 +277,7 @@ def _fast_parser_expand_hint_class(
 
 def _fast_parser_handle_hints(
     processobj: cwl_v1_2.Process | MutableSequence[cwl_v1_2.Process],
-    loadingOptions: cwl_v1_2.LoadingOptions,
+    loadingOptions: LoadingOptions,
 ) -> None:
     if isinstance(processobj, (cwl_v1_2.CommandLineTool, cwl_v1_2.Workflow)):
         _fast_parser_expand_hint_class(processobj.hints, loadingOptions)
@@ -304,10 +304,10 @@ def fast_parser(
     loadingContext: LoadingContext,
     fetcher: Fetcher,
 ) -> tuple[CommentedMap | CommentedSeq, CommentedMap]:
-    lopt = cwl_v1_2.LoadingOptions(idx=loadingContext.codegen_idx, fileuri=fileuri, fetcher=fetcher)
+    lopt = LoadingOptions(idx=loadingContext.codegen_idx, fileuri=fileuri, fetcher=fetcher)
 
     if uri not in loadingContext.codegen_idx:
-        cwl_v1_2.load_document_with_metadata(
+        load_document_with_metadata(
             workflowobj,
             fileuri,
             loadingOptions=lopt,
@@ -321,7 +321,7 @@ def fast_parser(
 
     processobj: MutableMapping[str, Any] | MutableSequence[Any] | i32 | i64 | float | str | None
 
-    processobj = cwl_v1_2.save(objects, relative_uris=False)
+    processobj = save(objects, relative_uris=False)
 
     metadata: dict[str, Any] = {}
     metadata["id"] = loadopt.fileuri
@@ -351,7 +351,7 @@ def fast_parser(
             fileobj = cmap(
                 cast(
                     Union[int, float, str, dict[str, Any], list[Any], None],
-                    cwl_v1_2.save(objects, relative_uris=False),
+                    save(objects, relative_uris=False),
                 )
             )
             visit_class(

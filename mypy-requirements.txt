@@ -1,6 +1,6 @@
 mypy==1.20.1  # also update pyproject.toml
 ruamel.yaml>=0.16.0,<0.20
-cwl-utils>=0.41
+cwl-utils @ git+https://github.com/common-workflow-language/cwl-utils.git@refs/pull/413/head
 cwltest
 types-requests
 types-setuptools
