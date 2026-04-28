@@ -13,6 +13,8 @@ concurrency:
   group: wheels-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   build_wheels:
     name: ${{ matrix.image }} wheels
@@ -27,15 +29,17 @@ jobs:
             build: "*musllinux*"
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: ${{ github.event_name != 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
-      - uses: actions/checkout@v6
+          persist-credentials: false
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: ${{ github.event_name == 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
           ref: ${{ github.event.client_payload.ref }}
+          persist-credentials: false
 
       # - name: Set up QEMU
       #   if: runner.os == 'Linux'
@@ -44,7 +48,7 @@ jobs:
       #     platforms: all
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4
+        uses: pypa/cibuildwheel@8d2b08b68458a16aeb24b64e68a09ab1c8e82084 # v3.4
         env:
           CIBW_BUILD: ${{ matrix.build }}
           CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/${{ matrix.image }}
@@ -54,7 +58,7 @@ jobs:
           # Linux arm64 wheels are built on circleci
           CIBW_ARCHS_LINUX: auto64 # ppc64le s390x
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: artifact-${{ matrix.image }}
           path: ./wheelhouse/*.whl
@@ -63,20 +67,22 @@ jobs:
     name: Build source distribution
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: ${{ github.event_name != 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
-      - uses: actions/checkout@v6
+          persist-credentials: false
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: ${{ github.event_name == 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
           ref: ${{ github.event.client_payload.ref }}
+          persist-credentials: false
 
       - name: Build sdist
         run: pipx run build --sdist
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: artifact-source
           path: dist/*.tar.gz
@@ -89,20 +95,22 @@ jobs:
         # macos-15-intel is an intel runner, macos-14 is apple silicon
         os: [macos-15-intel, macos-14, macos-15]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: ${{ github.event_name != 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
-      - uses: actions/checkout@v6
+          persist-credentials: false
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         if: ${{ github.event_name == 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
           ref: ${{ github.event.client_payload.ref }}
+          persist-credentials: false
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4
+        uses: pypa/cibuildwheel@8d2b08b68458a16aeb24b64e68a09ab1c8e82084 # v3.4
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: artifact-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
