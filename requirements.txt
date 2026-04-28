@@ -1,4 +1,4 @@
-requests>=2.32.2
+requests>=2.33.1
 ruamel.yaml>=0.16.0,<0.20
 rdflib>=4.2.2,<7.7
 schema-salad>=8.9,<9
