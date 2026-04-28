@@ -13,6 +13,6 @@ cwl-utils>=0.41
 spython>=0.3.0
 rich-argparse
 pygments>=2.20.0  # fix for CVE-2026-4539
-typing-extensions>=4.1.0
+typing-extensions>=4.15.0
 urllib3>=1.26.19 # not directly required, pinned by Snyk to avoid a vulnerability
 zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
