@@ -1,5 +1,6 @@
 """Support for executing Docker format containers using Singularity {2,3}.x or Apptainer 1.x."""
 
+import atexit
 import copy
 import hashlib
 import json
@@ -11,7 +12,10 @@ import shutil
 import sys
 import threading
 from collections.abc import Callable, MutableMapping, MutableSequence
+from contextlib import suppress
+from importlib.resources import files as resource_files
 from subprocess import check_call, check_output, run  # nosec
+from tempfile import NamedTemporaryFile
 from typing import cast
 
 from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType
@@ -29,6 +33,7 @@ from .docker import DockerCommandLineJob
 from .errors import WorkflowException
 from .job import ContainerCommandLineJob
 from .loghandler import _logger
+from .mpi import MPIRequirementName
 from .pathmapper import MapperEnt, PathMapper
 from .singularity_utils import singularity_supports_userns
 from .utils import create_tmp_dir, ensure_non_writable, ensure_writable
@@ -203,7 +208,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         hints: list[CWLObjectType],
         name: str,
     ) -> None:
-        """Builder for invoking the Singularty software container engine."""
+        """Builder for invoking the Singularity software container engine."""
         super().__init__(builder, joborder, make_path_mapper, requirements, hints, name)
 
     @staticmethod
@@ -592,14 +597,55 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         """Return the Singularity runtime list of commands and options."""
         any_path_okay = self.builder.get_requirement("DockerRequirement")[1] or False
 
-        runtime = [
-            "singularity",
-            "--quiet",
-            "run" if (is_apptainer_1_1_or_newer() or is_version_3_10_or_newer()) else "exec",
-            "--contain",
-            "--ipc",
-            "--cleanenv",
-        ]
+        mpi_req, is_req = self.builder.get_requirement(MPIRequirementName)
+        mpi_enabled = mpi_req and is_req
+        mpi_config = runtime_context.mpi_config
+        mpi_env_vars_reference_file_name: str | None = None
+        runtime: list[str] = []
+        if mpi_enabled:
+            # Save current environment variables. The ``singularity_wrapper.sh`` will
+            # diff it against the env vars produced by mpirun/srun/etc., and use the new
+            # env vars as SINGULARITYENV_... for Singularity.
+            with NamedTemporaryFile(mode="w+", delete=False) as f:
+                for k, v in os.environ.items():
+                    f.write(f"{k}={v}\n")
+                mpi_env_vars_reference_file_name = f.name
+
+            def delete_mpi_baseline_env() -> None:
+                """Clean up the MPI baseline environment variables file at exit."""
+                with suppress(FileNotFoundError):  # pragma: no cover
+                    os.remove(mpi_env_vars_reference_file_name)  # pragma: no cover
+
+            atexit.register(delete_mpi_baseline_env)
+
+            runtime.extend(
+                [
+                    str(resource_files("cwltool") / "singularity_wrapper.sh"),
+                    mpi_env_vars_reference_file_name,
+                    "singularity",
+                ]
+            )
+        else:
+            runtime.append("singularity")
+
+        runtime.extend(
+            [
+                "--quiet",
+                "run" if (is_apptainer_1_1_or_newer() or is_version_3_10_or_newer()) else "exec",
+                "--contain",
+                "--ipc",
+                "--cleanenv",
+            ]
+        )
+        if mpi_enabled and mpi_config.shm_enabled:
+            # MPI implementations like OpenMPI and MPICH use shared memory.
+            self.append_volume(
+                runtime,
+                runtime_context.create_tmpdir(),
+                mpi_config.shm_dir,
+                writable=True,
+            )
+
         if is_apptainer_1_1_or_newer() or is_version_3_10_or_newer():
             runtime.append("--no-eval")
 
@@ -665,4 +711,4 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if container_HOME:
             # Restore HOME if we removed it above.
             self.environment["HOME"] = container_HOME
-        return (runtime, None)
+        return runtime, None
