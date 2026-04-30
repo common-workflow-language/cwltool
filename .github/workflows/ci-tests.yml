@@ -158,7 +158,7 @@ jobs:
 
       - name: install with test dependencies
         run: |
-          pip install pip==23.1 setuptools==67.6.1 wheel
+          pip install pip==23.1 setuptools==67.6.1 wheel hatchling
           pip install --no-build-isolation -rtest-requirements.txt .[deps]
 
       - name: make working directory read-only

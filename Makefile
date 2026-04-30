@@ -89,18 +89,18 @@ clean: FORCE
 
 # Linting and code style related targets
 ## sort_import            : sorting imports using isort: https://github.com/timothycrosley/isort
-sort_imports: $(PYSOURCES) mypy-stubs
+sort_imports: $(filter-out cwltool/fast_parser.py,$(PYSOURCES)) mypy-stubs
 	isort $^
 
-remove_unused_imports: $(PYSOURCES)
+remove_unused_imports: $(filter-out cwltool/fast_parser.py,$(PYSOURCES))
 	autoflake --in-place --remove-all-unused-imports $^
 
 pep257: pydocstyle
 ## pydocstyle             : check Python docstring style
-pydocstyle: $(PYSOURCES)
+pydocstyle:$(filter-out cwltool/fast_parser.py,$(PYSOURCES))
 	pydocstyle --add-ignore=D100,D101,D102,D103 $^ || true
 
-pydocstyle_report.txt: $(PYSOURCES)
+pydocstyle_report.txt: $(filter-out cwltool/fast_parser.py,$(PYSOURCES))
 	pydocstyle setup.py $^ > $@ 2>&1 || true
 
 ## diff_pydocstyle_report : check Python docstring style for changed files only
@@ -118,10 +118,10 @@ codespell-fix:
 
 ## format                 : check/fix all code indentation and formatting (runs black)
 format:
-	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
+	black --exclude cwltool/fast_parser.py cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
 format-check:
-	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
+	black --diff --check --exclude cwltool/fast_parser.py cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
 
 ## pylint                 : run static code analysis on Python code
 pylint: $(PYSOURCES)
@@ -159,11 +159,11 @@ diff-cover.html: coverage.xml
 	diff-cover --compare-branch=main $^ --html-report $@
 
 ## test                   : run the cwltool test suite
-test: $(PYSOURCES)
+test: $(filter-out cwltool/fast_parser.py,$(PYSOURCES))
 	python3 -m pytest ${PYTEST_EXTRA}
 
 ## testcov                : run the cwltool test suite and collect coverage
-testcov: $(PYSOURCES)
+testcov: $(filter-out cwltool/fast_parser.py,$(PYSOURCES))
 	python3 -m pytest --cov --cov-config=.coveragerc --cov-report= ${PYTEST_EXTRA}
 
 sloccount.sc: $(PYSOURCES) Makefile
@@ -178,10 +178,10 @@ list-author-emails:
 	@git log --format='%aN,%aE' | sort -u | grep -v 'root'
 
 mypy3: mypy
-mypy: $(PYSOURCES)
+mypy: $(filter-out cwltool/fast_parser.py,$(PYSOURCES))
 	MYPYPATH=$$MYPYPATH:mypy-stubs mypy $^
 
-mypyc: $(PYSOURCES)
+mypyc: $(filter-out cwltool/fast_parser.py,$(PYSOURCES))
 	MYPYPATH=mypy-stubs CWLTOOL_USE_MYPYC=1 pip install --verbose -e . \
 		 && pytest -vv ${PYTEST_EXTRA}
 
@@ -189,7 +189,7 @@ shellcheck: FORCE
 	shellcheck build-cwltool-docker.sh cwl-docker.sh release-test.sh conformance-test.sh \
 		cwltool-in-docker.sh
 
-pyupgrade: $(PYSOURCES)
+pyupgrade: $(filter-out cwltool/fast_parser.py,$(PYSOURCES))
 	pyupgrade --exit-zero-even-if-changed --py310-plus $^
 	auto-walrus $^
 
@@ -217,7 +217,7 @@ release:
 		twine upload testenv2/src/${MODULE}/dist/* && \
 		git tag ${VERSION} && git push --tags
 
-flake8: $(PYSOURCES)
+flake8: $(filter-out cwltool/fast_parser.py,$(PYSOURCES))
 	flake8 $^
 
 FORCE:
