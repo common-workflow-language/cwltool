@@ -152,7 +152,7 @@ setup(
         # https://github.com/ionrock/cachecontrol/issues/137
         "ruamel.yaml >= 0.16, < 0.20",
         "rdflib >= 4.2.2, < 7.7.0",
-        "schema-salad @ git+https://github.com/common-workflow-language/schema_salad.git@refs/pull/1028/head",
+        "schema-salad @ git+https://github.com/common-workflow-language/schema_salad.git@refs/pull/1063/head",
         "prov == 1.5.1",
         "mypy-extensions",
         "psutil >= 5.6.6",
