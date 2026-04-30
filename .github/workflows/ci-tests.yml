@@ -69,7 +69,7 @@ jobs:
 
       - name: Upgrade setuptools and install tox
         run: |
-          pip install -U pip setuptools wheel
+          pip install -U pip setuptools wheel hatchling
           pip install tox tox-gh-actions
 
       - name: MyPy cache
@@ -115,7 +115,7 @@ jobs:
 
       - name: Upgrade setuptools and install tox
         run: |
-          pip install -U pip setuptools wheel
+          pip install -U pip setuptools wheel hatchling
           pip install tox tox-gh-actions
 
       - if: ${{ matrix.step == 'pydocstyle' && github.event_name == 'pull_request'}}
@@ -251,7 +251,7 @@ jobs:
 
       - name: Install packages
         run: |
-          pip install -U pip setuptools wheel
+          pip install -U pip setuptools wheel hatchling
           pip install virtualenv
 
       - name: Release test
@@ -289,7 +289,7 @@ jobs:
             tox.ini
       - name: Upgrade setuptools and install tox
         run: |
-          pip install -U pip setuptools wheel
+          pip install -U pip setuptools wheel hatchling
           pip install tox tox-gh-actions
       # # docker for mac install is not currently stable
       # - name: 'SETUP MacOS: load Homebrew cache'
