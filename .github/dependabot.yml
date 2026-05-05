@@ -11,6 +11,7 @@ updates:
       interval: "daily"
     cooldown:
       default-days: 7
+    versioning-strategy: "widen"
   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
