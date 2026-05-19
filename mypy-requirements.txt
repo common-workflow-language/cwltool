@@ -1,4 +1,4 @@
-mypy==2.0.0  # also update pyproject.toml
+mypy==2.1.0  # also update pyproject.toml
 ruamel.yaml>=0.16.0,<0.20
 cwl-utils>=0.41
 cwltest
