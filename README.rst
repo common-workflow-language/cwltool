@@ -663,41 +663,46 @@ The host-specific parameters are configured in a simple YAML file
 (specified with the ``--mpi-config-file`` flag). The allowed keys are
 given in the following table; all are optional.
 
-+----------------+------------------+----------+------------------------------+
-| Key            | Type             | Default  | Description                  |
-+================+==================+==========+==============================+
-| runner         | str              | "mpirun" | The primary command to use.  |
-+----------------+------------------+----------+------------------------------+
-| nproc_flag     | str              | "-n"     | Flag to set number of        |
-|                |                  |          | processes to start.          |
-+----------------+------------------+----------+------------------------------+
-| default_nproc  | int              | 1        | Default number of processes. |
-+----------------+------------------+----------+------------------------------+
-| extra_flags    | List[str]        | []       | A list of any other flags to |
-|                |                  |          | be added to the runner's     |
-|                |                  |          | command line before          |
-|                |                  |          | the ``baseCommand``.         |
-+----------------+------------------+----------+------------------------------+
-| env_pass       | List[str]        | []       | A list of environment        |
-|                |                  |          | variables that should be     |
-|                |                  |          | passed from the host         |
-|                |                  |          | environment through to the   |
-|                |                  |          | tool (e.g., giving the       |
-|                |                  |          | node list as set by your     |
-|                |                  |          | scheduler).                  |
-+----------------+------------------+----------+------------------------------+
-| env_pass_regex | List[str]        | []       | A list of python regular     |
-|                |                  |          | expressions that will be     |
-|                |                  |          | matched against the host's   |
-|                |                  |          | environment. Those that match|
-|                |                  |          | will be passed through.      |
-+----------------+------------------+----------+------------------------------+
-| env_set        | Mapping[str,str] | {}       | A dictionary whose keys are  |
-|                |                  |          | the environment variables set|
-|                |                  |          | and the values being the     |
-|                |                  |          | values.                      |
-+----------------+------------------+----------+------------------------------+
-
++----------------+------------------+------------+------------------------------+
+| Key            | Type             | Default    | Description                  |
++================+==================+============+==============================+
+| runner         | str              | "mpirun"   | The primary command to use.  |
++----------------+------------------+------------+------------------------------+
+| nproc_flag     | str              | "-n"       | Flag to set number of        |
+|                |                  |            | processes to start.          |
++----------------+------------------+------------+------------------------------+
+| default_nproc  | int              | 1          | Default number of processes. |
++----------------+------------------+------------+------------------------------+
+| extra_flags    | List[str]        | []         | A list of any other flags to |
+|                |                  |            | be added to the runner's     |
+|                |                  |            | command line before          |
+|                |                  |            | the ``baseCommand``.         |
++----------------+------------------+------------+------------------------------+
+| env_pass       | List[str]        | []         | A list of environment        |
+|                |                  |            | variables that should be     |
+|                |                  |            | passed from the host         |
+|                |                  |            | environment through to the   |
+|                |                  |            | tool (e.g., giving the       |
+|                |                  |            | node list as set by your     |
+|                |                  |            | scheduler).                  |
++----------------+------------------+------------+------------------------------+
+| env_pass_regex | List[str]        | []         | A list of python regular     |
+|                |                  |            | expressions that will be     |
+|                |                  |            | matched against the host's   |
+|                |                  |            | environment. Those that match|
+|                |                  |            | will be passed through.      |
++----------------+------------------+------------+------------------------------+
+| env_set        | Mapping[str,str] | {}         | A dictionary whose keys are  |
+|                |                  |            | the environment variables set|
+|                |                  |            | and the values being the     |
+|                |                  |            | values.                      |
++----------------+------------------+------------+------------------------------+
+| shm_enabled    | bool             | True       | Flag to control whether      |
+|                |                  |            | shared memory is used or not.|
++----------------+------------------+------------+------------------------------+
+| shm_dir        | str              | "/dev/shm" | Location to use for shared   |
+|                |                  |            | memory.                      |
++----------------+------------------+------------+------------------------------+
 
 Enabling Fast Parser (experimental)
 ===================================
