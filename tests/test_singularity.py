@@ -15,6 +15,7 @@ from cwltool.singularity import (
     _IMAGES,
     _IMAGES_LOCK,
     _inspect_singularity_sandbox_image,
+    _normalize_sif_id,
 )
 
 from .util import (
@@ -31,6 +32,39 @@ from .util import (
 def clear_singularity_image_cache() -> None:
     with _IMAGES_LOCK:
         _IMAGES.clear()
+
+
+def test_normalize_sif_id_resists_collision() -> None:
+    """Test that tricky image names can't collide."""
+    assert _normalize_sif_id("ubuntu:latest") != _normalize_sif_id("ubuntu_latest")
+    assert _normalize_sif_id("docker://user_name/repo") != _normalize_sif_id("docker://user/name_repo")
+    assert _normalize_sif_id("http://something.com/something.sif") != _normalize_sif_id("http:_something.com/something.sif")
+
+
+def test_normalize_sif_id_implies_latest() -> None:
+    """
+    Test that image names that imply latest are equivalent to those that
+    specify it.
+    """
+    assert _normalize_sif_id("ubuntu") == _normalize_sif_id("ubuntu:latest")
+    assert _normalize_sif_id("quay.io/adamnovak/hap.py") == _normalize_sif_id("quay.io/adamnovak/hap.py:latest")
+
+
+def test_normalize_sif_id_does_not_tag_protocols() -> None:
+    """
+    Test that if an image comes from a string with a protocol, no tag is added.
+    """
+    assert _normalize_sif_id("docker://library/ubuntu") != _normalize_sif_id("docker://library/ubuntu:latest")
+
+
+def test_normalize_sif_id_matches_cwl_utils_tests() -> None:
+    """
+    Make sure that the particular values tested in cwl-utils get the same
+    answers here as there.
+    """
+
+    assert _normalize_sif_id("some_name/repo:123") == f"some___name_s_repo:123.sif"
+    assert _normalize_sif_id("some/name_repo:123") == f"some_s_name___repo:123.sif"
 
 
 @needs_singularity_2_6
@@ -194,7 +228,7 @@ def test_singularity_dockerfile_no_name_no_cache(tmp_path: Path) -> None:
             ]
         )
         assert result_code == 0, stderr
-    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
+    assert not (workdir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")).exists()
 
 
 @needs_singularity_3_or_newer
@@ -217,8 +251,8 @@ def test_singularity_dockerfile_no_name_with_cache(
                 ]
             )
             assert result_code == 0, stderr
-    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
-    assert (cachedir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
+    assert not (workdir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")).exists()
+    assert (cachedir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")).exists()
 
 
 @needs_singularity_3_or_newer
@@ -236,8 +270,8 @@ def test_singularity_dockerfile_with_name_no_cache(tmp_path: Path) -> None:
         )
         assert result_code == 0, stderr
     print(list(workdir.iterdir()))
-    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
-    assert not (workdir / "customDebian_latest.sif").exists()
+    assert not (workdir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")).exists()
+    assert not (workdir / _normalize_sif_id("customDebian")).exists()
 
 
 @needs_singularity_3_or_newer
@@ -262,10 +296,10 @@ def test_singularity_dockerfile_with_name_with_cache(
             print(list(workdir.iterdir()))
             print(list(cachedir.iterdir()))
             assert result_code == 0, stderr
-    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
-    assert not (cachedir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
-    assert not (workdir / "customDebian_latest.sif").exists()
-    assert (cachedir / "customDebian_latest.sif").exists()
+    assert not (workdir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")).exists()
+    assert not (cachedir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")).exists()
+    assert not (workdir / _normalize_sif_id("customDebian")).exists()
+    assert (cachedir / _normalize_sif_id("customDebian")).exists()
 
 
 @needs_singularity
