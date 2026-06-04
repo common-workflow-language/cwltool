@@ -180,7 +180,6 @@ def _encode_container_image(string: str) -> str:
     No two distinct inputs that refer to distinct container images will produce
     the same result. The result is human-readable.
     """
-
     # See https://stackoverflow.com/a/43091578 for information on allowed
     # patterns of Docker image specifiers.
     has_tag_or_digest = re.search(
