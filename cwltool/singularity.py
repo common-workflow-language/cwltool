@@ -213,7 +213,7 @@ def _normalize_sif_id(string: str) -> str:
     When two inputs refer to different images, the results for those inputs are
     guaranteed to be distinct.
     """
-   return _encode_container_image(string) + ".sif"
+    return _encode_container_image(string) + ".sif"
 
 
 @mypyc_attr(allow_interpreted_subclasses=True)
