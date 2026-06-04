@@ -183,7 +183,10 @@ def _encode_container_image(string: str) -> str:
 
     # See https://stackoverflow.com/a/43091578 for information on allowed
     # patterns of Docker image specifiers.
-    has_tag_or_digest = re.search(pattern=r"(:[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}|@[a-z0-9]+([+._-][a-z0-9]+)*:[a-zA-Z0-9=_-]+)$", string=string)
+    has_tag_or_digest = re.search(
+        pattern=r"(:[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}|@[a-z0-9]+([+._-][a-z0-9]+)*:[a-zA-Z0-9=_-]+)$",
+        string=string,
+    )
 
     has_protocol = re.search(pattern=r"^[a-zA-Z0-9-_]+://", string=string)
 

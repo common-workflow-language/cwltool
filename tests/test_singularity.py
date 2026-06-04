@@ -37,8 +37,12 @@ def clear_singularity_image_cache() -> None:
 def test_normalize_sif_id_resists_collision() -> None:
     """Test that tricky image names can't collide."""
     assert _normalize_sif_id("ubuntu:latest") != _normalize_sif_id("ubuntu_latest")
-    assert _normalize_sif_id("docker://user_name/repo") != _normalize_sif_id("docker://user/name_repo")
-    assert _normalize_sif_id("http://something.com/something.sif") != _normalize_sif_id("http:_something.com/something.sif")
+    assert _normalize_sif_id("docker://user_name/repo") != _normalize_sif_id(
+        "docker://user/name_repo"
+    )
+    assert _normalize_sif_id("http://something.com/something.sif") != _normalize_sif_id(
+        "http:_something.com/something.sif"
+    )
 
 
 def test_normalize_sif_id_implies_latest() -> None:
@@ -47,14 +51,18 @@ def test_normalize_sif_id_implies_latest() -> None:
     specify it.
     """
     assert _normalize_sif_id("ubuntu") == _normalize_sif_id("ubuntu:latest")
-    assert _normalize_sif_id("quay.io/adamnovak/hap.py") == _normalize_sif_id("quay.io/adamnovak/hap.py:latest")
+    assert _normalize_sif_id("quay.io/adamnovak/hap.py") == _normalize_sif_id(
+        "quay.io/adamnovak/hap.py:latest"
+    )
 
 
 def test_normalize_sif_id_does_not_tag_protocols() -> None:
     """
     Test that if an image comes from a string with a protocol, no tag is added.
     """
-    assert _normalize_sif_id("docker://library/ubuntu") != _normalize_sif_id("docker://library/ubuntu:latest")
+    assert _normalize_sif_id("docker://library/ubuntu") != _normalize_sif_id(
+        "docker://library/ubuntu:latest"
+    )
 
 
 def test_normalize_sif_id_matches_cwl_utils_tests() -> None:
@@ -63,8 +71,8 @@ def test_normalize_sif_id_matches_cwl_utils_tests() -> None:
     answers here as there.
     """
 
-    assert _normalize_sif_id("some_name/repo:123") == f"some___name_s_repo:123.sif"
-    assert _normalize_sif_id("some/name_repo:123") == f"some_s_name___repo:123.sif"
+    assert _normalize_sif_id("some_name/repo:123") == "some___name_s_repo:123.sif"
+    assert _normalize_sif_id("some/name_repo:123") == "some_s_name___repo:123.sif"
 
 
 @needs_singularity_2_6
