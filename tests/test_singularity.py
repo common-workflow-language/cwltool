@@ -175,6 +175,10 @@ def test_singularity_local(tmp_path: Path) -> None:
 
 @needs_singularity_2_6
 def test_singularity2_docker_image_id_in_tool(tmp_path: Path) -> None:
+    """
+    Ensure that images end up cached at the expected path and are loadable from
+    it with Singularity 2.
+    """
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
     with working_directory(workdir):
@@ -199,6 +203,10 @@ def test_singularity2_docker_image_id_in_tool(tmp_path: Path) -> None:
 
 @needs_singularity_3_or_newer
 def test_singularity3_docker_image_id_in_tool(tmp_path: Path) -> None:
+    """
+    Ensure that images end up cached at the expected path and are loadable from
+    it with Singularity 3.
+    """
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
     with working_directory(workdir):
