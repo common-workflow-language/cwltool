@@ -511,10 +511,10 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         elif runtimeContext.preserve_environment:
             self._preserve_environment_on_containers_warning(runtimeContext.preserve_environment)
 
-        env.update(self.extract_environment(runtimeContext, envVarReq))
-
         # Set required env vars
         env.update(self._required_env())
+
+        env.update(self.extract_environment(runtimeContext, envVarReq))
 
         # Set on ourselves
         self.environment = env
