@@ -325,17 +325,17 @@ def test_preserve_entire_environment_honors_step_env_requirements(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Test that step EnvVarRequirement is honored with --preserve-entire-environment.
-    
+
     This test verifies the fix for the bug where EnvRequirements set on
     workflow steps are not honored when using --preserve-entire-environment.
     """
     tmp_prefix = str(tmp_path / "canary")
-    
+
     # Create a simple test environment variable that should be preserved
     extra_env = {
         "TEST_PRESERVED_VAR": "should_be_preserved",
     }
-    
+
     # Prepare arguments for cwltool
     args = [
         "--no-container",
@@ -343,41 +343,40 @@ def test_preserve_entire_environment_honors_step_env_requirements(
         "--preserve-entire-environment",
         get_data("tests/env-preserve-step-wf.cwl"),
     ]
-    
+
     # Add extra env vars
     for k, v in extra_env.items():
         monkeypatch.setenv(k, v)
-    
+
     # Run cwltool
     stdout = io.StringIO()
     stderr = io.StringIO()
-    
+
     with working_directory(tmp_path):
         rc = main(argsl=args, stdout=stdout, stderr=stderr)
-    
-    assert rc == 0, f"cwltool failed with rc={rc}\nstdout:\n{stdout.getvalue()}\nstderr:\n{stderr.getvalue()}"
-    
+
+    assert (
+        rc == 0
+    ), f"cwltool failed with rc={rc}\nstdout:\n{stdout.getvalue()}\nstderr:\n{stderr.getvalue()}"
+
     # Parse the output
     output = json.loads(stdout.getvalue())
     env_file = output["env"]["path"]
-    
+
     # Read and deserialize the environment from the file
     with open(env_file) as f:
         env = deserialize_env(f.read())
-    
+
     # Verify that the step's EnvVarRequirement is honored
     # The step has: EnvVarRequirement with envDef: TMPDIR: /custom/tmpdir
     # This should override the --tmpdir-prefix setting
-    assert "TMPDIR" in env, (
-        f"TMPDIR not found in environment. "
-        f"Environment: {env}"
-    )
+    assert "TMPDIR" in env, f"TMPDIR not found in environment. " f"Environment: {env}"
     assert env["TMPDIR"] == "/custom/tmpdir", (
         f"EnvVarRequirement value not set correctly. "
         f"Expected '/custom/tmpdir', got '{env.get('TMPDIR')}' "
         f"(This indicates the bug - step's EnvVarRequirement is being ignored)"
     )
-    
+
     # Verify that preserved environment variables are also present
     assert "TEST_PRESERVED_VAR" in env, (
         f"Environment variable should be preserved with --preserve-entire-environment. "
