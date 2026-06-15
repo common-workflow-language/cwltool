@@ -85,14 +85,6 @@ jobs:
       - name: Test with tox
         run: APPTAINER_TMPDIR=${RUNNER_TEMP} tox
 
-      - name: Upload coverage to Codecov
-        if: ${{ matrix.step == 'unit' }}
-        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
-        with:
-          fail_ci_if_error: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
   tox-style:
     name: Linters
     runs-on: ubuntu-24.04
@@ -228,12 +220,6 @@ jobs:
           name: cwl-${{ matrix.cwl-version }}-${{ matrix.container }}${{ matrix.extras }}-conformance-results
           path: |
             **/cwltool_conf*.xml
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
-        with:
-          fail_ci_if_error: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   release_test:
     name: cwltool release test
     runs-on: ubuntu-24.04
@@ -317,9 +303,4 @@ jobs:
       #   uses: docker-practice/actions-setup-docker@master
       - name: Test with tox
         run: tox
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
-        with:
-          fail_ci_if_error: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
