@@ -373,7 +373,7 @@ def test_preserve_entire_environment_honors_step_env_requirements(
     assert "TMPDIR" in env, f"TMPDIR not found in environment. " f"Environment: {env}"
     assert env["TMPDIR"] == "/custom/tmpdir", (
         f"EnvVarRequirement value not set correctly. "
-        f"Expected '/custom/tmpdir', got '{env.get('TMPDIR')}' "
+        f"Expected '/custom/tmpdir', got {env.get('TMPDIR')!r} "
         f"(This indicates the bug - step's EnvVarRequirement is being ignored)"
     )
 
@@ -384,5 +384,5 @@ def test_preserve_entire_environment_honors_step_env_requirements(
     )
     assert env["TEST_PRESERVED_VAR"] == "should_be_preserved", (
         f"Preserved environment variable has wrong value. "
-        f"Expected 'should_be_preserved', got '{env.get('TEST_PRESERVED_VAR')}'"
+        f"Expected 'should_be_preserved', got {env.get('TEST_PRESERVED_VAR')!r}"
     )
