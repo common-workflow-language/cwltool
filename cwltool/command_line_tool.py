@@ -259,8 +259,8 @@ def revmap_file(
             f["location"] = builder.fs_access.join(outdir, f["location"])
             return f
 
-    if is_file(f) and "dirname" in f:
-        del f["dirname"]
+    if "dirname" in f:
+        del f["dirname"]  # type: ignore[typeddict-item]
 
     if "path" in f:
         path = builder.fs_access.join(builder.outdir, f["path"])
