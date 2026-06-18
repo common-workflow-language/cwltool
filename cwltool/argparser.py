@@ -89,6 +89,7 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser = argparse.ArgumentParser(
+        prog="cwltool",
         formatter_class=RichHelpFormatter,
         description="Reference executor for Common Workflow Language standards. "
         "Not for production use.",
