@@ -57,6 +57,34 @@ def test_validate_with_invalid_input_object() -> None:
     )
 
 
+def test_validate_warns_on_format_for_non_file() -> None:
+    """`format` on a non-File parameter (e.g. Directory) warns but still validates (#1616, #607)."""
+    custom_log = io.StringIO()
+    handler = logging.StreamHandler(custom_log)
+    handler.setLevel(logging.DEBUG)
+    exit_code, _, _ = get_main_output(
+        ["--validate", get_data("tests/wf/format-on-directory.cwl")],
+        logger_handler=handler,
+    )
+    log_text = re.sub(r"\s\s+", " ", custom_log.getvalue())
+    assert exit_code == 0
+    assert "'format' is only valid for 'File' type parameters" in log_text
+    assert "'indir' is not a File" in log_text
+
+
+def test_validate_no_format_warning_for_file() -> None:
+    """`format` on a File parameter is valid and must not warn (#1616, #607)."""
+    custom_log = io.StringIO()
+    handler = logging.StreamHandler(custom_log)
+    handler.setLevel(logging.DEBUG)
+    exit_code, _, _ = get_main_output(
+        ["--validate", get_data("tests/wf/format-on-file.cwl")],
+        logger_handler=handler,
+    )
+    assert exit_code == 0
+    assert "'format' is only valid" not in custom_log.getvalue()
+
+
 def test_validate_quiet() -> None:
     """Ensure that --validate --quiet prints the correct amount of information."""
     exit_code, stdout, stderr = get_main_output(
