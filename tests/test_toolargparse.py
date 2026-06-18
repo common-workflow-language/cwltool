@@ -328,3 +328,27 @@ def test_argparse_append_with_default(job_order: list[str], expected_values: lis
     cmd_line = vars(toolparser.parse_args(job_order))
     file_paths = list(cmd_line["file_paths"])
     assert expected_values == file_paths
+
+
+@pytest.mark.parametrize(
+    "cwl_file,expected_default",
+    [
+        ("tests/wf/779-boolean-default-false.cwl", False),
+        ("tests/wf/779-boolean-default-true.cwl", True),
+    ],
+)
+def test_boolean_with_default_not_required(cwl_file: str, expected_default: bool) -> None:
+    """A boolean input with a default value must not be a required CLI argument.
+
+    Regression test for https://github.com/common-workflow-language/cwltool/issues/779
+    where ``default: false`` was incorrectly treated as a required ``--a_bool`` flag.
+    """
+    loadingContext = LoadingContext()
+    tool = load_tool(get_data(cwl_file), loadingContext)
+    # input_required=True mirrors the default CLI behavior; the input must still be
+    # optional purely because it declares a default value.
+    toolparser = generate_parser(argparse.ArgumentParser(prog="test"), tool, {}, [], True)
+    # Parsing with no arguments must succeed (the flag is optional) and fall back
+    # to the declared default rather than erroring with "arguments are required".
+    cmd_line = vars(toolparser.parse_args([]))
+    assert cmd_line["a_bool"] == expected_default
