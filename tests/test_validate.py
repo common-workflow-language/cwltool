@@ -4,6 +4,8 @@ import io
 import logging
 import re
 
+import pytest
+
 from .util import get_data, get_main_output
 
 
@@ -209,3 +211,37 @@ def test_validate_custom_logger() -> None:
     assert "tests/CometAdapter.cwl#out' previously defined" not in stdout
     assert "tests/CometAdapter.cwl#out' previously defined" not in stderr
     assert "tests/CometAdapter.cwl#out' previously defined" in custom_log_text
+
+
+def test_validate_warns_on_basecommand_with_space() -> None:
+    """A 'baseCommand' string containing whitespace warns but still validates."""
+    custom_log = io.StringIO()
+    handler = logging.StreamHandler(custom_log)
+    handler.setLevel(logging.DEBUG)
+    exit_code, stdout, stderr = get_main_output(
+        ["--validate", get_data("tests/wf/2240-basecommand-space.cwl")],
+        logger_handler=handler,
+    )
+    custom_log_text = re.sub(r"\s\s+", " ", custom_log.getvalue())
+    assert exit_code == 0
+    assert "is valid CWL" in stdout
+    assert "'baseCommand' is a single string containing whitespace" in custom_log_text
+    assert "'tar xf'" in custom_log_text
+    assert "['tar', 'xf']" in custom_log_text
+
+
+@pytest.mark.parametrize(
+    "cwl_file",
+    ["tests/wf/2240-basecommand-list.cwl", "tests/CometAdapter.cwl"],
+)
+def test_validate_no_basecommand_space_warning(cwl_file: str) -> None:
+    """A list-form (or absent) 'baseCommand' does not trigger the whitespace warning."""
+    custom_log = io.StringIO()
+    handler = logging.StreamHandler(custom_log)
+    handler.setLevel(logging.DEBUG)
+    exit_code, _, _ = get_main_output(
+        ["--validate", get_data(cwl_file)],
+        logger_handler=handler,
+    )
+    assert exit_code == 0
+    assert "single string containing whitespace" not in custom_log.getvalue()
