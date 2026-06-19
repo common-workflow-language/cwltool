@@ -1,3 +1,4 @@
+import errno
 import json
 import logging
 import os
@@ -1599,6 +1600,29 @@ def test_bad_basecommand(factor: str) -> None:
     error_code, stdout, stderr = get_main_output(commands)
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "'neenooGo' not found" in stderr, stderr
+    assert error_code == 1
+
+
+def test_disk_full_error_message(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A full disk (ENOSPC) while running a job yields a clear message, not a traceback."""
+
+    def _raise_enospc(*args: Any, **kwargs: Any) -> Any:
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    # Inject ENOSPC at the output-collection stage of a normal job run. This patches
+    # the method dispatched through self.collect_output_ports (and thus the
+    # functools.partial assigned to JobBase.collect_outputs), rather than the
+    # bytes2str_in_dicts free function: under a mypyc-compiled build, job.py's direct
+    # call to bytes2str_in_dicts is resolved to a native call that bypasses the module
+    # dict, so monkeypatching it there is silently ineffective.
+    monkeypatch.setattr(
+        "cwltool.command_line_tool.CommandLineTool.collect_output_ports", _raise_enospc
+    )
+    error_code, stdout, stderr = get_main_output([get_data("tests/echo.cwl"), "--inp", "hello"])
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "No space left on device" in stderr, stderr
+    assert "--tmpdir-prefix" in stderr, stderr
+    assert "Traceback (most recent call last)" not in stderr, stderr
     assert error_code == 1
 
 
