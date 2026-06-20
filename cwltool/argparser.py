@@ -89,7 +89,12 @@ def arg_parser() -> argparse.ArgumentParser:
     )
 
     parser = argparse.ArgumentParser(
-        prog="cwltool",
+        # Force the program name to "cwltool" only when invoked through the
+        # generic ``cwl-runner`` alias (see #1535). Leaving it as ``None`` for
+        # any other invocation preserves argparse's basename default, so
+        # downstream tools that reuse this parser (e.g. Calrissian) keep their
+        # own program name.
+        prog="cwltool" if os.path.basename(sys.argv[0]) == "cwl-runner" else None,
         formatter_class=RichHelpFormatter,
         description="Reference executor for Common Workflow Language standards. "
         "Not for production use.",

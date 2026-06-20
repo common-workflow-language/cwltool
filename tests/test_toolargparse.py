@@ -280,12 +280,22 @@ def test_argparser_without_doc() -> None:
 
 
 def test_argparser_prog_is_cwltool(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The program name is reported as ``cwltool`` even when invoked as ``cwl-runner``.
+    """The program name is reported as ``cwltool`` when invoked as ``cwl-runner``.
 
     Regression test for https://github.com/common-workflow-language/cwltool/issues/1535
     """
-    monkeypatch.setattr(sys, "argv", ["cwl-runner", "--help"])
+    monkeypatch.setattr(sys, "argv", ["/usr/local/bin/cwl-runner", "--help"])
     assert arg_parser().prog == "cwltool"
+
+
+def test_argparser_prog_preserves_downstream_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reusers of ``arg_parser()`` keep their own program name (not forced to ``cwltool``).
+
+    Downstream tools such as Calrissian call :func:`arg_parser` directly and rely on
+    argparse's basename default; the ``cwl-runner`` override must not leak into them.
+    """
+    monkeypatch.setattr(sys, "argv", ["/usr/local/bin/calrissian", "--help"])
+    assert arg_parser().prog == "calrissian"
 
 
 @pytest.mark.parametrize(
