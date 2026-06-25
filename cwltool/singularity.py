@@ -155,16 +155,67 @@ def is_version_3_10_or_newer() -> bool:
     return version >= Version("3.10")
 
 
+def _encode_container_image(string: str) -> str:
+    """
+    Produce a unique filename-safe string for a container image.
+
+    The input may be a Docker container specifier like "ubuntu",
+    "ubuntu:latest", "quay.io/adamnovak/hap.py:v0.3.15",
+    "quay.io/adamnovak/hap.py@sha256:f483da1b1c3d58be028a9599db4255cf1eb8570d50f901f10c8499fc36a94418",
+    etc., or it may be something with a protocol like "docker://ubuntu" or
+    "https://library.sylabs.io/v1/imagefile/library/default/alpine:latest", or
+    it may be a file path not ending in ":latest".
+
+    (It may not be a file path ending in ":latest" because it is too hard to
+    work out that the corresponding path without ":latest" should not have
+    ":latest" appended to it.)
+
+    If the input does not have a tag or digest, and a protocol was not used,
+    the "latest" tag will be used.
+
+    Distinct strings that refer to the same image (like "library/ubuntu",
+    "docker.io/library/ubuntu", and "docker://ubuntu:latest") will not
+    necessarily always produce the same result.
+
+    No two distinct inputs that refer to distinct container images will produce
+    the same result. The result is human-readable.
+    """
+    # See https://stackoverflow.com/a/43091578 for information on allowed
+    # patterns of Docker image specifiers.
+    has_tag_or_digest = re.search(
+        pattern=r"(:[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}|@[a-z0-9]+([+._-][a-z0-9]+)*:[a-zA-Z0-9=_-]+)$",
+        string=string,
+    )
+
+    has_protocol = re.search(pattern=r"^[a-zA-Z0-9-_]+://", string=string)
+
+    if not has_tag_or_digest and not has_protocol:
+        # We apply :latest to *everything* that doesn't seem to have a tag or a
+        # protocol
+        string += ":latest"
+
+    # First we need to escape existing underscores, and then we need to use
+    # underscore-based escapes to represent characters not allowed in
+    # filenames. There's sadly no one obvious way to do this.
+    return string.replace("_", "___").replace("/", "_s_")
+
+
 def _normalize_image_id(string: str) -> str:
-    if ":" not in string:
-        string += "_latest"
-    return string.replace("/", "_") + ".img"
+    return _encode_container_image(string) + ".img"
 
 
 def _normalize_sif_id(string: str) -> str:
-    if ":" not in string:
-        string += "_latest"
-    return string.replace("/", "_") + ".sif"
+    """
+    Produce a .sif filename for a container image.
+
+    This is guaranteed to be the same as the path at which cwl-docker-extract
+    from the cwl-utils project will save the .sif within its target directory,
+    for inputs supported by cwl-docker-extract.
+
+    When two inputs refer to different images, the results for those inputs are
+    guaranteed to be distinct.
+    """
+    return _encode_container_image(string) + ".sif"
 
 
 @mypyc_attr(allow_interpreted_subclasses=True)

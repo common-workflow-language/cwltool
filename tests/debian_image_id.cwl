@@ -4,7 +4,7 @@ class: CommandLineTool
 
 requirements:
   DockerRequirement:
-    dockerImageId: 'debian:stable-slim.img'
+    dockerImageId: 'docker.io_s_debian:stable-slim.img'
 
 inputs:
   message: string
