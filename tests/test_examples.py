@@ -999,6 +999,17 @@ def test_empty_command_line_error() -> None:
     assert "IndexError" not in stderr
 
 
+@needs_docker
+def test_empty_command_line_container_noerror() -> None:
+    """A CommandLineTool with an empty command line fails cleanly, not with an IndexError."""
+    error_code, _, stderr = get_main_output(
+        ["--default-container", "debian:stable-slim", get_data("tests/wf/no-basecommand.cwl")]
+    )
+    assert error_code == 0
+    assert "empty command line" not in stderr
+    assert "IndexError" not in stderr
+
+
 def test_format_expr_error() -> None:
     """Better format expression error."""
     error_code, _, stderr = get_main_output(
