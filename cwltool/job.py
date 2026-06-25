@@ -1,4 +1,5 @@
 import datetime
+import errno
 import functools
 import itertools
 import logging
@@ -376,7 +377,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             outputs = self.collect_outputs(self.outdir, rcode)
             outputs = bytes2str_in_dicts(outputs)  # type: ignore
         except OSError as e:
-            if e.errno == 2:
+            if e.errno == errno.ENOENT:
                 if runtime:
                     _logger.error(
                         "'%s' not found: %s", runtime[0], str(e), exc_info=runtimeContext.debug
@@ -388,6 +389,16 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                         str(e),
                         exc_info=runtimeContext.debug,
                     )
+            elif e.errno == errno.ENOSPC:
+                _logger.error(
+                    "[job %s] No space left on device. The temporary directory (%s) "
+                    "and/or output directory (%s) may be full; free up space, or point "
+                    "--tmpdir-prefix and --outdir at a location with more capacity.",
+                    self.name,
+                    self.tmpdir,
+                    self.outdir,
+                    exc_info=runtimeContext.debug,
+                )
             else:
                 _logger.exception(
                     "Exception while running job: %s", str(e), exc_info=runtimeContext.debug
