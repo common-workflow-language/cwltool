@@ -307,6 +307,12 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             stderr_path = stderr_stdout_log_path(self.base_path_logs, self.stderr)
             stdout_path = stderr_stdout_log_path(self.base_path_logs, self.stdout)
             commands = [str(x) for x in runtime + self.command_line]
+            if not commands:
+                raise WorkflowException(
+                    "Cannot run a CommandLineTool that produces an empty command line. "
+                    "Specify a 'baseCommand', 'arguments', and/or an input with an "
+                    "'inputBinding' so there is a program to execute."
+                )
             if runtimeContext.secret_store is not None:
                 commands = cast(
                     list[str],
