@@ -66,7 +66,10 @@ def arg_parser() -> argparse.ArgumentParser:
     env_table.add_env(
         "CWL_SINGULARITY_CACHE",
         f"directory path to find already downloaded Singularity images; "
-        f"[{bt}]dockerFile[/] images will also be searched for and stored here",
+        f"[{bt}]dockerFile[/] images will also be searched for and stored here. "
+        f"Images can be pre-pulled into this directory using "
+        f"[link=https://cwl-utils.readthedocs.io/en/latest/#cwl-docker-extract]"
+        f"cwl-docker-extract[/] from cwl-utils",
     )
     env_table.add_env(
         "ORCID",
