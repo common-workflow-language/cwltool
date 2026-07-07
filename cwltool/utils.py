@@ -484,4 +484,5 @@ def local_path(posix_path: str) -> str:
 def create_tmp_dir(tmpdir_prefix: str) -> str:
     """Create a temporary directory that respects the given tmpdir_prefix."""
     tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
+    os.makedirs(tmp_dir, exist_ok=True)
     return tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
