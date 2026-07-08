@@ -398,6 +398,26 @@ class ParameterOutputWorkflowException(WorkflowException):
         )
 
 
+def default_make_path_mapper(
+    reffiles: MutableSequence[CWLFileType | CWLDirectoryType],
+    stagedir: str,
+    runtimeContext: RuntimeContext,
+    separateDirs: bool,
+) -> PathMapper:
+    """Build a :py:class:`~cwltool.pathmapper.PathMapper` for the given inputs.
+
+    The concrete class is taken from
+    :py:attr:`~cwltool.context.RuntimeContext.path_mapper` (defaulting to
+    :py:class:`~cwltool.pathmapper.PathMapper`), so a custom ``PathMapper`` can
+    be supplied by setting that attribute on the
+    :py:class:`~cwltool.context.RuntimeContext` -- mirroring the
+    :py:attr:`~cwltool.context.RuntimeContext.make_fs_access` extension point --
+    without subclassing :py:class:`CommandLineTool`.
+    """
+    path_mapper_class: type[PathMapper] = getdefault(runtimeContext.path_mapper, PathMapper)
+    return path_mapper_class(reffiles, runtimeContext.basedir, stagedir, separateDirs)
+
+
 @mypyc_attr(allow_interpreted_subclasses=True)
 class CommandLineTool(Process):
     def __init__(self, toolpath_object: CommentedMap, loadingContext: LoadingContext) -> None:
@@ -447,14 +467,23 @@ class CommandLineTool(Process):
             )
         return CommandLineJob
 
-    @staticmethod
     def make_path_mapper(
+        self,
         reffiles: MutableSequence[CWLFileType | CWLDirectoryType],
         stagedir: str,
         runtimeContext: RuntimeContext,
         separateDirs: bool,
     ) -> PathMapper:
-        return PathMapper(reffiles, runtimeContext.basedir, stagedir, separateDirs)
+        """Create the :py:class:`~cwltool.pathmapper.PathMapper` for these inputs.
+
+        Delegates to :py:func:`default_make_path_mapper`, which selects the
+        concrete ``PathMapper`` class from
+        :py:attr:`~cwltool.context.RuntimeContext.path_mapper`.  This is an
+        instance method (not a ``@staticmethod``) so that subclasses of
+        :py:class:`CommandLineTool` may override it; being a regular method it
+        also dispatches correctly when cwltool is compiled with mypyc.
+        """
+        return default_make_path_mapper(reffiles, stagedir, runtimeContext, separateDirs)
 
     def updatePathmap(
         self, outdir: str, pathmap: PathMapper, fn: CWLFileType | CWLDirectoryType

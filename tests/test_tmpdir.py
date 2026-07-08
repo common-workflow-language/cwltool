@@ -17,7 +17,7 @@ from schema_salad.avro import schema
 from schema_salad.sourceline import cmap
 
 from cwltool.builder import Builder
-from cwltool.command_line_tool import CommandLineTool
+from cwltool.command_line_tool import CommandLineTool, default_make_path_mapper
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.docker import DockerCommandLineJob
 from cwltool.errors import WorkflowException
@@ -159,9 +159,7 @@ def test_dockerfile_tmpdir_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
         INTERNAL_VERSION,
         "docker",
     )
-    assert DockerCommandLineJob(
-        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
-    ).get_image(
+    assert DockerCommandLineJob(builder, {}, default_make_path_mapper, [], [], "").get_image(
         {
             "class": "DockerRequirement",
             "dockerFile": "FROM debian:stable-slim",
@@ -216,9 +214,7 @@ def test_dockerfile_build(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> No
 
     docker_image_id = sys._getframe().f_code.co_name
 
-    assert DockerCommandLineJob(
-        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
-    ).get_image(
+    assert DockerCommandLineJob(builder, {}, default_make_path_mapper, [], [], "").get_image(
         {
             "class": "DockerRequirement",
             "dockerFile": "FROM debian:stable-slim",
@@ -276,9 +272,7 @@ def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch, tmp_path:
         "singularity",
     )
 
-    assert SingularityCommandLineJob(
-        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
-    ).get_image(
+    assert SingularityCommandLineJob(builder, {}, default_make_path_mapper, [], [], "").get_image(
         {
             "class": "DockerRequirement",
             "dockerFile": "FROM debian:stable-slim",
@@ -347,9 +341,7 @@ def test_singularity_get_image_from_sandbox(
         "cwltool.singularity._inspect_singularity_sandbox_image", lambda *args, **kwargs: False
     )
     req = {"class": "DockerRequirement", "dockerPull": f"{image_path}"}
-    res = SingularityCommandLineJob(
-        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
-    ).get_image(
+    res = SingularityCommandLineJob(builder, {}, default_make_path_mapper, [], [], "").get_image(
         req,
         pull_image=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
@@ -363,9 +355,7 @@ def test_singularity_get_image_from_sandbox(
         "cwltool.singularity._inspect_singularity_sandbox_image", lambda *args, **kwargs: True
     )
     req = {"class": "DockerRequirement", "dockerPull": f"{image_path}"}
-    res = SingularityCommandLineJob(
-        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
-    ).get_image(
+    res = SingularityCommandLineJob(builder, {}, default_make_path_mapper, [], [], "").get_image(
         req,
         pull_image=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
@@ -376,9 +366,7 @@ def test_singularity_get_image_from_sandbox(
 
     # test that dockerImageId is set and image exists:
     req = {"class": "DockerRequirement", "dockerImageId": f"{image_path}"}
-    res = SingularityCommandLineJob(
-        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
-    ).get_image(
+    res = SingularityCommandLineJob(builder, {}, default_make_path_mapper, [], [], "").get_image(
         req,
         pull_image=False,
         tmp_outdir_prefix=str(tmp_outdir_prefix),
@@ -441,7 +429,7 @@ def test_singularity_image_base_path(
     requirements1 = copy.deepcopy(initial_requirements)
     # get image from sandbox_base_path option
     res_get_image = SingularityCommandLineJob(
-        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+        builder, {}, default_make_path_mapper, [], [], ""
     ).get_image(
         requirements1,
         pull_image=False,
@@ -454,7 +442,7 @@ def test_singularity_image_base_path(
 
     requirements2: CWLObjectType = {"class": "DockerRequirement", "dockerPull": "alpine"}
     res_get_req = SingularityCommandLineJob(
-        builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+        builder, {}, default_make_path_mapper, [], [], ""
     ).get_from_requirements(
         requirements2,
         pull_image=False,
@@ -471,7 +459,7 @@ def test_singularity_image_base_path(
     # should return an error
     with pytest.raises(WorkflowException):
         res_get_req = SingularityCommandLineJob(
-            builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+            builder, {}, default_make_path_mapper, [], [], ""
         ).get_from_requirements(
             requirements3,
             pull_image=False,
@@ -484,7 +472,7 @@ def test_singularity_image_base_path(
     with monkeypatch.context() as m:
         m.setenv("CWL_SINGULARITY_IMAGES", str(repo_path))
         res_get_image = SingularityCommandLineJob(
-            builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+            builder, {}, default_make_path_mapper, [], [], ""
         ).get_image(
             requirements4,
             pull_image=False,
@@ -503,7 +491,7 @@ def test_singularity_image_base_path(
             "dockerImageId": str(image_path),
         }
         res_get_req = SingularityCommandLineJob(
-            builder, {}, CommandLineTool.make_path_mapper, [], [], ""
+            builder, {}, default_make_path_mapper, [], [], ""
         ).get_from_requirements(
             requirements5,
             pull_image=False,
@@ -549,7 +537,7 @@ def test_docker_tmpdir_prefix(tmp_path: Path) -> None:
         INTERNAL_VERSION,
         "docker",
     )
-    job = DockerCommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    job = DockerCommandLineJob(builder, {}, default_make_path_mapper, [], [], "")
     runtime: list[str] = []
 
     volume_writable_file = MapperEnt(

@@ -6,7 +6,7 @@ from cwl_utils.types import CWLObjectType
 from schema_salad.avro import schema
 
 from cwltool.builder import Builder
-from cwltool.command_line_tool import CommandLineTool
+from cwltool.command_line_tool import default_make_path_mapper
 from cwltool.context import LoadingContext, RuntimeContext
 from cwltool.cuda import cuda_version_and_device_count
 from cwltool.errors import WorkflowException
@@ -108,7 +108,7 @@ def test_cuda_job_setup_check(makedirs: MagicMock, check_output: MagicMock) -> N
 </nvidia>
 """
 
-    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    jb = CommandLineJob(builder, {}, default_make_path_mapper, [], [], "")
     jb._setup(runtime_context)
 
 
@@ -130,7 +130,7 @@ def test_cuda_job_setup_check_err(makedirs: MagicMock, check_output: MagicMock) 
 <cuda_version>1.0</cuda_version>
 </nvidia>
 """
-    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    jb = CommandLineJob(builder, {}, default_make_path_mapper, [], [], "")
     with pytest.raises(WorkflowException):
         jb._setup(runtime_context)
 
@@ -156,7 +156,7 @@ def test_cuda_job_setup_check_err_empty_attached_gpus(
 </nvidia>
 """
 
-    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    jb = CommandLineJob(builder, {}, default_make_path_mapper, [], [], "")
     with pytest.raises(WorkflowException):
         jb._setup(runtime_context)
     assert (
@@ -185,7 +185,7 @@ def test_cuda_job_setup_check_err_empty_missing_attached_gpus(
 </nvidia>
 """
 
-    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    jb = CommandLineJob(builder, {}, default_make_path_mapper, [], [], "")
     with pytest.raises(WorkflowException):
         jb._setup(runtime_context)
     assert (
@@ -215,7 +215,7 @@ def test_cuda_job_setup_check_err_empty_cuda_version(
 </nvidia>
 """
 
-    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    jb = CommandLineJob(builder, {}, default_make_path_mapper, [], [], "")
     with pytest.raises(WorkflowException):
         jb._setup(runtime_context)
     assert (
@@ -244,7 +244,7 @@ def test_cuda_job_setup_check_err_missing_cuda_version(
 </nvidia>
 """
 
-    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    jb = CommandLineJob(builder, {}, default_make_path_mapper, [], [], "")
     with pytest.raises(WorkflowException):
         jb._setup(runtime_context)
     assert (
@@ -274,7 +274,7 @@ def test_cuda_job_setup_check_err_wrong_type_cuda_version(
 </nvidia>
 """
 
-    jb = CommandLineJob(builder, {}, CommandLineTool.make_path_mapper, [], [], "")
+    jb = CommandLineJob(builder, {}, default_make_path_mapper, [], [], "")
     with pytest.raises(WorkflowException):
         jb._setup(runtime_context)
     assert (
