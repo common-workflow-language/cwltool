@@ -910,6 +910,17 @@ make_fs_access
 
   Return a file system access object.
 
+path_mapper
+  ::
+
+    path_mapper(referenced_files, basedir, stagedir, separateDirs)
+      (MutableSequence[CWLObjectType], str, str, bool) -> PathMapper
+
+  The ``PathMapper`` class used to map input files and directories to the
+  locations where the tool expects them (and, during output collection, back
+  again).  Assign a subclass of ``cwltool.pathmapper.PathMapper`` to customise
+  staging without subclassing ``CommandLineTool``.
+
 In addition, when providing custom subclasses of Process objects, you can override the following methods:
 
 CommandLineTool.make_job_runner
@@ -919,6 +930,16 @@ CommandLineTool.make_job_runner
       (RuntimeContext) -> Type[JobBase]
 
   Create and return a job runner object (this implements concrete execution of a command line tool).
+
+CommandLineTool.make_path_mapper
+  ::
+
+    make_path_mapper(reffiles, stagedir, runtimeContext, separateDirs)
+      (MutableSequence[CWLObjectType], str, RuntimeContext, bool) -> PathMapper
+
+  Create and return the PathMapper for the input files and directories.  By
+  default this honours the ``path_mapper`` attribute above; override it in a
+  subclass for full control over how the PathMapper is constructed.
 
 Workflow.make_workflow_step
   ::
