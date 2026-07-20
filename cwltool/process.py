@@ -471,19 +471,16 @@ def _type_contains_file(
     field_type: CWLObjectType | MutableSequence[Any] | CWLOutputType | None,
 ) -> bool:
     """Return True if a (possibly compound/nullable) parameter type includes a ``File``."""
-    if isinstance(field_type, str):
-        # handle plain ("File"), namespaced ("...#File") and avro ("...cwl.File") forms
-        return field_type.replace("#", ".").split(".")[-1] == "File"
-    if isinstance(field_type, MutableSequence):
-        return any(_type_contains_file(entry) for entry in field_type)
-    if isinstance(field_type, MutableMapping):
-        if field_type.get("type") == "array":
-            return _type_contains_file(cast(CWLOutputType, field_type.get("items")))
-        if field_type.get("type") == "record":
-            return any(
-                _type_contains_file(cast(CWLObjectType, fld).get("type"))
-                for fld in cast(MutableSequence[Any], field_type.get("fields", []))
-            )
+    match field_type:
+        case str() as type_str:
+            # handle plain ("File"), namespaced ("...#File") and avro ("...cwl.File") forms
+            return type_str.replace("#", ".").split(".")[-1] == "File"
+        case MutableSequence() as field_seq:
+            return any(_type_contains_file(entry) for entry in field_seq)
+        case {"type": "array", "items": list() as items}:
+            return _type_contains_file(cast(CWLOutputType, items))
+        case {"type": "record", "fields": list() as fields}:
+            return any(_type_contains_file(cast(CWLObjectType, fld).get("type")) for fld in fields)
     return False
 
 
