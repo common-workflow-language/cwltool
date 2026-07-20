@@ -423,6 +423,17 @@ class CommandLineTool(Process):
     def __init__(self, toolpath_object: CommentedMap, loadingContext: LoadingContext) -> None:
         """Initialize this CommandLineTool."""
         super().__init__(toolpath_object, loadingContext)
+        base_command = self.tool.get("baseCommand")
+        if isinstance(base_command, str) and len(base_command.split()) > 1:
+            _logger.warning(
+                SourceLine(self.tool, "baseCommand", str).makeError(
+                    "'baseCommand' is a single string containing whitespace: %r. "
+                    "It will be passed to the operating system as one program name, "
+                    "which is unlikely to exist. If you meant a program plus arguments, "
+                    "provide a list instead, e.g. [%s]."
+                    % (base_command, ", ".join(repr(p) for p in base_command.split()))
+                )
+            )
         self.prov_obj = loadingContext.prov_obj
         self.path_check_mode: PathCheckingMode = (
             PathCheckingMode.RELAXED
