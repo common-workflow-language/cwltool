@@ -467,6 +467,24 @@ def avroize_type(
     return field_type
 
 
+def _type_contains_file(
+    field_type: CWLObjectType | MutableSequence[Any] | CWLOutputType | None,
+) -> bool:
+    """Return True if a (possibly compound/nullable) parameter type includes a ``File``."""
+    match field_type:
+        case str() as type_str:
+            # handle plain ("File"), namespaced ("...#File") and avro ("...cwl.File") forms
+            return type_str.replace("#", ".").split(".")[-1] == "File"
+        case MutableSequence() as field_seq:
+            return any(_type_contains_file(entry) for entry in field_seq)
+        case {"type": "array", "items": items}:
+            # items may be a single type ("File") or a union list (["File", "Directory"])
+            return _type_contains_file(cast(CWLOutputType, items))
+        case {"type": "record", "fields": list() as fields}:
+            return any(_type_contains_file(cast(CWLObjectType, fld).get("type")) for fld in fields)
+    return False
+
+
 def get_overrides(overrides: MutableSequence[CWLObjectType], toolid: str) -> CWLObjectType:
     """Combine overrides for the target tool ID."""
     req: CWLObjectType = {}
@@ -654,6 +672,14 @@ class Process(HasReqsHints, metaclass=abc.ABCMeta):
                     c["type"] = nullable
                 else:
                     c["type"] = c["type"]
+
+                if "format" in c and not _type_contains_file(c["type"]):
+                    _logger.warning(
+                        SourceLine(i, "format", str).makeError(
+                            "'format' is only valid for 'File' type parameters, but "
+                            "'%s' is not a File; the 'format' field will be ignored." % c["name"]
+                        )
+                    )
 
                 c["type"] = avroize_type(c["type"], c["name"])
                 if key == "inputs":
