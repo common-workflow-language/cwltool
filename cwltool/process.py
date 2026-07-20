@@ -477,7 +477,8 @@ def _type_contains_file(
             return type_str.replace("#", ".").split(".")[-1] == "File"
         case MutableSequence() as field_seq:
             return any(_type_contains_file(entry) for entry in field_seq)
-        case {"type": "array", "items": list() as items}:
+        case {"type": "array", "items": items}:
+            # items may be a single type ("File") or a union list (["File", "Directory"])
             return _type_contains_file(cast(CWLOutputType, items))
         case {"type": "record", "fields": list() as fields}:
             return any(_type_contains_file(cast(CWLObjectType, fld).get("type")) for fld in fields)
