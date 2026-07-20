@@ -52,7 +52,7 @@ and provide comprehensive validation of CWL
 files as well as provide other tools related to working with CWL.
 
 ``cwltool`` is written and tested for
-`Python <https://www.python.org/>`_ ``3.x {x = 9, 10, 11, 12, 13}``
+`Python <https://www.python.org/>`_ ``3.x {x = 10, 11, 12, 13, 14}``
 
 The reference implementation consists of two packages.  The ``cwltool`` package
 is the primary Python module containing the reference implementation in the
