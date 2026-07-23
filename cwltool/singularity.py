@@ -200,22 +200,93 @@ def _encode_container_image(string: str) -> str:
     return string.replace("_", "___").replace("/", "_s_")
 
 
-def _normalize_image_id(string: str) -> str:
-    return _encode_container_image(string) + ".img"
-
-
-def _normalize_sif_id(string: str) -> str:
+# TODO: When a version of cwl-utils is released that includes this function on
+# SingularityImagePuller, use it from there. Or just use SingularityImagePuller
+# to pull all our Singularity images.
+def _could_be_current_image(filename: str) -> bool:
     """
-    Produce a .sif filename for a container image.
+    Check if a path could belong to the current image name encoding scheme.
 
-    This is guaranteed to be the same as the path at which cwl-docker-extract
-    from the cwl-utils project will save the .sif within its target directory,
-    for inputs supported by cwl-docker-extract.
+    This allows us to be backward-compatible with most existing cached
+    images, without risking treating cache entries created under the new
+    scheme as belonging to different images under older schemes.
 
-    When two inputs refer to different images, the results for those inputs are
-    guaranteed to be distinct.
+    Is not guaranteed to be a tight bound: may return True for things that
+    can't actually be generated under the new scheme, but will never
+    return False for things that can.
     """
-    return _encode_container_image(string) + ".sif"
+    for replacement in ["___", "_s_"]:
+        # Remove anything the new scheme generates involving replaceable
+        # characters.
+        filename = filename.replace(replacement, "")
+    for remaining in ["_", "/"]:
+        if remaining in filename:
+            # We have something that can't have been generated under the
+            # new scheme.
+            return False
+    # If we don't see anything we can't make, we can probably make this path.
+    return True
+
+
+def _alternate_images(string: str, extension: str) -> list[str]:
+    """
+    Get all image paths used by old versions of cwl-utils and cwltool only.
+    """
+    alternate = []
+
+    # This is what cwl-utils 0.42 did
+    alternate.append(string.replace("/", "_").replace(":", "_") + extension)
+
+    # This is what cwltool 3.2.20260720092025 did.
+    if ":" not in string:
+        string += "_latest"
+    alternate.append(string.replace("/", "_") + extension)
+
+    alternate = [p for p in alternate if not _could_be_current_image(p)]
+
+    return alternate
+
+
+def _normalize_image_id(string: str) -> tuple[str, list[str]]:
+    """
+    Get the current filename and alternatives for a container.
+
+    Uses a .img extension.
+
+    The current filename guaranteed to be the same as the path at which
+    cwl-docker-extract from the cwl-utils project will save the image within
+    its target directory, for inputs supported by cwl-docker-extract.
+
+    When two inputs refer to different images, the current filenames for those
+    inputs are guaranteed to be distinct.
+
+    No current filename can ever appear as an alternate filename.
+
+    Alternate filenames that appear are guarantees to be the same as those that
+    would have been used by cwltool 3.2.20260720092025 or cwl-utils 0.42.
+    """
+    return _encode_container_image(string) + ".img", _alternate_images(string, ".img")
+
+
+def _normalize_sif_id(string: str) -> tuple[str, list[str]]:
+    """
+    Get the current filename and alternatives for a container.
+
+    Uses a .sif extension.
+
+    The current filename guaranteed to be the same as the path at which
+    cwl-docker-extract from the cwl-utils project will save the image within
+    its target directory, for inputs supported by cwl-docker-extract.
+
+    When two inputs refer to different images, the current filenames for those
+    inputs are guaranteed to be distinct.
+
+    No current filename can ever appear as an alternate filename.
+
+    Alternate filenames that appear are guarantees to be the same as those that
+    would have been used by cwltool 3.2.20260720092025 or cwl-utils 0.4.2.
+    """
+    return _encode_container_image(string) + ".sif", _alternate_images(string, ".sif")
 
 
 @mypyc_attr(allow_interpreted_subclasses=True)
@@ -323,14 +394,23 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                         "utf-8"
                     )
                 ).hexdigest()
+
             if is_version_3_or_newer():
-                image_name = _normalize_sif_id(image_name)
+                image_name, alternate_names = _normalize_sif_id(image_name)
             else:
-                image_name = _normalize_image_id(image_name)
+                image_name, alternate_names = _normalize_image_id(image_name)
             image_name = os.path.join(absolute_path, image_name)
-            docker_req["dockerImageId"] = image_name
+            alternate_names = [os.path.join(absolute_path, a) for a in alternate_names]
             if os.path.exists(image_name):
                 found = True
+            else:
+                for alternate_name in alternate_names:
+                    # Promote an alternate name if it exists and the main one doesn't.
+                    if os.path.exists(alternate_name):
+                        image_name = alternate_name
+                        found = True
+                        break
+            docker_req["dockerImageId"] = image_name
             if found is False:
                 dockerfile_path = os.path.join(absolute_path, "Dockerfile")
                 singularityfile_path = dockerfile_path + ".def"
@@ -372,11 +452,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 found = True
             else:
                 match = re.search(pattern=r"([a-z]*://)", string=docker_req["dockerPull"])
-                img_name = _normalize_image_id(docker_req["dockerPull"])
+                img_name, alternate_names = _normalize_image_id(docker_req["dockerPull"])
                 candidates.append(img_name)
+                candidates += alternate_names
                 if is_version_3_or_newer():
-                    sif_name = _normalize_sif_id(docker_req["dockerPull"])
+                    sif_name, alternate_names = _normalize_sif_id(docker_req["dockerPull"])
                     candidates.append(sif_name)
+                    candidates += alternate_names
                     docker_req["dockerImageId"] = sif_name
                 else:
                     docker_req["dockerImageId"] = img_name
@@ -398,9 +480,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 if os.path.isfile(docker_req["dockerImageId"]):
                     found = True
                 candidates.append(docker_req["dockerImageId"])
-                candidates.append(_normalize_image_id(docker_req["dockerImageId"]))
+                image_name, alternate_names = _normalize_image_id(docker_req["dockerImageId"])
+                candidates.append(image_name)
+                candidates += alternate_names
                 if is_version_3_or_newer():
-                    candidates.append(_normalize_sif_id(docker_req["dockerImageId"]))
+                    image_name, alternate_names = _normalize_sif_id(docker_req["dockerImageId"])
+                    candidates.append(image_name)
+                    candidates += alternate_names
 
         if not found and len(candidates) > 0:
             targets = [os.getcwd()]
