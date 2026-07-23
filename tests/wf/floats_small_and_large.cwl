@@ -26,6 +26,16 @@ inputs:
    default: 1230000
    inputBinding: {}
 
+ annotation_prokka_evalue5:
+   type: float
+   default: 9.999e-7
+   inputBinding: {}
+
+ annotation_prokka_evalue6:
+   type: double
+   default: 9.999e-7
+   inputBinding: {}
+
 
 arguments: [ -n ]
 
