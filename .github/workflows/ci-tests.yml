@@ -58,7 +58,7 @@ jobs:
         run: sudo usermod -c 'CI Runner' "$(whoami)"
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ env.py-semver }}
           allow-prereleases: true
@@ -112,7 +112,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ env.py-semver }}
           cache: pip
@@ -151,7 +151,7 @@ jobs:
         run: sudo usermod -c 'CI Runner' "$(whoami)"
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ env.py-semver }}
           cache: pip
@@ -210,7 +210,7 @@ jobs:
         run: sudo rm -f /usr/bin/docker ; sudo apt-get install -y podman
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: 3.13
           cache: pip
@@ -249,7 +249,7 @@ jobs:
           sudo apt-get install -y ./singularity-ce_4.3.5-noble_amd64.deb environment-modules
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: 3.13
           cache: pip
@@ -293,7 +293,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: 3.13
           cache: pip
