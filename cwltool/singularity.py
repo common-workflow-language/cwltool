@@ -229,9 +229,7 @@ def _could_be_current_image(filename: str) -> bool:
 
 
 def _alternate_images(string: str, extension: str) -> list[str]:
-    """
-    Get all image paths used by old versions of cwl-utils and cwltool only.
-    """
+    """Get all image paths used by old versions of cwl-utils and cwltool only."""
     alternate = []
 
     # This is what cwl-utils 0.42 did
