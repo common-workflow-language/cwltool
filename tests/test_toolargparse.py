@@ -279,6 +279,20 @@ def test_argparser_without_doc() -> None:
     assert parser.description is None
 
 
+def test_argparser_with_doc_as_list() -> None:
+    """The `doc`/`label` fields may be a list of strings per the CWL spec.
+
+    Regression test for https://github.com/common-workflow-language/cwltool/issues/2100
+    """
+    loadingContext = LoadingContext()
+    tool = load_tool(get_data("tests/with_doc_list.cwl"), loadingContext)
+    p = argparse.ArgumentParser()
+    parser = generate_parser(p, tool, {}, [], False)
+    assert parser.description is not None
+    assert "line one" in parser.description
+    assert "line two" in parser.description
+
+
 def test_argparser_prog_is_cwltool(monkeypatch: pytest.MonkeyPatch) -> None:
     """The program name is reported as ``cwltool`` when invoked as ``cwl-runner``.
 

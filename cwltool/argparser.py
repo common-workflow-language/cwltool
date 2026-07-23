@@ -941,6 +941,20 @@ class AppendAction(argparse.Action):
         setattr(namespace, self.dest, g)
 
 
+def doc_to_str(doc: Any) -> str:
+    """Normalize a CWL ``doc``/``label`` field to a single string.
+
+    The CWL spec allows ``doc`` to be either a single string or an array
+    of strings (one entry per line). Join list entries with newlines so
+    downstream consumers (argparse, rich) always receive a plain string.
+    """
+    if isinstance(doc, MutableSequence):
+        return "\n".join(str(entry) for entry in doc)
+    if doc is None:
+        return ""
+    return str(doc)
+
+
 def add_argument(
     toolparser: argparse.ArgumentParser,
     name: str,
@@ -952,7 +966,7 @@ def add_argument(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     base_uri: str = "",
 ) -> None:
-    description = rich.markup.escape(description)
+    description = rich.markup.escape(doc_to_str(description))
     if len(name) == 1:
         flag = "-"
     else:
@@ -1052,7 +1066,8 @@ def generate_parser(
     base_uri: str = "",
 ) -> argparse.ArgumentParser:
     """Generate an ArgumentParser for the given CWL Process."""
-    toolparser.description = tool.tool.get("doc", tool.tool.get("label", None))
+    doc = tool.tool.get("doc", tool.tool.get("label", None))
+    toolparser.description = doc_to_str(doc) if doc is not None else None
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
