@@ -1066,8 +1066,7 @@ def generate_parser(
     base_uri: str = "",
 ) -> argparse.ArgumentParser:
     """Generate an ArgumentParser for the given CWL Process."""
-    doc = tool.tool.get("doc", tool.tool.get("label", None))
-    toolparser.description = doc_to_str(doc) if doc is not None else None
+    toolparser.description = doc_to_str(tool.tool.get("doc", tool.tool.get("label", None))) or None
     toolparser.add_argument("job_order", nargs="?", help="Job input json file")
     namemap["job_order"] = "job_order"
 
