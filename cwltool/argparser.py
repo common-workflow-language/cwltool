@@ -966,7 +966,7 @@ def add_argument(
     urljoin: Callable[[str, str], str] = urllib.parse.urljoin,
     base_uri: str = "",
 ) -> None:
-    description = rich.markup.escape(doc_to_str(description))
+    description = rich.markup.escape(description)
     if len(name) == 1:
         flag = "-"
     else:
@@ -1075,7 +1075,7 @@ def generate_parser(
         name = shortname(inp["id"])
         namemap[name.replace("-", "_")] = name
         inptype = inp["type"]
-        description = inp.get("doc", inp.get("label", ""))
+        description = doc_to_str(inp.get("doc", inp.get("label", "")))
         default = inp.get("default", None)
         add_argument(
             toolparser,
