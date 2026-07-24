@@ -596,7 +596,7 @@ class Builder(HasReqsHints):
                 rep = RoundTripRepresenter()
                 dec_value = Decimal(rep.represent_scalar_float(value).value)
                 if "E" in str(dec_value):
-                    return str(dec_value.quantize(1))
+                    return format(dec_value, "f")
                 return str(dec_value)
             case _:
                 return str(value)
