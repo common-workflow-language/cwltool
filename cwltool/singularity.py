@@ -234,7 +234,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 d_image_id = dockerRequirement["dockerImageId"]
                 if d_image_id in _IMAGES:
                     if (resolved_image_id := _IMAGES[d_image_id]) != d_image_id:
-                        dockerRequirement["dockerImage_id"] = resolved_image_id
+                        dockerRequirement["dockerImageId"] = resolved_image_id
                     return True
                 if d_image_id.startswith("/"):
                     _logger.info(
