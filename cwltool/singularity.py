@@ -405,14 +405,21 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 #          /tmp, temporary root filesystem won't be usable at this location
                 os.environ["APPTAINER_TMPDIR"] = absolute_path
                 singularity_options = ["--fakeroot"] if not shutil.which("proot") else []
-                Client.build(
+                # This is likely to fail if we aren't able to use fakeroot and
+                # don't have proot and a new enough Singularity to use proot.
+                # TODO: How do we actually get the build output to be visible?
+                result = Client.build(
                     recipe=singularityfile_path,
                     build_folder=absolute_path,
                     image=image_name,
                     sudo=False,
                     options=singularity_options,
                 )
-                found = True
+                if result is None:
+                    # The build failed
+                    _logger.warning("Singularity failed to build %s", singularityfile_path)
+                else:
+                    found = True
         elif "dockerImageId" not in docker_req and "dockerPull" in docker_req:
             # looking for local singularity sandbox image and handle it as a local image
             sandbox_image_path = os.path.join(sandbox_base_path, dockerRequirement["dockerPull"])

@@ -480,7 +480,8 @@ def test_singularity_dockerfile_with_name_from_alternate_name(
                 ]
             )
             assert result_code == 0, stderr
-
+        print(list(workdir.iterdir()))
+        print(list(cachedir.iterdir()))
         assert (cachedir / new_name).exists()
 
         # Move to the alternate name
