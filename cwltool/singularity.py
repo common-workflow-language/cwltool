@@ -427,10 +427,10 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 found = True
             else:
                 match = re.search(pattern=r"([a-z]*://)", string=docker_req["dockerPull"])
-                name, alternate_names = _normalize_id(docker_req["dockerPull"])
-                candidates.append(name)
+                image_name, alternate_names = _normalize_id(docker_req["dockerPull"])
+                candidates.append(image_name)
                 candidates += alternate_names
-                docker_req["dockerImageId"] = name
+                docker_req["dockerImageId"] = image_name
                 if not match:
                     docker_req["dockerPull"] = "docker://" + docker_req["dockerPull"]
         elif "dockerImageId" in docker_req:
@@ -449,8 +449,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 if os.path.isfile(docker_req["dockerImageId"]):
                     found = True
                 candidates.append(docker_req["dockerImageId"])
-                name, alternate_names = _normalize_id(docker_req["dockerImageId"])
-                candidates.append(name)
+                image_name, alternate_names = _normalize_id(docker_req["dockerImageId"])
+                candidates.append(image_name)
                 candidates += alternate_names
 
         if not found and len(candidates) > 0:
