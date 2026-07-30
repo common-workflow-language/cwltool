@@ -47,7 +47,7 @@ def test_normalize_id_resists_collision() -> None:
     )
 
 
-@needs_singularity_3_or_newer
+@needs_singularity
 def test_normalize_id_implies_latest() -> None:
     """
     Test that image names that imply latest are equivalent to those that
@@ -60,7 +60,7 @@ def test_normalize_id_implies_latest() -> None:
     )
 
 
-@needs_singularity_3_or_newer
+@needs_singularity
 def test_normalize_id_does_not_tag_protocols() -> None:
     """
     Test that if an image comes from a string with a protocol, no tag is added.
@@ -212,7 +212,7 @@ def test_singularity_alternate_names_used(tmp_path: Path) -> None:
 def test_singularity_docker_image_id(tmp_path: Path) -> None:
     """Test dockerImageId Docker references work with Singularity."""
 
-    # Run a workflow to create the .sif
+    # Run a workflow to create the image
     with working_directory(tmp_path):
         error_code, _, stderr = get_main_output(
             [
@@ -452,6 +452,7 @@ def test_singularity_dockerfile_with_name_with_cache(
     assert (cachedir / _normalize_id("customDebian")[0]).exists()
 
 
+@needs_singularity_3_or_newer
 def test_singularity_dockerfile_failed_build(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
