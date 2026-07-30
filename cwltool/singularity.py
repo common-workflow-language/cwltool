@@ -542,11 +542,6 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     "dockerImport is not currently supported when using the "
                     "Singularity runtime for Docker containers."
                 )
-            elif "dockerImageId" in docker_req:
-                raise SourceLine(docker_req, "dockerImageId", WorkflowException, debug).makeError(
-                    "A dockerImageId was specified without any way to get it (dockerPull, "
-                    "dockerLoad, etc.), and it is not currently available."
-                )
         if found:
             with _IMAGES_LOCK:
                 if "dockerImageId" in dockerRequirement:

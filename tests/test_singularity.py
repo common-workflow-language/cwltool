@@ -256,7 +256,8 @@ def test_singularity_docker_image_id_missing(tmp_path: Path) -> None:
                 "hello",
             ]
         )
-    assert "not currently available" in stderr, stderr
+    assert "not found" in stderr, stderr
+    assert "docker.io/debian:stable-slim" in stderr, stderr
     assert error_code != 0
 
 
