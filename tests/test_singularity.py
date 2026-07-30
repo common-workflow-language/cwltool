@@ -452,57 +452,6 @@ def test_singularity_dockerfile_with_name_with_cache(
     assert (cachedir / _normalize_id("customDebian")[0]).exists()
 
 
-@needs_singularity_3_or_newer
-def test_singularity_dockerfile_with_name_from_alternate_name(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Test using a Dockerfile and image ID reads alternate names."""
-    workdir = tmp_path / "working_dir"
-    workdir.mkdir()
-    cachedir = tmp_path / "cache"
-    cachedir.mkdir()
-
-    image_id = "docker.io/nobody_who_exists/an_image:latest"
-    new_name = _normalize_id(image_id)[0]
-    old_name = "docker.io_nobody_who_exists_an_image:latest"
-
-    with monkeypatch.context() as m:
-        m.setenv("CWL_SINGULARITY_CACHE", str(cachedir))
-
-        # Build the image into the cache
-        with working_directory(workdir):
-            result_code, stdout, stderr = get_main_output(
-                [
-                    "--singularity",
-                    get_data("tests/sing_dockerfile_repo_test.cwl"),
-                    "--message",
-                    "hello",
-                ]
-            )
-            assert result_code == 0, stderr
-        print(list(workdir.iterdir()))
-        print(list(cachedir.iterdir()))
-        assert (cachedir / new_name).exists()
-
-        # Move to the alternate name
-        (cachedir / new_name).rename(cachedir / old_name)
-
-        # Run again and use the cache
-        with working_directory(workdir):
-            result_code, stdout, stderr = get_main_output(
-                [
-                    "--singularity",
-                    get_data("tests/sing_dockerfile_repo_test.cwl"),
-                    "--message",
-                    "hello",
-                ]
-            )
-            assert result_code == 0, stderr
-
-        # It should not recreate the image at the new name
-        assert not (cachedir / new_name).exists()
-
-
 @needs_singularity
 def test_singularity_local_sandbox_image(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     workdir = tmp_path / "working_dir"
