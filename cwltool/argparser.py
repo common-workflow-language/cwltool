@@ -949,7 +949,7 @@ def doc_to_str(doc: Any) -> str:
     downstream consumers (argparse, rich) always receive a plain string.
     """
     if isinstance(doc, MutableSequence):
-        return "\n".join(str(entry) for entry in doc)
+        return "\n".join(doc)
     if doc is None:
         return ""
     return str(doc)
