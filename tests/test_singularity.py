@@ -163,6 +163,7 @@ def test_singularity_workflow(tmp_path: Path) -> None:
 
 @needs_singularity_3_or_newer
 def test_singularity_alternate_names_used(tmp_path: Path) -> None:
+    """Test alternate names for Singularity images can be used."""
     new_image = tmp_path / "docker.io_s_debian:stable-slim.sif"
     old_image = tmp_path / "docker.io_debian:stable-slim.sif"
 
@@ -205,6 +206,58 @@ def test_singularity_alternate_names_used(tmp_path: Path) -> None:
 
     assert not new_image.exists()
     assert old_image.exists()
+
+
+@needs_singularity
+def test_singularity_docker_image_id(tmp_path: Path) -> None:
+    """Test dockerImageId Docker references work with Singularity."""
+
+    # Run a workflow to create the .sif
+    with working_directory(tmp_path):
+        error_code, _, stderr = get_main_output(
+            [
+                "--singularity",
+                "--default-container",
+                "docker.io/debian:stable-slim",
+                "--debug",
+                get_data("tests/wf/hello-workflow.cwl"),
+                "--usermessage",
+                "hello",
+            ]
+        )
+    assert "completed success" in stderr, stderr
+    assert error_code == 0
+
+    # Run a workflow that uses the Docker image name in dockerImageId
+    with working_directory(tmp_path):
+        error_code, _, stderr = get_main_output(
+            [
+                "--singularity",
+                "--debug",
+                get_data("tests/wf/hello-workflow-dockerimageid.cwl"),
+                "--usermessage",
+                "hello",
+            ]
+        )
+    assert "completed success" in stderr, stderr
+    assert error_code == 0
+
+
+@needs_singularity
+def test_singularity_docker_image_id_missing(tmp_path: Path) -> None:
+    """Test missing dockerImageId references with Singularity."""
+    with working_directory(tmp_path):
+        error_code, _, stderr = get_main_output(
+            [
+                "--singularity",
+                "--debug",
+                get_data("tests/wf/hello-workflow-dockerimageid.cwl"),
+                "--usermessage",
+                "hello",
+            ]
+        )
+    assert "not currently available" in stderr, stderr
+    assert error_code != 0
 
 
 def test_singularity_iwdr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
