@@ -15,7 +15,7 @@ from cwltool.singularity import (
     _IMAGES,
     _IMAGES_LOCK,
     _inspect_singularity_sandbox_image,
-    _normalize_sif_id,
+    _normalize_id,
 )
 
 from .util import (
@@ -33,79 +33,80 @@ def clear_singularity_image_cache() -> None:
     with _IMAGES_LOCK:
         _IMAGES.clear()
 
-
-def test_normalize_sif_id_resists_collision() -> None:
+@needs_singularity_3_or_newer
+def test_normalize_id_resists_collision() -> None:
     """Test that tricky image names can't collide."""
-    assert _normalize_sif_id("ubuntu:latest")[0] != _normalize_sif_id("ubuntu_latest")[0]
+    assert _normalize_id("ubuntu:latest")[0] != _normalize_id("ubuntu_latest")[0]
     assert (
-        _normalize_sif_id("docker://user_name/repo")[0]
-        != _normalize_sif_id("docker://user/name_repo")[0]
+        _normalize_id("docker://user_name/repo")[0]
+        != _normalize_id("docker://user/name_repo")[0]
     )
     assert (
-        _normalize_sif_id("http://something.com/something.sif")[0]
-        != _normalize_sif_id("http:_something.com/something.sif")[0]
+        _normalize_id("http://something.com/something.sif")[0]
+        != _normalize_id("http:_something.com/something.sif")[0]
     )
 
-
-def test_normalize_sif_id_implies_latest() -> None:
+@needs_singularity_3_or_newer
+def test_normalize_id_implies_latest() -> None:
     """
     Test that image names that imply latest are equivalent to those that
     specify it.
     """
-    assert _normalize_sif_id("ubuntu")[0] == _normalize_sif_id("ubuntu:latest")[0]
+    assert _normalize_id("ubuntu")[0] == _normalize_id("ubuntu:latest")[0]
     assert (
-        _normalize_sif_id("quay.io/adamnovak/hap.py")[0]
-        == _normalize_sif_id("quay.io/adamnovak/hap.py:latest")[0]
+        _normalize_id("quay.io/adamnovak/hap.py")[0]
+        == _normalize_id("quay.io/adamnovak/hap.py:latest")[0]
     )
 
-
-def test_normalize_sif_id_does_not_tag_protocols() -> None:
+@needs_singularity_3_or_newer
+def test_normalize_id_does_not_tag_protocols() -> None:
     """
     Test that if an image comes from a string with a protocol, no tag is added.
     """
     assert (
-        _normalize_sif_id("docker://library/ubuntu")[0]
-        != _normalize_sif_id("docker://library/ubuntu:latest")[0]
+        _normalize_id("docker://library/ubuntu")[0]
+        != _normalize_id("docker://library/ubuntu:latest")[0]
     )
 
-
-def test_normalize_sif_id_matches_cwl_utils_tests() -> None:
+@needs_singularity_3_or_newer
+def test_normalize_id_matches_cwl_utils_tests() -> None:
     """
     Make sure that the particular values tested in cwl-utils get the same
     answers here as there.
     """
 
-    assert _normalize_sif_id("some_name/repo:123")[0] == "some___name_s_repo:123.sif"
-    assert _normalize_sif_id("some/name_repo:123")[0] == "some_s_name___repo:123.sif"
+    assert _normalize_id("some_name/repo:123")[0] == "some___name_s_repo:123.sif"
+    assert _normalize_id("some/name_repo:123")[0] == "some_s_name___repo:123.sif"
 
 
 # We have to include the normal name here because if there aren't slashes or
 # underscores and a tag is included we generate the same names for the same
 # images under the new and old schemes.
 
-
-def test_normalize_sif_id_names_match_old_cwltool() -> None:
+@needs_singularity_3_or_newer
+def test_normalize_id_names_match_old_cwltool() -> None:
     """
     Make sure alternate image names tried match those previously used by
     cwltool 3.2.20260720092025.
     """
 
     def get_names(string: str) -> list[str]:
-        name, alternate_names = _normalize_sif_id(string)
+        name, alternate_names = _normalize_id(string)
         return [name] + alternate_names
 
     assert "debian:stable-slim.sif" in get_names("debian:stable-slim")
     assert "quay.io_user_image_latest.sif" in get_names("quay.io/user/image")
 
 
-def test_normalize_sif_id_names_match_old_cwl_utils() -> None:
+@needs_singularity_3_or_newer
+def test_normalize_id_names_match_old_cwl_utils() -> None:
     """
     Make sure alternate image names tried match those previously used by
     cwl-utils 0.42
     """
 
     def get_names(string: str) -> list[str]:
-        name, alternate_names = _normalize_sif_id(string)
+        name, alternate_names = _normalize_id(string)
         return [name] + alternate_names
 
     assert "debian_stable-slim.sif" in get_names("debian:stable-slim")
@@ -273,7 +274,7 @@ def test_singularity_dockerfile_no_name_no_cache(tmp_path: Path) -> None:
             ]
         )
         assert result_code == 0, stderr
-    assert not (workdir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
+    assert not (workdir / _normalize_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
 
 
 @needs_singularity_3_or_newer
@@ -296,8 +297,8 @@ def test_singularity_dockerfile_no_name_with_cache(
                 ]
             )
             assert result_code == 0, stderr
-    assert not (workdir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
-    assert (cachedir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
+    assert not (workdir / _normalize_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
+    assert (cachedir / _normalize_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
 
 
 @needs_singularity_3_or_newer
@@ -315,8 +316,8 @@ def test_singularity_dockerfile_with_name_no_cache(tmp_path: Path) -> None:
         )
         assert result_code == 0, stderr
     print(list(workdir.iterdir()))
-    assert not (workdir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
-    assert not (workdir / _normalize_sif_id("customDebian")[0]).exists()
+    assert not (workdir / _normalize_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
+    assert not (workdir / _normalize_id("customDebian")[0]).exists()
 
 
 @needs_singularity_3_or_newer
@@ -341,10 +342,10 @@ def test_singularity_dockerfile_with_name_with_cache(
             print(list(workdir.iterdir()))
             print(list(cachedir.iterdir()))
             assert result_code == 0, stderr
-    assert not (workdir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
-    assert not (cachedir / _normalize_sif_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
-    assert not (workdir / _normalize_sif_id("customDebian")[0]).exists()
-    assert (cachedir / _normalize_sif_id("customDebian")[0]).exists()
+    assert not (workdir / _normalize_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
+    assert not (cachedir / _normalize_id("bea92b9b6910cbbd2ae602f5bb0f0f27")[0]).exists()
+    assert not (workdir / _normalize_id("customDebian")[0]).exists()
+    assert (cachedir / _normalize_id("customDebian")[0]).exists()
 
 
 @needs_singularity
