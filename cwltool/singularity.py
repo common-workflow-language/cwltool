@@ -408,7 +408,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 # This is likely to fail if we aren't able to use fakeroot and
                 # don't have proot and a new enough Singularity to use proot.
                 # TODO: How do we actually get the build output to be visible?
-                result = Client.build(
+                result: str | None = Client.build(
                     recipe=singularityfile_path,
                     build_folder=absolute_path,
                     image=image_name,
