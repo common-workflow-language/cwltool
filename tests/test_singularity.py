@@ -452,6 +452,25 @@ def test_singularity_dockerfile_with_name_with_cache(
     assert (cachedir / _normalize_id("customDebian")[0]).exists()
 
 
+def test_singularity_dockerfile_failed_build(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test using a Dockerfile has detectable failures."""
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    with working_directory(workdir):
+        result_code, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                get_data("tests/sing_dockerfile_failing_test.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
+        assert result_code != 0, stderr
+        assert "failed to build" in stderr
+
+
 @needs_singularity
 def test_singularity_local_sandbox_image(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     workdir = tmp_path / "working_dir"
