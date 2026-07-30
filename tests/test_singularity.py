@@ -33,18 +33,19 @@ def clear_singularity_image_cache() -> None:
     with _IMAGES_LOCK:
         _IMAGES.clear()
 
+
 @needs_singularity_3_or_newer
 def test_normalize_id_resists_collision() -> None:
     """Test that tricky image names can't collide."""
     assert _normalize_id("ubuntu:latest")[0] != _normalize_id("ubuntu_latest")[0]
     assert (
-        _normalize_id("docker://user_name/repo")[0]
-        != _normalize_id("docker://user/name_repo")[0]
+        _normalize_id("docker://user_name/repo")[0] != _normalize_id("docker://user/name_repo")[0]
     )
     assert (
         _normalize_id("http://something.com/something.sif")[0]
         != _normalize_id("http:_something.com/something.sif")[0]
     )
+
 
 @needs_singularity_3_or_newer
 def test_normalize_id_implies_latest() -> None:
@@ -58,6 +59,7 @@ def test_normalize_id_implies_latest() -> None:
         == _normalize_id("quay.io/adamnovak/hap.py:latest")[0]
     )
 
+
 @needs_singularity_3_or_newer
 def test_normalize_id_does_not_tag_protocols() -> None:
     """
@@ -67,6 +69,7 @@ def test_normalize_id_does_not_tag_protocols() -> None:
         _normalize_id("docker://library/ubuntu")[0]
         != _normalize_id("docker://library/ubuntu:latest")[0]
     )
+
 
 @needs_singularity_3_or_newer
 def test_normalize_id_matches_cwl_utils_tests() -> None:
@@ -82,6 +85,7 @@ def test_normalize_id_matches_cwl_utils_tests() -> None:
 # We have to include the normal name here because if there aren't slashes or
 # underscores and a tag is included we generate the same names for the same
 # images under the new and old schemes.
+
 
 @needs_singularity_3_or_newer
 def test_normalize_id_names_match_old_cwltool() -> None:

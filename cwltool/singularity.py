@@ -266,6 +266,7 @@ def _normalize_id(string: str) -> tuple[str, list[str]]:
     extension = ".sif" if is_version_3_or_newer() else ".img"
     return _encode_container_image(string) + extension, _alternate_images(string, extension)
 
+
 @mypyc_attr(allow_interpreted_subclasses=True)
 def _inspect_singularity_sandbox_image(path: str) -> bool:
     """Inspect singularity sandbox image to be sure it is not an empty directory."""
