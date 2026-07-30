@@ -161,6 +161,52 @@ def test_singularity_workflow(tmp_path: Path) -> None:
     assert error_code == 0
 
 
+@needs_singularity_3_or_newer
+def test_singularity_alternate_names_used(tmp_path: Path) -> None:
+    new_image = tmp_path / "docker.io_s_debian:stable-slim.sif"
+    old_image = tmp_path / "docker.io_debian:stable-slim.sif"
+
+    # Run a workflow to create the .sif
+    with working_directory(tmp_path):
+        error_code, _, stderr = get_main_output(
+            [
+                "--singularity",
+                "--default-container",
+                "docker.io/debian:stable-slim",
+                "--debug",
+                get_data("tests/wf/hello-workflow.cwl"),
+                "--usermessage",
+                "hello",
+            ]
+        )
+    assert "completed success" in stderr, stderr
+    assert error_code == 0
+    assert new_image.exists()
+    assert not old_image.exists()
+
+    new_image.rename(old_image)
+
+    # Run the workflow again using the .sif at the old path
+    with working_directory(tmp_path):
+        # Run a workflow to create the .sif
+        error_code, _, stderr = get_main_output(
+            [
+                "--singularity",
+                "--default-container",
+                "docker.io/debian:stable-slim",
+                "--debug",
+                get_data("tests/wf/hello-workflow.cwl"),
+                "--usermessage",
+                "hello",
+            ]
+        )
+    assert "completed success" in stderr, stderr
+    assert error_code == 0
+
+    assert not new_image.exists()
+    assert old_image.exists()
+
+
 def test_singularity_iwdr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     singularity_dir = tmp_path / "singularity"
     singularity_dir.mkdir()
