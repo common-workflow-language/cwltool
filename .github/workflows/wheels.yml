@@ -46,7 +46,7 @@ jobs:
         with:
           key: ${{ github.job }}-${{ matrix.image }}
           verbose: 2
-      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/cibw-cache
           key: cibw-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
@@ -92,7 +92,7 @@ jobs:
   #         fetch-depth: 0  # slow, but gets all the tags
   #         ref: ${{ github.event.client_payload.ref }}
   #         persist-credentials: false
-  #     - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+  #     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
   #       with:
   #         path: ${{ runner.temp }}/cibw-cache
   #         key: cibw-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
@@ -158,7 +158,7 @@ jobs:
         with:
           key: ${{ github.job }}-${{ matrix.os }}
           verbose: 2
-      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/cibw-cache
           key: cibw-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
