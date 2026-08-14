@@ -34,7 +34,7 @@ jobs:
     strategy:
       matrix:
         py-ver-major: [3]
-        py-ver-minor: [10, 11, 12, 13, 14]
+        py-ver-minor: [10, 11, 12, 13, 14, 15]
         step: [lint, unit, bandit, mypy]
 
     env:
@@ -102,8 +102,8 @@ jobs:
         step: [lintreadme, shellcheck, pydocstyle]
 
     env:
-      py-semver: "3.13"
-      TOXENV: ${{ format('py313-{0}', matrix.step) }}
+      py-semver: "3.14"
+      TOXENV: ${{ format('py314-{0}', matrix.step) }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -135,7 +135,7 @@ jobs:
     name: No leftovers
     runs-on: ubuntu-24.04
     env:
-      py-semver: "3.13"
+      py-semver: "3.14"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -212,7 +212,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: 3.13
+          python-version: 3.14
           cache: pip
 
       - name: "Test CWL ${{ matrix.cwl-version }} conformance"
@@ -251,7 +251,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: 3.13
+          python-version: 3.14
           cache: pip
           cache-dependency-path: |
             requirements.txt
@@ -286,7 +286,7 @@ jobs:
     name: Test on macos-latest
     runs-on: macos-latest
     env:
-      TOXENV: py313-unit
+      TOXENV: py314-unit
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -295,7 +295,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: 3.13
+          python-version: 3.14
           cache: pip
           cache-dependency-path: |
             requirements.txt
