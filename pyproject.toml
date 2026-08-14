@@ -22,7 +22,7 @@ test-requires = "-r test-requirements.txt"
 build-verbosity = 1
 environment = { CWLTOOL_USE_MYPYC="1", MYPYPATH="$(pwd)/mypy-stubs" }
 skip = ["cp31?t-*"]
-# Skip free-threaded builds, as mypyc does not support them yet
+# cp31?t-*: Skip free-threaded builds, as mypyc does not support them yet
 # https://mypy.readthedocs.io/en/stable/changelog.html#mypyc-partial-unsafe-support-for-free-threading
 
 # Install system library
