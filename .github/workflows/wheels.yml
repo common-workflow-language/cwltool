@@ -29,12 +29,12 @@ jobs:
             build: "*musllinux*"
 
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ github.event_name != 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
           persist-credentials: false
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ github.event_name == 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
@@ -67,12 +67,12 @@ jobs:
     name: Build source distribution
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ github.event_name != 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
           persist-credentials: false
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ github.event_name == 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
@@ -95,12 +95,12 @@ jobs:
         # macos-15-intel is an intel runner, macos-14 is apple silicon
         os: [macos-15-intel, macos-14, macos-15]
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ github.event_name != 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
           persist-credentials: false
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ github.event_name == 'repository_dispatch' }}
         with:
           fetch-depth: 0  # slow, but gets all the tags
