@@ -173,7 +173,7 @@ setup(
             "pillow",  # workaround for https://github.com/galaxyproject/galaxy/pull/20525
         ],
     },
-    python_requires=">=3.10, <3.15",
+    python_requires=">=3.10, <3.16",
     use_scm_version=True,
     setup_requires=PYTEST_RUNNER + ["setuptools_scm>=8.0.4,<11"],
     test_suite="tests",
