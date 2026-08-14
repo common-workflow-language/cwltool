@@ -32,6 +32,7 @@ jobs:
     name: Tox
     runs-on: ubuntu-24.04
     strategy:
+      fail-fast: false
       matrix:
         py-ver-major: [3]
         py-ver-minor: [10, 11, 12, 13, 14, 15]
