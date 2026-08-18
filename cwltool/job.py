@@ -517,10 +517,15 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
         elif runtimeContext.preserve_environment:
             self._preserve_environment_on_containers_warning(runtimeContext.preserve_environment)
 
-        env.update(self.extract_environment(runtimeContext, envVarReq))
-
         # Set required env vars
+        # Preserve host variables first.
+        env.update(self.extract_environment(runtimeContext, {}))
+
+        # Keep required CWL runtime vars deterministic.
         env.update(self._required_env())
+
+        # Allow explicit EnvVarRequirement to override defaults.
+        env.update(envVarReq)
 
         # Set on ourselves
         self.environment = env
