@@ -77,6 +77,106 @@ def test_singularity_workflow(tmp_path: Path) -> None:
     assert error_code == 0
 
 
+@needs_singularity_3_or_newer
+def test_singularity_alternate_names_used(tmp_path: Path) -> None:
+    """Test alternate names for Singularity images can be used."""
+    new_image = tmp_path / "docker.io_s_debian:stable-slim.sif"
+    old_image = tmp_path / "docker.io_debian:stable-slim.sif"
+
+    # Run a workflow to create the .sif
+    with working_directory(tmp_path):
+        error_code, _, stderr = get_main_output(
+            [
+                "--singularity",
+                "--default-container",
+                "docker.io/debian:stable-slim",
+                "--debug",
+                get_data("tests/wf/hello-workflow.cwl"),
+                "--usermessage",
+                "hello",
+            ]
+        )
+    assert "completed success" in stderr, stderr
+    assert error_code == 0
+    assert new_image.exists()
+    assert not old_image.exists()
+
+    new_image.rename(old_image)
+
+    # Run the workflow again using the .sif at the old path
+    with working_directory(tmp_path):
+        # Run a workflow to create the .sif
+        error_code, _, stderr = get_main_output(
+            [
+                "--singularity",
+                "--default-container",
+                "docker.io/debian:stable-slim",
+                "--debug",
+                get_data("tests/wf/hello-workflow.cwl"),
+                "--usermessage",
+                "hello",
+            ]
+        )
+    assert "completed success" in stderr, stderr
+    assert error_code == 0
+
+    # We should see the new file hardlinked to the old file.
+    assert new_image.samefile(old_image)
+
+
+@needs_singularity
+def test_singularity_docker_image_id(tmp_path: Path) -> None:
+    """Test dockerImageId Docker references work with Singularity."""
+
+    # Run a workflow to create the image
+    with working_directory(tmp_path):
+        error_code, _, stderr = get_main_output(
+            [
+                "--singularity",
+                "--default-container",
+                "docker.io/debian:stable-slim",
+                "--debug",
+                get_data("tests/wf/hello-workflow.cwl"),
+                "--usermessage",
+                "hello",
+            ]
+        )
+    assert "completed success" in stderr, stderr
+    assert error_code == 0
+
+    # Run a workflow that uses the Docker image name in dockerImageId
+    with working_directory(tmp_path):
+        error_code, _, stderr = get_main_output(
+            [
+                "--singularity",
+                "--debug",
+                get_data("tests/wf/hello-workflow-dockerimageid.cwl"),
+                "--usermessage",
+                "hello",
+            ]
+        )
+    assert "completed success" in stderr, stderr
+    assert error_code == 0
+
+
+@needs_singularity
+def test_singularity_docker_image_id_missing(tmp_path: Path) -> None:
+    """Test missing dockerImageId references with Singularity."""
+    with working_directory(tmp_path):
+        error_code, _, stderr = get_main_output(
+            [
+                "--singularity",
+                "--debug",
+                get_data("tests/wf/hello-workflow-dockerimageid.cwl"),
+                "--usermessage",
+                "hello",
+            ]
+        )
+    assert "not found" in stderr, stderr
+    assert "docker.io/debian:stable-slim" in stderr, stderr
+    assert error_code != 0
+
+
 def test_singularity_iwdr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     singularity_dir = tmp_path / "singularity"
     singularity_dir.mkdir()
@@ -194,7 +294,7 @@ def test_singularity_dockerfile_no_name_no_cache(tmp_path: Path) -> None:
             ]
         )
         assert result_code == 0, stderr
-    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
+    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27.sif").exists()
 
 
 @needs_singularity_3_or_newer
@@ -217,8 +317,8 @@ def test_singularity_dockerfile_no_name_with_cache(
                 ]
             )
             assert result_code == 0, stderr
-    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
-    assert (cachedir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
+    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27.sif").exists()
+    assert (cachedir / "bea92b9b6910cbbd2ae602f5bb0f0f27.sif").exists()
 
 
 @needs_singularity_3_or_newer
@@ -236,8 +336,8 @@ def test_singularity_dockerfile_with_name_no_cache(tmp_path: Path) -> None:
         )
         assert result_code == 0, stderr
     print(list(workdir.iterdir()))
-    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
-    assert not (workdir / "customDebian_latest.sif").exists()
+    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27.sif").exists()
+    assert not (workdir / "customDebian:latest.sif").exists()
 
 
 @needs_singularity_3_or_newer
@@ -262,10 +362,30 @@ def test_singularity_dockerfile_with_name_with_cache(
             print(list(workdir.iterdir()))
             print(list(cachedir.iterdir()))
             assert result_code == 0, stderr
-    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
-    assert not (cachedir / "bea92b9b6910cbbd2ae602f5bb0f0f27_latest.sif").exists()
-    assert not (workdir / "customDebian_latest.sif").exists()
-    assert (cachedir / "customDebian_latest.sif").exists()
+    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27.sif").exists()
+    assert not (cachedir / "bea92b9b6910cbbd2ae602f5bb0f0f27.sif").exists()
+    assert not (workdir / "customDebian:latest.sif").exists()
+    assert (cachedir / "customDebian:latest.sif").exists()
+
+
+@needs_singularity_3_or_newer
+def test_singularity_dockerfile_failed_build(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test using a Dockerfile has detectable failures."""
+    workdir = tmp_path / "working_dir"
+    workdir.mkdir()
+    with working_directory(workdir):
+        result_code, stdout, stderr = get_main_output(
+            [
+                "--singularity",
+                get_data("tests/sing_dockerfile_failing_test.cwl"),
+                "--message",
+                "hello",
+            ]
+        )
+        assert result_code != 0, stderr
+        assert "failed to build" in stderr
 
 
 @needs_singularity
