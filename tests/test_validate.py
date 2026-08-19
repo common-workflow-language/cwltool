@@ -245,3 +245,139 @@ def test_validate_no_basecommand_space_warning(cwl_file: str) -> None:
     )
     assert exit_code == 0
     assert "single string containing whitespace" not in custom_log.getvalue()
+
+
+def test_validate_warns_when_base_command_not_on_path() -> None:
+    """A 'baseCommand' that is not on the PATH warns but still validates."""
+    custom_log = io.StringIO()
+    handler = logging.StreamHandler(custom_log)
+    handler.setLevel(logging.DEBUG)
+    exit_code, stdout, stderr = get_main_output(
+        ["--validate", get_data("tests/wf/2240-basecommand-unavailable.cwl")],
+        logger_handler=handler,
+    )
+    assert exit_code == 0
+    assert "is valid CWL" in stdout
+    assert "cannot find 'definitely_not_a_real_command_xyz' on the PATH" in custom_log.getvalue()
+
+
+def test_validate_warns_when_list_base_command_not_on_path() -> None:
+    """A list-form 'baseCommand' whose program is missing warns but validates."""
+    custom_log = io.StringIO()
+    handler = logging.StreamHandler(custom_log)
+    handler.setLevel(logging.DEBUG)
+    exit_code, _, _ = get_main_output(
+        ["--validate", get_data("tests/wf/2240-basecommand-list-missing.cwl")],
+        logger_handler=handler,
+    )
+    assert exit_code == 0
+    assert "cannot find 'definitely_not_a_real_command_xyz' on the PATH" in custom_log.getvalue()
+
+
+@pytest.mark.parametrize(
+    "cwl_file",
+    ["tests/wf/2240-basecommand-available.cwl", "tests/wf/2240-basecommand-path.cwl"],
+)
+def test_validate_no_missing_basecommand_warning(cwl_file: str) -> None:
+    """A 'baseCommand' that resolves on the PATH (or is an absolute path) does not warn."""
+    custom_log = io.StringIO()
+    handler = logging.StreamHandler(custom_log)
+    handler.setLevel(logging.DEBUG)
+    exit_code, _, _ = get_main_output(
+        ["--validate", get_data(cwl_file)],
+        logger_handler=handler,
+    )
+    assert exit_code == 0
+    assert "cannot find" not in custom_log.getvalue()
+
+
+def test_container_has_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    """_container_has_command probes an image only when it is present locally."""
+    import cwltool.command_line_tool as clt
+
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+
+        class Result:
+            returncode = 1
+
+        result = Result()
+        if cmd[1] == "image":
+            result.returncode = 1
+        return result
+
+    monkeypatch.setattr(clt.subprocess, "run", fake_run)
+    assert clt._container_has_command("docker", "missing:latest", "foo") is None
+    assert calls[-1][1] == "image"
+
+    def fake_run2(cmd, **kwargs):
+        calls.append(cmd)
+
+        class Result:
+            returncode = 0 if cmd[1] == "image" or "true" in cmd else 1
+
+        result = Result()
+        return result
+
+    monkeypatch.setattr(clt.subprocess, "run", fake_run2)
+    assert clt._container_has_command("docker", "present:latest", "foo") is False
+    assert "sh" in calls[-2] and "foo" in calls[-2]
+
+    def fake_run3(cmd, **kwargs):
+        calls.append(cmd)
+
+        class Result:
+            returncode = 0 if cmd[1] == "image" else 1
+
+        result = Result()
+        if cmd[1] == "run" and "true" in cmd:
+            result.returncode = 1
+        return result
+
+    monkeypatch.setattr(clt.subprocess, "run", fake_run3)
+    assert clt._container_has_command("docker", "distroless:latest", "foo") is None
+
+    def fake_run4(cmd, **kwargs):
+        calls.append(cmd)
+
+        class Result:
+            returncode = 0
+
+        result = Result()
+        return result
+
+    monkeypatch.setattr(clt.subprocess, "run", fake_run4)
+    assert clt._container_has_command("docker", "full:latest", "foo") is True
+
+
+def test_validate_warns_for_missing_basecommand_in_container(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: str
+) -> None:
+    """A base command missing from a locally available image warns but validates."""
+    import cwltool.command_line_tool as clt
+
+    monkeypatch.setattr(
+        clt,
+        "_container_has_command",
+        lambda docker, image, command: False,
+    )
+    monkeypatch.setattr(clt.shutil, "which", lambda exe: "docker")
+    custom_log = io.StringIO()
+    handler = logging.StreamHandler(custom_log)
+    handler.setLevel(logging.DEBUG)
+    with open(get_data("tests/wf/2240-basecommand-unavailable.cwl"), encoding="utf-8") as f:
+        tool = f.read()
+    tool = tool.replace(
+        "inputs: []",
+        "requirements:\n  - class: DockerRequirement\n    dockerPull: ubuntu:latest\ninputs: []",
+    )
+    tool_file = tmp_path / "2240-basecommand-in-container.cwl"
+    tool_file.write_text(tool, encoding="utf-8")
+    exit_code, _, _ = get_main_output(["--validate", str(tool_file)], logger_handler=handler)
+    assert exit_code == 0
+    assert (
+        "cannot find 'definitely_not_a_real_command_xyz' inside container image 'ubuntu:latest'"
+        in custom_log.getvalue()
+    )

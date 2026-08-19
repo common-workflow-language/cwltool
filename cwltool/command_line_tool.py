@@ -9,6 +9,7 @@ import os
 import re
 import shlex
 import shutil
+import subprocess
 import threading
 import urllib
 import urllib.parse
@@ -418,6 +419,38 @@ def default_make_path_mapper(
     return path_mapper_class(reffiles, runtimeContext.basedir, stagedir, separateDirs)
 
 
+def _container_has_command(docker: str, image: str, command: str) -> Optional[bool]:
+    """Return True/False if *command* is (not) present in *image*, or None if
+    the image is not available locally and cannot be inspected."""
+    inspect = subprocess.run(
+        [docker, "image", "inspect", image],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if inspect.returncode != 0:
+        return None
+    probe = subprocess.run(
+        [docker, "run", "--rm", "--entrypoint", "sh", image, "-c", shlex.quote(command)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if probe.returncode == 0:
+        return True
+    # The probe can also fail when the image has no shell at all (e.g.
+    # distroless images); distinguish that from a missing command.
+    shell = subprocess.run(
+        [docker, "run", "--rm", "--entrypoint", "sh", image, "true"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if shell.returncode != 0:
+        return None
+    return False
+
+
 @mypyc_attr(allow_interpreted_subclasses=True)
 class CommandLineTool(Process):
     def __init__(self, toolpath_object: CommentedMap, loadingContext: LoadingContext) -> None:
@@ -434,12 +467,70 @@ class CommandLineTool(Process):
                     % (base_command, ", ".join(repr(p) for p in base_command.split()))
                 )
             )
+        self._warn_if_base_command_not_found(base_command)
         self.prov_obj = loadingContext.prov_obj
         self.path_check_mode: PathCheckingMode = (
             PathCheckingMode.RELAXED
             if loadingContext.relax_path_checks
             else PathCheckingMode.STRICT
         )
+
+    def _warn_if_base_command_not_found(
+        self, base_command: Union[str, MutableSequence[str]]
+    ) -> None:
+        """Warn about a ``baseCommand`` that cannot be found on PATH or in the
+        declared container image.
+
+        Validation only confirms that the document is well-formed; whether the
+        command will actually be available at execution time is an
+        environment-dependent question.  When we can positively determine that
+        the command is missing (no DockerRequirement and not on the PATH, or a
+        locally available image that does not contain the command), we emit a
+        warning.  Uncertain situations (e.g. the image is not present
+        locally) never fail, they are reported with a ``DEBUG`` message.
+
+        Containers are only probed when the image is already available
+        locally, so that ``--validate`` never triggers a large image pull.
+        """
+        command = base_command
+        if isinstance(command, list):
+            if not command:
+                return
+            command = command[0]
+        if not isinstance(command, str) or not command or "/" in command:
+            # Path-looking commands are resolved relative to the working
+            # directory at execution time; nothing further to check here.
+            return
+
+        docker_req, _ = self.get_requirement("DockerRequirement")
+        if docker_req:
+            docker = shutil.which("docker") or shutil.which("podman")
+            image = docker_req.get("dockerPull")
+            if docker is None or not isinstance(image, str) or not image:
+                _logger.debug("skipping container base command check: docker not found or no image")
+                return
+            has_command = _container_has_command(docker, image, command)
+            if has_command is False:
+                _logger.warning(
+                    SourceLine(self.tool, "baseCommand", str).makeError(
+                        "cannot find %r inside container image %r; the command may "
+                        "still be provided at runtime, but validation could not "
+                        "confirm it exists" % (command, image)
+                    )
+                )
+            elif has_command is None:
+                _logger.debug(
+                    "image %s not available locally; not checking for %r inside the container",
+                    image,
+                    command,
+                )
+        elif shutil.which(command) is None:
+            _logger.warning(
+                SourceLine(self.tool, "baseCommand", str).makeError(
+                    "cannot find %r on the PATH; the command may still be provided "
+                    "at runtime, but validation could not confirm it exists" % command
+                )
+            )
 
     def make_job_runner(self, runtimeContext: RuntimeContext) -> type[JobBase]:
         """Return the correct CommandLineJob class given the container settings."""
