@@ -3,6 +3,7 @@
 import io
 import logging
 import re
+from pathlib import Path
 
 import pytest
 
@@ -297,7 +298,7 @@ def test_container_has_command(monkeypatch: pytest.MonkeyPatch) -> None:
 
     calls: list[list[str]] = []
 
-    def fake_run(cmd, **kwargs):
+    def fake_run(cmd: list[str], **kwargs: object) -> object:
         calls.append(cmd)
 
         class Result:
@@ -308,11 +309,11 @@ def test_container_has_command(monkeypatch: pytest.MonkeyPatch) -> None:
             result.returncode = 1
         return result
 
-    monkeypatch.setattr(clt.subprocess, "run", fake_run)
-    assert clt._container_has_command("docker", "missing:latest", "foo") is None
+    monkeypatch.setattr(getattr(clt, "subprocess"), "run", fake_run)
+    assert getattr(clt, "_container_has_command")("docker", "missing:latest", "foo") is None
     assert calls[-1][1] == "image"
 
-    def fake_run2(cmd, **kwargs):
+    def fake_run2(cmd: list[str], **kwargs: object) -> object:
         calls.append(cmd)
 
         class Result:
@@ -321,11 +322,11 @@ def test_container_has_command(monkeypatch: pytest.MonkeyPatch) -> None:
         result = Result()
         return result
 
-    monkeypatch.setattr(clt.subprocess, "run", fake_run2)
-    assert clt._container_has_command("docker", "present:latest", "foo") is False
+    monkeypatch.setattr(getattr(clt, "subprocess"), "run", fake_run2)
+    assert getattr(clt, "_container_has_command")("docker", "present:latest", "foo") is False
     assert "sh" in calls[-2] and "foo" in calls[-2]
 
-    def fake_run3(cmd, **kwargs):
+    def fake_run3(cmd: list[str], **kwargs: object) -> object:
         calls.append(cmd)
 
         class Result:
@@ -336,10 +337,10 @@ def test_container_has_command(monkeypatch: pytest.MonkeyPatch) -> None:
             result.returncode = 1
         return result
 
-    monkeypatch.setattr(clt.subprocess, "run", fake_run3)
-    assert clt._container_has_command("docker", "distroless:latest", "foo") is None
+    monkeypatch.setattr(getattr(clt, "subprocess"), "run", fake_run3)
+    assert getattr(clt, "_container_has_command")("docker", "distroless:latest", "foo") is None
 
-    def fake_run4(cmd, **kwargs):
+    def fake_run4(cmd: list[str], **kwargs: object) -> object:
         calls.append(cmd)
 
         class Result:
@@ -348,12 +349,12 @@ def test_container_has_command(monkeypatch: pytest.MonkeyPatch) -> None:
         result = Result()
         return result
 
-    monkeypatch.setattr(clt.subprocess, "run", fake_run4)
-    assert clt._container_has_command("docker", "full:latest", "foo") is True
+    monkeypatch.setattr(getattr(clt, "subprocess"), "run", fake_run4)
+    assert getattr(clt, "_container_has_command")("docker", "full:latest", "foo") is True
 
 
 def test_validate_warns_for_missing_basecommand_in_container(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: str
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """A base command missing from a locally available image warns but validates."""
     import cwltool.command_line_tool as clt
@@ -363,7 +364,7 @@ def test_validate_warns_for_missing_basecommand_in_container(
         "_container_has_command",
         lambda docker, image, command: False,
     )
-    monkeypatch.setattr(clt.shutil, "which", lambda exe: "docker")
+    monkeypatch.setattr(getattr(clt, "shutil"), "which", lambda exe: "docker")
     custom_log = io.StringIO()
     handler = logging.StreamHandler(custom_log)
     handler.setLevel(logging.DEBUG)

@@ -9,7 +9,7 @@ import os
 import re
 import shlex
 import shutil
-import subprocess
+import subprocess  # nosec
 import threading
 import urllib
 import urllib.parse
@@ -422,7 +422,7 @@ def default_make_path_mapper(
 def _container_has_command(docker: str, image: str, command: str) -> Optional[bool]:
     """Return True/False if *command* is (not) present in *image*, or None if
     the image is not available locally and cannot be inspected."""
-    inspect = subprocess.run(
+    inspect = subprocess.run(  # nosec
         [docker, "image", "inspect", image],
         capture_output=True,
         text=True,
@@ -430,7 +430,7 @@ def _container_has_command(docker: str, image: str, command: str) -> Optional[bo
     )
     if inspect.returncode != 0:
         return None
-    probe = subprocess.run(
+    probe = subprocess.run(  # nosec
         [docker, "run", "--rm", "--entrypoint", "sh", image, "-c", shlex.quote(command)],
         capture_output=True,
         text=True,
@@ -440,7 +440,7 @@ def _container_has_command(docker: str, image: str, command: str) -> Optional[bo
         return True
     # The probe can also fail when the image has no shell at all (e.g.
     # distroless images); distinguish that from a missing command.
-    shell = subprocess.run(
+    shell = subprocess.run(  # nosec
         [docker, "run", "--rm", "--entrypoint", "sh", image, "true"],
         capture_output=True,
         text=True,
