@@ -632,10 +632,12 @@ class WorkflowJob:
                 fs_access = getdefault(runtimeContext.make_fs_access, StdFsAccess)("")
                 for k, v in io.items():
                     if k in loadContents and v is not None:
-                        val = cast(CWLObjectType, v)
-                        if val.get("contents") is None:
-                            with fs_access.open(cast(str, val["location"]), "rb") as f:
-                                val["contents"] = content_limit_respected_read(f)
+                        values = v if isinstance(v, MutableSequence) else [v]
+                        for _val in values:
+                            val = cast(CWLObjectType, _val)
+                            if val.get("contents") is None:
+                                with fs_access.open(cast(str, val["location"]), "rb") as f:
+                                    val["contents"] = content_limit_respected_read(f)
 
                 def valueFromFunc(k: str, v: CWLOutputType | None) -> CWLOutputType | None:
                     if k in valueFrom:
