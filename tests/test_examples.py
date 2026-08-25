@@ -1955,7 +1955,9 @@ def test_very_small_and_large_floats() -> None:
         ]
     )
     assert exit_code == 0, stderr
-    assert json.loads(stdout)["result"] == "0.00001 0.0000123 123000 1230000"
+    assert (
+        json.loads(stdout)["result"] == "0.00001 0.0000123 123000 1230000 0.0000009999 0.0000009999"
+    )
 
 
 def test_invalid_nested_array() -> None:

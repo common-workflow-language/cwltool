@@ -39,6 +39,22 @@ def test_tool_help(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "job_order   Job input json file" in stdout
 
 
+def test_tool_help_with_doc_list(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test --tool-help does not crash when `doc` is a list of strings.
+
+    Regression test for https://github.com/common-workflow-language/cwltool/issues/2100
+    """
+    return_code, stdout, stderr = get_main_output(
+        ["--tool-help", get_data("tests/with_doc_list.cwl")],
+        extra_env={"NO_COLOR": "1"},
+        monkeypatch=monkeypatch,
+    )
+    assert return_code == 0
+    assert "line one" in stdout
+    assert "line two" in stdout
+    assert "The message to print." in stdout
+
+
 def test_basic_pack() -> None:
     """Basic test of --pack. See test_pack.py for detailed testing."""
     return_code, stdout, stderr = get_main_output(["--pack", get_data("tests/wf/revsort.cwl")])

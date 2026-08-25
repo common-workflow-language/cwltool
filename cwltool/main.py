@@ -367,11 +367,19 @@ def load_job_order(
         input_basedir = (
             args.basedir if args.basedir else os.path.abspath(os.path.dirname(job_order_file))
         )
-        job_order_object, _ = loader.resolve_ref(
-            job_order_file,
-            checklinks=False,
-            content_types=CWL_CONTENT_TYPES,
-        )
+        try:
+            job_order_object, _ = loader.resolve_ref(
+                job_order_file,
+                checklinks=False,
+                content_types=CWL_CONTENT_TYPES,
+            )
+        except StopIteration:
+            _logger.error(
+                "CWL input object at %s is empty. It should be a JSON/YAML dictionary "
+                "of the input parameters, or '{}' if the process takes no inputs.",
+                job_order_file,
+            )
+            sys.exit(1)
 
     if (
         isinstance(job_order_object, CommentedMap)
