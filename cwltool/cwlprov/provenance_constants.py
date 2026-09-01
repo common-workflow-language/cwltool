@@ -16,17 +16,12 @@ __citation__ = "https://doi.org/10.5281/zenodo.1208477"
 # 2. Bump minor number if adding resources or PROV statements
 # 3. Bump patch number for non-breaking non-adding changes,
 #    e.g. fixing broken relative paths
-CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.6.0"
+CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.7.0"
 
 # JSON-LD context employed to render the PROV-JSONLD provenance file as a valid,
-# term-compacted JSON-LD document (top-level object with "@context"/"@graph"),
-# instead of the bare "expanded" array representation obtained without one.
-# https://openprovenance.org/prov-jsonld/
+# term-compacted JSON-LD document (top-level object with "@context"/"@graph").
 # A local copy is vendored (see 'prov-jsonld-context.json') to perform the
-# term compaction without requiring network access during provenance
-# generation. The canonical remote IRI is nonetheless referenced in the
-# "@context" of the generated document, as consumers are expected to already
-# know/resolve this well-known context when interpreting PROV-JSONLD content.
+# term compaction without requiring network access during provenance generation.
 JSONLD_CONTEXT_URL = "https://openprovenance.org/prov-jsonld/context.jsonld"
 JSONLD_CONTEXT = json.loads(
     files("cwltool.cwlprov").joinpath("prov-jsonld-context.json").read_text(encoding="UTF-8")
