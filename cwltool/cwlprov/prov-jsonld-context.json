@@ -1,0 +1,272 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "Activity": {
+      "@context": {
+        "endTime": {
+          "@id": "prov:endedAtTime",
+          "@type": "xsd:dateTime"
+        },
+        "startTime": {
+          "@id": "prov:startedAtTime",
+          "@type": "xsd:dateTime"
+        }
+      },
+      "@id": "prov:Activity"
+    },
+    "Agent": {
+      "@context": {},
+      "@id": "prov:Agent"
+    },
+    "Alternate": {
+      "@context": {
+        "alternate1": {
+          "@reverse": "provext:qualifiedAlternate",
+          "@type": "@id"
+        },
+        "alternate2": {
+          "@id": "provext:alternate",
+          "@type": "@id"
+        }
+      },
+      "@id": "provext:Alternate"
+    },
+    "Association": {
+      "@context": {
+        "activity": {
+          "@reverse": "prov:qualifiedAssociation",
+          "@type": "@id"
+        },
+        "plan": {
+          "@id": "prov:hadPlan",
+          "@type": "@id"
+        }
+      },
+      "@id": "prov:Association"
+    },
+    "Attribution": {
+      "@context": {
+        "entity": {
+          "@reverse": "prov:qualifiedAttribution",
+          "@type": "@id"
+        }
+      },
+      "@id": "prov:Attribution"
+    },
+    "Communication": {
+      "@context": {
+        "informant": {
+          "@id": "prov:activity",
+          "@type": "@id"
+        },
+        "informed": {
+          "@reverse": "prov:qualifiedCommunication",
+          "@type": "@id"
+        }
+      },
+      "@id": "prov:Communication"
+    },
+    "Delegation": {
+      "@context": {
+        "activity": {
+          "@id": "prov:hadActivity",
+          "@type": "@id"
+        },
+        "delegate": {
+          "@reverse": "prov:qualifiedDelegation",
+          "@type": "@id"
+        },
+        "responsible": {
+          "@id": "prov:agent",
+          "@type": "@id"
+        }
+      },
+      "@id": "prov:Delegation"
+    },
+    "Derivation": {
+      "@context": {
+        "activity": {
+          "@id": "prov:hadActivity",
+          "@type": "@id"
+        },
+        "generatedEntity": {
+          "@reverse": "prov:qualifiedDerivation",
+          "@type": "@id"
+        },
+        "generation": {
+          "@id": "prov:hadGeneration",
+          "@type": "@id"
+        },
+        "usage": {
+          "@id": "prov:hadUsage",
+          "@type": "@id"
+        },
+        "usedEntity": {
+          "@id": "prov:entity",
+          "@type": "@id"
+        }
+      },
+      "@id": "prov:Derivation"
+    },
+    "End": {
+      "@context": {
+        "activity": {
+          "@reverse": "prov:qualifiedEnd",
+          "@type": "@id"
+        },
+        "ender": {
+          "@id": "prov:hadActivity",
+          "@type": "@id"
+        },
+        "time": {
+          "@id": "prov:atTime",
+          "@type": "xsd:dateTime"
+        },
+        "trigger": {
+          "@id": "prov:entity",
+          "@type": "@id"
+        }
+      },
+      "@id": "prov:End"
+    },
+    "Entity": {
+      "@context": {
+        "value": {
+          "@id": "prov:value"
+        }
+      },
+      "@id": "prov:Entity"
+    },
+    "Generation": {
+      "@context": {
+        "entity": {
+          "@reverse": "prov:qualifiedGeneration",
+          "@type": "@id"
+        },
+        "time": {
+          "@id": "prov:atTime",
+          "@type": "xsd:dateTime"
+        }
+      },
+      "@id": "prov:Generation"
+    },
+    "Influence": {
+      "@context": {
+        "influencee": {
+          "@reverse": "prov:qualifiedInfluence",
+          "@type": "@id"
+        },
+        "influencer": {
+          "@id": "prov:influencer",
+          "@type": "@id"
+        }
+      },
+      "@id": "prov:Influence"
+    },
+    "Invalidation": {
+      "@context": {
+        "entity": {
+          "@reverse": "prov:qualifiedInvalidation",
+          "@type": "@id"
+        },
+        "time": {
+          "@id": "prov:atTime",
+          "@type": "xsd:dateTime"
+        }
+      },
+      "@id": "prov:Invalidation"
+    },
+    "Membership": {
+      "@context": {
+        "collection": {
+          "@reverse": "provext:qualifiedMembership",
+          "@type": "@id"
+        },
+        "entity": {
+          "@id": "provext:member",
+          "@type": "@id"
+        }
+      },
+      "@id": "provext:Membership"
+    },
+    "Specialization": {
+      "@context": {
+        "generalEntity": {
+          "@id": "provext:generalEntity",
+          "@type": "@id"
+        },
+        "specificEntity": {
+          "@reverse": "provext:qualifiedSpecialization",
+          "@type": "@id"
+        }
+      },
+      "@id": "provext:Specialization"
+    },
+    "Start": {
+      "@context": {
+        "activity": {
+          "@reverse": "prov:qualifiedStart",
+          "@type": "@id"
+        },
+        "starter": {
+          "@id": "prov:hadActivity",
+          "@type": "@id"
+        },
+        "time": {
+          "@id": "prov:atTime",
+          "@type": "xsd:dateTime"
+        },
+        "trigger": {
+          "@id": "prov:entity",
+          "@type": "@id"
+        }
+      },
+      "@id": "prov:Start"
+    },
+    "Usage": {
+      "@context": {
+        "activity": {
+          "@reverse": "prov:qualifiedUsage",
+          "@type": "@id"
+        },
+        "time": {
+          "@id": "prov:atTime",
+          "@type": "xsd:dateTime"
+        }
+      },
+      "@id": "prov:Usage"
+    },
+    "activity": {
+      "@id": "prov:activity",
+      "@type": "@id"
+    },
+    "agent": {
+      "@id": "prov:agent",
+      "@type": "@id"
+    },
+    "entity": {
+      "@id": "prov:entity",
+      "@type": "@id"
+    },
+    "label": {
+      "@id": "rdfs:label"
+    },
+    "location": {
+      "@id": "prov:atLocation",
+      "@type": "@id"
+    },
+    "prov": "http://www.w3.org/ns/prov#",
+    "provext": "https://openprovenance.org/ns/provext#",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "role": {
+      "@id": "prov:hadRole",
+      "@type": "@id"
+    },
+    "type": {
+      "@id": "rdf:type",
+      "@type": "@id"
+    },
+    "xsd": "http://www.w3.org/2001/XMLSchema#"
+  }
+}

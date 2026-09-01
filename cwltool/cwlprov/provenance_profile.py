@@ -1,5 +1,6 @@
 import copy
 import datetime
+import json
 import logging
 import urllib
 import uuid
@@ -30,6 +31,8 @@ from .provenance_constants import (
     ACCOUNT_UUID,
     CWLPROV,
     ENCODING,
+    JSONLD_CONTEXT,
+    JSONLD_CONTEXT_URL,
     METADATA,
     ORE,
     PROVENANCE,
@@ -733,11 +736,28 @@ class ProvenanceProfile:
             prov_ids.append(self.provenance_ns[filename + ".nt"])
 
         # https://www.w3.org/TR/json-ld/
-        # TODO: Use a nice JSON-LD context
+        # Produce a proper JSON-LD document, i.e.: a top-level object providing
+        # "@context" and "@graph", instead of publishing the bare "expanded"
+        # array on its own, which is not a valid JSON-LD document on its own.
+        # The vendored PROV-JSONLD context (see 'prov-jsonld-context.json') is
+        # employed locally to compact the produced terms (shorter, human
+        # readable keys/values) without requiring network access during
+        # provenance generation, while the emitted "@context" nonetheless
+        # references the corresponding canonical IRI for interoperability.
         # see also https://eprints.soton.ac.uk/395985/
         # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
         with write_bag_file(self.research_object, basename + ".jsonld") as provenance_file:
-            self.document.serialize(provenance_file, format="rdf", rdf_format="json-ld")
+            graph = self.document.serialize(
+                format="rdf",
+                rdf_format="json-ld",
+                context=JSONLD_CONTEXT,
+                auto_compact=True,
+            )
+            jsonld_doc = {
+                "@context": [JSONLD_CONTEXT_URL],
+                "@graph": json.loads(graph)["@graph"],
+            }
+            json.dump(jsonld_doc, provenance_file, indent=2, sort_keys=True)
             prov_ids.append(self.provenance_ns[filename + ".jsonld"])
 
         _logger.debug("[provenance] added provenance: %s", prov_ids)
