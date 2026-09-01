@@ -264,8 +264,7 @@
       "@type": "@id"
     },
     "type": {
-      "@id": "rdf:type",
-      "@type": "@id"
+      "@id": "prov:type"
     },
     "xsd": "http://www.w3.org/2001/XMLSchema#"
   }

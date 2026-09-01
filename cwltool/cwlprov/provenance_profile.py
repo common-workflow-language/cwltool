@@ -16,8 +16,12 @@ from cwl_utils.types import (
     is_directory,
     is_file,
 )
+from prov.constants import PROV_N_MAP
 from prov.identifier import Identifier, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
+from prov.serializers.provrdf import ProvRDFSerializer
+from rdflib.namespace import RDF
+from rdflib.term import URIRef
 from schema_salad.sourceline import SourceLine
 
 from ..errors import WorkflowException
@@ -59,6 +63,46 @@ class _CWLDirectoryArtifact(CWLArtifact, CWLDirectoryType):
 
 class _CWLFileArtifact(CWLArtifact, CWLFileType):
     pass
+
+
+# The base PROV record classes/relations that `prov.model.ProvRecord.get_type()`
+# may assign (via `prov.constants.PROV_N_MAP`) as a record's own `rdf:type`
+# (e.g. an activity's `prov:Activity`, or a qualified `used`/`wasGeneratedBy`
+# bnode's `prov:Usage`/`prov:Generation`). Everything else that ends up as an
+# `rdf:type` triple in the RDF graph produced by `prov.serializers.provrdf` is
+# in fact the value of a `prov:type` *attribute* (e.g. `PROV_TYPE:
+# WFPROV["WorkflowEngine"]`, or the PROV-namespace subtype refinements such as
+# `prov:SoftwareAgent`/`prov:Person`/`prov:Plan`) that `ProvRDFSerializer`
+# incorrectly encodes using the `rdf:type` predicate instead of `prov:type`
+# (see its `encode_container`: `elif attr == PROV['type']: pred = RDF.type`).
+# Per the PROV-JSONLD context/schema, only the record's own base PROV class
+# belongs under the JSON-LD `@type` keyword; any supplementary/derived type
+# must be a `prov:type` attribute value, compacting to the separate `type`
+# key. See https://www.w3.org/submissions/2024/SUBM-prov-jsonld-20240825/#IC4
+_PROV_BASE_TYPES = frozenset(URIRef(t.uri) for t in PROV_N_MAP)
+
+
+def _prov_document_to_jsonld(document: ProvDocument) -> str:
+    """Serialize a :py:class:`ProvDocument` to a PROV-JSONLD-compliant graph.
+
+    Builds the RDF graph via :py:class:`~prov.serializers.provrdf.ProvRDFSerializer`
+    as usual, then corrects its handling of `prov:type` attributes (see
+    `_PROV_BASE_TYPES`) before compacting to JSON-LD, so that each node's
+    `@type` only ever holds its own PROV record class, with any other type
+    information routed to the separate `type` attribute.
+    """
+    serializer = ProvRDFSerializer(document)
+    graph = serializer.encode_document(document)
+    prov_type = URIRef(PROV["type"].uri)
+    for subject, _predicate, prov_type_value in list(graph.triples((None, RDF.type, None))):
+        if prov_type_value not in _PROV_BASE_TYPES:
+            graph.remove((subject, RDF.type, prov_type_value))
+            graph.add((subject, prov_type, prov_type_value))
+    return graph.serialize(
+        format="json-ld",
+        context=JSONLD_CONTEXT,
+        auto_compact=True,
+    )
 
 
 def copy_job_order(job: Process | JobsType, job_order_object: CWLObjectType) -> CWLObjectType:
@@ -736,23 +780,9 @@ class ProvenanceProfile:
             prov_ids.append(self.provenance_ns[filename + ".nt"])
 
         # https://www.w3.org/TR/json-ld/
-        # Produce a proper JSON-LD document, i.e.: a top-level object providing
-        # "@context" and "@graph", instead of publishing the bare "expanded"
-        # array on its own, which is not a valid JSON-LD document on its own.
-        # The vendored PROV-JSONLD context (see 'prov-jsonld-context.json') is
-        # employed locally to compact the produced terms (shorter, human
-        # readable keys/values) without requiring network access during
-        # provenance generation, while the emitted "@context" nonetheless
-        # references the corresponding canonical IRI for interoperability.
-        # see also https://eprints.soton.ac.uk/395985/
-        # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
+        # https://openprovenance.org/prov-jsonld/
         with write_bag_file(self.research_object, basename + ".jsonld") as provenance_file:
-            graph = self.document.serialize(
-                format="rdf",
-                rdf_format="json-ld",
-                context=JSONLD_CONTEXT,
-                auto_compact=True,
-            )
+            graph = _prov_document_to_jsonld(self.document)
             jsonld_doc = {
                 "@context": [JSONLD_CONTEXT_URL],
                 "@graph": json.loads(graph)["@graph"],

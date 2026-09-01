@@ -22,7 +22,7 @@ CWLPROV_VERSION = "https://w3id.org/cwl/prov/0.7.0"
 # term-compacted JSON-LD document (top-level object with "@context"/"@graph").
 # A local copy is vendored (see 'prov-jsonld-context.json') to perform the
 # term compaction without requiring network access during provenance generation.
-JSONLD_CONTEXT_URL = "https://openprovenance.org/prov-jsonld/context.jsonld"
+JSONLD_CONTEXT_URL = "https://openprovenance.org/prov-jsonld/2026-09-01/context.jsonld"
 JSONLD_CONTEXT = json.loads(
     files("cwltool.cwlprov").joinpath("prov-jsonld-context.json").read_text(encoding="UTF-8")
 )["@context"]
