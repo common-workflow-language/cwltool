@@ -645,7 +645,8 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             if runtime_context.custom_net:
                 runtime.extend(["--net", "--network", runtime_context.custom_net])
         else:
-            runtime.extend(["--net", "--network", "none"])
+            if not runtime_context.no_net:
+                runtime.extend(["--net", "--network", "none"])
 
         if self.builder.resources.get("cudaDeviceCount"):
             runtime.append("--nv")

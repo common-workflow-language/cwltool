@@ -136,6 +136,7 @@ class RuntimeContext(ContextBase):
         self.secret_store: Optional["SecretStore"] = None
         self.no_read_only: bool = False
         self.custom_net: str | None = None
+        self.no_net: bool = False
         self.no_match_user: bool = False
         self.preserve_environment: Iterable[str] | None = None
         self.preserve_entire_environment: bool = False
