@@ -593,6 +593,12 @@ def arg_parser() -> argparse.ArgumentParser:
         "NetworkAccess is true, which is its default setting.",
     )
     container_group.add_argument(
+        "--no-net",
+        type=str,
+        help="Omit the `--net` parameter entirely. This can be useful "
+        "when user namespaces are disabled, for example."
+    )
+    container_group.add_argument(
         "--strict-memory-limit",
         action="store_true",
         help="When running with "
