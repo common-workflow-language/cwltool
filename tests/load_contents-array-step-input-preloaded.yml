@@ -1,0 +1,7 @@
+files:
+  - class: File
+    contents: "1\n"
+    basename: "file1.txt"
+  - class: File
+    contents: "2\n"
+    basename: "file2.txt"
