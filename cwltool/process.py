@@ -73,6 +73,7 @@ from .utils import (
     ensure_writable,
     get_listing,
     normalizeFilesDirs,
+    path_to_loc,
     random_outdir,
     visit_directories,
     visit_files,
@@ -428,7 +429,9 @@ def fill_in_defaults(
             if job.get(fieldname) is not None:
                 pass
             elif job.get(fieldname) is None and "default" in inp:
-                job[fieldname] = copy.deepcopy(inp["default"])
+                default = copy.deepcopy(inp["default"])
+                visit_files_directories(default, path_to_loc)
+                job[fieldname] = default
             elif job.get(fieldname) is None and "null" in aslist(inp["type"]):
                 job[fieldname] = None
             else:

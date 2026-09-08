@@ -99,6 +99,7 @@ from .utils import (
     HasReqsHints,
     adjustDirObjs,
     normalizeFilesDirs,
+    path_to_loc,
     processes_to_kill,
     trim_listing,
     versionstring,
@@ -481,11 +482,6 @@ def init_job_order(
             if not job_order_object:
                 job_order_object = {}
             job_order_object[shortname(inp["id"])] = inp["default"]
-
-    def path_to_loc(p: CWLFileType | CWLDirectoryType) -> None:
-        if "location" not in p and "path" in p:
-            p["location"] = p["path"]
-            del p["path"]
 
     ns: ContextType = {}
     ns.update(cast(ContextType, job_order_object.get("$namespaces", {})))

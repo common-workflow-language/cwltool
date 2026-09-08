@@ -258,6 +258,13 @@ def visit_files_directories(rec: Any, op: Callable[[CWLFileType | CWLDirectoryTy
             visit_files_directories(d, op)
 
 
+def path_to_loc(obj: CWLFileType | CWLDirectoryType) -> None:
+    """Convert a path field to a location field."""
+    if "location" not in obj and "path" in obj:
+        obj["location"] = obj["path"]
+        del obj["path"]
+
+
 def visit_field(rec: Any, field: str, op: Callable[..., Any]) -> None:
     """Apply a function to mapping with 'field'."""
     if isinstance(rec, MutableMapping):
