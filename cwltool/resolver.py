@@ -28,15 +28,21 @@ def resolve_local(document_loader: Loader | None, uri: str) -> str | None:
         os.environ.get("XDG_DATA_HOME", os.path.join(os.path.expanduser("~"), ".local", "share"))
     ]
     sharepaths.extend(os.environ.get("XDG_DATA_DIRS", "/usr/local/share/:/usr/share/").split(":"))
-    shares = [os.path.join(s, "commonwl", uri) for s in sharepaths]
+    shares = [os.path.join(s, "commonwl", pathpart) for s in sharepaths]
 
     _logger.debug("Search path is %s", shares)
 
     for path in shares:
-        if os.path.exists(path):
-            return Path(uri).as_uri()
-        if os.path.exists(f"{path}.cwl"):
-            return Path(f"{path}.cwl").as_uri()
+        pathobj = Path(path)
+        if pathobj.is_file():
+            if frag:
+                return f"{pathobj.as_uri()}#{frag}"
+            return pathobj.as_uri()
+        path_with_ext = Path(f"{path}.cwl")
+        if path_with_ext.is_file():
+            if frag:
+                return f"{path_with_ext.as_uri()}#{frag}"
+            return path_with_ext.as_uri()
     return None
 
 
