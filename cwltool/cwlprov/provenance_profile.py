@@ -120,6 +120,22 @@ class ProvenanceProfile:
         """Represent this Provenvance profile as a string."""
         return f"ProvenanceProfile <{self.workflow_run_uri}> in <{self.research_object}>"
 
+    def _associate_with_plan(self, activity: str, plan: str) -> None:
+        """Record an activity's association with the workflow engine, plan included.
+
+        Adds a plan-qualified `prov:wasAssociatedWith` association
+        (recording which part of the workflow/tool plan the engine executed),
+        as well as a second plain association without a plan, so that a direct
+        `prov:wasAssociatedWith` triple between the activity and the engine
+        remains available in RDF-based serializations (e.g. Turtle/JSON-LD).
+
+        More recent `prov` library versions only emit the RDF shortcut/binary
+        triple for associations without extra qualifying attributes, reifying
+        the rest as `prov:qualifiedAssociation` blank nodes.
+        """
+        self.document.wasAssociatedWith(activity, self.engine_uuid, plan)
+        self.document.wasAssociatedWith(activity, self.engine_uuid)
+
     def generate_prov_doc(self) -> tuple[str, ProvDocument]:
         """Add basic namespaces."""
         self.cwltool_version = f"cwltool {versionstring().split()[-1]}"
@@ -188,7 +204,7 @@ class ProvenanceProfile:
         )
         # association between SoftwareAgent and WorkflowRun
         main_workflow = "wf:main"
-        self.document.wasAssociatedWith(self.workflow_run_uri, self.engine_uuid, main_workflow)
+        self._associate_with_plan(self.workflow_run_uri, main_workflow)
         self.document.wasStartedBy(
             self.workflow_run_uri, None, self.engine_uuid, datetime.datetime.now()
         )
@@ -244,9 +260,7 @@ class ProvenanceProfile:
             None,
             {PROV_TYPE: WFPROV["ProcessRun"], PROV_LABEL: prov_label},
         )
-        self.document.wasAssociatedWith(
-            process_run_id, self.engine_uuid, str("wf:main/" + process_name)
-        )
+        self._associate_with_plan(process_run_id, str("wf:main/" + process_name))
         self.document.wasStartedBy(process_run_id, None, self.workflow_run_uri, when, None, None)
         return process_run_id
 
@@ -363,7 +377,14 @@ class ProvenanceProfile:
             dir_id,
             [(PROV_TYPE, RO["Folder"]), (PROV_TYPE, ORE["Aggregation"])],
         )
-        self.document.mentionOf(dir_id + "#ore", dir_id, dir_bundle.identifier)
+        # prov:mentionOf/Mention isn't part of PROV-JSONLD (only the
+        # non-normative PROV-Links Note), so prov's jsonld serializer
+        # rejects it. Mention is a sub-relation of Specialization, so we
+        # assert the same info via (specializationOf + asInBundle) attribute
+        # instead that serializes fine everywhere (including PROV-JSONLD).
+        self.document.specializationOf(dir_id + "#ore", dir_id).add_attributes(
+            {PROV["asInBundle"]: dir_bundle.identifier}
+        )
 
         # dir_manifest = dir_bundle.entity(
         #     dir_bundle.identifier, {PROV["type"]: ORE["ResourceMap"],
@@ -733,11 +754,9 @@ class ProvenanceProfile:
             prov_ids.append(self.provenance_ns[filename + ".nt"])
 
         # https://www.w3.org/TR/json-ld/
-        # TODO: Use a nice JSON-LD context
-        # see also https://eprints.soton.ac.uk/395985/
-        # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
+        # https://openprovenance.org/prov-jsonld/
         with write_bag_file(self.research_object, basename + ".jsonld") as provenance_file:
-            self.document.serialize(provenance_file, format="rdf", rdf_format="json-ld")
+            self.document.serialize(provenance_file, format="jsonld")
             prov_ids.append(self.provenance_ns[filename + ".jsonld"])
 
         _logger.debug("[provenance] added provenance: %s", prov_ids)
