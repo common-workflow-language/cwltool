@@ -3,6 +3,7 @@
 import json
 import os.path
 import sys
+import tempfile
 from collections.abc import Generator, MutableMapping
 from importlib.resources import files
 from io import StringIO
@@ -10,7 +11,9 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from cwl_utils.types import CWLOutputType
 from ruamel.yaml.comments import CommentedMap, CommentedSeq
+from schema_salad.avro import schema
 from schema_salad.avro.schema import Names
 from schema_salad.ref_resolver import file_uri
 from schema_salad.utils import yaml_no_ts
@@ -18,11 +21,13 @@ from schema_salad.utils import yaml_no_ts
 import cwltool.load_tool
 import cwltool.singularity
 import cwltool.udocker
+from cwltool.builder import Builder
 from cwltool.command_line_tool import CommandLineTool
 from cwltool.context import RuntimeContext
 from cwltool.main import main
 from cwltool.mpi import MpiConfig, MPIRequirementName
-
+from cwltool.stdfsaccess import StdFsAccess
+from cwltool.update import INTERNAL_VERSION
 from .util import get_data, working_directory
 
 
@@ -35,6 +40,8 @@ def test_mpi_conf_defaults() -> None:
     assert mpi.env_pass == []
     assert mpi.env_pass_regex == []
     assert mpi.env_set == {}
+    assert mpi.shm_dir == "/dev/shm"
+    assert mpi.shm_enabled is True
 
 
 def test_mpi_conf_unknownkeys() -> None:
@@ -332,6 +339,120 @@ def test_singularity(schema_ext11: Names) -> None:
     clt._init_job({}, rc)
     jr = clt.make_job_runner(rc)
     assert jr is cwltool.singularity.SingularityCommandLineJob
+
+
+def _make_fake_singularity() -> str:
+    tmpdir = tempfile.mkdtemp()
+    fake_path = Path(tmpdir) / "singularity"
+    with open(fake_path, "w") as f:
+        f.write("#!/bin/sh\n")
+        # It must print the version, as another test calls ``version()``.
+        f.write("echo 'singularity-ce version 3.11.5'\n")
+
+    fake_path.chmod(0o755)
+
+    return tmpdir
+
+
+@pytest.mark.parametrize(
+    "requirements,shm_enabled,shm_dir,expected_command",
+    [
+        ([], True, "/dev/shm", "singularity"),
+        ([], False, "/dev/shm", "singularity"),
+        (
+            [CommentedMap({"class": MPIRequirementName, "processes": 1})],
+            True,
+            "/dev/shm",
+            "singularity_wrapper.sh",
+        ),
+        (
+            [CommentedMap({"class": MPIRequirementName, "processes": 1})],
+            False,
+            "/dev/shm",
+            "singularity_wrapper.sh",
+        ),
+    ],
+    ids=[
+        "No requirements, runs singularity, no shared mem used",
+        "No requirements, runs singularity, no shared mem used",
+        "MPIRequirement, runs mpirun, shared memory used",
+        "MPIRequirement, but no shared memory volume used",
+    ],
+)
+def test_singularity_create_runtime(
+    requirements: list[MutableMapping[str, CWLOutputType | None]],
+    shm_enabled: bool,
+    shm_dir: str,
+    expected_command: str,
+    schema_ext11: Names,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tests that"""
+    runtime_context = RuntimeContext({})
+    runtime_context.mpi_config.shm_dir = shm_dir
+    runtime_context.mpi_config.shm_enabled = shm_enabled
+    builder = Builder(
+        {},
+        [],
+        [],
+        {},
+        schema.Names(),
+        requirements,
+        [],
+        {},
+        None,
+        None,
+        StdFsAccess,
+        StdFsAccess(""),
+        None,
+        0.1,
+        True,
+        False,
+        False,
+        "no_listing",
+        runtime_context.get_outdir(),
+        runtime_context.get_tmpdir(),
+        runtime_context.get_stagedir(),
+        INTERNAL_VERSION,
+        "singularity",
+    )
+    job = cwltool.singularity.SingularityCommandLineJob(
+        builder, {}, CommandLineTool.make_path_mapper, requirements=requirements, hints=[], name=""
+    )
+    env = dict(os.environ)
+    # Inject a fake singularity into the $PATH. The reason for this, is that
+    # the MacOS GitHub Actions job fails when ``job.create_runtime`` gets
+    # called. Internally, it calls ``is_apptainer_1_1_or_newer``, which uses
+    # ``version_output = check_output(["singularity", "--version"], text=True).strip()``.
+    # The command call above will raise an exception (below) and crash pytest.
+    # ``FileNotFoundError: [Errno 2] No such file or directory: 'singularity'``.
+    fake_bin_dir = _make_fake_singularity()
+    with monkeypatch.context() as m:
+        m.setenv("PATH", fake_bin_dir + os.pathsep + os.environ["PATH"])
+        env["PATH"] = fake_bin_dir + os.pathsep + env["PATH"]
+
+        job.prepare_environment(runtime_context, env)
+        command, options = job.create_runtime(env, runtime_context)
+
+        assert command
+        assert not options
+
+        assert command[0] == expected_command or command[0].endswith(expected_command)
+
+        mpi_req, is_req = builder.get_requirement(MPIRequirementName)
+
+        def any_contains(haystack: list[str], needle: str) -> bool:
+            return any(needle in h for h in haystack)
+
+        shared_memory_used = any_contains(command, shm_dir)
+
+        if mpi_req and is_req:
+            if shm_enabled:
+                assert shared_memory_used, "Missing shared memory volume!"
+            else:
+                assert not shared_memory_used, "Shared memory volume not supposed to be used!"
+        else:
+            assert not shared_memory_used, "Shared memory volume used without MPIRequirement!"
 
 
 def test_udocker(schema_ext11: Names) -> None:

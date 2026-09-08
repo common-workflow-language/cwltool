@@ -23,6 +23,8 @@ class MpiConfig:
         env_pass: list[str] | None = None,
         env_pass_regex: list[str] | None = None,
         env_set: Mapping[str, str] | None = None,
+        shm_enabled: bool = True,
+        shm_dir: str = "/dev/shm",  # nosec B108 - required for MPI/shared memory in containers
     ) -> None:
         """
         Initialize from the argument mapping.
@@ -35,6 +37,8 @@ class MpiConfig:
         env_pass: []
         env_pass_regex: []
         env_set: {}
+        shm_enabled: True
+        shm_dir: "/dev/shm
 
         Any unknown keys will result in an exception.
         """
@@ -45,6 +49,11 @@ class MpiConfig:
         self.env_pass = env_pass or []
         self.env_pass_regex = env_pass_regex or []
         self.env_set = env_set or {}
+        self.shm_enabled = shm_enabled
+        # POSIX only contains functions to handle shared memory, but it does not
+        # specify the directory to be used, nor if a directory needs to be used
+        # at all -- ref: https://pubs.opengroup.org/onlinepubs/9699919799/
+        self.shm_dir = shm_dir
 
     @classmethod
     def load(cls: type[MpiConfigT], config_file_name: str) -> MpiConfigT:
