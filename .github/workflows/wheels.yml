@@ -18,7 +18,7 @@ permissions: {}
 jobs:
   build_wheels:
     name: ${{ matrix.image }} wheels
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -111,7 +111,7 @@ jobs:
 
   build_sdist:
     name: Build source distribution
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ github.event_name != 'repository_dispatch' }}
@@ -130,7 +130,7 @@ jobs:
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: artifact-source
+          name: artifact-sdist
           path: dist/*.tar.gz
 
   build_wheels_macos:
@@ -138,8 +138,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # macos-15-intel is an intel runner, macos-14 is apple silicon
-        os: [macos-15-intel, macos-14, macos-15]
+        os: [macos-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: ${{ github.event_name != 'repository_dispatch' }}
