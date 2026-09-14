@@ -12,7 +12,7 @@ steps:
           type: File
           default:
             class: File
-            path: ../../README.rst
+            path: whale.txt
           inputBinding: {}
       baseCommand: sha256sum
       outputs: []
