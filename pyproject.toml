@@ -8,6 +8,7 @@ requires = [
     "ruamel.yaml>=0.16.0,<0.20",
     "schema-salad>=8.10,<9",
     "cwl-utils>=0.41",
+    "prov[xml,rdf]>=3.1.0,<3.2",  # needed so mypyc/mypy can resolve prov's inline types during build
     "toml",
     "argcomplete>=1.12.0",
     "rich-argparse",
