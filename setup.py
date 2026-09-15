@@ -152,7 +152,7 @@ setup(
         # https://github.com/ionrock/cachecontrol/issues/137
         "ruamel.yaml >= 0.16, < 0.20",
         "rdflib >= 4.2.2, < 7.7.0",
-        "schema-salad >= 8.9, < 9",
+        "schema-salad >= 8.10, < 9",
         "prov == 1.5.1",
         "mypy-extensions",
         "psutil >= 5.6.6",
@@ -168,18 +168,18 @@ setup(
     ],
     extras_require={
         "deps": [
-            "galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<26.1",
-            "galaxy-util <26.1",
+            "galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<26.2",
+            "galaxy-util <26.2",
             "pillow",  # workaround for https://github.com/galaxyproject/galaxy/pull/20525
         ],
     },
-    python_requires=">=3.10, <3.15",
+    python_requires=">=3.10, <3.16",
     use_scm_version=True,
     setup_requires=PYTEST_RUNNER + ["setuptools_scm>=8.0.4,<11"],
     test_suite="tests",
     tests_require=[
         "bagit >= 1.6.4, < 1.10",
-        "pytest >= 6.2, < 9.1",
+        "pytest >= 6.2, < 9.2",
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
         "pytest-httpserver",

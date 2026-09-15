@@ -39,6 +39,8 @@ Python cwltool end of support
 3.11   2027-10-01 (upstream EOL)
 3.12   2028-10-01 (planned upstream EOL)
 3.13   2029-10-01 (planned upstream EOL)
+3.14   2030-10-31 (planned upstream EOL)
+3.15   2031-10-31 (planned upstream EOL)
 ====== ======================
 
 Python version of supported Linux distributions, for reference
@@ -53,5 +55,8 @@ Python Version Linux distros where it is a supported version
 3.9            Debian 11, Ubuntu 20.04 LTS
 3.10           Ubuntu 22.04 LTS
 3.11           Debian 12
-3.12           Debian 13 (planned)
+3.12           Ubuntu 24.04 LTS
+3.13           Debian 13
+3.14           Ubuntu 26.04 LTS, Debian 14 (planned)
+3.15           Debian 14 (planned)
 ============== =============================================

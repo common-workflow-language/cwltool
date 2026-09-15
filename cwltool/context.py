@@ -21,7 +21,7 @@ from .utils import DEFAULT_TMP_PREFIX, HasReqsHints, ResolverType
 
 if TYPE_CHECKING:
     from _typeshed import SupportsWrite
-    from cwl_utils.parser.cwl_v1_2 import LoadingOptions
+    from schema_salad.runtime import LoadingOptions
 
     from .builder import Builder
     from .cwlprov.provenance_profile import ProvenanceProfile

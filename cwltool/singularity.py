@@ -21,9 +21,6 @@ from mypy_extensions import mypyc_attr
 from packaging.version import Version
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dumps
-from spython.main import Client
-from spython.main.parse.parsers.docker import DockerParser
-from spython.main.parse.writers.singularity import SingularityWriter
 
 from .builder import Builder
 from .context import RuntimeContext
@@ -362,6 +359,13 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 cache_folder = create_tmp_dir(tmp_outdir_prefix)
 
             absolute_path = os.path.abspath(cache_folder)
+            
+            # Imported here rather than at module level: spython is only needed when
+            # actually building a Singularity image from a Dockerfile, not merely to
+            # import this module (e.g. during --validate, which never reaches this code).
+            from spython.main import Client
+            from spython.main.parse.parsers.docker import DockerParser
+            from spython.main.parse.writers.singularity import SingularityWriter
 
             dockerfile_path = os.path.join(absolute_path, "Dockerfile")
             singularityfile_path = dockerfile_path + ".def"
