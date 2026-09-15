@@ -377,13 +377,23 @@ class ProvenanceProfile:
             dir_id,
             [(PROV_TYPE, RO["Folder"]), (PROV_TYPE, ORE["Aggregation"])],
         )
-        # prov:mentionOf/Mention isn't part of PROV-JSONLD (only the
-        # non-normative PROV-Links Note), so prov's jsonld serializer
-        # rejects it. Mention is a sub-relation of Specialization, so we
-        # assert the same info via (specializationOf + asInBundle) attribute
-        # instead that serializes fine everywhere (including PROV-JSONLD).
-        self.document.specializationOf(dir_id + "#ore", dir_id).add_attributes(
-            {PROV["asInBundle"]: dir_bundle.identifier}
+        # prov:mentionOf/Mention isn't part of PROV-JSONLD
+        # (only the non-normative PROV-Links Note), so prov's jsonld serializer
+        # rejects a real Mention record.
+        # Instead, assert the same prov:mentionOf/prov:asInBundle facts as plain
+        # attributes on the specific entity itself (not via specializationOf,
+        # which drops the mentionOf triple and misattaches asInBundle to the reified
+        # Specialization node). This reads back as
+        # 'entity(dir_id#ore, [prov:mentionOf=dir_id, prov:asInBundle=dir_bundle])'
+        # rather than 'mentionOf(dir_id#ore, dir_id, dir_bundle)', but produces the
+        # same triples in RDF-based serializations and is schema-compliant PROV-JSONLD.
+        # (see https://github.com/openprov/prov-jsonld/pull/3 for details)
+        self.document.entity(
+            dir_id + "#ore",
+            other_attributes={
+                PROV["mentionOf"]: self.document.valid_qualified_name(dir_id),
+                PROV["asInBundle"]: dir_bundle.identifier,
+            },
         )
 
         # dir_manifest = dir_bundle.entity(
