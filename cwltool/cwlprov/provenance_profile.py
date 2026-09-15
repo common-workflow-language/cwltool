@@ -193,15 +193,16 @@ class ProvenanceProfile:
                 },
             ),
         )
-        # FIXME: This datetime will be a bit too delayed, we should
-        # capture when cwltool.py earliest started?
-        self.document.wasStartedBy(wfengine, None, account, datetime.datetime.now())
+        # FIXME:
+        #   This datetime will be a bit too delayed, we should
+        #   capture when cwltool.py earliest started?
+        start_time = datetime.datetime.now(datetime.timezone.utc)
         # define workflow run level activity
-        self.document.activity(
+        run_activity = self.document.activity(
             self.workflow_run_uri,
-            datetime.datetime.now(),
-            None,
-            cast(
+            startTime=start_time,
+            endTime=None,
+            other_attributes=cast(
                 RecordAttributesArg,
                 {
                     PROV_TYPE: WFPROV["WorkflowRun"],
@@ -209,12 +210,14 @@ class ProvenanceProfile:
                 },
             ),
         )
+        # The engine acted on behalf of the account for this run through activity delegation.
+        # There is no need for explicit 'wasStartedBy' since the WorkflowRun activity
+        # already encodes it with 'startTime'
+        self.document.actedOnBehalfOf(wfengine, account, run_activity)
+
         # association between SoftwareAgent and WorkflowRun
         main_workflow = "wf:main"
         self._associate_with_plan(self.workflow_run_uri, main_workflow)
-        self.document.wasStartedBy(
-            self.workflow_run_uri, None, self.engine_uuid, datetime.datetime.now()
-        )
         return (self.workflow_run_uri, self.document)
 
     def evaluate(
