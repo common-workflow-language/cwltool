@@ -1,4 +1,5 @@
 from cwltool.load_tool import fetch_document, resolve_and_validate_document
+from cwltool.main import main
 
 from .util import get_data
 
@@ -13,3 +14,8 @@ def test_default_path() -> None:
     assert isinstance(processobj, dict)
 
     assert "cwlVersion" in processobj
+
+
+def test_workflow_step_file_default() -> None:
+    """Run a workflow step with a default File input."""
+    assert main(["--no-container", get_data("tests/wf/workflow_step_file_default.cwl")]) == 0
