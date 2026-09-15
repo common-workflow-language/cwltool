@@ -366,7 +366,7 @@ class ProvenanceProfile:
                 other_attributes=cast(
                     RecordAttributesArg,
                     {PROV["type"]: CWLPROV["SecondaryFile"]},
-                )
+                ),
             )
 
         return file_entity, entity, checksum
@@ -741,7 +741,7 @@ class ProvenanceProfile:
                         PROV_TYPE: WFDESC["Process"],
                         "prov:type": PROV["Plan"],
                         "prov:label": "Prospective provenance",
-                    }
+                    },
                 ),
             )
             return
@@ -754,7 +754,7 @@ class ProvenanceProfile:
                     PROV_TYPE: WFDESC["Workflow"],
                     "prov:type": PROV["Plan"],
                     "prov:label": "Prospective provenance",
-                }
+                },
             ),
         )
 
@@ -775,7 +775,7 @@ class ProvenanceProfile:
                     {
                         "wfdesc:hasSubProcess": provstep,
                         "prov:label": "Prospective provenance",
-                    }
+                    },
                 ),
             )
         # TODO: Declare roles/parameters as well
