@@ -359,7 +359,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 cache_folder = create_tmp_dir(tmp_outdir_prefix)
 
             absolute_path = os.path.abspath(cache_folder)
-            
+
             # Imported here rather than at module level: spython is only needed when
             # actually building a Singularity image from a Dockerfile, not merely to
             # import this module (e.g. during --validate, which never reaches this code).
