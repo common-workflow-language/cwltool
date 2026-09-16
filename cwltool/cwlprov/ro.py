@@ -308,7 +308,7 @@ class ResearchObject:
                 "rdf": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
                 "ttl": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
                 "nt": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
-                "jsonld": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
+                "jsonld": "https://www.w3.org/submissions/2024/SUBM-prov-jsonld-20240825/",
                 "xml": "http://www.w3.org/TR/2013/NOTE-prov-xml-20130430/",
                 "json": "http://www.w3.org/Submission/2013/SUBM-prov-json-20130424/",
             }
