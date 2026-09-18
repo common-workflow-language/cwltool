@@ -14,6 +14,7 @@ from cwltool.main import main
 from cwltool.singularity import (
     _IMAGES,
     _IMAGES_LOCK,
+    SingularityCommandLineJob,
     _inspect_singularity_sandbox_image,
 )
 
@@ -414,3 +415,21 @@ def test_inspect_image_wrong_sb_call(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("cwltool.singularity.run", mock_failed_subprocess)
     res_inspect = _inspect_singularity_sandbox_image("/tmp/container_repo/alpine")
     assert res_inspect is False
+
+
+def test_get_image_cached_resolution_updates_docker_image_id() -> None:
+    """A cached image resolution must be written back to 'dockerImageId'."""
+    with _IMAGES_LOCK:
+        _IMAGES["test-cached-image.sif"] = "/cache/test-cached-image.sif"
+    try:
+        docker_requirement: dict[str, str] = {
+            "class": "DockerRequirement",
+            "dockerImageId": "test-cached-image.sif",
+        }
+        assert SingularityCommandLineJob.get_image(
+            docker_requirement, pull_image=False, tmp_outdir_prefix="/tmp/"
+        )
+        assert docker_requirement["dockerImageId"] == "/cache/test-cached-image.sif"
+    finally:
+        with _IMAGES_LOCK:
+            _IMAGES.pop("test-cached-image.sif", None)
