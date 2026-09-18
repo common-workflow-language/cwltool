@@ -24,6 +24,7 @@ from typing import IO, TYPE_CHECKING, Optional, TextIO, Union, cast
 import psutil
 from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, CWLOutputType
 from prov.model import PROV
+from prov.model.records import RecordAttributesArg
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
 
@@ -826,11 +827,14 @@ class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
                 ):
                     container_agent = self.prov_obj.document.agent(
                         uuid.uuid4().urn,
-                        {
-                            "prov:type": PROV["SoftwareAgent"],
-                            "cwlprov:image": img_id,
-                            "prov:label": "Container execution of image %s" % img_id,
-                        },
+                        cast(
+                            RecordAttributesArg,
+                            {
+                                "prov:type": PROV["SoftwareAgent"],
+                                "cwlprov:image": img_id,
+                                "prov:label": f"Container execution of image {img_id}",
+                            },
+                        ),
                     )
                     # FIXME: img_id is not a sha256 id, it might just be "debian:8"
                     # img_entity = document.entity("nih:sha-256;%s" % img_id,
