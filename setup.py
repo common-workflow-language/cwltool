@@ -153,7 +153,7 @@ setup(
         "ruamel.yaml >= 0.16, < 0.20",
         "rdflib >= 7, < 7.7.0",
         "schema-salad >= 8.10, < 9",
-        "prov[xml,rdf] >= 3.1.0, < 3.2",
+        "prov[xml,rdf] >= 3.2.2, < 3.3",
         "mypy-extensions",
         "psutil >= 5.6.6",
         "coloredlogs",

@@ -17,7 +17,6 @@ from cwl_utils.types import (
 )
 from prov.identifier import Identifier, QualifiedName
 from prov.model import PROV, PROV_LABEL, PROV_TYPE, PROV_VALUE, ProvDocument, ProvEntity
-from prov.model.records import RecordAttributesArg
 from schema_salad.sourceline import SourceLine
 
 from ..errors import WorkflowException
@@ -184,14 +183,11 @@ class ProvenanceProfile:
         # The execution of cwltool
         wfengine = self.document.agent(
             self.engine_uuid,
-            cast(
-                RecordAttributesArg,
-                {
-                    PROV_TYPE: PROV["SoftwareAgent"],
-                    "prov:type": WFPROV["WorkflowEngine"],
-                    "prov:label": self.cwltool_version,
-                },
-            ),
+            {
+                PROV_TYPE: PROV["SoftwareAgent"],
+                "prov:type": WFPROV["WorkflowEngine"],
+                "prov:label": self.cwltool_version,
+            },
         )
         # FIXME:
         #   This datetime will be a bit too delayed, we should
@@ -202,13 +198,10 @@ class ProvenanceProfile:
             self.workflow_run_uri,
             startTime=start_time,
             endTime=None,
-            other_attributes=cast(
-                RecordAttributesArg,
-                {
-                    PROV_TYPE: WFPROV["WorkflowRun"],
-                    "prov:label": "Run of workflow/packed.cwl#main",
-                },
-            ),
+            other_attributes={
+                PROV_TYPE: WFPROV["WorkflowRun"],
+                "prov:label": "Run of workflow/packed.cwl#main",
+            },
         )
         # The engine acted on behalf of the account for this run through activity delegation.
         # There is no need for explicit 'wasStartedBy' since the WorkflowRun activity
@@ -268,10 +261,7 @@ class ProvenanceProfile:
             process_run_id,
             None,
             None,
-            cast(
-                RecordAttributesArg,
-                {PROV_TYPE: WFPROV["ProcessRun"], PROV_LABEL: prov_label},
-            ),
+            {PROV_TYPE: WFPROV["ProcessRun"], PROV_LABEL: prov_label},
         )
         self._associate_with_plan(process_run_id, str("wf:main/" + process_name))
         self.document.wasStartedBy(process_run_id, None, self.workflow_run_uri, when, None, None)
@@ -309,7 +299,7 @@ class ProvenanceProfile:
                 checksum = PurePath(relative_path).name
                 entity = self.document.entity(
                     "data:" + checksum,
-                    cast(RecordAttributesArg, {PROV_TYPE: WFPROV["Artifact"]}),
+                    {PROV_TYPE: WFPROV["Artifact"]},
                 )
                 if "checksum" not in value:
                     value["checksum"] = f"{SHA1}${checksum}"
@@ -334,17 +324,11 @@ class ProvenanceProfile:
         )
 
         if "basename" in value:
-            file_entity.add_attributes(
-                cast(RecordAttributesArg, {CWLPROV["basename"]: value["basename"]})
-            )
+            file_entity.add_attributes({CWLPROV["basename"]: value["basename"]})
         if "nameroot" in value:
-            file_entity.add_attributes(
-                cast(RecordAttributesArg, {CWLPROV["nameroot"]: value["nameroot"]})
-            )
+            file_entity.add_attributes({CWLPROV["nameroot"]: value["nameroot"]})
         if "nameext" in value:
-            file_entity.add_attributes(
-                cast(RecordAttributesArg, {CWLPROV["nameext"]: value["nameext"]})
-            )
+            file_entity.add_attributes({CWLPROV["nameext"]: value["nameext"]})
         self.document.specializationOf(file_entity, entity)
 
         # Check for secondaries
@@ -363,10 +347,7 @@ class ProvenanceProfile:
             self.document.derivation(
                 sec_entity,
                 file_entity,
-                other_attributes=cast(
-                    RecordAttributesArg,
-                    {PROV["type"]: CWLPROV["SecondaryFile"]},
-                ),
+                other_attributes={PROV["type"]: CWLPROV["SecondaryFile"]},
             )
 
         return file_entity, entity, checksum
@@ -396,7 +377,7 @@ class ProvenanceProfile:
 
         if "basename" in value:
             coll.add_attributes(
-                cast(RecordAttributesArg, {CWLPROV["basename"]: value["basename"]}),
+                {CWLPROV["basename"]: value["basename"]},
             )
 
         # ORE description of ro:Folder, saved separately
@@ -417,13 +398,10 @@ class ProvenanceProfile:
         # (see https://github.com/openprov/prov-jsonld/pull/3 for details)
         self.document.entity(
             dir_id + "#ore",
-            other_attributes=cast(
-                RecordAttributesArg,
-                {
-                    PROV["mentionOf"]: self.document.valid_qualified_name(dir_id),
-                    PROV["asInBundle"]: dir_bundle.identifier,
-                },
-            ),
+            other_attributes={
+                PROV["mentionOf"]: self.document.valid_qualified_name(dir_id),
+                PROV["asInBundle"]: dir_bundle.identifier,
+            },
         )
 
         # dir_manifest = dir_bundle.entity(
@@ -458,13 +436,10 @@ class ProvenanceProfile:
             m_entity.add_asserted_type(PROV["KeyEntityPair"])
 
             m_entity.add_attributes(
-                cast(
-                    RecordAttributesArg,
-                    {
-                        PROV["pairKey"]: cast(str, entry["basename"]),
-                        PROV["pairEntity"]: entity,
-                    },
-                )
+                {
+                    PROV["pairKey"]: cast(str, entry["basename"]),
+                    PROV["pairEntity"]: entity,
+                }
             )
 
             # As well as a being a
@@ -472,14 +447,11 @@ class ProvenanceProfile:
             m_b.add_asserted_type(RO["FolderEntry"])
             m_b.add_asserted_type(ORE["Proxy"])
             m_b.add_attributes(
-                cast(
-                    RecordAttributesArg,
-                    {
-                        RO["entryName"]: cast(str, entry["basename"]),
-                        ORE["proxyIn"]: coll,
-                        ORE["proxyFor"]: entity,
-                    },
-                )
+                {
+                    RO["entryName"]: cast(str, entry["basename"]),
+                    ORE["proxyIn"]: coll,
+                    ORE["proxyFor"]: entity,
+                }
             )
             coll_attribs.append((PROV["hadDictionaryMember"], m_entity))
             coll_b_attribs.append((ORE["aggregates"], m_b))
@@ -516,7 +488,7 @@ class ProvenanceProfile:
         data_id = f"data:{PurePosixPath(data_file).stem}"
         entity = self.document.entity(
             data_id,
-            cast(RecordAttributesArg, {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)}),
+            {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)},
         )
         return entity, checksum
 
@@ -535,7 +507,7 @@ class ProvenanceProfile:
                 # need a better way to represent this in PROV
                 return self.document.entity(
                     CWLPROV["None"],
-                    cast(RecordAttributesArg, {PROV_LABEL: "None"}),
+                    {PROV_LABEL: "None"},
                 )
 
             case bool() | int() | float():
@@ -546,7 +518,7 @@ class ProvenanceProfile:
                 # (so "1" != 1 != "1.0" != true)
                 entity = self.document.entity(
                     uuid.uuid4().urn,
-                    cast(RecordAttributesArg, {PROV_VALUE: value}),
+                    {PROV_VALUE: value},
                 )
                 ent_id = cast(QualifiedName, entity.identifier)
                 self.research_object.add_uri(ent_id.uri)
@@ -563,10 +535,7 @@ class ProvenanceProfile:
                 data_id = f"data:{PurePosixPath(data_file).stem}"
                 return self.document.entity(
                     data_id,
-                    cast(
-                        RecordAttributesArg,
-                        {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(val)},
-                    ),
+                    {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(val)},
                 )
 
             # Base case - we found a File we need to update
@@ -609,10 +578,7 @@ class ProvenanceProfile:
                     # as prov.py do not easily allow PROV-N extensions
                     m_entity.add_asserted_type(PROV["KeyEntityPair"])
                     m_entity.add_attributes(
-                        cast(
-                            RecordAttributesArg,
-                            {PROV["pairKey"]: str(key), PROV["pairEntity"]: v_ent},
-                        ),
+                        {PROV["pairKey"]: str(key), PROV["pairEntity"]: v_ent},
                     )
                     coll_attribs.append((PROV["hadDictionaryMember"], m_entity))
                 coll.add_attributes(coll_attribs)
@@ -654,10 +620,7 @@ class ProvenanceProfile:
                     # Let's just fall back to Python repr()
                     entity = self.document.entity(
                         uuid.uuid4().urn,
-                        cast(
-                            RecordAttributesArg,
-                            {PROV_LABEL: repr(value)},
-                        ),
+                        {PROV_LABEL: repr(value)},
                     )
                     ent_id = cast(QualifiedName, entity.identifier)
                     self.research_object.add_uri(ent_id.uri)
@@ -687,7 +650,7 @@ class ProvenanceProfile:
                         entity,
                         datetime.datetime.now(),
                         None,
-                        cast(RecordAttributesArg, {"prov:role": prov_role}),
+                        {"prov:role": prov_role},
                     )
                 except OSError:
                     pass
@@ -726,7 +689,7 @@ class ProvenanceProfile:
                     process_run_id,
                     timestamp,
                     None,
-                    cast(RecordAttributesArg, {"prov:role": role}),
+                    {"prov:role": role},
                 )
 
     def prospective_prov(self, job: JobsType) -> None:
@@ -735,27 +698,21 @@ class ProvenanceProfile:
             # direct command line tool execution
             self.document.entity(
                 "wf:main",
-                cast(
-                    RecordAttributesArg,
-                    {
-                        PROV_TYPE: WFDESC["Process"],
-                        "prov:type": PROV["Plan"],
-                        "prov:label": "Prospective provenance",
-                    },
-                ),
+                {
+                    PROV_TYPE: WFDESC["Process"],
+                    "prov:type": PROV["Plan"],
+                    "prov:label": "Prospective provenance",
+                },
             )
             return
 
         self.document.entity(
             "wf:main",
-            cast(
-                RecordAttributesArg,
-                {
-                    PROV_TYPE: WFDESC["Workflow"],
-                    "prov:type": PROV["Plan"],
-                    "prov:label": "Prospective provenance",
-                },
-            ),
+            {
+                PROV_TYPE: WFDESC["Workflow"],
+                "prov:type": PROV["Plan"],
+                "prov:label": "Prospective provenance",
+            },
         )
 
         for step in job.steps:
@@ -763,20 +720,14 @@ class ProvenanceProfile:
             stepname = urllib.parse.quote(stepnametemp, safe=":/,#")
             provstep = self.document.entity(
                 stepname,
-                cast(
-                    RecordAttributesArg,
-                    {PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]},
-                ),
+                {PROV_TYPE: WFDESC["Process"], "prov:type": PROV["Plan"]},
             )
             self.document.entity(
                 "wf:main",
-                cast(
-                    RecordAttributesArg,
-                    {
-                        "wfdesc:hasSubProcess": provstep,
-                        "prov:label": "Prospective provenance",
-                    },
-                ),
+                {
+                    "wfdesc:hasSubProcess": provstep,
+                    "prov:label": "Prospective provenance",
+                },
             )
         # TODO: Declare roles/parameters as well
 

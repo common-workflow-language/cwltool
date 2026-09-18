@@ -23,7 +23,6 @@ from cwl_utils.types import (
     is_file_or_directory,
 )
 from prov.model import ProvDocument
-from prov.model.records import RecordAttributesArg
 
 from ..loghandler import _logger
 from ..stdfsaccess import StdFsAccess
@@ -179,14 +178,11 @@ class ResearchObject:
         document.add_namespace(FOAF)
         account = document.agent(
             ACCOUNT_UUID,
-            cast(
-                RecordAttributesArg,
-                {
-                    provM.PROV_TYPE: FOAF["OnlineAccount"],
-                    provM.PROV_LABEL: username,
-                    FOAF["accountName"]: username,
-                },
-            ),
+            {
+                provM.PROV_TYPE: FOAF["OnlineAccount"],
+                provM.PROV_LABEL: username,
+                FOAF["accountName"]: username,
+            },
         )
 
         user = document.agent(
@@ -232,14 +228,11 @@ class ResearchObject:
         # we can at least provide hostname
         document.agent(
             ACCOUNT_UUID,
-            cast(
-                RecordAttributesArg,
-                {
-                    provM.PROV_TYPE: FOAF["OnlineAccount"],
-                    provM.PROV_LOCATION: uri,
-                    CWLPROV["hostname"]: hostname,
-                },
-            ),
+            {
+                provM.PROV_TYPE: FOAF["OnlineAccount"],
+                provM.PROV_LOCATION: uri,
+                CWLPROV["hostname"]: hostname,
+            },
         )
 
     def add_tagfile(self, path: str, timestamp: datetime.datetime | None = None) -> None:
