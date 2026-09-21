@@ -120,6 +120,22 @@ class ProvenanceProfile:
         """Represent this Provenvance profile as a string."""
         return f"ProvenanceProfile <{self.workflow_run_uri}> in <{self.research_object}>"
 
+    def _associate_with_plan(self, activity: str, plan: str) -> None:
+        """Record an activity's association with the workflow engine, plan included.
+
+        Adds a plan-qualified `prov:wasAssociatedWith` association
+        (recording which part of the workflow/tool plan the engine executed),
+        as well as a second plain association without a plan, so that a direct
+        `prov:wasAssociatedWith` triple between the activity and the engine
+        remains available in RDF-based serializations (e.g. Turtle/JSON-LD).
+
+        More recent `prov` library versions only emit the RDF shortcut/binary
+        triple for associations without extra qualifying attributes, reifying
+        the rest as `prov:qualifiedAssociation` blank nodes.
+        """
+        self.document.wasAssociatedWith(activity, self.engine_uuid, plan)
+        self.document.wasAssociatedWith(activity, self.engine_uuid)
+
     def generate_prov_doc(self) -> tuple[str, ProvDocument]:
         """Add basic namespaces."""
         self.cwltool_version = f"cwltool {versionstring().split()[-1]}"
@@ -173,25 +189,28 @@ class ProvenanceProfile:
                 "prov:label": self.cwltool_version,
             },
         )
-        # FIXME: This datetime will be a bit too delayed, we should
-        # capture when cwltool.py earliest started?
-        self.document.wasStartedBy(wfengine, None, account, datetime.datetime.now())
+        # FIXME:
+        #   This datetime will be a bit too delayed, we should
+        #   capture when cwltool.py earliest started?
+        start_time = datetime.datetime.now(datetime.timezone.utc)
         # define workflow run level activity
-        self.document.activity(
+        run_activity = self.document.activity(
             self.workflow_run_uri,
-            datetime.datetime.now(),
-            None,
-            {
+            startTime=start_time,
+            endTime=None,
+            other_attributes={
                 PROV_TYPE: WFPROV["WorkflowRun"],
                 "prov:label": "Run of workflow/packed.cwl#main",
             },
         )
+        # The engine acted on behalf of the account for this run through activity delegation.
+        # There is no need for explicit 'wasStartedBy' since the WorkflowRun activity
+        # already encodes it with 'startTime'
+        self.document.actedOnBehalfOf(wfengine, account, run_activity)
+
         # association between SoftwareAgent and WorkflowRun
         main_workflow = "wf:main"
-        self.document.wasAssociatedWith(self.workflow_run_uri, self.engine_uuid, main_workflow)
-        self.document.wasStartedBy(
-            self.workflow_run_uri, None, self.engine_uuid, datetime.datetime.now()
-        )
+        self._associate_with_plan(self.workflow_run_uri, main_workflow)
         return (self.workflow_run_uri, self.document)
 
     def evaluate(
@@ -244,9 +263,7 @@ class ProvenanceProfile:
             None,
             {PROV_TYPE: WFPROV["ProcessRun"], PROV_LABEL: prov_label},
         )
-        self.document.wasAssociatedWith(
-            process_run_id, self.engine_uuid, str("wf:main/" + process_name)
-        )
+        self._associate_with_plan(process_run_id, str("wf:main/" + process_name))
         self.document.wasStartedBy(process_run_id, None, self.workflow_run_uri, when, None, None)
         return process_run_id
 
@@ -280,7 +297,10 @@ class ProvenanceProfile:
                 relative_path = self.research_object.add_data_file(fhandle)
                 # FIXME: This naively relies on add_data_file setting hash as filename
                 checksum = PurePath(relative_path).name
-                entity = self.document.entity("data:" + checksum, {PROV_TYPE: WFPROV["Artifact"]})
+                entity = self.document.entity(
+                    "data:" + checksum,
+                    {PROV_TYPE: WFPROV["Artifact"]},
+                )
                 if "checksum" not in value:
                     value["checksum"] = f"{SHA1}${checksum}"
 
@@ -356,14 +376,33 @@ class ProvenanceProfile:
         )
 
         if "basename" in value:
-            coll.add_attributes({CWLPROV["basename"]: value["basename"]})
+            coll.add_attributes(
+                {CWLPROV["basename"]: value["basename"]},
+            )
 
         # ORE description of ro:Folder, saved separately
         coll_b = dir_bundle.entity(
             dir_id,
             [(PROV_TYPE, RO["Folder"]), (PROV_TYPE, ORE["Aggregation"])],
         )
-        self.document.mentionOf(dir_id + "#ore", dir_id, dir_bundle.identifier)
+        # prov:mentionOf/Mention isn't part of PROV-JSONLD
+        # (only the non-normative PROV-Links Note), so prov's jsonld serializer
+        # rejects a real Mention record.
+        # Instead, assert the same prov:mentionOf/prov:asInBundle facts as plain
+        # attributes on the specific entity itself (not via specializationOf,
+        # which drops the mentionOf triple and misattaches asInBundle to the reified
+        # Specialization node). This reads back as
+        # 'entity(dir_id#ore, [prov:mentionOf=dir_id, prov:asInBundle=dir_bundle])'
+        # rather than 'mentionOf(dir_id#ore, dir_id, dir_bundle)', but produces the
+        # same triples in RDF-based serializations and is schema-compliant PROV-JSONLD.
+        # (see https://github.com/openprov/prov-jsonld/pull/3 for details)
+        self.document.entity(
+            dir_id + "#ore",
+            other_attributes={
+                PROV["mentionOf"]: self.document.valid_qualified_name(dir_id),
+                PROV["asInBundle"]: dir_bundle.identifier,
+            },
+        )
 
         # dir_manifest = dir_bundle.entity(
         #     dir_bundle.identifier, {PROV["type"]: ORE["ResourceMap"],
@@ -436,7 +475,8 @@ class ProvenanceProfile:
             # Empty directory
             coll.add_asserted_type(PROV["EmptyCollection"])
             coll.add_asserted_type(PROV["EmptyDictionary"])
-        self.research_object.add_uri(coll.identifier.uri)
+        coll_id = cast(QualifiedName, coll.identifier)
+        self.research_object.add_uri(coll_id.uri)
         return coll
 
     def declare_string(self, value: str) -> tuple[ProvEntity, str]:
@@ -447,7 +487,8 @@ class ProvenanceProfile:
         # FIXME: Don't naively assume add_data_file uses hash in filename!
         data_id = f"data:{PurePosixPath(data_file).stem}"
         entity = self.document.entity(
-            data_id, {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)}
+            data_id,
+            {PROV_TYPE: WFPROV["Artifact"], PROV_VALUE: str(value)},
         )
         return entity, checksum
 
@@ -464,7 +505,10 @@ class ProvenanceProfile:
             case None:
                 # FIXME: If this can happen in CWL, we'll
                 # need a better way to represent this in PROV
-                return self.document.entity(CWLPROV["None"], {PROV_LABEL: "None"})
+                return self.document.entity(
+                    CWLPROV["None"],
+                    {PROV_LABEL: "None"},
+                )
 
             case bool() | int() | float():
                 # Typically used in job documents for flags
@@ -472,8 +516,12 @@ class ProvenanceProfile:
                 # FIXME: Make consistent hash URIs for these
                 # that somehow include the type
                 # (so "1" != 1 != "1.0" != true)
-                entity = self.document.entity(uuid.uuid4().urn, {PROV_VALUE: value})
-                self.research_object.add_uri(entity.identifier.uri)
+                entity = self.document.entity(
+                    uuid.uuid4().urn,
+                    {PROV_VALUE: value},
+                )
+                ent_id = cast(QualifiedName, entity.identifier)
+                self.research_object.add_uri(ent_id.uri)
                 return entity
 
             case str(val):
@@ -493,11 +541,13 @@ class ProvenanceProfile:
             # Base case - we found a File we need to update
             case {"class": "File"}:
                 entity = self.declare_file(cast(_CWLFileArtifact, value))[0]
-                value["@id"] = entity.identifier.uri
+                ent_id = cast(QualifiedName, entity.identifier)
+                value["@id"] = ent_id.uri
                 return entity
             case {"class": "Directory"}:
                 entity = self.declare_directory(cast(_CWLDirectoryArtifact, value))
-                value["@id"] = entity.identifier.uri
+                ent_id = cast(QualifiedName, entity.identifier)
+                value["@id"] = ent_id.uri
                 return entity
             case {**rest}:
                 coll_id = value.setdefault("@id", uuid.uuid4().urn)
@@ -527,10 +577,13 @@ class ProvenanceProfile:
                     # https://www.w3.org/TR/prov-dictionary/#dictionary-ontological-definition
                     # as prov.py do not easily allow PROV-N extensions
                     m_entity.add_asserted_type(PROV["KeyEntityPair"])
-                    m_entity.add_attributes({PROV["pairKey"]: str(key), PROV["pairEntity"]: v_ent})
+                    m_entity.add_attributes(
+                        {PROV["pairKey"]: str(key), PROV["pairEntity"]: v_ent},
+                    )
                     coll_attribs.append((PROV["hadDictionaryMember"], m_entity))
                 coll.add_attributes(coll_attribs)
-                self.research_object.add_uri(coll.identifier.uri)
+                coll_id = cast(QualifiedName, coll.identifier)
+                self.research_object.add_uri(coll_id.uri)
                 return coll
 
             case _:  # some other kind of Collection?
@@ -558,14 +611,19 @@ class ProvenanceProfile:
                             # we would need to use PROV.Dictionary
                             # with numeric keys
                             self.document.membership(coll, member)
-                    self.research_object.add_uri(coll.identifier.uri)
+                    coll_id = cast(QualifiedName, coll.identifier)
+                    self.research_object.add_uri(coll_id.uri)
                     # FIXME: list value does not support adding "@id"
                     return coll
                 except TypeError:
                     _logger.warning("Unrecognized type %s of %r", type(value), value, exc_info=True)
                     # Let's just fall back to Python repr()
-                    entity = self.document.entity(uuid.uuid4().urn, {PROV_LABEL: repr(value)})
-                    self.research_object.add_uri(entity.identifier.uri)
+                    entity = self.document.entity(
+                        uuid.uuid4().urn,
+                        {PROV_LABEL: repr(value)},
+                    )
+                    ent_id = cast(QualifiedName, entity.identifier)
+                    self.research_object.add_uri(ent_id.uri)
                     return entity
 
     def used_artefacts(
@@ -627,7 +685,11 @@ class ProvenanceProfile:
                     process_run_id = self.workflow_run_uri
 
                 self.document.wasGeneratedBy(
-                    entity, process_run_id, timestamp, None, {"prov:role": role}
+                    entity,
+                    process_run_id,
+                    timestamp,
+                    None,
+                    {"prov:role": role},
                 )
 
     def prospective_prov(self, job: JobsType) -> None:
@@ -733,11 +795,9 @@ class ProvenanceProfile:
             prov_ids.append(self.provenance_ns[filename + ".nt"])
 
         # https://www.w3.org/TR/json-ld/
-        # TODO: Use a nice JSON-LD context
-        # see also https://eprints.soton.ac.uk/395985/
-        # 404 Not Found on https://provenance.ecs.soton.ac.uk/prov.jsonld :(
+        # https://openprovenance.org/prov-jsonld/
         with write_bag_file(self.research_object, basename + ".jsonld") as provenance_file:
-            self.document.serialize(provenance_file, format="rdf", rdf_format="json-ld")
+            self.document.serialize(provenance_file, format="jsonld")
             prov_ids.append(self.provenance_ns[filename + ".jsonld"])
 
         _logger.debug("[provenance] added provenance: %s", prov_ids)
