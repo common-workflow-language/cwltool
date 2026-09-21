@@ -38,7 +38,9 @@ FOAF = Namespace("http://xmlns.com/foaf/0.1/")
 TEST_ORCID = "https://orcid.org/0000-0003-4862-3349"
 
 
-def cwltool(tmp_path: Path, *args: Any, with_orcid: bool = False) -> Path:
+def cwltool(
+    tmp_path: Path, *args: Any, with_orcid: bool = False, no_container: bool = False
+) -> Path:
     prov_folder = tmp_path / "provenance"
     prov_folder.mkdir()
     new_args = [
@@ -48,6 +50,8 @@ def cwltool(tmp_path: Path, *args: Any, with_orcid: bool = False) -> Path:
         "--provenance",
         str(prov_folder),
     ]
+    if no_container:
+        new_args.append("--no-container")
     if with_orcid:
         new_args.extend(["--orcid", TEST_ORCID])
     new_args.extend(args)
@@ -262,6 +266,32 @@ def test_directory_workflow(tmp_path: Path, with_orcid: bool) -> None:
         prefix = l_hash[:2]  # first 2 letters
         p = folder / "data" / prefix / l_hash
         assert p.is_file(), f"Could not find {letter} as {p}"
+
+
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_directory_workflow_no_container(tmp_path: Path, with_orcid: bool) -> None:
+    """Directory-input provenance, forced to run without Docker.
+
+    Exercises the same ``declare_directory``/ORE-mention recording as
+    `test_directory_workflow`, but does not require Docker so it always
+    contributes to `cwltool.cwlprov` coverage, even on hosts without a
+    working container runtime.
+    """
+    dir2 = tmp_path / "dir2"
+    dir2.mkdir()
+    for x in "abc":
+        with open(dir2 / x, "w", encoding="ascii") as f:
+            f.write(x)
+
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/directory.cwl"),
+        "--dir",
+        str(dir2),
+        with_orcid=with_orcid,
+        no_container=True,
+    )
+    check_provenance(folder, directory=True, with_orcid=with_orcid)
 
 
 @needs_docker
