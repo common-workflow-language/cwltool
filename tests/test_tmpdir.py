@@ -1,6 +1,5 @@
 """Test that all temporary directories respect the --tmpdir-prefix and --tmp-outdir-prefix options."""
 
-import contextlib
 import copy
 import logging
 import os
@@ -275,7 +274,9 @@ def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch, tmp_path:
 
     workpath = tmppath / "work"
     workpath.mkdir(exist_ok=True)
-    with contextlib.chdir(workpath):
+    oldcwd = os.getcwd()
+    try:
+        os.chdir(workpath)
         assert SingularityCommandLineJob(
             builder, {}, default_make_path_mapper, [], [], ""
         ).get_image(
@@ -287,6 +288,8 @@ def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch, tmp_path:
             tmp_outdir_prefix=str(tmp_outdir_prefix),
             force_pull=True,
         )
+    finally:
+        os.chdir(oldcwd)
 
     # Even images built from nameless Dockerfiles should (now) have their SIF
     # files go to the same location as those pulled from Docker registries or
