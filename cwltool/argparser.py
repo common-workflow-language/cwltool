@@ -70,7 +70,7 @@ def arg_parser() -> argparse.ArgumentParser:
         f"Images can be pre-pulled into this directory using "
         f"[link=https://cwl-utils.readthedocs.io/en/latest/#cwl-docker-extract]"
         f"cwl-docker-extract[/] from cwl-utils. If not set, images will be stored "
-        f"in the current directory."
+        f"in the current directory.",
     )
     env_table.add_env(
         "ORCID",
