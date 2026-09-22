@@ -294,7 +294,10 @@ def test_singularity_dockerfile_no_name_no_cache(tmp_path: Path) -> None:
             ]
         )
         assert result_code == 0, stderr
-    assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27.sif").exists()
+    # When not using a specified cache, we cache images in the current working
+    # directory. When the image doesn't have a name, we cache it under a hash
+    # of the Dockerfile.
+    assert (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27.sif").exists()
 
 
 @needs_singularity_3_or_newer
@@ -335,9 +338,11 @@ def test_singularity_dockerfile_with_name_no_cache(tmp_path: Path) -> None:
             ]
         )
         assert result_code == 0, stderr
+    # When not using a specified cache, we cache images in the current working
+    # directory.
     print(list(workdir.iterdir()))
     assert not (workdir / "bea92b9b6910cbbd2ae602f5bb0f0f27.sif").exists()
-    assert not (workdir / "customDebian:latest.sif").exists()
+    assert (workdir / "customDebian:latest.sif").exists()
 
 
 @needs_singularity_3_or_newer
