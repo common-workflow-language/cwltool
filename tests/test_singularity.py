@@ -214,6 +214,22 @@ def test_singularity_incorrect_image_pull() -> None:
     )
     assert result_code != 0
 
+@needs_singularity
+def test_singularity_bad_protocol(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--singularity",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/bad-protocol-container.cwl"),
+        ]
+    )
+    assert result_code == 1, stderr
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert "Job error:" in stderr
+    assert (
+        "tests/bad-protocol-container.cwl:7:5: dockerPull with protocols other than docker:// is not currently supported."
+    )
 
 @needs_singularity
 def test_singularity_local(tmp_path: Path) -> None:
