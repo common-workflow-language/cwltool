@@ -246,7 +246,10 @@ def test_singularity_bad_protocol(tmp_path: Path) -> None:
     )
     assert result_code == 1, stderr
     stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "tests/bad-protocol-container.cwl:7:5: dockerPull with protocols other than docker:// is not currently supported."
+    assert (
+        "tests/bad-protocol-container.cwl:7:5: dockerPull with protocols other than docker:// "
+        "is not currently supported."
+    ) in stderr
 
 
 @needs_singularity
