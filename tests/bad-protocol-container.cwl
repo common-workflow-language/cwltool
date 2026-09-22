@@ -8,6 +8,6 @@ hints:
 
 inputs: []
 
-baseCommand: [ true ]
+baseCommand: [ "true" ]
 
 outputs: []
