@@ -253,6 +253,42 @@ def test_singularity_bad_protocol(tmp_path: Path) -> None:
 
 
 @needs_singularity
+def test_singularity_docker_import(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--singularity",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/docker-import-container.cwl"),
+        ]
+    )
+    assert result_code == 1, stderr
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "tests/docker-import-container.cwl:7:5: dockerImport is not currently supported "
+        "when using the Singularity runtime for Docker containers."
+    ) in stderr
+
+
+@needs_singularity
+def test_singularity_empty_docker_requirement(tmp_path: Path) -> None:
+    result_code, stdout, stderr = get_main_output(
+        [
+            "--singularity",
+            "--outdir",
+            str(tmp_path),
+            get_data("tests/empty-docker-requirement-container.cwl"),
+        ]
+    )
+    assert result_code == 1, stderr
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "tests/empty-docker-requirement-container.cwl:6:22: dockerImageId is "
+        "missing and no way to find the image is provided."
+    ) in stderr
+
+
+@needs_singularity
 def test_singularity_local(tmp_path: Path) -> None:
     workdir = tmp_path / "working_dir"
     workdir.mkdir()
