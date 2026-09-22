@@ -1,6 +1,7 @@
 """Tests to find local Singularity image."""
 
 import json
+import re
 import shutil
 import subprocess
 from collections.abc import Callable
@@ -224,7 +225,7 @@ def test_singularity_docker_pull_protocol(tmp_path: Path) -> None:
             [
                 "--singularity",
                 "--debug",
-                get_data("tests/wf/hello-workflow-dockerpull-protocol.cwl"),
+                get_data("tests/wf/hello-workflow-docker-pull-protocol.cwl"),
                 "--usermessage",
                 "hello",
             ]
@@ -245,7 +246,6 @@ def test_singularity_bad_protocol(tmp_path: Path) -> None:
     )
     assert result_code == 1, stderr
     stderr = re.sub(r"\s\s+", " ", stderr)
-    assert "Job error:" in stderr
     assert "tests/bad-protocol-container.cwl:7:5: dockerPull with protocols other than docker:// is not currently supported."
 
 

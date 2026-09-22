@@ -20,7 +20,7 @@ steps:
       class: CommandLineTool
       requirements:
         DockerRequirement:
-          dockerPull: 'docker://docker.io/debian:stable-slim'
+          dockerImageId: 'docker.io/debian:stable-slim'
       inputs:
         message:
           type: string
