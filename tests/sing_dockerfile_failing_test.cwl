@@ -4,7 +4,10 @@ class: CommandLineTool
 
 requirements:
   DockerRequirement:
-    dockerImageId: 'docker.io_s_debian:stable-slim.sif'
+    dockerFile: |
+      FROM docker.io/debian:stable-slim
+      RUN false
+    dockerImageId: unbuildableImage
 
 inputs:
   message: string
@@ -12,3 +15,5 @@ inputs:
 outputs: []
 
 baseCommand: echo
+arguments:
+  - $(inputs.message)
