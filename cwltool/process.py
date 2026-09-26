@@ -564,9 +564,15 @@ FILE_COUNT_WARNING = 5000
 class Process(HasReqsHints, metaclass=abc.ABCMeta):
     """Abstract CWL Process."""
 
-    def __init__(self, toolpath_object: CommentedMap, loadingContext: LoadingContext) -> None:
+    def __init__(
+        self,
+        toolpath_object: CommentedMap,
+        loadingContext: LoadingContext,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """Build a Process object from the provided dictionary."""
-        super().__init__()
+        super().__init__(*args, **kwargs)
         self.metadata: CWLObjectType = getdefault(loadingContext.metadata, {})
         self.provenance_object: Optional["ProvenanceProfile"] = None
         self.parent_wf: Optional["ProvenanceProfile"] = None
