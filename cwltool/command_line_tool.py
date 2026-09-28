@@ -420,9 +420,15 @@ def default_make_path_mapper(
 
 @mypyc_attr(allow_interpreted_subclasses=True)
 class CommandLineTool(Process):
-    def __init__(self, toolpath_object: CommentedMap, loadingContext: LoadingContext) -> None:
+    def __init__(
+        self,
+        toolpath_object: CommentedMap,
+        loadingContext: LoadingContext,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """Initialize this CommandLineTool."""
-        super().__init__(toolpath_object, loadingContext)
+        super().__init__(toolpath_object, loadingContext, *args, **kwargs)
         base_command = self.tool.get("baseCommand")
         if isinstance(base_command, str) and len(base_command.split()) > 1:
             _logger.warning(
