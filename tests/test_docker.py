@@ -218,7 +218,7 @@ def test_docker_required_missing_secfile(tmp_path: Path) -> None:
     assert "Error collecting output for parameter 'output'" in stderr
     assert (
         "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
-    )
+    ) in stderr
     assert "file.ext3" in stderr
 
 
@@ -238,7 +238,7 @@ def test_podman_required_missing_secfile(tmp_path: Path) -> None:
     assert "Error collecting output for parameter 'output'" in stderr
     assert (
         "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
-    )
+    ) in stderr
     assert "file.ext3" in stderr
 
 
@@ -262,7 +262,10 @@ def test_singularity_required_missing_secfile(
         stderr = re.sub(r"\s\s+", " ", stderr)
         assert "Job error:" in stderr
         assert "Error collecting output for parameter 'output'" in stderr
-        assert "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
+        assert (
+            "tests/secondary-files-required-missing-container.cwl:16:5: Missing required secondary file"
+            in stderr
+        )
         assert "file.ext3" in stderr
 
 

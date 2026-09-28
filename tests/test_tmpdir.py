@@ -272,20 +272,41 @@ def test_dockerfile_singularity_build(monkeypatch: pytest.MonkeyPatch, tmp_path:
         "singularity",
     )
 
-    assert SingularityCommandLineJob(builder, {}, default_make_path_mapper, [], [], "").get_image(
-        {
-            "class": "DockerRequirement",
-            "dockerFile": "FROM debian:stable-slim",
-        },
-        pull_image=True,
-        tmp_outdir_prefix=str(tmp_outdir_prefix),
-        force_pull=True,
-    )
+    workpath = tmppath / "work"
+    workpath.mkdir(exist_ok=True)
+    oldcwd = os.getcwd()
+    try:
+        os.chdir(workpath)
+        assert SingularityCommandLineJob(
+            builder, {}, default_make_path_mapper, [], [], ""
+        ).get_image(
+            {
+                "class": "DockerRequirement",
+                "dockerFile": "FROM debian:stable-slim",
+            },
+            pull_image=True,
+            tmp_outdir_prefix=str(tmp_outdir_prefix),
+            force_pull=True,
+        )
+    finally:
+        os.chdir(oldcwd)
+
+    # Even images built from nameless Dockerfiles should (now) have their SIF
+    # files go to the same location as those pulled from Docker registries or
+    # built from Dockerfiles with associated image names. By default this is
+    # the current directory (and not actually anything to do with the
+    # tmp_outdir_prefix).
+
     children = sorted(tmp_outdir_prefix.parent.glob("*"))
     subdir = tmppath / children[0]
     children = sorted(subdir.glob("*.sif"))
+    assert len(children) == 0, "Image should not be built to tmp_outdir_prefix"
+
+    children = sorted(workpath.glob("*.sif"))
+    assert len(children) == 1
     image_path = children[0]
-    assert image_path.exists()
+    assert image_path.exists(), "Image should be built to current directory"
+
     shutil.rmtree(subdir)
 
 

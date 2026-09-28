@@ -990,6 +990,8 @@ def main(
         user_agent += f" {progname}"  # append the real program name as well
     append_word_to_default_user_agent(user_agent)
 
+    # By default, we log errors to standard error in the default way if we
+    # can't find a place for them.
     err_handler: logging.Handler = defaultStreamHandler
     try:
         if args is None:
@@ -1007,11 +1009,17 @@ def main(
                     args.cidfile_dir = os.getcwd()
                 del args.record_container_id
         if logger_handler is not None:
+            # Log errors to the provided handler
             err_handler = logger_handler
+            # And log there in general
             _logger.addHandler(err_handler)
         else:
+            # We aren't having the logging hooked, so set it up to be colorful.
             coloredlogs.install(logger=_logger, stream=stdout if args.validate else stderr)
-            err_handler = _logger.handlers[-1]
+            if len(_logger.handlers) > 0:
+                # If any logging is set up, log the errors there instead of the
+                # default cwltool place.
+                err_handler = _logger.handlers[-1]
         logging.getLogger("salad").handlers = _logger.handlers
 
         if runtimeContext is None:
