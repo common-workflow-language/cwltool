@@ -560,7 +560,7 @@ def eval_resource(builder: Builder, resource_req: str | int | float) -> str | in
 FILE_COUNT_WARNING = 5000
 
 
-@mypyc_attr(allow_interpreted_subclasses=True)
+@mypyc_attr(native_class=False)
 class Process(HasReqsHints, metaclass=abc.ABCMeta):
     """Abstract CWL Process."""
 

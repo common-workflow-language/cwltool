@@ -541,7 +541,7 @@ def create_tmp_dir(tmpdir_prefix: str) -> str:
     return tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
 
 
-@mypyc_attr(allow_interpreted_subclasses=True)
+@mypyc_attr(native_class=False)
 class HasReqsHints:
     """Base class for get_requirement()."""
 

@@ -418,7 +418,7 @@ def default_make_path_mapper(
     return path_mapper_class(reffiles, runtimeContext.basedir, stagedir, separateDirs)
 
 
-@mypyc_attr(allow_interpreted_subclasses=True)
+@mypyc_attr(native_class=False)
 class CommandLineTool(Process):
     def __init__(
         self,

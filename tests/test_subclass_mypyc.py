@@ -5,6 +5,7 @@ Especially if those classes are (or become) compiled with mypyc.
 """
 
 import pickle
+from typing import Any
 
 import pytest
 from ruamel.yaml.comments import CommentedMap
@@ -20,8 +21,6 @@ from cwltool.workflow import Workflow
 
 from .test_anon_types import snippet
 from .util import get_data
-
-from typing import Any
 
 
 @pytest.mark.parametrize("snippet", snippet)
