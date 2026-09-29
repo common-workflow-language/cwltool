@@ -195,7 +195,7 @@ class ExpressionJob:
                 self.output_callback({}, "permanentFail")
 
 
-@mypyc_attr(allow_interpreted_subclasses=True)
+@mypyc_attr(native_class=False)
 class ExpressionTool(Process):
     def job(
         self,
@@ -216,6 +216,7 @@ class ExpressionTool(Process):
         yield job
 
 
+@mypyc_attr(native_class=False)
 class AbstractOperation(Process):
     def job(
         self,
@@ -419,7 +420,7 @@ def default_make_path_mapper(
     return path_mapper_class(reffiles, runtimeContext.basedir, stagedir, separateDirs)
 
 
-@mypyc_attr(allow_interpreted_subclasses=True)
+@mypyc_attr(native_class=False)
 class CommandLineTool(Process):
     def __init__(
         self,

@@ -52,7 +52,7 @@ def default_make_tool(toolpath_object: CommentedMap, loadingContext: LoadingCont
 context.default_make_tool = default_make_tool
 
 
-@mypyc_attr(serializable=True)
+@mypyc_attr(native_class=False)
 class Workflow(Process):
     def __init__(
         self,
@@ -177,6 +177,7 @@ def used_by_step(step: StepType, shortinputid: str) -> bool:
     return False
 
 
+@mypyc_attr(native_class=False)
 class WorkflowStep(Process):
     def __init__(
         self,

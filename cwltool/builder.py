@@ -87,7 +87,7 @@ def substitute(value: str, replace: str) -> str:
     return value + replace
 
 
-@mypyc_attr(allow_interpreted_subclasses=True)
+@mypyc_attr(native_class=False)
 class Builder(HasReqsHints):
     """Helper class to construct a command line from a CWL CommandLineTool."""
 

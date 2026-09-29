@@ -554,7 +554,7 @@ def is_dirent(
     return isinstance(value, Mapping) and "entry" in value
 
 
-@mypyc_attr(allow_interpreted_subclasses=True)
+@mypyc_attr(native_class=False)
 class HasReqsHints:
     """Base class for get_requirement()."""
 
