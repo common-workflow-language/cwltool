@@ -71,7 +71,7 @@ jobs:
           # Linux arm64 wheels are built on circleci
           CIBW_ARCHS_LINUX: auto64 # ppc64le s390x
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: artifact-${{ matrix.image }}
           path: ./wheelhouse/*.whl
@@ -104,7 +104,7 @@ jobs:
   #       env:
   #         CIBW_PLATFORM: pyodide
   #         CIBW_CACHE_PATH: ${{ runner.temp }}/cibw-cache
-  #     - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+  #     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
   #       with:
   #         name: artifact-pyodide
   #         path: ./wheelhouse/*.whl
@@ -128,7 +128,7 @@ jobs:
       - name: Build sdist
         run: pipx run build --sdist
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: artifact-sdist
           path: dist/*.tar.gz
@@ -167,7 +167,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@adba99c781d3746d38b3a09b1cf797965bcb7fe6 # v4.3.0
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: artifact-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
