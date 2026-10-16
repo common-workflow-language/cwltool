@@ -582,7 +582,7 @@ class ResearchObject:
         self, timestamp: datetime.datetime | None = None
     ) -> tuple[str, dict[str, str]]:  # createdOn, createdBy
         if timestamp is None:
-            timestamp = datetime.datetime.now()
+            timestamp = datetime.datetime.now(datetime.timezone.utc)
         return (
             timestamp.isoformat(),
             {"uri": self.engine_uuid, "name": self.cwltool_version},

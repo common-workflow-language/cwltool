@@ -192,7 +192,7 @@ class ProvenanceProfile:
         # FIXME:
         #   This datetime will be a bit too delayed, we should
         #   capture when cwltool.py earliest started?
-        start_time = datetime.datetime.now()
+        start_time = datetime.datetime.now(datetime.timezone.utc)
         # define workflow run level activity
         run_activity = self.document.activity(
             self.workflow_run_uri,
@@ -244,7 +244,8 @@ class ProvenanceProfile:
             if isinstance(job, (CommandLineJob, JobBase, WorkflowJob)):
                 name = job.name
             process_name = urllib.parse.quote(name, safe=":/,#")
-            process_run_id = self.start_process(process_name, datetime.datetime.now())
+            process_run_id = self.start_process(process_name,
+                                                datetime.datetime.now(datetime.timezone.utc))
         return process_run_id
 
     def start_process(
@@ -648,7 +649,7 @@ class ProvenanceProfile:
                     self.document.used(
                         process_run_id,
                         entity,
-                        datetime.datetime.now(),
+                        datetime.datetime.now(datetime.timezone.utc),
                         None,
                         {"prov:role": prov_role},
                     )
@@ -667,7 +668,7 @@ class ProvenanceProfile:
                 self.generate_output_prov(entry, process_run_id, name)
         elif final_output is not None:
             # Timestamp should be created at the earliest
-            timestamp = datetime.datetime.now()
+            timestamp = datetime.datetime.now(datetime.timezone.utc)
 
             # For each output, find/register the corresponding
             # entity (UUID) and document it as generated in

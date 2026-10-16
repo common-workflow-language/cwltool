@@ -431,7 +431,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
                 str(self.name),
                 runtimeContext.process_run_id,
                 outputs,
-                datetime.datetime.now(),
+                datetime.datetime.now(datetime.timezone.utc),
             )
         if processStatus != "success":
             _logger.warning("[job %s] completed %s", self.name, processStatus)
