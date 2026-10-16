@@ -192,7 +192,7 @@ class ProvenanceProfile:
         # FIXME:
         #   This datetime will be a bit too delayed, we should
         #   capture when cwltool.py earliest started?
-        start_time = datetime.datetime.now(datetime.timezone.utc)
+        start_time = datetime.datetime.now()
         # define workflow run level activity
         run_activity = self.document.activity(
             self.workflow_run_uri,
