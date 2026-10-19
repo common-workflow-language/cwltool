@@ -594,7 +594,7 @@ def arg_parser() -> argparse.ArgumentParser:
     )
     container_group.add_argument(
         "--no-net",
-        type=str,
+        action="store_true",
         help="Omit the `--net` parameter entirely. This can be useful "
         "when user namespaces are disabled, for example."
     )
