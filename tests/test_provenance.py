@@ -116,7 +116,8 @@ def test_revsort_workflow_shortcut(tmp_path: Path, with_orcid: bool) -> None:
     check_output_object(folder)
     check_provenance(folder, with_orcid=with_orcid)
     assert not (folder / "snapshot" / "revsort-job-shortcut.json").exists()
-    assert len(list((folder / "snapshot").iterdir())) == 4
+    snapshot = sorted(p.name for p in (folder / "snapshot").iterdir())
+    assert snapshot == ["revsort.cwl", "revtool.cwl", "sorttool.cwl"]
 
 
 @needs_docker
@@ -273,6 +274,78 @@ def test_no_data_files(tmp_path: Path, with_orcid: bool) -> None:
         with_orcid=with_orcid,
     )
     check_bagit(folder)
+
+
+def write_default_tool(path: Path, *defaults: str) -> None:
+    """Write a tool with one File input per default location."""
+    inputs = "".join(
+        f"  in{n}:\n    type: File\n    default: {{class: File, location: {location}}}\n"
+        for n, location in enumerate(defaults)
+    )
+    path.write_text(
+        "cwlVersion: v1.2\nclass: CommandLineTool\nbaseCommand: echo\n"
+        f"inputs:\n{inputs}outputs: []\n",
+        encoding="ascii",
+    )
+
+
+def test_snapshot_data_files_same_basename(tmp_path: Path) -> None:
+    """Data files sharing a basename must not break the snapshot."""
+    for name in "ab":
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "config.txt").write_text(name, encoding="ascii")
+    wf_dir = tmp_path / "wf"
+    wf_dir.mkdir()
+    (wf_dir / "plain.cwl").write_text(
+        "cwlVersion: v1.2\nclass: CommandLineTool\nbaseCommand: echo\ninputs: []\noutputs: []\n",
+        encoding="ascii",
+    )
+    (wf_dir / "main.cwl").write_text(
+        """\
+cwlVersion: v1.2
+class: Workflow
+inputs: []
+outputs: []
+steps:
+  first:
+    in: {}
+    out: []
+    run:
+      class: CommandLineTool
+      baseCommand: echo
+      inputs:
+        config: {type: File, default: {class: File, location: ../a/config.txt}}
+      outputs: []
+  second:
+    in: {}
+    out: []
+    run:
+      class: CommandLineTool
+      baseCommand: echo
+      inputs:
+        config: {type: File, default: {class: File, location: ../b/config.txt}}
+      outputs: []
+  third: {run: plain.cwl, in: {}, out: []}
+""",
+        encoding="ascii",
+    )
+    folder = cwltool(tmp_path, str(wf_dir / "main.cwl"))
+    snapshot = sorted(p.name for p in (folder / "snapshot").iterdir())
+    assert snapshot == ["main.cwl", "plain.cwl"]
+
+
+def test_snapshot_has_only_cwl_documents(tmp_path: Path) -> None:
+    """The snapshot holds CWL documents, not the data files a tool refers to."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    for name in ("one.txt", "two.txt"):
+        (data_dir / name).write_text(name, encoding="ascii")
+    tool_dir = tmp_path / "tool"
+    tool_dir.mkdir()
+    write_default_tool(tool_dir / "tool.cwl", "../data/one.txt", "../data/two.txt")
+    folder = cwltool(tmp_path, str(tool_dir / "tool.cwl"))
+    snapshot = sorted(p.name for p in (folder / "snapshot").iterdir())
+    assert snapshot == ["tool.cwl"]
 
 
 def check_output_object(base_path: Path) -> None:
