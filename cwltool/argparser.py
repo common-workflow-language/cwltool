@@ -595,8 +595,10 @@ def arg_parser() -> argparse.ArgumentParser:
     container_group.add_argument(
         "--no-net",
         action="store_true",
-        help="Omit the `--net` parameter entirely. This can be useful "
-        "when user namespaces are disabled, for example."
+        help="Omit the `--net` parameter entirely for Singularity/Apptainer" 
+        "containers. This can be useful when user namespaces are disabled, "
+        "for example. This is only meaningful for Apptainer/Singularity."
+        "Docker/Podman users should use the --custom-net option."
     )
     container_group.add_argument(
         "--strict-memory-limit",
