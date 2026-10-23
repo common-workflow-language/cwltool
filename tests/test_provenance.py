@@ -38,7 +38,9 @@ FOAF = Namespace("http://xmlns.com/foaf/0.1/")
 TEST_ORCID = "https://orcid.org/0000-0003-4862-3349"
 
 
-def cwltool(tmp_path: Path, *args: Any, with_orcid: bool = False) -> Path:
+def cwltool(
+    tmp_path: Path, *args: Any, with_orcid: bool = False, no_container: bool = False
+) -> Path:
     prov_folder = tmp_path / "provenance"
     prov_folder.mkdir()
     new_args = [
@@ -48,6 +50,8 @@ def cwltool(tmp_path: Path, *args: Any, with_orcid: bool = False) -> Path:
         "--provenance",
         str(prov_folder),
     ]
+    if no_container:
+        new_args.append("--no-container")
     if with_orcid:
         new_args.extend(["--orcid", TEST_ORCID])
     new_args.extend(args)
@@ -262,6 +266,68 @@ def test_directory_workflow(tmp_path: Path, with_orcid: bool) -> None:
         prefix = l_hash[:2]  # first 2 letters
         p = folder / "data" / prefix / l_hash
         assert p.is_file(), f"Could not find {letter} as {p}"
+
+
+@pytest.mark.parametrize("with_orcid", [True, False])
+def test_directory_workflow_no_container(tmp_path: Path, with_orcid: bool) -> None:
+    """Directory-input provenance, forced to run without Docker.
+
+    Exercises the same ``declare_directory``/ORE-mention recording as
+    `test_directory_workflow`, but does not require Docker so it always
+    contributes to `cwltool.cwlprov` coverage, even on hosts without a
+    working container runtime.
+    """
+    dir2 = tmp_path / "dir2"
+    dir2.mkdir()
+    for x in "abc":
+        with open(dir2 / x, "w", encoding="ascii") as f:
+            f.write(x)
+
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/directory.cwl"),
+        "--dir",
+        str(dir2),
+        with_orcid=with_orcid,
+        no_container=True,
+    )
+    check_provenance(folder, directory=True, with_orcid=with_orcid)
+
+
+def test_record_and_array_artefacts_no_container(tmp_path: Path) -> None:
+    """Test that record- and array-typed job inputs are properly provenanced.
+
+    A CWL record input is captured as a `prov:Dictionary` whose fields are
+    `prov:KeyEntityPair` members, and a CWL array input is captured as a
+    `prov:Collection` with one `prov:hadMember` triple per element.
+    """
+    folder = cwltool(
+        tmp_path,
+        get_data("tests/wf/prov-record-array.cwl"),
+        get_data("tests/wf/prov-record-array-job.json"),
+        no_container=True,
+    )
+    check_provenance(folder, single_tool=True)
+    prov_file = folder / "metadata" / "provenance" / "primary.cwlprov.nt"
+    g = Graph()
+    with open(prov_file, "rb") as f:
+        g.parse(file=f, format="nt", publicID=find_arcp(folder))
+    # The record should be recorded as a prov:Dictionary with one
+    # prov:KeyEntityPair member per field ("a" and "b").
+    assert (None, RDF.type, PROV.Dictionary) in g, "Record input not declared as prov:Dictionary"
+    assert (
+        None,
+        RDF.type,
+        PROV.KeyEntityPair,
+    ) in g, "Record fields not declared as prov:KeyEntityPair"
+    # The array should be recorded as a generic prov:Collection with
+    # prov:hadMember for each of its 3 string elements.
+    collections = set(g.subjects(RDF.type, PROV.Collection)) - set(
+        g.subjects(RDF.type, PROV.Dictionary)
+    )
+    assert collections, "Array input not declared as prov:Collection"
+    array_coll = next(c for c in collections if list(g.objects(c, PROV.hadMember)))
+    assert len(list(g.objects(array_coll, PROV.hadMember))) == 3
 
 
 @needs_docker
