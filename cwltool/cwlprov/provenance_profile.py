@@ -204,9 +204,10 @@ class ProvenanceProfile:
             },
         )
         # The engine acted on behalf of the account for this run through activity delegation.
-        # There is no need for explicit 'wasStartedBy' since the WorkflowRun activity
-        # already encodes it with 'startTime'
         self.document.actedOnBehalfOf(wfengine, account, run_activity)
+        # Add a wasStartedBy corresponding to the wasEndedBy created in JobExecutor.execute
+        self.document.wasStartedBy(activity=run_activity, trigger=None,
+                                   starter=self.engine_uuid, time=start_time)
 
         # association between SoftwareAgent and WorkflowRun
         main_workflow = "wf:main"
