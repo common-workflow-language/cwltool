@@ -575,18 +575,40 @@ def prov_deps(
     uri: str,
     basedir: str | None = None,
 ) -> CWLFileType:
-    deps = find_deps(obj, document_loader, uri, basedir=basedir)
+    """Find the CWL documents that the provenance snapshot should contain."""
+    deps = CWLFileType(
+        **{
+            "class": "File",
+            "location": uri,
+            "format": CWL_IANA,
+        }
+    )
 
-    def remove_non_cwl(deps: CWLFileType | CWLDirectoryType) -> None:
-        if is_file(deps) and "secondaryFiles" in deps:
-            sec_files = deps["secondaryFiles"]
-            for index, entry in enumerate(sec_files):
-                if not (is_file(entry) and "format" in entry and entry["format"] == CWL_IANA):
-                    del sec_files[index]
-                else:
-                    remove_non_cwl(entry)
+    def loadref(base: str, uri: str) -> CommentedMap | CommentedSeq | str | None:
+        return document_loader.fetch(document_loader.fetcher.urljoin(base, uri))
 
-    remove_non_cwl(deps)
+    def only_cwl(
+        entries: MutableSequence[CWLFileType | CWLDirectoryType],
+    ) -> MutableSequence[CWLFileType | CWLDirectoryType]:
+        kept: list[CWLFileType | CWLDirectoryType] = []
+        for entry in entries:
+            if is_file(entry) and entry.get("format") == CWL_IANA:
+                if "secondaryFiles" in entry:
+                    entry["secondaryFiles"] = only_cwl(entry["secondaryFiles"])
+                kept.append(entry)
+        return kept
+
+    # Follow only the references to other CWL documents: data files are not
+    # snapshotted, so they must not reach mergedirs() and clash on basename.
+    sfs = scandeps(
+        basedir if basedir else uri,
+        obj,
+        {"$import", "run"},
+        set(),
+        loadref,
+        nestdirs=True,
+    )
+    deps["secondaryFiles"] = mergedirs(only_cwl(sfs))
     return deps
 
 
