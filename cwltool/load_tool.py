@@ -370,6 +370,11 @@ def fast_parser(
     ), cast(CommentedMap, cmap(metadata))
 
 
+_CWLTOOL_EXTENSION = re.compile(
+    r"undefined\s+reference\s+to\s+'http://commonwl\.org/cwltool#(\w+)'"
+)
+
+
 def resolve_and_validate_document(
     loadingContext: LoadingContext,
     workflowobj: CommentedMap | CommentedSeq,
@@ -501,7 +506,16 @@ def resolve_and_validate_document(
             workflowobj, fileuri, uri, loadingContext, document_loader.fetcher
         )
     else:
-        document_loader.resolve_all(workflowobj, fileuri)
+        try:
+            document_loader.resolve_all(workflowobj, fileuri)
+        except ValidationException as exc:
+            extension = _CWLTOOL_EXTENSION.search(str(exc))
+            if extension is None or cwlVersion in process.custom_schemas:
+                raise
+            raise ValidationException(
+                f"{exc}\n\ncwltool does not support the extension '{extension[1]}' "
+                "unless extensions are enabled. Try running again with --enable-ext."
+            ) from exc
         processobj, metadata = document_loader.resolve_ref(uri)
 
     if not isinstance(processobj, (CommentedMap, CommentedSeq)):

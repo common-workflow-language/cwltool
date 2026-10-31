@@ -20,6 +20,73 @@ def test_missing_enable_ext() -> None:
     assert error_code != 0
 
 
+def test_missing_enable_ext_suggests_flag(caplog: pytest.LogCaptureFixture) -> None:
+    """Name the extension and suggest --enable-ext when extensions are off."""
+    error_code, _, _ = get_main_output(["--validate", get_data("tests/wf/mpi_simple.cwl")])
+    output = " ".join(caplog.text.split())
+    assert error_code != 0
+    assert "Try running again with --enable-ext" in output
+    assert "'MPIRequirement'" in output
+    assert "mpi_simple.cwl" in output
+
+
+def test_missing_enable_ext_suggests_flag_for_long_path(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Find the extension when a long path wraps the validation message."""
+    long_dir = tmp_path / ("nested" * 20)
+    long_dir.mkdir()
+    tool = long_dir / "tool.cwl"
+    tool.write_text(Path(get_data("tests/wf/mpi_simple.cwl")).read_text())
+    error_code, _, _ = get_main_output(["--validate", str(tool)])
+    assert error_code != 0
+    assert "Try running again with --enable-ext" in " ".join(caplog.text.split())
+
+
+def test_unknown_extension_with_enable_ext_has_no_suggestion(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Do not suggest --enable-ext to someone who already provided it."""
+    tool = tmp_path / "tool.cwl"
+    tool.write_text(
+        "cwlVersion: v1.2\n"
+        "class: CommandLineTool\n"
+        "$namespaces:\n"
+        "  cwltool: http://commonwl.org/cwltool#\n"
+        "requirements:\n"
+        "  cwltool:NoSuchExtension: {}\n"
+        "baseCommand: echo\n"
+        "inputs: []\n"
+        "outputs: []\n"
+    )
+    error_code, _, _ = get_main_output(["--enable-ext", "--validate", str(tool)])
+    output = " ".join(caplog.text.split())
+    assert error_code != 0
+    assert "cwltool#NoSuchExtension" in output
+    assert "Try running again with --enable-ext" not in output
+
+
+def test_misspelled_requirement_has_no_suggestion(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Do not suggest --enable-ext for a reference that is not an extension."""
+    tool = tmp_path / "tool.cwl"
+    tool.write_text(
+        "cwlVersion: v1.2\n"
+        "class: CommandLineTool\n"
+        "requirements:\n"
+        "  ShelCommandRequirement: {}\n"
+        "baseCommand: echo\n"
+        "inputs: []\n"
+        "outputs: []\n"
+    )
+    error_code, _, _ = get_main_output(["--validate", str(tool)])
+    output = " ".join(caplog.text.split())
+    assert error_code != 0
+    assert "ShelCommandRequirement" in output
+    assert "--enable-ext" not in output
+
+
 @needs_docker
 def test_listing_deep() -> None:
     params = [
