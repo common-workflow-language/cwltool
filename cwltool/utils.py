@@ -36,6 +36,7 @@ from collections.abc import (
     MutableMapping,
     MutableSequence,
     Sequence,
+    Mapping,
 )
 from datetime import datetime
 from email.utils import parsedate_to_datetime
@@ -61,6 +62,11 @@ from cachecontrol import CacheControl
 from cachecontrol.caches import FileCache
 from mypy_extensions import mypyc_attr
 from schema_salad.exceptions import ValidationException
+
+if sys.version_info >= (3, 13):
+    from typing import TypeIs
+else:
+    from typing_extensions import TypeIs
 
 if sys.version_info >= (3, 11):
     from typing import Required
@@ -539,6 +545,13 @@ def create_tmp_dir(tmpdir_prefix: str) -> str:
     """Create a temporary directory that respects the given tmpdir_prefix."""
     tmp_dir, tmp_prefix = os.path.split(tmpdir_prefix)
     return tempfile.mkdtemp(prefix=tmp_prefix, dir=tmp_dir)
+
+
+def is_dirent(
+    value: Any,
+) -> TypeIs[DirentType]:
+    """Return True if value is a CWL Dirent object."""
+    return isinstance(value, Mapping) and "entry" in value
 
 
 @mypyc_attr(allow_interpreted_subclasses=True)
