@@ -1,8 +1,8 @@
 requests>=2.32.2
 ruamel.yaml>=0.16.0,<0.20
-rdflib>=4.2.2,<7.7
+rdflib>=7,<7.7
 schema-salad>=8.10,<9
-prov==1.5.1
+prov[xml,rdf]>=3.2.2,<3.3
 mypy-extensions
 psutil>=5.6.6
 coloredlogs

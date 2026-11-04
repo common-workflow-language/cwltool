@@ -529,7 +529,7 @@ class WorkflowJob:
                 self.prov_obj.workflow_run_uri,
                 None,
                 self.prov_obj.engine_uuid,
-                datetime.datetime.now(),
+                datetime.datetime.now(datetime.timezone.utc),
             )
             prov_ids = self.prov_obj.finalize_prov_profile(self.name)
             # Tell parent to associate our provenance files with our wf run
