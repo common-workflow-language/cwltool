@@ -53,7 +53,7 @@ needs_singularity = pytest.mark.skipif(
 
 needs_singularity_not_apptainer = pytest.mark.skipif(
     not (bool(shutil.which("singularity")) and "singularity" in get_version()[1]),
-    reason="Requires the singularity executable on the system path.",
+    reason="Requires a real singularity executable (not apptainer) on the system path.",
 )
 
 needs_singularity_2_6 = pytest.mark.skipif(
