@@ -71,6 +71,7 @@ from .utils import (
     adjustFileObjs,
     aslist,
     get_listing,
+    is_dirent,
     normalizeFilesDirs,
     random_outdir,
     shared_file_lock,
@@ -78,7 +79,6 @@ from .utils import (
     upgrade_lock,
     visit_files,
     visit_files_directories,
-    is_dirent,
 )
 
 if TYPE_CHECKING:

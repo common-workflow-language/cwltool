@@ -33,7 +33,7 @@ def test_node_version(version: str, supported: bool, mocker: Any) -> None:
     mocked_subprocess = mocker.patch("cwl_utils.sandboxjs.subprocess")
     mocked_subprocess.check_output = mocker.Mock(return_value=version)
 
-    assert sandboxjs.check_js_threshold_version("node") == supported
+    assert sandboxjs.NodeJSEngine().check_js_threshold_version("node") == supported
 
 
 def test_value_from_two_concatenated_expressions() -> None:

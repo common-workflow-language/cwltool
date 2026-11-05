@@ -1216,11 +1216,15 @@ test_factors = [(""), ("--parallel"), ("--debug"), ("--parallel --debug")]
 
 
 @pytest.mark.parametrize("factor", test_factors)
-def test_js_console_cmd_line_tool(factor: str, caplog: pytest.LogCaptureFixture) -> None:
+def test_js_console_cmd_line_tool(
+    factor: str, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
     for test_file in ("js_output.cwl", "js_output_workflow.cwl"):
         commands = factor.split()
         commands.extend(["--js-console", "--no-container", get_data("tests/wf/" + test_file)])
-        error_code, _, _ = get_main_output(commands)
+        error_code, _, _ = get_main_output(
+            commands, extra_env={"CWL_JS_ENGINE": "node"}, monkeypatch=monkeypatch
+        )
         logging_output = "\n".join([record.message for record in caplog.records])
         assert "[log] Log message" in logging_output
         assert "[err] Error message" in logging_output
