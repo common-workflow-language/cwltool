@@ -13,8 +13,9 @@ from collections.abc import Callable, MutableMapping, MutableSequence
 from io import StringIO  # pylint: disable=redefined-builtin
 from typing import Optional, cast
 
-import requests
 from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType
+from mypy_extensions import mypyc_attr
+import requests
 
 from .builder import Builder
 from .context import RuntimeContext
@@ -78,6 +79,7 @@ def _check_docker_machine_path(path: str | None) -> None:
         )
 
 
+@mypyc_attr(native_class=False)
 class DockerCommandLineJob(ContainerCommandLineJob):
     """Runs a :py:class:`~cwltool.job.CommandLineJob` in a software container using the Docker engine."""
 
@@ -444,6 +446,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
         return runtime, cidfile_path
 
 
+@mypyc_attr(native_class=False)
 class PodmanCommandLineJob(DockerCommandLineJob):
     """Runs a :py:class:`~cwltool.job.CommandLineJob` in a software container using the podman engine."""
 

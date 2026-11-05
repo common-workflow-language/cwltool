@@ -33,10 +33,10 @@ from collections.abc import (
     Callable,
     Generator,
     Iterable,
+    Mapping,
     MutableMapping,
     MutableSequence,
     Sequence,
-    Mapping,
 )
 from datetime import datetime
 from email.utils import parsedate_to_datetime

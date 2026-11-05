@@ -2,6 +2,7 @@ import copy
 from typing import cast
 
 from cwl_utils.types import CWLObjectType
+from mypy_extensions import mypyc_attr
 from ruamel.yaml.comments import CommentedMap
 from schema_salad.exceptions import ValidationException
 from schema_salad.sourceline import indent
@@ -62,6 +63,7 @@ class ProcessGeneratorJob:
             raise WorkflowException(str(exc)) from exc
 
 
+@mypyc_attr(native_class=False)
 class ProcessGenerator(Process):
     def __init__(
         self,

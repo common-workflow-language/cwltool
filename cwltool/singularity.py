@@ -178,6 +178,7 @@ def _inspect_singularity_sandbox_image(path: str) -> bool:
     return False
 
 
+@mypyc_attr(native_class=False)
 class SingularityCommandLineJob(ContainerCommandLineJob):
     def __init__(
         self,

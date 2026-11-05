@@ -23,6 +23,7 @@ from typing import IO, TYPE_CHECKING, Optional, TextIO, Union, cast
 
 import psutil
 from cwl_utils.types import CWLDirectoryType, CWLFileType, CWLObjectType, CWLOutputType
+from mypy_extensions import mypyc_attr
 from prov.model import PROV
 from schema_salad.sourceline import SourceLine
 from schema_salad.utils import json_dump, json_dumps
@@ -102,6 +103,7 @@ def neverquote(string: str, pos: int = 0, endpos: int = 0) -> Match[str] | None:
     return None
 
 
+@mypyc_attr(native_class=False)
 class JobBase(HasReqsHints, metaclass=ABCMeta):
     def __init__(
         self,
@@ -579,6 +581,7 @@ class JobBase(HasReqsHints, metaclass=ABCMeta):
             _logger.debug("Could not collect memory usage, job ended before monitoring began.")
 
 
+@mypyc_attr(native_class=False)
 class CommandLineJob(JobBase):
     def run(
         self,
@@ -633,6 +636,7 @@ class CommandLineJob(JobBase):
 CONTROL_CODE_RE = r"\x1b\[[0-9;]*[a-zA-Z]"
 
 
+@mypyc_attr(native_class=False)
 class ContainerCommandLineJob(JobBase, metaclass=ABCMeta):
     """Commandline job using containers."""
 

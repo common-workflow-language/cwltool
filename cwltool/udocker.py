@@ -1,8 +1,10 @@
 """Enables Docker software containers via the udocker runtime."""
 
 from .docker import DockerCommandLineJob
+from mypy_extensions import mypyc_attr
 
 
+@mypyc_attr(native_class=False)
 class UDockerCommandLineJob(DockerCommandLineJob):
     """Runs a CommandLineJob in a software container using the udocker engine."""
 
