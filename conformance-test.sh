@@ -74,9 +74,9 @@ if [ -v SKIP_INSTALL ] ; then
    echo 'Skip installing dependencies; cwltool & cwltest must already be installed'
 else
 	venv "${TMP_DIR}/cwl-conformance-venv"
-	pip install -U setuptools wheel pip
+	pip install -U setuptools wheel pip build
 	pip uninstall -y cwltool
-	pip install -r"${SCRIPT_DIRECTORY}/mypy-requirements.txt"
+	pip install --group "${SCRIPT_DIRECTORY}/pyproject.toml:mypy"
 	CWLTOOL_USE_MYPYC=1 MYPYPATH="${SCRIPT_DIRECTORY}/mypy-stubs" pip install "${SCRIPT_DIRECTORY}" -r"${SCRIPT_DIRECTORY}/requirements.txt"
 	pip install 'cwltest>=2.5,!=2.5.20240709060407' pytest-cov pytest-xdist>=3.2.0 psutil
 fi
