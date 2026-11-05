@@ -159,8 +159,8 @@ jobs:
 
       - name: install with test dependencies
         run: |
-          pip install pip==23.1 setuptools==67.6.1 wheel
-          pip install --no-build-isolation -rtest-requirements.txt .[deps]
+          pip install pip==25.1 setuptools==67.6.1 wheel
+          pip install --no-build-isolation --group test .[deps]
 
       - name: make working directory read-only
         run: |
@@ -254,9 +254,6 @@ jobs:
         with:
           python-version: 3.14
           cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            test-requirements.txt
 
       - name: Give the test runner user a name to make provenance happy.
         run: sudo usermod -c 'CI Runner' "$(whoami)"
