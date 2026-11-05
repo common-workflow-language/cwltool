@@ -1306,7 +1306,7 @@ class CommandLineTool(Process):
                         partial(ParameterOutputWorkflowException, port=port),
                         debug,
                     ):
-                        fragment = shortname(port["id"])
+                        fragment = shortname(cast(str, port["id"]))
                         ret[fragment] = self.collect_output(
                             port,
                             builder,
