@@ -206,8 +206,9 @@ class ProvenanceProfile:
         # The engine acted on behalf of the account for this run through activity delegation.
         self.document.actedOnBehalfOf(wfengine, account, run_activity)
         # Add a wasStartedBy corresponding to the wasEndedBy created in JobExecutor.execute
-        self.document.wasStartedBy(activity=run_activity, trigger=None,
-                                   starter=self.engine_uuid, time=start_time)
+        self.document.wasStartedBy(
+            activity=run_activity, trigger=None, starter=self.engine_uuid, time=start_time
+        )
 
         # association between SoftwareAgent and WorkflowRun
         main_workflow = "wf:main"
@@ -245,8 +246,9 @@ class ProvenanceProfile:
             if isinstance(job, (CommandLineJob, JobBase, WorkflowJob)):
                 name = job.name
             process_name = urllib.parse.quote(name, safe=":/,#")
-            process_run_id = self.start_process(process_name,
-                                                datetime.datetime.now(datetime.timezone.utc))
+            process_run_id = self.start_process(
+                process_name, datetime.datetime.now(datetime.timezone.utc)
+            )
         return process_run_id
 
     def start_process(
