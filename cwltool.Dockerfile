@@ -10,10 +10,8 @@ RUN export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_CWLTOOL=${VERSION} ; \
   CWLTOOL_USE_MYPYC=1 MYPYPATH=mypy-stubs pip wheel --no-binary schema-salad \
   --wheel-dir=/wheels .[deps]  --verbose
 RUN rm /wheels/schema_salad*
-RUN pip install --root-user-action ignore "black~=22.0"
-# galaxy-util 22.1.x depends on packaging<22, but black 23.x needs packaging>22
 RUN SCHEMA_SALAD_USE_MYPYC=1 MYPYPATH=mypy-stubs pip wheel \
-  --no-binary schema-salad $(grep schema.salad requirements.txt) "black~=22.0" \
+  --no-binary schema-salad $(grep schema.salad requirements.txt) \
   --wheel-dir=/wheels  --verbose
 RUN pip install --root-user-action ignore --force-reinstall --no-index --no-warn-script-location \
 	--root=/pythonroot/ /wheels/*.whl
