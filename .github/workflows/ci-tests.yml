@@ -48,18 +48,19 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Singularity and environment-modules
+      - name: Set up Apptainer and environment-modules
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
         run: |
-          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.3.5/singularity-ce_4.3.5-noble_amd64.deb
-          sudo apt-get install -y ./singularity-ce_4.3.5-noble_amd64.deb environment-modules
+          sudo add-apt-repository -y ppa:apptainer/ppa
+          sudo apt-get update
+          sudo apt-get install -y apptainer environment-modules
 
       - name: Give the test runner user a name to make provenance happy.
         if: ${{ matrix.step == 'unit' || matrix.step == 'mypy' }}
         run: sudo usermod -c 'CI Runner' "$(whoami)"
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.py-semver }}
           allow-prereleases: true
@@ -113,7 +114,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.py-semver }}
           cache: pip
@@ -143,24 +144,25 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Singularity and environment-modules
+      - name: Set up Apptainer and environment-modules
         run: |
-          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.3.5/singularity-ce_4.3.5-noble_amd64.deb
-          sudo apt-get install -y ./singularity-ce_4.3.5-noble_amd64.deb environment-modules
+          sudo add-apt-repository -y ppa:apptainer/ppa
+          sudo apt-get update
+          sudo apt-get install -y apptainer environment-modules
 
       - name: Give the test runner user a name to make provenance happy.
         run: sudo usermod -c 'CI Runner' "$(whoami)"
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.py-semver }}
           cache: pip
 
       - name: install with test dependencies
         run: |
-          pip install pip==23.1 setuptools==67.6.1 wheel
-          pip install --no-build-isolation -rtest-requirements.txt .[deps]
+          pip install pip==25.1 setuptools==67.6.1 wheel
+          pip install --no-build-isolation --group test .[deps]
 
       - name: make working directory read-only
         run: |
@@ -193,11 +195,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Singularity and environment-modules
+      - name: Set up Apptainer and environment-modules
         if: ${{ matrix.container == 'singularity' }}
         run: |
-          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.3.5/singularity-ce_4.3.5-noble_amd64.deb
-          sudo apt-get install -y ./singularity-ce_4.3.5-noble_amd64.deb environment-modules
+          sudo add-apt-repository -y ppa:apptainer/ppa
+          sudo apt-get update
+          sudo apt-get install -y apptainer environment-modules
 
       - name: Singularity cache
         if: ${{ matrix.container == 'singularity' }}
@@ -211,7 +214,7 @@ jobs:
         run: sudo rm -f /usr/bin/docker ; sudo apt-get install -y podman crun
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: 3.14
           cache: pip
@@ -244,19 +247,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Singularity and environment-modules
+      - name: Set up Apptainer and environment-modules
         run: |
-          wget --no-verbose https://github.com/sylabs/singularity/releases/download/v4.3.5/singularity-ce_4.3.5-noble_amd64.deb
-          sudo apt-get install -y ./singularity-ce_4.3.5-noble_amd64.deb environment-modules
+          sudo add-apt-repository -y ppa:apptainer/ppa
+          sudo apt-get update
+          sudo apt-get install -y apptainer environment-modules
 
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: 3.14
           cache: pip
-          cache-dependency-path: |
-            requirements.txt
-            test-requirements.txt
 
       - name: Give the test runner user a name to make provenance happy.
         run: sudo usermod -c 'CI Runner' "$(whoami)"
@@ -294,7 +295,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: 3.14
           cache: pip

@@ -71,6 +71,7 @@ from .utils import (
     adjustFileObjs,
     aslist,
     get_listing,
+    is_dirent,
     normalizeFilesDirs,
     random_outdir,
     shared_file_lock,
@@ -555,7 +556,17 @@ class CommandLineTool(Process):
             fail: Any = False
             fail_suffix: str = ""
             if not isinstance(ls_evaluated, MutableSequence):
-                fail = ls_evaluated
+                if classic_dirent:
+                    fail = ls_evaluated
+                elif (
+                    ls_evaluated is None
+                    or is_file_or_directory(ls_evaluated)
+                    or is_dirent(ls_evaluated)
+                ):
+                    # CWL v1.2 permits an expression to return a single item
+                    ls_evaluated = [ls_evaluated] if ls_evaluated is not None else []
+                else:
+                    fail = ls_evaluated
             else:
                 entry1: None | MutableSequence[CWLObjectType] | CWLObjectType
                 for entry1 in cast(

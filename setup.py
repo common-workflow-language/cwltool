@@ -169,8 +169,6 @@ setup(
     extras_require={
         "deps": [
             "galaxy-tool-util>=22.1.2,!=23.0.1,!=23.0.2,!=23.0.3,!=23.0.4,!=23.0.5,<26.2",
-            "galaxy-util <26.2",
-            "pillow",  # workaround for https://github.com/galaxyproject/galaxy/pull/20525
         ],
     },
     python_requires=">=3.10, <3.16",
@@ -179,7 +177,7 @@ setup(
     test_suite="tests",
     tests_require=[
         "bagit >= 1.6.4, < 1.10",
-        "pytest >= 6.2, < 9.2",
+        "pytest >= 6.2, < 9.3",
         "mock >= 2.0.0",
         "pytest-mock >= 1.10.0",
         "pytest-httpserver",

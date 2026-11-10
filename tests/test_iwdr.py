@@ -59,6 +59,54 @@ def test_directory_literal_with_real_inputs_inside(tmp_path: Path) -> None:
     assert err_code == 0
 
 
+@pytest.mark.parametrize(
+    "cwl,expected_rc",
+    [
+        ("tests/iwdr-listing-single-file-v1.1.cwl", 1),
+        ("tests/iwdr-listing-single-file-v1.2.cwl", 0),
+    ],
+)
+def test_bare_listing_single_file_expression(tmp_path: Path, cwl: str, expected_rc: int) -> None:
+    """Bare listing expressions returning a single File.
+
+    Before CWL v1.2 a listing expression had to return a list, so it is
+    rejected. From CWL v1.2 a single File is a permitted return type and the
+    file must be staged into the working directory.
+    """
+    outdir = tmp_path / "out"
+    err_code, _, _ = get_main_output(
+        [
+            "--outdir",
+            str(outdir),
+            get_data(cwl),
+            f"--infile={get_data('tests/load_contents-1.txt')}",
+        ]
+    )
+    assert err_code == expected_rc
+    if expected_rc == 0:
+        assert (outdir / "output.txt").read_text() == "1\n"
+
+
+def test_bare_listing_single_dirent_return(tmp_path: Path) -> None:
+    """CWL v1.2 allows a bare listing expression to return a single Dirent."""
+    outdir = tmp_path / "out"
+    err_code, _, _ = get_main_output(
+        ["--outdir", str(outdir), get_data("tests/iwdr-listing-dirent-v1.2.cwl")]
+    )
+    assert err_code == 0
+    assert (outdir / "output.txt").read_text() == "hello-dirent\n"
+
+
+def test_bare_listing_null_return(tmp_path: Path) -> None:
+    """CWL v1.2 null listing expressions have no effect and do not fail."""
+    outdir = tmp_path / "out"
+    err_code, _, _ = get_main_output(
+        ["--outdir", str(outdir), get_data("tests/iwdr-listing-null-v1.2.cwl")]
+    )
+    assert err_code == 0
+    assert (outdir / "output.txt").read_text() == "null-ok\n"
+
+
 def test_bad_listing_expression(tmp_path: Path) -> None:
     """Confirm better error message for bad listing expression."""
     err_code, _, stderr = get_main_output(
@@ -74,6 +122,26 @@ def test_bad_listing_expression(tmp_path: Path) -> None:
         "Expression in a 'InitialWorkdirRequirement.listing' field must return "
         "a list containing zero or more of: File or Directory objects; Dirent "
         "objects. Got 42 among the results" in stderr
+    )
+    assert err_code == 1
+
+
+def test_bad_listing_expression_v1_2(tmp_path: Path) -> None:
+    """Confirm better error message for bad listing expression in CWL v1.2."""
+    err_code, _, stderr = get_main_output(
+        [
+            "--out",
+            str(tmp_path),
+            get_data("tests/iwdr_bad_expr-v1.2.cwl"),
+            "--example={}".format(get_data("tests/__init__.py")),
+        ]
+    )
+    stderr = re.sub(r"\s\s+", " ", stderr)
+    assert (
+        "Expression in a 'InitialWorkdirRequirement.listing' field must return "
+        "a list containing zero or more of: File or Directory objects; Dirent "
+        "objects; null; or arrays of File or Directory objects. Got 42 among "
+        "the results" in stderr
     )
     assert err_code == 1
 

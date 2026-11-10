@@ -1,3 +1,0 @@
-flake8-bugbear<26.10
-black==26.*
-codespell
