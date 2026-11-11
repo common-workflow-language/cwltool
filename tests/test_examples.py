@@ -39,7 +39,15 @@ from cwltool.main import main
 from cwltool.process import CWL_IANA
 from cwltool.utils import dedup
 
-from .util import get_data, get_main_output, needs_docker, working_directory
+from .util import (
+    SKIP_DOCKER,
+    SKIP_PODMAN,
+    SKIP_SINGULARITY,
+    get_data,
+    get_main_output,
+    needs_docker,
+    working_directory,
+)
 
 sys.argv = [""]
 
@@ -1786,11 +1794,11 @@ def test_malformed_reqs() -> None:
 def test_arguments_self() -> None:
     """Confirm that $(self) works in the arguments list."""
     factory = cwltool.factory.Factory()
-    if not shutil.which("docker"):
-        if shutil.which("podman"):
+    if SKIP_DOCKER:
+        if not SKIP_PODMAN:
             factory.runtime_context.podman = True
             factory.loading_context.podman = True
-        elif shutil.which("singularity"):
+        elif not SKIP_SINGULARITY:
             factory.runtime_context.singularity = True
             factory.loading_context.singularity = True
         elif not shutil.which("jq"):
