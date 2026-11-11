@@ -41,38 +41,39 @@ def get_data(filename: str) -> str:
     return str(filepath.resolve())
 
 
-SKIP_DOCKER = bool(os.environ.get("SKIP_DOCKER_TESTS"))
+SKIP_DOCKER = bool(os.environ.get("SKIP_DOCKER_TESTS")) or not bool(shutil.which("docker"))
 needs_docker = pytest.mark.skipif(
-    SKIP_DOCKER or not bool(shutil.which("docker")),
+    SKIP_DOCKER,
     reason="Requires the docker executable on the system path.",
 )
 
-SKIP_SINGULARITY = bool(os.environ.get("SKIP_SINGULARITY_TESTS"))
+SKIP_SINGULARITY = bool(os.environ.get("SKIP_SINGULARITY_TESTS")) or not bool(
+    shutil.which("singularity")
+)
 
 needs_singularity = pytest.mark.skipif(
-    SKIP_SINGULARITY or not bool(shutil.which("singularity")),
+    SKIP_SINGULARITY,
     reason="Requires the singularity executable on the system path.",
 )
 
 needs_singularity_not_apptainer = pytest.mark.skipif(
-    SKIP_SINGULARITY
-    or not (bool(shutil.which("singularity")) and "singularity" in get_version()[1]),
+    SKIP_SINGULARITY or not bool("singularity" in get_version()[1]),
     reason="Requires a real singularity executable (not apptainer) on the system path.",
 )
 
 needs_singularity_2_6 = pytest.mark.skipif(
-    SKIP_SINGULARITY or not bool(shutil.which("singularity") and is_version_2_6()),
+    SKIP_SINGULARITY or not bool(is_version_2_6()),
     reason="Requires that version 2.6.x of singularity executable version is on the system path.",
 )
 
 needs_singularity_3_or_newer = pytest.mark.skipif(
-    SKIP_SINGULARITY or (not bool(shutil.which("singularity"))) or (not is_version_3_or_newer()),
+    SKIP_SINGULARITY or not bool(not is_version_3_or_newer()),
     reason="Requires that version 3.x of singularity executable version is on the system path.",
 )
 
-SKIP_PODMAN = bool(os.environ.get("SKIP_PODMAN_TESTS"))
+SKIP_PODMAN = bool(os.environ.get("SKIP_PODMAN_TESTS")) or not bool(shutil.which("podman"))
 needs_podman = pytest.mark.skipif(
-    SKIP_PODMAN or not bool(shutil.which("podman")),
+    SKIP_PODMAN,
     reason="Requires the podman executable on the system path.",
 )
 
