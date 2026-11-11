@@ -943,7 +943,9 @@ def test_invalid_orcid(orcid: str) -> None:
 def test_whoami() -> None:
     username, fullname = provenance._whoami()
     assert username and isinstance(username, str)
-    assert fullname and isinstance(fullname, str)
+    # May not get a fullname
+    if fullname:
+        assert fullname and isinstance(fullname, str)
 
 
 def test_research_object() -> None:
