@@ -301,7 +301,7 @@ class ResearchObject:
                 "rdf": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
                 "ttl": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
                 "nt": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
-                "jsonld": "http://www.w3.org/TR/2013/REC-prov-o-20130430/",
+                "jsonld": "https://www.w3.org/submissions/2024/SUBM-prov-jsonld-20240825/",
                 "xml": "http://www.w3.org/TR/2013/NOTE-prov-xml-20130430/",
                 "json": "http://www.w3.org/Submission/2013/SUBM-prov-json-20130424/",
             }
@@ -582,7 +582,7 @@ class ResearchObject:
         self, timestamp: datetime.datetime | None = None
     ) -> tuple[str, dict[str, str]]:  # createdOn, createdBy
         if timestamp is None:
-            timestamp = datetime.datetime.now()
+            timestamp = datetime.datetime.now(datetime.timezone.utc)
         return (
             timestamp.isoformat(),
             {"uri": self.engine_uuid, "name": self.cwltool_version},

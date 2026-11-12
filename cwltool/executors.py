@@ -173,7 +173,7 @@ class JobExecutor(metaclass=ABCMeta):
                     process.parent_wf.workflow_run_uri,
                     None,
                     process.parent_wf.engine_uuid,
-                    datetime.datetime.now(),
+                    datetime.datetime.now(datetime.timezone.utc),
                 )
                 process.parent_wf.finalize_prov_profile(name=None)
             return (self.final_output[0], self.final_status[0])
