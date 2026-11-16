@@ -468,7 +468,7 @@ class ProvenanceProfile:
         ore_doc.add_namespace(ORE)
         ore_doc.add_namespace(RO)
         ore_doc.add_namespace(UUID)
-        ore_doc.add_bundle(dir_bundle)
+        ore_doc.update(dir_bundle)
         ore_doc = ore_doc.flattened()
         ore_doc_path = str(PurePosixPath(METADATA, ore_doc_fn))
         with write_bag_file(self.research_object, ore_doc_path) as provenance_file:
