@@ -479,7 +479,7 @@ class ProvenanceProfile:
             # Empty directory
             coll.add_asserted_type(PROV["EmptyCollection"])
             coll.add_asserted_type(PROV["EmptyDictionary"])
-        coll_id = cast(QualifiedName, coll.identifier)
+        coll_id = coll.identifier
         self.research_object.add_uri(coll_id.uri)
         return coll
 
@@ -524,7 +524,7 @@ class ProvenanceProfile:
                     uuid.uuid4().urn,
                     {PROV_VALUE: value},
                 )
-                ent_id = cast(QualifiedName, entity.identifier)
+                ent_id = entity.identifier
                 self.research_object.add_uri(ent_id.uri)
                 return entity
 
@@ -545,12 +545,12 @@ class ProvenanceProfile:
             # Base case - we found a File we need to update
             case {"class": "File"}:
                 entity = self.declare_file(cast(_CWLFileArtifact, value))[0]
-                ent_id = cast(QualifiedName, entity.identifier)
+                ent_id = entity.identifier
                 value["@id"] = ent_id.uri
                 return entity
             case {"class": "Directory"}:
                 entity = self.declare_directory(cast(_CWLDirectoryArtifact, value))
-                ent_id = cast(QualifiedName, entity.identifier)
+                ent_id = entity.identifier
                 value["@id"] = ent_id.uri
                 return entity
             case {**rest}:
@@ -586,7 +586,7 @@ class ProvenanceProfile:
                     )
                     coll_attribs.append((PROV["hadDictionaryMember"], m_entity))
                 coll.add_attributes(coll_attribs)
-                coll_id = cast(QualifiedName, coll.identifier)
+                coll_id = coll.identifier
                 self.research_object.add_uri(coll_id.uri)
                 return coll
 
@@ -615,7 +615,7 @@ class ProvenanceProfile:
                             # we would need to use PROV.Dictionary
                             # with numeric keys
                             self.document.membership(coll, member)
-                    coll_id = cast(QualifiedName, coll.identifier)
+                    coll_id = coll.identifier
                     self.research_object.add_uri(coll_id.uri)
                     # FIXME: list value does not support adding "@id"
                     return coll
@@ -626,7 +626,7 @@ class ProvenanceProfile:
                         uuid.uuid4().urn,
                         {PROV_LABEL: repr(value)},
                     )
-                    ent_id = cast(QualifiedName, entity.identifier)
+                    ent_id = entity.identifier
                     self.research_object.add_uri(ent_id.uri)
                     return entity
 
