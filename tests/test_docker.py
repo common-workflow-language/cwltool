@@ -3,7 +3,6 @@
 import json
 import re
 from pathlib import Path
-from shutil import which
 
 import pytest
 
@@ -49,11 +48,7 @@ def test_docker_iwdr() -> None:
             "hello",
         ]
     )
-    docker_installed = bool(which("docker"))
-    if docker_installed:
-        assert result_code == 0
-    else:
-        assert result_code != 0
+    assert result_code == 0
 
 
 @needs_docker
