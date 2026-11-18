@@ -17,12 +17,11 @@ else
     repo=https://github.com/common-workflow-language/cwltool.git
     HEAD=$(git rev-parse HEAD)
 fi
-test_prefix=""
 run_tests() {
 	local mod_loc
 	mod_loc=$(pip show ${package} |
 		grep ^Location | awk '{print $2}')/${module}
-	"${test_prefix}"bin/py.test "--ignore=${mod_loc}/schemas/" \
+	python3 -m pytest "--ignore=${mod_loc}/schemas/" \
 		--pyargs -x ${module} -n logical --dist=worksteal
 }
 pipver=25.1  # minimum required version of pip for PEP 735 dependency groups
@@ -45,12 +44,7 @@ then
 	pip install --group test ".${extras}"
 	#make test
 	pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
-	# mkdir testenv1/not-${module}
-	# if there is a subdir named '${module}' py.test will execute tests
-	# there instead of the installed module's tests
-	# pushd testenv1/not-${module}
-	# #shellcheck disable=SC2086
-	# test_prefix=../ run_tests; popd
+	# run_tests
 fi
 
 python3 -m venv testenv2
@@ -101,9 +95,6 @@ make test
 pip install --group mypy
 make mypyc
 pip uninstall -y ${package} || true; pip uninstall -y ${package} || true; make install
-mkdir ../not-${module}
-pushd ../not-${module}
-# shellcheck disable=SC2086
-test_prefix=../../ run_tests; popd
+make test
 popd
 popd

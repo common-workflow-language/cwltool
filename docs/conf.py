@@ -88,7 +88,7 @@ html_static_path = ["_static"]
 release = importlib.metadata.version("cwltool")
 version = ".".join(release.split(".")[:2])
 
-autoapi_dirs = ["../cwltool"]
+autoapi_dirs = ["../src/cwltool"]
 autodoc_typehints = "description"
 autoapi_keep_files = True
 autoapi_ignore = ["*migrations*", "*.pyi"]

@@ -24,7 +24,7 @@ MODULE=cwltool
 
 # `SHELL=bash` doesn't work for some, so don't use BASH-isms like
 # `[[` conditional expressions.
-PYSOURCES=$(wildcard ${MODULE}/**.py cwltool/cwlprov/*.py tests/*.py tests/cwl-conformance/*.py) setup.py
+PYSOURCES=$(wildcard src/${MODULE}/**.py src/cwltool/cwlprov/*.py tests/*.py tests/cwl-conformance/*.py) setup.py
 DEBDEVPKGS=pep8 python-autopep8 pylint python-coverage pydocstyle sloccount \
 	   python-flake8 python-mock shellcheck
 
@@ -78,8 +78,8 @@ docs: FORCE
 
 ## clean                  : clean up all temporary / machine-generated files
 clean: FORCE
-	rm -f ${MODULE}/*.pyc tests/*.pyc *.so ${MODULE}/*.so cwltool/cwlprov/*.so
-	rm -Rf ${MODULE}/__pycache__/
+	rm -f src/${MODULE}/*.pyc tests/*.pyc *.so src/${MODULE}/*.so src/cwltool/cwlprov/*.so
+	rm -Rf src/${MODULE}/__pycache__/
 	rm -Rf build
 	rm -Rf .coverage
 	rm -f diff-cover.html
@@ -106,19 +106,19 @@ diff_pydocstyle_report: pydocstyle_report.txt
 
 ## codespell-check        : check for common misspellings
 codespell-check:
-	@codespell $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs) \
+	@codespell $(shell git ls-files | grep -v src/cwltool/schemas | grep -v src/cwltool/jshint/ | grep -v mypy-stubs) \
 		|| (echo Probable typo foun. Run \"make codespell-fix\" to accept suggested fixes, or add the word to the ignore list in setup.cfg ; exit 1)
 
 ## codespell-fix          : fix common misspellings
 codespell-fix:
-	@codespell -w $(shell git ls-files | grep -v cwltool/schemas | grep -v cwltool/jshint/ | grep -v mypy-stubs)
+	@codespell -w $(shell git ls-files | grep -v src/cwltool/schemas | grep -v src/cwltool/jshint/ | grep -v mypy-stubs)
 
 ## format                 : check/fix all code indentation and formatting (runs black)
 format:
-	black --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
+	black --exclude src/cwltool/schemas setup.py src/cwltool tests mypy-stubs
 
 format-check:
-	black --diff --check --exclude cwltool/schemas setup.py cwltool.py cwltool tests mypy-stubs
+	black --diff --check --exclude src/cwltool/schemas setup.py src/cwltool tests mypy-stubs
 
 ## pylint                 : run static code analysis on Python code
 pylint: $(PYSOURCES)
