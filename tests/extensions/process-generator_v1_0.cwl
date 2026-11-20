@@ -19,7 +19,7 @@ run:
         glob: main.cwl
   requirements:
     InlineJavascriptRequirement: {}
-    LoadListingRequirement:
+    cwltool:LoadListingRequirement:
       loadListing: shallow_listing
     InitialWorkDirRequirement:
       listing: |

@@ -52,6 +52,11 @@ _vocab: Final[dict[str, str]] = {}
 _rvocab: Final[dict[str, str]] = {}
 
 
+def get_loaders() -> dict[str, Loader | None]:
+    """Return a copy of the loaders registry."""
+    return _loaders.copy()
+
+
 class _AnyLoader(Loader):
     def load(
         self,
@@ -99,7 +104,7 @@ class _ArrayLoader(Loader):
         lc: Any | None = None,
     ) -> list[Any]:
         if not isinstance(doc, MutableSequence):
-            raise ValidationException(
+            raise SourceLine(doc, None, ValidationException).makeError(
                 f"Value is a {convert_typing(extract_type(type(doc)))}, "
                 f"but valid type for this field is an array."
             )
@@ -300,7 +305,7 @@ class _RecordLoader(Loader, Generic[SaveableType]):
         lc: Any | None = None,
     ) -> SaveableType:
         if not isinstance(doc, MutableMapping):
-            raise ValidationException(
+            raise SourceLine(doc, None, ValidationException).makeError(
                 f"Value is a {convert_typing(extract_type(type(doc)))}, "
                 f"but valid type for this field is an object."
             )
@@ -311,7 +316,7 @@ class _RecordLoader(Loader, Generic[SaveableType]):
         return self.classtype.fromDoc(doc, baseuri, loadingOptions, docRoot=docRoot)
 
     def __repr__(self) -> str:
-        return str(self.classtype.__name__)
+        return self.classtype.__name__
 
 
 class _ExpressionLoader(Loader):
@@ -327,7 +332,7 @@ class _ExpressionLoader(Loader):
         lc: Any | None = None,
     ) -> str:
         if not isinstance(doc, str):
-            raise ValidationException(
+            raise SourceLine(doc, None, ValidationException).makeError(
                 f"Value is a {convert_typing(extract_type(type(doc)))}, "
                 f"but valid type for this field is a str."
             )
@@ -736,7 +741,7 @@ def _document_load_by_url(
 
     text: Final = loadingOptions.fetcher.fetch_text(doc_url)
     textIO: Final = StringIO(text)
-    textIO.name = str(doc_url)
+    textIO.name = doc_url
     yaml: Final = yaml_no_ts()
     result: Final = yaml.load(textIO)
     add_lc_filename(result, doc_url)
@@ -1381,7 +1386,7 @@ class ProcessGenerator(cwl_utils.parser.cwl_v1_2.Process):
             try:
                 requirements = _load_field(
                     _doc.get("requirements"),
-                    idmap_requirements_union_of_None_type_or_array_of_ProcessRequirement,
+                    idmap_requirements_union_of_None_type_or_array_of_ProcessRequirementProxyLoader,
                     baseuri,
                     loadingOptions,
                     lc=_doc.get("requirements")
@@ -1428,7 +1433,7 @@ class ProcessGenerator(cwl_utils.parser.cwl_v1_2.Process):
             try:
                 hints = _load_field(
                     _doc.get("hints"),
-                    idmap_hints_union_of_None_type_or_array_of_union_of_InlineJavascriptRequirementLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_DockerRequirementLoader_or_SoftwareRequirementLoader_or_InitialWorkDirRequirementLoader_or_EnvVarRequirementLoader_or_ShellCommandRequirementLoader_or_ResourceRequirementLoader_or_WorkReuseLoader_or_NetworkAccessLoader_or_InplaceUpdateRequirementLoader_or_ToolTimeLimitLoader_or_SubworkflowFeatureRequirementLoader_or_ScatterFeatureRequirementLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_SecretsLoader_or_MPIRequirementLoader_or_CUDARequirementLoader_or_LoopLoader_or_ShmSizeLoader_or_Any_type,
+                    idmap_hints_union_of_None_type_or_array_of_union_of_ProcessRequirementProxyLoader_or_Any_type,
                     baseuri,
                     loadingOptions,
                     lc=_doc.get("hints")
@@ -1572,7 +1577,7 @@ class ProcessGenerator(cwl_utils.parser.cwl_v1_2.Process):
 
             run = _load_field(
                 _doc.get("run"),
-                uri_union_of_strtype_or_CommandLineToolLoader_or_ExpressionToolLoader_or_WorkflowLoader_or_OperationLoader_or_ProcessGeneratorLoader_False_False_None_None,
+                uri_union_of_strtype_or_ProcessProxyLoader_False_False_None_None,
                 subscope_baseuri,
                 loadingOptions,
                 lc=_doc.get("run")
@@ -3234,6 +3239,7 @@ _vocab.update({
     "CommandInputArraySchema": "https://w3id.org/cwl/cwl#CommandInputArraySchema",
     "CommandInputEnumSchema": "https://w3id.org/cwl/cwl#CommandInputEnumSchema",
     "CommandInputParameter": "https://w3id.org/cwl/cwl#CommandInputParameter",
+    "CommandInputParameterType": "https://w3id.org/cwl/cwl#CommandInputParameterType",
     "CommandInputRecordField": "https://w3id.org/cwl/cwl#CommandInputRecordField",
     "CommandInputRecordSchema": "https://w3id.org/cwl/cwl#CommandInputRecordSchema",
     "CommandInputSchema": "https://w3id.org/cwl/cwl#CommandInputSchema",
@@ -3244,6 +3250,7 @@ _vocab.update({
     "CommandOutputBinding": "https://w3id.org/cwl/cwl#CommandOutputBinding",
     "CommandOutputEnumSchema": "https://w3id.org/cwl/cwl#CommandOutputEnumSchema",
     "CommandOutputParameter": "https://w3id.org/cwl/cwl#CommandOutputParameter",
+    "CommandOutputParameterType": "https://w3id.org/cwl/cwl#CommandOutputParameterType",
     "CommandOutputRecordField": "https://w3id.org/cwl/cwl#CommandOutputRecordField",
     "CommandOutputRecordSchema": "https://w3id.org/cwl/cwl#CommandOutputRecordSchema",
     "Directory": "https://w3id.org/cwl/cwl#Directory",
@@ -3270,6 +3277,7 @@ _vocab.update({
     "InputEnumSchema": "https://w3id.org/cwl/cwl#InputEnumSchema",
     "InputFormat": "https://w3id.org/cwl/cwl#InputFormat",
     "InputParameter": "https://w3id.org/cwl/cwl#InputParameter",
+    "InputParameterType": "https://w3id.org/cwl/cwl#InputParameterType",
     "InputRecordField": "https://w3id.org/cwl/cwl#InputRecordField",
     "InputRecordSchema": "https://w3id.org/cwl/cwl#InputRecordSchema",
     "InputSchema": "https://w3id.org/cwl/cwl#InputSchema",
@@ -3291,6 +3299,7 @@ _vocab.update({
     "OutputEnumSchema": "https://w3id.org/cwl/cwl#OutputEnumSchema",
     "OutputFormat": "https://w3id.org/cwl/cwl#OutputFormat",
     "OutputParameter": "https://w3id.org/cwl/cwl#OutputParameter",
+    "OutputParameterType": "https://w3id.org/cwl/cwl#OutputParameterType",
     "OutputRecordField": "https://w3id.org/cwl/cwl#OutputRecordField",
     "OutputRecordSchema": "https://w3id.org/cwl/cwl#OutputRecordSchema",
     "OutputSchema": "https://w3id.org/cwl/cwl#OutputSchema",
@@ -3368,6 +3377,7 @@ _rvocab.update({
     "https://w3id.org/cwl/cwl#CommandInputArraySchema": "CommandInputArraySchema",
     "https://w3id.org/cwl/cwl#CommandInputEnumSchema": "CommandInputEnumSchema",
     "https://w3id.org/cwl/cwl#CommandInputParameter": "CommandInputParameter",
+    "https://w3id.org/cwl/cwl#CommandInputParameterType": "CommandInputParameterType",
     "https://w3id.org/cwl/cwl#CommandInputRecordField": "CommandInputRecordField",
     "https://w3id.org/cwl/cwl#CommandInputRecordSchema": "CommandInputRecordSchema",
     "https://w3id.org/cwl/cwl#CommandInputSchema": "CommandInputSchema",
@@ -3378,6 +3388,7 @@ _rvocab.update({
     "https://w3id.org/cwl/cwl#CommandOutputBinding": "CommandOutputBinding",
     "https://w3id.org/cwl/cwl#CommandOutputEnumSchema": "CommandOutputEnumSchema",
     "https://w3id.org/cwl/cwl#CommandOutputParameter": "CommandOutputParameter",
+    "https://w3id.org/cwl/cwl#CommandOutputParameterType": "CommandOutputParameterType",
     "https://w3id.org/cwl/cwl#CommandOutputRecordField": "CommandOutputRecordField",
     "https://w3id.org/cwl/cwl#CommandOutputRecordSchema": "CommandOutputRecordSchema",
     "https://w3id.org/cwl/cwl#Directory": "Directory",
@@ -3404,6 +3415,7 @@ _rvocab.update({
     "https://w3id.org/cwl/cwl#InputEnumSchema": "InputEnumSchema",
     "https://w3id.org/cwl/cwl#InputFormat": "InputFormat",
     "https://w3id.org/cwl/cwl#InputParameter": "InputParameter",
+    "https://w3id.org/cwl/cwl#InputParameterType": "InputParameterType",
     "https://w3id.org/cwl/cwl#InputRecordField": "InputRecordField",
     "https://w3id.org/cwl/cwl#InputRecordSchema": "InputRecordSchema",
     "https://w3id.org/cwl/cwl#InputSchema": "InputSchema",
@@ -3425,6 +3437,7 @@ _rvocab.update({
     "https://w3id.org/cwl/cwl#OutputEnumSchema": "OutputEnumSchema",
     "https://w3id.org/cwl/cwl#OutputFormat": "OutputFormat",
     "https://w3id.org/cwl/cwl#OutputParameter": "OutputParameter",
+    "https://w3id.org/cwl/cwl#OutputParameterType": "OutputParameterType",
     "https://w3id.org/cwl/cwl#OutputRecordField": "OutputRecordField",
     "https://w3id.org/cwl/cwl#OutputRecordSchema": "OutputRecordSchema",
     "https://w3id.org/cwl/cwl#OutputSchema": "OutputSchema",
@@ -3590,110 +3603,6 @@ array_of_union_of_None_type_or_CWLObjectTypeLoader: Final = _ArrayLoader(
 map_of_union_of_None_type_or_CWLObjectTypeLoader: Final = _MapLoader(
     union_of_None_type_or_CWLObjectTypeLoader, "None", None, None
 )
-InlineJavascriptRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.InlineJavascriptRequirement, None, None
-)
-SchemaDefRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.SchemaDefRequirement, None, None
-)
-LoadListingRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.LoadListingRequirement, None, None
-)
-DockerRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.DockerRequirement, None, None
-)
-SoftwareRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.SoftwareRequirement, None, None
-)
-InitialWorkDirRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.InitialWorkDirRequirement, None, None
-)
-EnvVarRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.EnvVarRequirement, None, None
-)
-ShellCommandRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.ShellCommandRequirement, None, None
-)
-ResourceRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.ResourceRequirement, None, None
-)
-WorkReuseLoader: Final = _RecordLoader(cwl_utils.parser.cwl_v1_2.WorkReuse, None, None)
-NetworkAccessLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.NetworkAccess, None, None
-)
-InplaceUpdateRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.InplaceUpdateRequirement, None, None
-)
-ToolTimeLimitLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.ToolTimeLimit, None, None
-)
-SubworkflowFeatureRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.SubworkflowFeatureRequirement, None, None
-)
-ScatterFeatureRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.ScatterFeatureRequirement, None, None
-)
-MultipleInputFeatureRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.MultipleInputFeatureRequirement, None, None
-)
-StepInputExpressionRequirementLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.StepInputExpressionRequirement, None, None
-)
-SecretsLoader: Final = _RecordLoader(Secrets, None, None)
-MPIRequirementLoader: Final = _RecordLoader(MPIRequirement, None, None)
-CUDARequirementLoader: Final = _RecordLoader(CUDARequirement, None, None)
-LoopLoader: Final = _RecordLoader(Loop, None, None)
-ShmSizeLoader: Final = _RecordLoader(ShmSize, None, None)
-union_of_InlineJavascriptRequirementLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_DockerRequirementLoader_or_SoftwareRequirementLoader_or_InitialWorkDirRequirementLoader_or_EnvVarRequirementLoader_or_ShellCommandRequirementLoader_or_ResourceRequirementLoader_or_WorkReuseLoader_or_NetworkAccessLoader_or_InplaceUpdateRequirementLoader_or_ToolTimeLimitLoader_or_SubworkflowFeatureRequirementLoader_or_ScatterFeatureRequirementLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_SecretsLoader_or_MPIRequirementLoader_or_CUDARequirementLoader_or_LoopLoader_or_ShmSizeLoader: (
-    Final
-) = _UnionLoader(
-    (
-        InlineJavascriptRequirementLoader,
-        SchemaDefRequirementLoader,
-        LoadListingRequirementLoader,
-        DockerRequirementLoader,
-        SoftwareRequirementLoader,
-        InitialWorkDirRequirementLoader,
-        EnvVarRequirementLoader,
-        ShellCommandRequirementLoader,
-        ResourceRequirementLoader,
-        WorkReuseLoader,
-        NetworkAccessLoader,
-        InplaceUpdateRequirementLoader,
-        ToolTimeLimitLoader,
-        SubworkflowFeatureRequirementLoader,
-        ScatterFeatureRequirementLoader,
-        MultipleInputFeatureRequirementLoader,
-        StepInputExpressionRequirementLoader,
-        SecretsLoader,
-        MPIRequirementLoader,
-        CUDARequirementLoader,
-        LoopLoader,
-        ShmSizeLoader,
-    )
-)
-ProcessRequirementProxyLoader: Final = _ProxyLoader("ProcessRequirementLoader")
-array_of_ProcessRequirement: Final = _ArrayLoader(ProcessRequirementProxyLoader)
-union_of_None_type_or_array_of_ProcessRequirement_or_CWLObjectTypeLoader: Final = (
-    _UnionLoader(
-        (
-            None_type,
-            array_of_ProcessRequirement,
-            CWLObjectTypeLoader,
-        )
-    )
-)
-map_of_union_of_None_type_or_array_of_ProcessRequirement_or_CWLObjectTypeLoader: (
-    Final
-) = _MapLoader(
-    union_of_None_type_or_array_of_ProcessRequirement_or_CWLObjectTypeLoader,
-    "CWLInputFile",
-    "@list",
-    True,
-)
-CWLInputFileLoader: Final = (
-    map_of_union_of_None_type_or_array_of_ProcessRequirement_or_CWLObjectTypeLoader
-)
 CWLVersionLoader: Final = _EnumLoader(("v1.2",), "CWLVersion")
 """
 Current version symbol for CWL documents.
@@ -3742,6 +3651,23 @@ InputEnumSchemaLoader: Final = _RecordLoader(
 InputArraySchemaLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.InputArraySchema, None, None
 )
+InputParameterTypeLoader: Final = _UnionLoader((), "InputParameterTypeLoader")
+union_of_CWLTypeLoader_or_InputRecordSchemaLoader_or_InputEnumSchemaLoader_or_InputArraySchemaLoader_or_strtype: (
+    Final
+) = _UnionLoader(
+    (
+        CWLTypeLoader,
+        InputRecordSchemaLoader,
+        InputEnumSchemaLoader,
+        InputArraySchemaLoader,
+        strtype,
+    )
+)
+array_of_union_of_CWLTypeLoader_or_InputRecordSchemaLoader_or_InputEnumSchemaLoader_or_InputArraySchemaLoader_or_strtype: (
+    Final
+) = _ArrayLoader(
+    union_of_CWLTypeLoader_or_InputRecordSchemaLoader_or_InputEnumSchemaLoader_or_InputArraySchemaLoader_or_strtype
+)
 OutputRecordFieldLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.OutputRecordField, None, None
 )
@@ -3754,12 +3680,39 @@ OutputEnumSchemaLoader: Final = _RecordLoader(
 OutputArraySchemaLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.OutputArraySchema, None, None
 )
+OutputParameterTypeLoader: Final = _UnionLoader((), "OutputParameterTypeLoader")
+union_of_CWLTypeLoader_or_OutputRecordSchemaLoader_or_OutputEnumSchemaLoader_or_OutputArraySchemaLoader_or_strtype: (
+    Final
+) = _UnionLoader(
+    (
+        CWLTypeLoader,
+        OutputRecordSchemaLoader,
+        OutputEnumSchemaLoader,
+        OutputArraySchemaLoader,
+        strtype,
+    )
+)
+array_of_union_of_CWLTypeLoader_or_OutputRecordSchemaLoader_or_OutputEnumSchemaLoader_or_OutputArraySchemaLoader_or_strtype: (
+    Final
+) = _ArrayLoader(
+    union_of_CWLTypeLoader_or_OutputRecordSchemaLoader_or_OutputEnumSchemaLoader_or_OutputArraySchemaLoader_or_strtype
+)
 InputParameterProxyLoader: Final = _ProxyLoader("InputParameterLoader")
 OutputParameterProxyLoader: Final = _ProxyLoader("OutputParameterLoader")
+ProcessRequirementProxyLoader: Final = _ProxyLoader("ProcessRequirementLoader")
 ProcessProxyLoader: Final = _ProxyLoader("ProcessLoader")
+InlineJavascriptRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.InlineJavascriptRequirement, None, None
+)
 CommandInputSchemaProxyLoader: Final = _ProxyLoader("CommandInputSchemaLoader")
+SchemaDefRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.SchemaDefRequirement, None, None
+)
 SecondaryFileSchemaLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.SecondaryFileSchema, None, None
+)
+LoadListingRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.LoadListingRequirement, None, None
 )
 EnvironmentDefLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.EnvironmentDef, None, None
@@ -3794,12 +3747,6 @@ CommandOutputEnumSchemaLoader: Final = _RecordLoader(
 )
 CommandOutputArraySchemaLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.CommandOutputArraySchema, None, None
-)
-CommandInputParameterLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.CommandInputParameter, None, None
-)
-CommandOutputParameterLoader: Final = _RecordLoader(
-    cwl_utils.parser.cwl_v1_2.CommandOutputParameter, None, None
 )
 stdinLoader: Final = _EnumLoader(("stdin",), "stdin")
 """
@@ -3877,7 +3824,7 @@ is equivalent to
    stdout: random_stdout_filenameABCDEFG
 
 
-If the ``CommandLineTool`` contains logically chained commands (e.g. ``echo a &amp;&amp; echo b``) ``stdout`` must include the output of every command.
+If the ``CommandLineTool`` contains logically chained commands (e.g. ``echo a && echo b``) ``stdout`` must include the output of every command.
 """
 stderrLoader: Final = _EnumLoader(("stderr",), "stderr")
 """
@@ -3930,13 +3877,85 @@ is equivalent to
 
    stderr: random_stderr_filenameABCDEFG
 """
+CommandInputParameterTypeLoader: Final = _UnionLoader(
+    (), "CommandInputParameterTypeLoader"
+)
+union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype: (
+    Final
+) = _UnionLoader(
+    (
+        CWLTypeLoader,
+        CommandInputRecordSchemaLoader,
+        CommandInputEnumSchemaLoader,
+        CommandInputArraySchemaLoader,
+        strtype,
+    )
+)
+array_of_union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype: (
+    Final
+) = _ArrayLoader(
+    union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype
+)
+CommandInputParameterLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.CommandInputParameter, None, None
+)
+CommandOutputParameterTypeLoader: Final = _UnionLoader(
+    (), "CommandOutputParameterTypeLoader"
+)
+union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype: (
+    Final
+) = _UnionLoader(
+    (
+        CWLTypeLoader,
+        CommandOutputRecordSchemaLoader,
+        CommandOutputEnumSchemaLoader,
+        CommandOutputArraySchemaLoader,
+        strtype,
+    )
+)
+array_of_union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype: (
+    Final
+) = _ArrayLoader(
+    union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype
+)
+CommandOutputParameterLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.CommandOutputParameter, None, None
+)
 CommandLineToolLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.CommandLineTool, None, None
+)
+DockerRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.DockerRequirement, None, None
+)
+SoftwareRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.SoftwareRequirement, None, None
 )
 SoftwarePackageLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.SoftwarePackage, None, None
 )
 DirentLoader: Final = _RecordLoader(cwl_utils.parser.cwl_v1_2.Dirent, None, None)
+InitialWorkDirRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.InitialWorkDirRequirement, None, None
+)
+EnvVarRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.EnvVarRequirement, None, None
+)
+ShellCommandRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.ShellCommandRequirement, None, None
+)
+ResourceRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.ResourceRequirement, None, None
+)
+WorkReuseLoader: Final = _RecordLoader(cwl_utils.parser.cwl_v1_2.WorkReuse, None, None)
+NetworkAccessLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.NetworkAccess, None, None
+)
+InplaceUpdateRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.InplaceUpdateRequirement, None, None
+)
+ToolTimeLimitLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.ToolTimeLimit, None, None
+)
 ExpressionToolOutputParameterLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.ExpressionToolOutputParameter, None, None
 )
@@ -3992,6 +4011,18 @@ WorkflowStepLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.WorkflowStep, None, None
 )
 WorkflowLoader: Final = _RecordLoader(cwl_utils.parser.cwl_v1_2.Workflow, None, None)
+SubworkflowFeatureRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.SubworkflowFeatureRequirement, None, None
+)
+ScatterFeatureRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.ScatterFeatureRequirement, None, None
+)
+MultipleInputFeatureRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.MultipleInputFeatureRequirement, None, None
+)
+StepInputExpressionRequirementLoader: Final = _RecordLoader(
+    cwl_utils.parser.cwl_v1_2.StepInputExpressionRequirement, None, None
+)
 OperationInputParameterLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.OperationInputParameter, None, None
 )
@@ -3999,8 +4030,59 @@ OperationOutputParameterLoader: Final = _RecordLoader(
     cwl_utils.parser.cwl_v1_2.OperationOutputParameter, None, None
 )
 OperationLoader: Final = _RecordLoader(cwl_utils.parser.cwl_v1_2.Operation, None, None)
+union_of_ResourceRequirementLoader_or_ToolTimeLimitLoader_or_ShellCommandRequirementLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_WorkReuseLoader_or_SubworkflowFeatureRequirementLoader_or_ScatterFeatureRequirementLoader_or_NetworkAccessLoader_or_SchemaDefRequirementLoader_or_InlineJavascriptRequirementLoader_or_LoadListingRequirementLoader_or_DockerRequirementLoader_or_InitialWorkDirRequirementLoader_or_SoftwareRequirementLoader_or_EnvVarRequirementLoader_or_InplaceUpdateRequirementLoader: (
+    Final
+) = _UnionLoader(
+    (
+        ResourceRequirementLoader,
+        ToolTimeLimitLoader,
+        ShellCommandRequirementLoader,
+        MultipleInputFeatureRequirementLoader,
+        StepInputExpressionRequirementLoader,
+        WorkReuseLoader,
+        SubworkflowFeatureRequirementLoader,
+        ScatterFeatureRequirementLoader,
+        NetworkAccessLoader,
+        SchemaDefRequirementLoader,
+        InlineJavascriptRequirementLoader,
+        LoadListingRequirementLoader,
+        DockerRequirementLoader,
+        InitialWorkDirRequirementLoader,
+        SoftwareRequirementLoader,
+        EnvVarRequirementLoader,
+        InplaceUpdateRequirementLoader,
+    )
+)
+array_of_ProcessRequirementProxyLoader: Final = _ArrayLoader(
+    ProcessRequirementProxyLoader
+)
+union_of_None_type_or_array_of_ProcessRequirementProxyLoader_or_CWLObjectTypeLoader: (
+    Final
+) = _UnionLoader(
+    (
+        None_type,
+        array_of_ProcessRequirementProxyLoader,
+        CWLObjectTypeLoader,
+    )
+)
+map_of_union_of_None_type_or_array_of_ProcessRequirementProxyLoader_or_CWLObjectTypeLoader: (
+    Final
+) = _MapLoader(
+    union_of_None_type_or_array_of_ProcessRequirementProxyLoader_or_CWLObjectTypeLoader,
+    "CWLInputFile",
+    "@list",
+    True,
+)
+CWLInputFileLoader: Final = (
+    map_of_union_of_None_type_or_array_of_ProcessRequirementProxyLoader_or_CWLObjectTypeLoader
+)
+SecretsLoader: Final = _RecordLoader(Secrets, None, None)
 ProcessGeneratorLoader: Final = _RecordLoader(ProcessGenerator, None, None)
+MPIRequirementLoader: Final = _RecordLoader(MPIRequirement, None, None)
+CUDARequirementLoader: Final = _RecordLoader(CUDARequirement, None, None)
 LoopInputLoader: Final = _RecordLoader(LoopInput, None, None)
+LoopLoader: Final = _RecordLoader(Loop, None, None)
+ShmSizeLoader: Final = _RecordLoader(ShmSize, None, None)
 array_of_strtype: Final = _ArrayLoader(strtype)
 union_of_None_type_or_strtype_or_array_of_strtype: Final = _UnionLoader(
     (
@@ -4254,22 +4336,6 @@ uri_union_of_None_type_or_strtype_or_ExpressionLoader_True_False_None_True: Fina
         union_of_None_type_or_strtype_or_ExpressionLoader, True, False, None, True
     )
 )
-union_of_CWLTypeLoader_or_InputRecordSchemaLoader_or_InputEnumSchemaLoader_or_InputArraySchemaLoader_or_strtype: (
-    Final
-) = _UnionLoader(
-    (
-        CWLTypeLoader,
-        InputRecordSchemaLoader,
-        InputEnumSchemaLoader,
-        InputArraySchemaLoader,
-        strtype,
-    )
-)
-array_of_union_of_CWLTypeLoader_or_InputRecordSchemaLoader_or_InputEnumSchemaLoader_or_InputArraySchemaLoader_or_strtype: (
-    Final
-) = _ArrayLoader(
-    union_of_CWLTypeLoader_or_InputRecordSchemaLoader_or_InputEnumSchemaLoader_or_InputArraySchemaLoader_or_strtype
-)
 union_of_CWLTypeLoader_or_InputRecordSchemaLoader_or_InputEnumSchemaLoader_or_InputArraySchemaLoader_or_strtype_or_array_of_union_of_CWLTypeLoader_or_InputRecordSchemaLoader_or_InputEnumSchemaLoader_or_InputArraySchemaLoader_or_strtype: (
     Final
 ) = _UnionLoader(
@@ -4307,22 +4373,6 @@ uri_union_of_CWLTypeLoader_or_InputRecordSchemaLoader_or_InputEnumSchemaLoader_o
     True,
     2,
     None,
-)
-union_of_CWLTypeLoader_or_OutputRecordSchemaLoader_or_OutputEnumSchemaLoader_or_OutputArraySchemaLoader_or_strtype: (
-    Final
-) = _UnionLoader(
-    (
-        CWLTypeLoader,
-        OutputRecordSchemaLoader,
-        OutputEnumSchemaLoader,
-        OutputArraySchemaLoader,
-        strtype,
-    )
-)
-array_of_union_of_CWLTypeLoader_or_OutputRecordSchemaLoader_or_OutputEnumSchemaLoader_or_OutputArraySchemaLoader_or_strtype: (
-    Final
-) = _ArrayLoader(
-    union_of_CWLTypeLoader_or_OutputRecordSchemaLoader_or_OutputEnumSchemaLoader_or_OutputArraySchemaLoader_or_strtype
 )
 union_of_CWLTypeLoader_or_OutputRecordSchemaLoader_or_OutputEnumSchemaLoader_or_OutputArraySchemaLoader_or_strtype_or_array_of_union_of_CWLTypeLoader_or_OutputRecordSchemaLoader_or_OutputEnumSchemaLoader_or_OutputArraySchemaLoader_or_strtype: (
     Final
@@ -4362,88 +4412,93 @@ uri_union_of_CWLTypeLoader_or_OutputRecordSchemaLoader_or_OutputEnumSchemaLoader
     2,
     None,
 )
-union_of_CommandInputParameterLoader_or_WorkflowInputParameterLoader_or_OperationInputParameterLoader: (
+union_of_OperationInputParameterLoader_or_CommandInputParameterLoader_or_WorkflowInputParameterLoader: (
     Final
 ) = _UnionLoader(
     (
+        OperationInputParameterLoader,
         CommandInputParameterLoader,
         WorkflowInputParameterLoader,
-        OperationInputParameterLoader,
     )
 )
-array_of_InputParameter: Final = _ArrayLoader(InputParameterProxyLoader)
-idmap_inputs_array_of_InputParameter: Final = _IdMapLoader(
-    array_of_InputParameter, "id", "type"
+array_of_InputParameterProxyLoader: Final = _ArrayLoader(InputParameterProxyLoader)
+idmap_inputs_array_of_InputParameterProxyLoader: Final = _IdMapLoader(
+    array_of_InputParameterProxyLoader, "id", "type"
 )
-union_of_CommandOutputParameterLoader_or_ExpressionToolOutputParameterLoader_or_WorkflowOutputParameterLoader_or_OperationOutputParameterLoader: (
+union_of_WorkflowOutputParameterLoader_or_OperationOutputParameterLoader_or_ExpressionToolOutputParameterLoader_or_CommandOutputParameterLoader: (
     Final
 ) = _UnionLoader(
     (
-        CommandOutputParameterLoader,
-        ExpressionToolOutputParameterLoader,
         WorkflowOutputParameterLoader,
         OperationOutputParameterLoader,
+        ExpressionToolOutputParameterLoader,
+        CommandOutputParameterLoader,
     )
 )
-array_of_OutputParameter: Final = _ArrayLoader(OutputParameterProxyLoader)
-idmap_outputs_array_of_OutputParameter: Final = _IdMapLoader(
-    array_of_OutputParameter, "id", "type"
+array_of_OutputParameterProxyLoader: Final = _ArrayLoader(OutputParameterProxyLoader)
+idmap_outputs_array_of_OutputParameterProxyLoader: Final = _IdMapLoader(
+    array_of_OutputParameterProxyLoader, "id", "type"
 )
-union_of_None_type_or_array_of_ProcessRequirement: Final = _UnionLoader(
-    (
-        None_type,
-        array_of_ProcessRequirement,
-    )
-)
-idmap_requirements_union_of_None_type_or_array_of_ProcessRequirement: Final = (
-    _IdMapLoader(union_of_None_type_or_array_of_ProcessRequirement, "class", "None")
-)
-union_of_InlineJavascriptRequirementLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_DockerRequirementLoader_or_SoftwareRequirementLoader_or_InitialWorkDirRequirementLoader_or_EnvVarRequirementLoader_or_ShellCommandRequirementLoader_or_ResourceRequirementLoader_or_WorkReuseLoader_or_NetworkAccessLoader_or_InplaceUpdateRequirementLoader_or_ToolTimeLimitLoader_or_SubworkflowFeatureRequirementLoader_or_ScatterFeatureRequirementLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_SecretsLoader_or_MPIRequirementLoader_or_CUDARequirementLoader_or_LoopLoader_or_ShmSizeLoader_or_Any_type: (
+union_of_WorkReuseLoader_or_CUDARequirementLoader_or_InlineJavascriptRequirementLoader_or_DockerRequirementLoader_or_LoopLoader_or_InplaceUpdateRequirementLoader_or_ResourceRequirementLoader_or_ShellCommandRequirementLoader_or_ShmSizeLoader_or_ToolTimeLimitLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_ScatterFeatureRequirementLoader_or_SecretsLoader_or_EnvVarRequirementLoader_or_MPIRequirementLoader_or_SubworkflowFeatureRequirementLoader_or_NetworkAccessLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_InitialWorkDirRequirementLoader_or_SoftwareRequirementLoader: (
     Final
 ) = _UnionLoader(
     (
-        InlineJavascriptRequirementLoader,
-        SchemaDefRequirementLoader,
-        LoadListingRequirementLoader,
-        DockerRequirementLoader,
-        SoftwareRequirementLoader,
-        InitialWorkDirRequirementLoader,
-        EnvVarRequirementLoader,
-        ShellCommandRequirementLoader,
-        ResourceRequirementLoader,
         WorkReuseLoader,
-        NetworkAccessLoader,
+        CUDARequirementLoader,
+        InlineJavascriptRequirementLoader,
+        DockerRequirementLoader,
+        LoopLoader,
         InplaceUpdateRequirementLoader,
+        ResourceRequirementLoader,
+        ShellCommandRequirementLoader,
+        ShmSizeLoader,
         ToolTimeLimitLoader,
-        SubworkflowFeatureRequirementLoader,
-        ScatterFeatureRequirementLoader,
         MultipleInputFeatureRequirementLoader,
         StepInputExpressionRequirementLoader,
+        ScatterFeatureRequirementLoader,
         SecretsLoader,
+        EnvVarRequirementLoader,
         MPIRequirementLoader,
-        CUDARequirementLoader,
-        LoopLoader,
-        ShmSizeLoader,
+        SubworkflowFeatureRequirementLoader,
+        NetworkAccessLoader,
+        SchemaDefRequirementLoader,
+        LoadListingRequirementLoader,
+        InitialWorkDirRequirementLoader,
+        SoftwareRequirementLoader,
+    )
+)
+union_of_None_type_or_array_of_ProcessRequirementProxyLoader: Final = _UnionLoader(
+    (
+        None_type,
+        array_of_ProcessRequirementProxyLoader,
+    )
+)
+idmap_requirements_union_of_None_type_or_array_of_ProcessRequirementProxyLoader: (
+    Final
+) = _IdMapLoader(
+    union_of_None_type_or_array_of_ProcessRequirementProxyLoader, "class", "None"
+)
+union_of_ProcessRequirementProxyLoader_or_Any_type: Final = _UnionLoader(
+    (
+        ProcessRequirementProxyLoader,
         Any_type,
     )
 )
-array_of_union_of_InlineJavascriptRequirementLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_DockerRequirementLoader_or_SoftwareRequirementLoader_or_InitialWorkDirRequirementLoader_or_EnvVarRequirementLoader_or_ShellCommandRequirementLoader_or_ResourceRequirementLoader_or_WorkReuseLoader_or_NetworkAccessLoader_or_InplaceUpdateRequirementLoader_or_ToolTimeLimitLoader_or_SubworkflowFeatureRequirementLoader_or_ScatterFeatureRequirementLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_SecretsLoader_or_MPIRequirementLoader_or_CUDARequirementLoader_or_LoopLoader_or_ShmSizeLoader_or_Any_type: (
-    Final
-) = _ArrayLoader(
-    union_of_InlineJavascriptRequirementLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_DockerRequirementLoader_or_SoftwareRequirementLoader_or_InitialWorkDirRequirementLoader_or_EnvVarRequirementLoader_or_ShellCommandRequirementLoader_or_ResourceRequirementLoader_or_WorkReuseLoader_or_NetworkAccessLoader_or_InplaceUpdateRequirementLoader_or_ToolTimeLimitLoader_or_SubworkflowFeatureRequirementLoader_or_ScatterFeatureRequirementLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_SecretsLoader_or_MPIRequirementLoader_or_CUDARequirementLoader_or_LoopLoader_or_ShmSizeLoader_or_Any_type
+array_of_union_of_ProcessRequirementProxyLoader_or_Any_type: Final = _ArrayLoader(
+    union_of_ProcessRequirementProxyLoader_or_Any_type
 )
-union_of_None_type_or_array_of_union_of_InlineJavascriptRequirementLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_DockerRequirementLoader_or_SoftwareRequirementLoader_or_InitialWorkDirRequirementLoader_or_EnvVarRequirementLoader_or_ShellCommandRequirementLoader_or_ResourceRequirementLoader_or_WorkReuseLoader_or_NetworkAccessLoader_or_InplaceUpdateRequirementLoader_or_ToolTimeLimitLoader_or_SubworkflowFeatureRequirementLoader_or_ScatterFeatureRequirementLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_SecretsLoader_or_MPIRequirementLoader_or_CUDARequirementLoader_or_LoopLoader_or_ShmSizeLoader_or_Any_type: (
+union_of_None_type_or_array_of_union_of_ProcessRequirementProxyLoader_or_Any_type: (
     Final
 ) = _UnionLoader(
     (
         None_type,
-        array_of_union_of_InlineJavascriptRequirementLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_DockerRequirementLoader_or_SoftwareRequirementLoader_or_InitialWorkDirRequirementLoader_or_EnvVarRequirementLoader_or_ShellCommandRequirementLoader_or_ResourceRequirementLoader_or_WorkReuseLoader_or_NetworkAccessLoader_or_InplaceUpdateRequirementLoader_or_ToolTimeLimitLoader_or_SubworkflowFeatureRequirementLoader_or_ScatterFeatureRequirementLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_SecretsLoader_or_MPIRequirementLoader_or_CUDARequirementLoader_or_LoopLoader_or_ShmSizeLoader_or_Any_type,
+        array_of_union_of_ProcessRequirementProxyLoader_or_Any_type,
     )
 )
-idmap_hints_union_of_None_type_or_array_of_union_of_InlineJavascriptRequirementLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_DockerRequirementLoader_or_SoftwareRequirementLoader_or_InitialWorkDirRequirementLoader_or_EnvVarRequirementLoader_or_ShellCommandRequirementLoader_or_ResourceRequirementLoader_or_WorkReuseLoader_or_NetworkAccessLoader_or_InplaceUpdateRequirementLoader_or_ToolTimeLimitLoader_or_SubworkflowFeatureRequirementLoader_or_ScatterFeatureRequirementLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_SecretsLoader_or_MPIRequirementLoader_or_CUDARequirementLoader_or_LoopLoader_or_ShmSizeLoader_or_Any_type: (
+idmap_hints_union_of_None_type_or_array_of_union_of_ProcessRequirementProxyLoader_or_Any_type: (
     Final
 ) = _IdMapLoader(
-    union_of_None_type_or_array_of_union_of_InlineJavascriptRequirementLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_DockerRequirementLoader_or_SoftwareRequirementLoader_or_InitialWorkDirRequirementLoader_or_EnvVarRequirementLoader_or_ShellCommandRequirementLoader_or_ResourceRequirementLoader_or_WorkReuseLoader_or_NetworkAccessLoader_or_InplaceUpdateRequirementLoader_or_ToolTimeLimitLoader_or_SubworkflowFeatureRequirementLoader_or_ScatterFeatureRequirementLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_SecretsLoader_or_MPIRequirementLoader_or_CUDARequirementLoader_or_LoopLoader_or_ShmSizeLoader_or_Any_type,
+    union_of_None_type_or_array_of_union_of_ProcessRequirementProxyLoader_or_Any_type,
     "class",
     "None",
 )
@@ -4477,16 +4532,18 @@ SchemaDefRequirement_classLoader: Final = _EnumLoader(
 uri_SchemaDefRequirement_classLoader_False_True_None_None: Final = _URILoader(
     SchemaDefRequirement_classLoader, False, True, None, None
 )
-union_of_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader: (
+union_of_CommandInputEnumSchemaLoader_or_CommandInputRecordSchemaLoader_or_CommandInputArraySchemaLoader: (
     Final
 ) = _UnionLoader(
     (
-        CommandInputRecordSchemaLoader,
         CommandInputEnumSchemaLoader,
+        CommandInputRecordSchemaLoader,
         CommandInputArraySchemaLoader,
     )
 )
-array_of_CommandInputSchema: Final = _ArrayLoader(CommandInputSchemaProxyLoader)
+array_of_CommandInputSchemaProxyLoader: Final = _ArrayLoader(
+    CommandInputSchemaProxyLoader
+)
 union_of_strtype_or_ExpressionLoader: Final = _UnionLoader(
     (
         strtype,
@@ -4535,22 +4592,6 @@ union_of_None_type_or_CommandLineBindingLoader: Final = _UnionLoader(
         CommandLineBindingLoader,
     )
 )
-union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype: (
-    Final
-) = _UnionLoader(
-    (
-        CWLTypeLoader,
-        CommandInputRecordSchemaLoader,
-        CommandInputEnumSchemaLoader,
-        CommandInputArraySchemaLoader,
-        strtype,
-    )
-)
-array_of_union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype: (
-    Final
-) = _ArrayLoader(
-    union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype
-)
 union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype_or_array_of_union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype: (
     Final
 ) = _UnionLoader(
@@ -4592,22 +4633,6 @@ uri_union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnum
     True,
     2,
     None,
-)
-union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype: (
-    Final
-) = _UnionLoader(
-    (
-        CWLTypeLoader,
-        CommandOutputRecordSchemaLoader,
-        CommandOutputEnumSchemaLoader,
-        CommandOutputArraySchemaLoader,
-        strtype,
-    )
-)
-array_of_union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype: (
-    Final
-) = _ArrayLoader(
-    union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype
 )
 union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype_or_array_of_union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype: (
     Final
@@ -4657,46 +4682,11 @@ uri_union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEn
     2,
     None,
 )
-union_of_CWLTypeLoader_or_stdinLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype_or_array_of_union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype: (
-    Final
-) = _UnionLoader(
-    (
-        CWLTypeLoader,
-        stdinLoader,
-        CommandInputRecordSchemaLoader,
-        CommandInputEnumSchemaLoader,
-        CommandInputArraySchemaLoader,
-        strtype,
-        array_of_union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype,
-    )
+typedsl_CommandInputParameterTypeLoader_2: Final = _TypeDSLLoader(
+    CommandInputParameterTypeLoader, 2, "v1.1"
 )
-typedsl_union_of_CWLTypeLoader_or_stdinLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype_or_array_of_union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype_2: (
-    Final
-) = _TypeDSLLoader(
-    union_of_CWLTypeLoader_or_stdinLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype_or_array_of_union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype,
-    2,
-    "v1.1",
-)
-union_of_CWLTypeLoader_or_stdoutLoader_or_stderrLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype_or_array_of_union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype: (
-    Final
-) = _UnionLoader(
-    (
-        CWLTypeLoader,
-        stdoutLoader,
-        stderrLoader,
-        CommandOutputRecordSchemaLoader,
-        CommandOutputEnumSchemaLoader,
-        CommandOutputArraySchemaLoader,
-        strtype,
-        array_of_union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype,
-    )
-)
-typedsl_union_of_CWLTypeLoader_or_stdoutLoader_or_stderrLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype_or_array_of_union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype_2: (
-    Final
-) = _TypeDSLLoader(
-    union_of_CWLTypeLoader_or_stdoutLoader_or_stderrLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype_or_array_of_union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype,
-    2,
-    "v1.1",
+typedsl_CommandOutputParameterTypeLoader_2: Final = _TypeDSLLoader(
+    CommandOutputParameterTypeLoader, 2, "v1.1"
 )
 CommandLineTool_classLoader: Final = _EnumLoader(
     ("CommandLineTool",), "CommandLineTool_class"
@@ -4853,6 +4843,12 @@ union_of_inttype_or_ExpressionLoader: Final = _UnionLoader(
         ExpressionLoader,
     )
 )
+typedsl_OutputParameterTypeLoader_2: Final = _TypeDSLLoader(
+    OutputParameterTypeLoader, 2, "v1.1"
+)
+typedsl_InputParameterTypeLoader_2: Final = _TypeDSLLoader(
+    InputParameterTypeLoader, 2, "v1.1"
+)
 union_of_None_type_or_InputBindingLoader: Final = _UnionLoader(
     (
         None_type,
@@ -4930,26 +4926,25 @@ union_of_None_type_or_array_of_Any_type: Final = _UnionLoader(
 idmap_hints_union_of_None_type_or_array_of_Any_type: Final = _IdMapLoader(
     union_of_None_type_or_array_of_Any_type, "class", "None"
 )
-union_of_strtype_or_CommandLineToolLoader_or_ExpressionToolLoader_or_WorkflowLoader_or_OperationLoader_or_ProcessGeneratorLoader: (
+union_of_WorkflowLoader_or_ExpressionToolLoader_or_CommandLineToolLoader_or_ProcessGeneratorLoader_or_OperationLoader: (
     Final
 ) = _UnionLoader(
     (
-        strtype,
-        CommandLineToolLoader,
-        ExpressionToolLoader,
         WorkflowLoader,
-        OperationLoader,
+        ExpressionToolLoader,
+        CommandLineToolLoader,
         ProcessGeneratorLoader,
+        OperationLoader,
     )
 )
-uri_union_of_strtype_or_CommandLineToolLoader_or_ExpressionToolLoader_or_WorkflowLoader_or_OperationLoader_or_ProcessGeneratorLoader_False_False_None_None: (
-    Final
-) = _URILoader(
-    union_of_strtype_or_CommandLineToolLoader_or_ExpressionToolLoader_or_WorkflowLoader_or_OperationLoader_or_ProcessGeneratorLoader,
-    False,
-    False,
-    None,
-    None,
+union_of_strtype_or_ProcessProxyLoader: Final = _UnionLoader(
+    (
+        strtype,
+        ProcessProxyLoader,
+    )
+)
+uri_union_of_strtype_or_ProcessProxyLoader_False_False_None_None: Final = _URILoader(
+    union_of_strtype_or_ProcessProxyLoader, False, False, None, None
 )
 uri_union_of_None_type_or_strtype_or_array_of_strtype_False_False_0_None: Final = (
     _URILoader(union_of_None_type_or_strtype_or_array_of_strtype, False, False, 0, None)
@@ -5078,7 +5073,6 @@ union_of_CommandLineToolLoader_or_ExpressionToolLoader_or_WorkflowLoader_or_Oper
 
 _loaders.update({
     "DocumentedLoader": None,
-    "ProcessRequirementLoader": union_of_InlineJavascriptRequirementLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_DockerRequirementLoader_or_SoftwareRequirementLoader_or_InitialWorkDirRequirementLoader_or_EnvVarRequirementLoader_or_ShellCommandRequirementLoader_or_ResourceRequirementLoader_or_WorkReuseLoader_or_NetworkAccessLoader_or_InplaceUpdateRequirementLoader_or_ToolTimeLimitLoader_or_SubworkflowFeatureRequirementLoader_or_ScatterFeatureRequirementLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_SecretsLoader_or_MPIRequirementLoader_or_CUDARequirementLoader_or_LoopLoader_or_ShmSizeLoader,
     "LabeledLoader": None,
     "IdentifiedLoader": None,
     "IdentifierRequiredLoader": None,
@@ -5090,10 +5084,11 @@ _loaders.update({
     "IOSchemaLoader": None,
     "InputSchemaLoader": None,
     "OutputSchemaLoader": None,
-    "InputParameterLoader": union_of_CommandInputParameterLoader_or_WorkflowInputParameterLoader_or_OperationInputParameterLoader,
-    "OutputParameterLoader": union_of_CommandOutputParameterLoader_or_ExpressionToolOutputParameterLoader_or_WorkflowOutputParameterLoader_or_OperationOutputParameterLoader,
-    "ProcessLoader": None,
-    "CommandInputSchemaLoader": union_of_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader,
+    "InputParameterLoader": union_of_OperationInputParameterLoader_or_CommandInputParameterLoader_or_WorkflowInputParameterLoader,
+    "OutputParameterLoader": union_of_WorkflowOutputParameterLoader_or_OperationOutputParameterLoader_or_ExpressionToolOutputParameterLoader_or_CommandOutputParameterLoader,
+    "ProcessRequirementLoader": union_of_WorkReuseLoader_or_CUDARequirementLoader_or_InlineJavascriptRequirementLoader_or_DockerRequirementLoader_or_LoopLoader_or_InplaceUpdateRequirementLoader_or_ResourceRequirementLoader_or_ShellCommandRequirementLoader_or_ShmSizeLoader_or_ToolTimeLimitLoader_or_MultipleInputFeatureRequirementLoader_or_StepInputExpressionRequirementLoader_or_ScatterFeatureRequirementLoader_or_SecretsLoader_or_EnvVarRequirementLoader_or_MPIRequirementLoader_or_SubworkflowFeatureRequirementLoader_or_NetworkAccessLoader_or_SchemaDefRequirementLoader_or_LoadListingRequirementLoader_or_InitialWorkDirRequirementLoader_or_SoftwareRequirementLoader,
+    "ProcessLoader": union_of_WorkflowLoader_or_ExpressionToolLoader_or_CommandLineToolLoader_or_ProcessGeneratorLoader_or_OperationLoader,
+    "CommandInputSchemaLoader": union_of_CommandInputEnumSchemaLoader_or_CommandInputRecordSchemaLoader_or_CommandInputArraySchemaLoader,
     "CommandLineBindableLoader": None,
     "SinkLoader": None,
 })
@@ -5108,6 +5103,49 @@ CWLObjectTypeLoader.add_loaders(
         DirectoryLoader,
         array_of_union_of_None_type_or_CWLObjectTypeLoader,
         map_of_union_of_None_type_or_CWLObjectTypeLoader,
+    )
+)
+InputParameterTypeLoader.add_loaders(
+    (
+        CWLTypeLoader,
+        InputRecordSchemaLoader,
+        InputEnumSchemaLoader,
+        InputArraySchemaLoader,
+        strtype,
+        array_of_union_of_CWLTypeLoader_or_InputRecordSchemaLoader_or_InputEnumSchemaLoader_or_InputArraySchemaLoader_or_strtype,
+    )
+)
+OutputParameterTypeLoader.add_loaders(
+    (
+        CWLTypeLoader,
+        OutputRecordSchemaLoader,
+        OutputEnumSchemaLoader,
+        OutputArraySchemaLoader,
+        strtype,
+        array_of_union_of_CWLTypeLoader_or_OutputRecordSchemaLoader_or_OutputEnumSchemaLoader_or_OutputArraySchemaLoader_or_strtype,
+    )
+)
+CommandInputParameterTypeLoader.add_loaders(
+    (
+        CWLTypeLoader,
+        stdinLoader,
+        CommandInputRecordSchemaLoader,
+        CommandInputEnumSchemaLoader,
+        CommandInputArraySchemaLoader,
+        strtype,
+        array_of_union_of_CWLTypeLoader_or_CommandInputRecordSchemaLoader_or_CommandInputEnumSchemaLoader_or_CommandInputArraySchemaLoader_or_strtype,
+    )
+)
+CommandOutputParameterTypeLoader.add_loaders(
+    (
+        CWLTypeLoader,
+        stdoutLoader,
+        stderrLoader,
+        CommandOutputRecordSchemaLoader,
+        CommandOutputEnumSchemaLoader,
+        CommandOutputArraySchemaLoader,
+        strtype,
+        array_of_union_of_CWLTypeLoader_or_CommandOutputRecordSchemaLoader_or_CommandOutputEnumSchemaLoader_or_CommandOutputArraySchemaLoader_or_strtype,
     )
 )
 
