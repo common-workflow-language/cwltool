@@ -21,6 +21,13 @@ def test_newline_in_entry() -> None:
     assert echo(message="hello") == {"out": "CONFIGVAR=hello\n"}
 
 
+def test_v1_0_escaping_same_tool_twice() -> None:
+    """v1.0 escaping applies to every step running the same tool (issue #2217)."""
+    factory = Factory()
+    wf = factory.make(get_data("tests/wf/2217-wf.cwl"))
+    assert wf(msg="hello") == {"out1": "$HOME hello\n", "out2": "$HOME hello\n"}
+
+
 @needs_docker
 def test_empty_file_creation() -> None:
     """An empty file can be created in InitialWorkingDirectory."""

@@ -360,7 +360,11 @@ def update(
         update_to = INTERNAL_VERSION
 
     cdoc, version = checkversion(doc, metadata, enable_dev)
-    originalversion = copy.copy(version)
+    # If the document was already updated (e.g. the same file is loaded a
+    # second time from the loader index), preserve its original version.
+    originalversion = copy.copy(
+        metadata.get(ORIGINAL_CWLVERSION) or cdoc.get(ORIGINAL_CWLVERSION) or version
+    )
 
     nextupdate: Callable[[CommentedMap, Loader, str], tuple[CommentedMap, str]] | None = identity
 
