@@ -1,7 +1,7 @@
 [run]
 branch = True
 source_pkgs = cwltool
-omit = cwltool/run_job.py
+omit = src/cwltool/run_job.py
 
 [report]
 exclude_lines =
@@ -12,4 +12,4 @@ exclude_lines =
     if TYPE_CHECKING:
 ignore_errors = True
 omit =
-    tests/*
+    src/tests/*

@@ -7,7 +7,7 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from setuptools import Extension, setup
+from setuptools import Extension, find_packages, setup
 
 if TYPE_CHECKING:
     from typing import TypeGuard
@@ -31,7 +31,7 @@ def _is_list_of_setuptools_extension(items: list[Any]) -> "TypeGuard[list[Extens
     return all(isinstance(item, Extension) for item in items)
 
 
-def _find_package_data(base: str, globs: list[str], root: str = "cwltool") -> list[str]:
+def _find_package_data(base: str, globs: list[str], root: str = "src/cwltool") -> list[str]:
     """
     Find all interesting data files, for setup(package_data=).
 
@@ -66,7 +66,7 @@ if os.getenv("CWLTOOL_USE_MYPYC", None) == "1":
 
 if USE_MYPYC:
     mypyc_skiplist = tuple(
-        os.path.join("cwltool", x)
+        os.path.join("src/cwltool", x)
         for x in (
             "context.py",  # monkeypatching
             "__init__.py",
@@ -74,6 +74,7 @@ if USE_MYPYC:
             "__main__.py",
             "cwlprov/__init__.py",
             "cuda.py",  # for monkeypatch
+            "env_to_stdout.py",
             "run_job.py",
             "procgenerator.py",  # for ProcessGenerator
             "cwlprov/writablebagfile.py",  # WritableBag is having issues
@@ -81,16 +82,12 @@ if USE_MYPYC:
         )
     )
 
-    everything = [os.path.join("cwltool", x) for x in _find_package_data("cwltool", ["*.py"])]
     # Start with all the .py files
-    all_real_pys = [
-        x for x in everything if not x.startswith(os.path.join("mypy", "typeshed") + os.sep)
+    everything = [
+        os.path.join("src/cwltool", x) for x in _find_package_data("src/cwltool", ["*.py"])
     ]
     # Strip out anything in our skiplist
-    mypyc_targets = [x for x in all_real_pys if x not in mypyc_skiplist]
-
-    # Strip out any test code
-    mypyc_targets = [x for x in mypyc_targets if not x.startswith("tests" + os.sep)]
+    mypyc_targets = [x for x in everything if x not in mypyc_skiplist]
 
     mypyc_targets.sort()
 
@@ -122,30 +119,8 @@ setup(
     ext_modules=ext_modules,
     # platforms='',  # empty as is conveyed by the classifier below
     # license='',  # empty as is conveyed by the classifier below
-    packages=[
-        "cwltool",
-        "cwltool.cwlprov",
-        "cwltool.jshint",
-        "cwltool.rdfqueries",
-        "cwltool.schemas",
-        "cwltool.tests",
-        "cwltool.tests.checker_wf",
-        "cwltool.tests.input_deps",
-        "cwltool.tests.loop",
-        "cwltool.tests.override",
-        "cwltool.tests.reloc",
-        "cwltool.tests.subgraph",
-        "cwltool.tests.test_deps_env",
-        "cwltool.tests.test_deps_env.modulefiles",
-        "cwltool.tests.tmp1.tmp2.tmp3",
-        "cwltool.tests.tmp4.alpha",
-        "cwltool.tests.trs",
-        "cwltool.tests.wf",
-        "cwltool.tests.wf.generator",
-        "cwltool.tests.wf.indir",
-        "cwltool.tests.wf.operation",
-    ],
-    package_dir={"cwltool.tests": "tests"},
+    packages=find_packages(where="src"),
+    package_dir={"cwltool": "src/cwltool"},
     include_package_data=True,
     install_requires=[
         "requests >= 2.6.1",  # >= 2.6.1 to workaround

@@ -16,7 +16,7 @@ testenv*/
 *.sif
 *.so
 .github/
-cwltool/*.so
+src/cwltool/*.so
 *.Dockerfile
 tmp/
 build-cwltool-docker.sh
