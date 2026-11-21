@@ -10,12 +10,14 @@ from typing import IO, Any, cast
 import arcp
 import bagit
 import pytest
+from prov.model import ProvDocument
 from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import DC, DCTERMS, RDF
-from rdflib.term import Literal
+from rdflib.term import Identifier, Literal
 
 import cwltool.cwlprov as provenance
 from cwltool.cwlprov import provenance_constants
+from cwltool.cwlprov.provenance_profile import add_association
 from cwltool.cwlprov.ro import ResearchObject
 from cwltool.cwlprov.writablebagfile import close_ro, write_bag_file
 from cwltool.main import main
@@ -58,6 +60,41 @@ def cwltool(tmp_path: Path, *args: Any, with_orcid: bool = False) -> Path:
         status = main(new_args)
         assert status == 0, f"Failed: cwltool.main({args})"
     return prov_folder
+
+
+def test_association_unqualified_rdf_triple() -> None:
+    """Regression test for https://github.com/common-workflow-language/cwltool/issues/1000
+
+    prov >= 1.5.2 only serializes the qualified form (prov:qualifiedAssociation)
+    of a prov:wasAssociatedWith relation that carries attributes such as
+    prov:plan in its RDF (PROV-O) exports.  cwlprov must still emit the
+    unqualified prov:wasAssociatedWith triple, as cwlprov consumers query it.
+    """
+    doc = ProvDocument()
+    doc.add_namespace("id", "urn:uuid:")
+    doc.add_namespace("wf", "https://example.org/wf#")
+    run_id = "id:00000000-0000-0000-0000-000000000002"
+    engine_id = "id:00000000-0000-0000-0000-000000000001"
+    doc.agent(engine_id)
+    doc.activity(run_id, None, None)
+    add_association(doc, run_id, engine_id, "wf:main")
+    ntriples = doc.serialize(format="rdf", rdf_format="ntriples")
+    g = Graph()
+    g.parse(data=ntriples, format="nt")
+    run = URIRef("urn:uuid:00000000-0000-0000-0000-000000000002")
+    engine = URIRef("urn:uuid:00000000-0000-0000-0000-000000000001")
+    assert (
+        run,
+        PROV.wasAssociatedWith,
+        engine,
+    ) in g, "Unqualified prov:wasAssociatedWith triple missing from RDF export"
+    # the qualified form carrying the plan must still be serialized
+    associations = set(g.objects(run, PROV.qualifiedAssociation))
+    assert associations, "prov:qualifiedAssociation missing from RDF export"
+    plans: set[Identifier] = set()
+    for assoc in associations:
+        plans.update(g.objects(assoc, PROV.hadPlan))
+    assert plans == {URIRef("https://example.org/wf#main")}, "prov:plan lost from association"
 
 
 @needs_docker
