@@ -128,7 +128,7 @@ setup(
         "ruamel.yaml >= 0.16, < 0.20",
         "rdflib >= 4.2.2, < 7.7.0",
         "schema-salad >= 8.10, < 9",
-        "prov == 1.5.1",
+        "prov >= 1.5.1, < 2",  # >= 1.5.2 needs the association fix in cwltool/cwlprov
         "mypy-extensions",
         "psutil >= 5.6.6",
         "coloredlogs",

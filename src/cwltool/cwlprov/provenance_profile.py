@@ -4,6 +4,7 @@ import logging
 import urllib
 import uuid
 from collections.abc import MutableMapping, MutableSequence, Sequence
+from functools import lru_cache
 from io import BytesIO
 from pathlib import PurePath, PurePosixPath
 from typing import TYPE_CHECKING, Any, TypedDict, cast
@@ -56,6 +57,42 @@ class _CWLDirectoryArtifact(CWLArtifact, CWLDirectoryType):
 
 class _CWLFileArtifact(CWLArtifact, CWLFileType):
     pass
+
+
+@lru_cache(maxsize=1)
+def _rdf_serializer_emits_unqualified_association() -> bool:
+    """Check if prov's RDF (PROV-O) serializer emits the unqualified triple.
+
+    Returns True if serializing an association that carries attributes
+    (e.g. ``prov:plan``) also produces the plain ``prov:wasAssociatedWith``
+    triple.  prov 1.5.2 changed the RDF serializer to only emit the
+    qualified form (``prov:qualifiedAssociation``) for such records,
+    see https://github.com/common-workflow-language/cwltool/issues/1000
+    """
+    doc = ProvDocument()
+    doc.add_namespace("id", "urn:uuid:")
+    doc.add_namespace("ex", "https://example.org/")
+    agent = doc.agent("id:00000000-0000-0000-0000-000000000001")
+    activity = doc.activity("id:00000000-0000-0000-0000-000000000002", None, None)
+    doc.wasAssociatedWith(activity, agent, "ex:plan")
+    rdf = cast(str, doc.serialize(format="rdf", rdf_format="ntriples"))
+    uri = PROV["wasAssociatedWith"].uri
+    return uri is not None and uri in rdf
+
+
+def add_association(
+    document: ProvDocument, activity_id: str, agent_id: str, plan: str | None = None
+) -> None:
+    """Record a prov:wasAssociatedWith relation between activity and agent.
+
+    With prov >= 1.5.2 the RDF serializer omits the unqualified
+    ``prov:wasAssociatedWith`` triple when the association has attributes
+    such as a ``prov:plan``, so record a plain association as well to keep
+    the simple triple in the RDF (PROV-O) exports of cwlprov.
+    """
+    document.wasAssociatedWith(activity_id, agent_id, plan)
+    if plan is not None and not _rdf_serializer_emits_unqualified_association():
+        document.wasAssociatedWith(activity_id, agent_id)
 
 
 def copy_job_order(job: Process | JobsType, job_order_object: CWLObjectType) -> CWLObjectType:
@@ -188,7 +225,7 @@ class ProvenanceProfile:
         )
         # association between SoftwareAgent and WorkflowRun
         main_workflow = "wf:main"
-        self.document.wasAssociatedWith(self.workflow_run_uri, self.engine_uuid, main_workflow)
+        add_association(self.document, self.workflow_run_uri, self.engine_uuid, main_workflow)
         self.document.wasStartedBy(
             self.workflow_run_uri, None, self.engine_uuid, datetime.datetime.now()
         )
@@ -244,8 +281,8 @@ class ProvenanceProfile:
             None,
             {PROV_TYPE: WFPROV["ProcessRun"], PROV_LABEL: prov_label},
         )
-        self.document.wasAssociatedWith(
-            process_run_id, self.engine_uuid, str("wf:main/" + process_name)
+        add_association(
+            self.document, process_run_id, self.engine_uuid, str("wf:main/" + process_name)
         )
         self.document.wasStartedBy(process_run_id, None, self.workflow_run_uri, when, None, None)
         return process_run_id
