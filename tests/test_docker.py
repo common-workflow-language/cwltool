@@ -37,6 +37,7 @@ def test_docker_workflow(tmp_path: Path) -> None:
     assert result_code == 0
 
 
+@needs_docker
 def test_docker_iwdr() -> None:
     result_code = main(
         [
