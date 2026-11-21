@@ -36,7 +36,7 @@ mypy = [
 ]
 test = [
   "bagit>=1.6.4,<1.10",
-  "pytest>= 6.2,< 9.3",
+  "pytest>= 9,< 9.3",
   "pytest-xdist>=3.2.0",  # for the worksteal scheduler
   "psutil",  # enhances pytest-xdist to allow "-n logical"
   "pytest-httpserver",
@@ -68,6 +68,10 @@ dev = [
   "pyupgrade",
   "bandit",
 ]
+
+[tool.pytest]
+addopts = ["--numprocesses=logical", "--dist=worksteal", "--report-chars=sfE", "--import-mode=importlib"]
+testpaths = ["tests"]
 
 [tool.cibuildwheel]
 test-sources = ["pyproject.toml", "tests"]
