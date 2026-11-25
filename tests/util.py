@@ -42,16 +42,12 @@ def get_data(filename: str) -> str:
     return str(filepath.resolve())
 
 
+
 SKIP_DOCKER = bool(os.environ.get("SKIP_DOCKER_TESTS")) or not bool(shutil.which("docker"))
-def docker_is_podman() -> bool:
-    try:
-        return "podman" in check_output(["docker", "--version"], text=True)
-    except subprocess.CalledProcessError:
-        return False
 
 needs_docker = pytest.mark.skipif(
-    SKIP_DOCKER or docker_is_podman(),
-    reason="Requires a real docker executable (not podman) on the system path.",
+    SKIP_DOCKER,
+    reason="Requires docker or podman on the system path.",
 )
 
 SKIP_SINGULARITY = bool(os.environ.get("SKIP_SINGULARITY_TESTS")) or not bool(

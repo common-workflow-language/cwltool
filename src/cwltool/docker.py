@@ -78,6 +78,13 @@ def _check_docker_machine_path(path: str | None) -> None:
         )
 
 
+def docker_is_podman() -> bool:
+    try:
+        return "podman" in check_output(["docker", "--version"], text=True)
+    except subprocess.CalledProcessError:
+        return False
+
+
 class DockerCommandLineJob(ContainerCommandLineJob):
     """Runs a :py:class:`~cwltool.job.CommandLineJob` in a software container using the Docker engine."""
 
@@ -367,8 +374,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 runtime.append("--log-driver=none")
 
             euid, egid = docker_vm_id()
-            euid = euid if euid is not None else os.geteuid()
-            egid = egid if egid is not None else os.getgid()
+            # Podman (and rootless Docker) will use subuids if we pass --user
+            if runtimeContext.podman is not None:
+                euid = euid if euid is not None else os.geteuid()
+                egid = egid if egid is not None else os.getgid()
 
             if runtimeContext.no_match_user is False and (euid is not None and egid is not None):
                 runtime.append("--user=%d:%d" % (euid, egid))
