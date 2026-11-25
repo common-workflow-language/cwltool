@@ -379,6 +379,8 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 runtime.append("--log-driver=none")
 
             euid, egid = docker_vm_id()
+            # podman is rootless by default so do not set euid/egid
+            # unless explicitly requested
             if not runtimeContext.podman and not docker_is_podman():
                 euid = euid if euid is not None else os.geteuid()
                 egid = egid if egid is not None else os.getgid()
