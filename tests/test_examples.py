@@ -34,6 +34,7 @@ import cwltool.process
 import cwltool.workflow
 from cwltool.checker import can_assign_src_to_sink
 from cwltool.context import RuntimeContext
+from cwltool.docker import docker_is_podman
 from cwltool.errors import WorkflowException
 from cwltool.main import main
 from cwltool.process import CWL_IANA
@@ -1266,7 +1267,9 @@ def test_cid_file_dir(tmp_path: Path, factor: str) -> None:
         assert error_code == 0
         cidfiles = list(tmp_path.glob("**/*.cid"))
         cidfiles_count = len(cidfiles)
-        assert cidfiles_count == 2, f"Should be 2 cidfiles, but got {cidfiles}"
+        # podman removes cidfiles on exit, so they are not there
+        if not docker_is_podman():
+            assert cidfiles_count == 2, f"Should be 2 cidfiles, but got {cidfiles}"
 
 
 @needs_docker
@@ -1327,7 +1330,9 @@ def test_cid_file_w_prefix(tmp_path: Path, factor: str) -> None:
     stderr = re.sub(r"\s\s+", " ", stderr)
     assert "completed success" in stderr
     assert error_code == 0
-    assert cidfiles_count == 2, f"{list(listing)}/n{stderr}"
+    # podman removes cidfiles on exit, so they are not there
+    if not docker_is_podman():
+        assert cidfiles_count == 2, f"{list(listing)}/n{stderr}"
 
 
 @needs_docker

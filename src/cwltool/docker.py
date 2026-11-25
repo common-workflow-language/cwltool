@@ -363,7 +363,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         runtime.append("--workdir=%s" % (self.builder.outdir))
         if not user_space_docker_cmd:
-            if not runtimeContext.no_read_only:
+            # nvidia-ctk writes CUDA binaries/libraries into the container
+            if not runtimeContext.no_read_only and not self.builder.resources.get(
+                "cudaDeviceCount"
+            ):
                 runtime.append("--read-only=true")
 
             if self.networkaccess:
@@ -387,7 +390,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             runtime.append("--rm")
 
         if self.builder.resources.get("cudaDeviceCount"):
-            runtime.append("--gpus=" + str(self.builder.resources["cudaDeviceCount"]))
+            if runtimeContext.podman or docker_is_podman():
+                # No longer necessary with Podman 5, but Podman 4 is still in Ubuntu LTS
+                runtime.append("--device=nvidia.com/gpu=all")
+            else:
+                runtime.append("--gpus=" + str(self.builder.resources["cudaDeviceCount"]))
 
         cidfile_path: str | None = None
         # add parameters to docker to write a container ID file
