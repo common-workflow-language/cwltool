@@ -110,7 +110,7 @@ class Docker(CheckHolder):
             parts = os.path.split(v)
             return len(parts) == 2 and parts[0] == "/"
 
-        env = {
+        env: EnvChecks = {
             "HOME": HOME,
             "TMPDIR": "/tmp",
             "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
