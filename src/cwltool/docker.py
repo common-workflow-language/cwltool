@@ -10,6 +10,7 @@ import subprocess  # nosec
 import sys
 import threading
 from collections.abc import Callable, MutableMapping, MutableSequence
+from functools import lru_cache
 from io import StringIO  # pylint: disable=redefined-builtin
 from typing import Optional, cast
 
@@ -78,9 +79,10 @@ def _check_docker_machine_path(path: str | None) -> None:
         )
 
 
+@lru_cache(None)
 def docker_is_podman() -> bool:
     try:
-        return "podman" in check_output(["docker", "--version"], text=True)
+        return "podman" in subprocess.check_output(["docker", "--version"], text=True)
     except subprocess.CalledProcessError:
         return False
 
@@ -374,8 +376,7 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 runtime.append("--log-driver=none")
 
             euid, egid = docker_vm_id()
-            # Podman (and rootless Docker) will use subuids if we pass --user
-            if runtimeContext.podman is not None:
+            if not runtimeContext.podman and not docker_is_podman():
                 euid = euid if euid is not None else os.geteuid()
                 egid = egid if egid is not None else os.getgid()
 
