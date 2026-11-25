@@ -211,7 +211,7 @@ jobs:
 
       - name: Set up Podman
         if: ${{ matrix.container == 'podman' }}
-        run: sudo rm -f /usr/bin/docker ; sudo apt-get install -y podman crun
+        run: sudo rm -f /usr/bin/docker ; sudo apt-get install -y podman podman-docker crun
 
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
