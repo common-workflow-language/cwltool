@@ -4,6 +4,7 @@ import json
 import re
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -181,25 +182,25 @@ def test_podman_required_secfile(tmp_path: Path) -> None:
 
 
 def test_docker_is_podman(monkeypatch: pytest.MonkeyPatch) -> None:
-    def raise_fnf(*args, **kwargs):
+    def raise_fnf(*args: Any, **kwargs: Any) -> None:
         raise FileNotFoundError
 
     monkeypatch.setattr(subprocess, "check_output", raise_fnf)
     assert docker_is_podman.__wrapped__() is False
 
-    def raise_cpe(*args, **kwargs):
+    def raise_cpe(*args: Any, **kwargs: Any) -> None:
         raise subprocess.CalledProcessError(returncode=1, cmd="docker")
 
     monkeypatch.setattr(subprocess, "check_output", raise_cpe)
     assert docker_is_podman.__wrapped__() is False
 
-    def return_docker(*args, **kwargs):
+    def return_docker(*args: Any, **kwargs: Any) -> str:
         return " A self-sufficient runtime for containers"
 
     monkeypatch.setattr(subprocess, "check_output", return_docker)
     assert docker_is_podman.__wrapped__() is False
 
-    def return_podman(*args, **kwargs):
+    def return_podman(*args: Any, **kwargs: Any) -> str:
         return "Emulate Docker CLI using podman. Create /etc/containers/nodocker to quiet msg."
 
     monkeypatch.setattr(subprocess, "check_output", return_podman)
