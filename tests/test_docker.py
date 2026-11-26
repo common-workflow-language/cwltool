@@ -2,10 +2,12 @@
 
 import json
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
 
+from cwltool.docker import docker_is_podman
 from cwltool.main import main
 
 from .util import (
@@ -176,6 +178,32 @@ def test_podman_required_secfile(tmp_path: Path) -> None:
         json.loads(stdout)["output"]["secondaryFiles"][0]["checksum"]
         == "sha1$da39a3ee5e6b4b0d3255bfef95601890afd80709"
     )
+
+
+def test_docker_is_podman(monkeypatch: pytest.MonkeyPatch) -> None:
+    def raise_fnf(*args, **kwargs):
+        raise FileNotFoundError
+
+    monkeypatch.setattr(subprocess, "check_output", raise_fnf)
+    assert docker_is_podman.__wrapped__() is False
+
+    def raise_cpe(*args, **kwargs):
+        raise subprocess.CalledProcessError(returncode=1, cmd="docker")
+
+    monkeypatch.setattr(subprocess, "check_output", raise_cpe)
+    assert docker_is_podman.__wrapped__() is False
+
+    def return_docker(*args, **kwargs):
+        return " A self-sufficient runtime for containers"
+
+    monkeypatch.setattr(subprocess, "check_output", return_docker)
+    assert docker_is_podman.__wrapped__() is False
+
+    def return_podman(*args, **kwargs):
+        return "Emulate Docker CLI using podman. Create /etc/containers/nodocker to quiet msg."
+
+    monkeypatch.setattr(subprocess, "check_output", return_podman)
+    assert docker_is_podman.__wrapped__() is True
 
 
 @needs_singularity
