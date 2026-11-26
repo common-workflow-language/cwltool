@@ -42,9 +42,10 @@ def get_data(filename: str) -> str:
 
 
 SKIP_DOCKER = bool(os.environ.get("SKIP_DOCKER_TESTS")) or not bool(shutil.which("docker"))
+
 needs_docker = pytest.mark.skipif(
     SKIP_DOCKER,
-    reason="Requires the docker executable on the system path.",
+    reason="Requires docker or podman-docker on the system path.",
 )
 
 SKIP_SINGULARITY = bool(os.environ.get("SKIP_SINGULARITY_TESTS")) or not bool(

@@ -9,6 +9,7 @@ from typing import Union
 import pytest
 from packaging.version import Version
 
+from cwltool.docker import docker_is_podman
 from cwltool.singularity import get_version
 
 from .util import (
@@ -109,12 +110,15 @@ class Docker(CheckHolder):
             parts = os.path.split(v)
             return len(parts) == 2 and parts[0] == "/"
 
-        return {
+        env: EnvChecks = {
             "HOME": HOME,
             "TMPDIR": "/tmp",
             "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             "HOSTNAME": None,
         }
+        if docker_is_podman():
+            env["container"] = "podman"
+        return env
 
     flags = ["--default-container=docker.io/debian:stable-slim"]
     env_accepts_null = True

@@ -10,6 +10,7 @@ import subprocess  # nosec
 import sys
 import threading
 from collections.abc import Callable, MutableMapping, MutableSequence
+from functools import lru_cache
 from io import StringIO  # pylint: disable=redefined-builtin
 from typing import Optional, cast
 
@@ -76,6 +77,19 @@ def _check_docker_machine_path(path: str | None) -> None:
             "#optional-add-shared-directories for instructions on how to "
             "add this path to your VM.".format(path=path, name=name, mounts=mounts)
         )
+
+
+@lru_cache(None)
+def docker_is_podman() -> bool:
+    """Return ``True`` if ``docker`` is actually ``podman`` in disguise."""
+    try:
+        return "podman" in subprocess.check_output(  # nosec: B603, B607
+            ["docker", "--version"],
+            shell=False,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
 
 
 class DockerCommandLineJob(ContainerCommandLineJob):
@@ -354,7 +368,10 @@ class DockerCommandLineJob(ContainerCommandLineJob):
 
         runtime.append("--workdir=%s" % (self.builder.outdir))
         if not user_space_docker_cmd:
-            if not runtimeContext.no_read_only:
+            # nvidia-ctk writes CUDA binaries/libraries into the container
+            if not runtimeContext.no_read_only and not self.builder.resources.get(
+                "cudaDeviceCount"
+            ):
                 runtime.append("--read-only=true")
 
             if self.networkaccess:
@@ -367,8 +384,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
                 runtime.append("--log-driver=none")
 
             euid, egid = docker_vm_id()
-            euid = euid if euid is not None else os.geteuid()
-            egid = egid if egid is not None else os.getgid()
+            # podman is rootless by default so do not set euid/egid
+            # unless explicitly requested
+            if not runtimeContext.podman and not docker_is_podman():
+                euid = euid if euid is not None else os.geteuid()
+                egid = egid if egid is not None else os.getgid()
 
             if runtimeContext.no_match_user is False and (euid is not None and egid is not None):
                 runtime.append("--user=%d:%d" % (euid, egid))
@@ -377,7 +397,11 @@ class DockerCommandLineJob(ContainerCommandLineJob):
             runtime.append("--rm")
 
         if self.builder.resources.get("cudaDeviceCount"):
-            runtime.append("--gpus=" + str(self.builder.resources["cudaDeviceCount"]))
+            if runtimeContext.podman or docker_is_podman():
+                # No longer necessary with Podman 5, but Podman 4 is still in Ubuntu LTS
+                runtime.append("--device=nvidia.com/gpu=all")
+            else:
+                runtime.append("--gpus=" + str(self.builder.resources["cudaDeviceCount"]))
 
         cidfile_path: str | None = None
         # add parameters to docker to write a container ID file
