@@ -83,8 +83,12 @@ def _check_docker_machine_path(path: str | None) -> None:
 def docker_is_podman() -> bool:
     """Return ``True`` if ``docker`` is actually ``podman`` in disguise."""
     try:
-        return "podman" in subprocess.check_output(["docker", "--version"], shell=False, text=True)
-    except subprocess.CalledProcessError:
+        return "podman" in subprocess.check_output(  # nosec: B603, B607
+            ["docker", "--version"],
+            shell=False,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
 
